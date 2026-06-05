@@ -190,8 +190,10 @@ let warn_no_native_compiler =
 let native_conv_gen (type err) pb sigma env (state, check) t1 t2 =
   Nativelib.link_libraries ();
   let ml_filename, prefix = Nativelib.get_ml_filename () in
+  let mlf_filename, _ = Nativelib.get_mlf_filename () in
   let code, symbols, upds = mk_conv_code env sigma prefix t1 t2 in
   let fn = Nativelib.compile ml_filename code ~profile:false in
+  let _  = Nativelib.compile_mlf (mlf_filename) code ~profile:false in
   debug_native_compiler (fun () -> Pp.str "Running test...");
   let t0 = Sys.time () in
   let (rt1, rt2) = Nativelib.execute_library ~prefix fn symbols upds in
