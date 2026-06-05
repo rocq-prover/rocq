@@ -158,7 +158,7 @@ let freeze_full_state () =
 let unfreeze_full_state st =
   NewProfile.profile "unfreeze_full_state" (fun () ->
       Synterp.unfreeze st.synterp;
-      Interp.unfreeze_interp_state st.interp)
+      if false then Interp.unfreeze_interp_state st.interp)
     ()
 
 (* Compatibility module *)

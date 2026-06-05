@@ -32,6 +32,7 @@ let with_interp_state ~unfreeze_transient st =
 
 let interp_control_gen ~loc ~st ~unfreeze_transient control f =
   let noop = st.Vernacstate.interp.lemmas, st.Vernacstate.interp.program in
+  let () = assert false in
   let control, res =
     VernacControl.under_control ~loc
       ~with_local_state:(with_interp_state ~unfreeze_transient st)
@@ -161,9 +162,9 @@ let interp_gen ~verbosely ~st ~interp_fn cmd =
 let interp ~intern ?(verbosely=true) ~st cmd =
   Vernacstate.unfreeze_full_state st;
   vernac_pperr_endline Pp.(fun () -> str "interpreting: " ++ Ppvernac.pr_vernac_expr cmd.CAst.v.expr);
-  let entry = NewProfile.profile "synterp" (fun () -> Synterp.synterp_control ~intern cmd) () in
-  let interp = NewProfile.profile "interp" (fun () -> interp_gen ~verbosely ~st ~interp_fn:interp_control entry) () in
-  Vernacstate.{ synterp = Vernacstate.Synterp.freeze (); interp }
+  let _ = NewProfile.profile "synterp" (fun () -> Synterp.synterp_control ~intern cmd) () in
+  (* let interp = NewProfile.profile "interp" (fun () -> interp_gen ~verbosely ~st ~interp_fn:interp_control entry) () in *)
+  Vernacstate.{ synterp = Vernacstate.Synterp.freeze (); interp = Vernacstate.Interp.freeze_interp_state()}
 
 let interp_entry ?(verbosely=true) ~st entry =
   Vernacstate.unfreeze_full_state st;

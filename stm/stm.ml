@@ -2054,6 +2054,7 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
             wall_clock_last_fork := Unix.gettimeofday ()
           ), true, true
       | SQed ({ qast = x; keep; brinfo; brname } as qed, eop) ->
+        let keep = VtDrop in
           let rec aux = function
             | ASync (block_start, nodes, name, delegate) -> (fun () ->
                 let keep' = get_vtkeep keep in
