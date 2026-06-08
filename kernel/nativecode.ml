@@ -1827,6 +1827,12 @@ let pp_ldecls fmt ids =
     Format.fprintf fmt " (%a : Nativevalues.t)" pp_lname ids.(i)
   done
 
+let pp_ldecls_mlf fmt ids =
+    let len = Array.length ids in
+    for i = 0 to len - 1 do
+      Format.fprintf fmt " $%a" pp_lname ids.(i)
+    done
+
 let string_of_construct prefix ~constant ind tag =
   let base = if constant then "Int" else "Construct" in
   Format.sprintf "%s%s_%s_%i" prefix base (string_of_ind ind) tag
@@ -2062,16 +2068,15 @@ let pp_mllam_mlf fmt l =
     | MLletrec(defs, body) ->
         Format.fprintf fmt "@[(let (rec @[<2>%a%a@]))@]" pp_letrec_mlf defs
           pp_mllam_mlf body
-    | _ -> Format.fprintf fmt "000"
-    (* 
-    | MLmatch (annot, c, accu_br, br) ->
+    (* | MLmatch (annot, c, accu_br, br) ->
       let ind = annot.asw_ind in
       let prefix = annot.asw_prefix in
       let accu = string_of_accu_construct prefix ind in
       Format.fprintf fmt
         "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  %a@\n%aend@]"
-        pp_mllam c accu pp_mllam accu_br (pp_branches prefix ind) br
-
+        pp_mllam c accu pp_mllam accu_br (pp_branches prefix ind) br *)
+    | _ -> Format.fprintf fmt "000"
+    (* 
     | MLconstruct(prefix,ind,tag,args) ->
         Format.fprintf fmt "@[<2>(Obj.magic@ @[<2>(%s%a)@] : Nativevalues.t)@]"
           (string_of_construct prefix ~constant:false ind tag) pp_cargs args
@@ -2226,11 +2231,6 @@ let pp_mllam_mlf fmt l =
     | Get_proj -> Format.fprintf fmt "(global $Nativecode $get_proj)"
     | Get_symbols -> Format.fprintf fmt "(global $Nativelib $get_symbols)"
     | Lazy -> Format.fprintf fmt "(global $lazy)" (* TODO: verify this *)
-  and pp_ldecls_mlf fmt ids =
-    let len = Array.length ids in
-    for i = 0 to len - 1 do
-      Format.fprintf fmt " $%a" pp_lname ids.(i)
-    done
   in
   Format.fprintf fmt "@[%a@]" pp_mllam_mlf l
 
@@ -2330,8 +2330,14 @@ let pp_global_mlf fmt g =
       Array.iter (pp_const_sig fmt) lar
     in
     Format.fprintf fmt "@[;type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
-  (* | Gopen s ->
-      Format.fprintf fmt "@[open %s@]@." s
+  | Gopen s ->
+      Format.fprintf fmt ";@[open %s@]@." s
+  | Gletcase(gn,params,annot,a,accu,bs) ->
+      Format.fprintf fmt "@[; Hash = %i@\n(rec ($%a (lambda (%a)@\n  %a)))@]@\n@."
+      (hash_global g)
+        pp_gname gn pp_ldecls_mlf params
+        pp_mllam_mlf (MLmatch(annot,a,accu,bs))
+  (*
   | Gtblfixtype (g, params, t) ->
       Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
         pp_ldecls params pp_array t
@@ -2341,11 +2347,7 @@ let pp_global_mlf fmt g =
   | Gtblcofix (g, params, s) ->
       Format.fprintf fmt "@[let %a%a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
         pp_ldecls params pp_cofix (g, s);
-  | Gletcase(gn,params,annot,a,accu,bs) ->
-      Format.fprintf fmt "@[(* Hash = %i *)@\nlet rec %a %a : Nativevalues.t = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@."
-      (hash_global g)
-        pp_gname gn pp_ldecls params
-        pp_mllam (MLmatch(annot,a,accu,bs)) *)
+   *)
   | Gcomment s ->
       List.iter (fun line -> Format.fprintf fmt ";@[ %s @]@." line) (String.split_on_char '\n' s)
   | _ -> ()
