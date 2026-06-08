@@ -1829,6 +1829,7 @@ let pp_ldecls fmt ids =
 
 let pp_ldecls_mlf fmt ids =
     let len = Array.length ids in
+    if len = 0 then Format.fprintf fmt "($_)" else (* argument list cannot be empty in malfunction *)
     for i = 0 to len - 1 do
       Format.fprintf fmt " $%a" pp_lname ids.(i)
     done
@@ -2351,11 +2352,11 @@ let pp_global_mlf fmt g =
         pp_gname gn pp_ldecls_mlf params
         pp_mllam_mlf (MLmatch(annot,a,accu,bs))
   | Gtblfixtype (g, params, t) ->
-      Format.fprintf fmt "@[($%a (lambda (%a)@\n  %a@))]@\n@." pp_gname g
+      Format.fprintf fmt "@[($%a (lambda (%a)@\n  %a))@]@\n@." pp_gname g
         pp_ldecls_mlf params pp_array_mlf t
-  (* | Gtblnorm (g, params, t) ->
-      Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_array t *)
+  | Gtblnorm (g, params, t) ->
+      Format.fprintf fmt "@[($%a (lambda (%a)@\n  %a))@]@\n@." pp_gname g
+        pp_ldecls_mlf params pp_array_mlf t
   (*
   | Gtblcofix (g, params, s) ->
       Format.fprintf fmt "@[let %a%a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
