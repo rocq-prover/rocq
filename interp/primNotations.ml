@@ -220,8 +220,14 @@ let kind c =
   | Proj _ | Case _ | Fix _ | CoFix _ -> TOther
 
 let make env sigma c =
-  let c' = Tacred.compute env sigma c.Environ.uj_val in
-  EConstr.Unsafe.to_constr @@ c'
+  let flags = Environ.typing_flags env in
+  if flags.enable_VM then
+    let flags = Vnorm.{ vm_normalize_params = true } in
+    let c' = Vnorm.cbv_vm ~flags env sigma c.Environ.uj_val c.Environ.uj_type in
+    EConstr.Unsafe.to_constr @@ c'
+  else
+    let c' = Tacred.compute env sigma c.Environ.uj_val in
+    EConstr.Unsafe.to_constr @@ c'
 
 let repr c = c
 
