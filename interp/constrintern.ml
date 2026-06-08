@@ -2585,6 +2585,35 @@ let appexpl self genv env lvar ?loc ((ref,us), args) =
   if args = [] then DAst.make ?loc @@ GApp (f,[])
   else apply_args self genv env lvar loc f (List.map fst args)
 
+let genarg_gen self genv env lvar ?loc gen =
+  let (ltacvars, ntnvars) = lvar in
+  (* Preventively declare notation variables in ltac as non-bindings *)
+  Id.Map.iter (fun x status -> status.Genintern.ntnvar_used_as_binder <- false) ntnvars;
+  let extra = ltacvars.ltac_extra in
+  (* We inform ltac that the interning vars and the notation vars are bound *)
+  (* but we could instead rely on the "intern_sign" *)
+  let lvars = Id.Set.union ltacvars.ltac_bound ltacvars.ltac_vars in
+  let lvars = Id.Set.union lvars (Id.Map.domain ntnvars) in
+  let ltacvars = Id.Set.union lvars env.ids in
+  (* Propagating enough information for mutual interning with tac-in-term *)
+  let intern_sign = {
+    Genintern.intern_ids = env.ids;
+    Genintern.intern_univs = env.local_univs.bound;
+    Genintern.notation_variable_status = ntnvars
+  } in
+  let ist = {
+    Genintern.genv;
+    ltacvars;
+    extra;
+    intern_sign;
+    strict_check = match env.strict_check with None -> false | Some b -> b;
+  } in
+  let intern = if env.pattern_mode
+    then Genintern.generic_intern_pat
+    else Genintern.generic_intern_constr
+  in
+  intern ?loc ist gen
+
 let app self genv env lvar ?loc (f, args) =
   let intern env = intern self genv env lvar in
   let apply_impargs env = apply_impargs self genv env lvar in
@@ -2600,6 +2629,13 @@ let app self genv env lvar ?loc (f, args) =
   | CNotation (_,ntn,ntnargs) ->
     let c = intern_notation intern env (snd lvar) loc ntn ntnargs in
     apply_impargs env loc c args
+  | CGenarg gen ->
+    let f, info = genarg_gen self genv env lvar ?loc:f.loc gen in
+    if info.passthrough_impls then
+      apply_impargs env loc f args
+    else
+      let args = extract_regular_arguments args in
+      apply_args env loc f args
   | _ ->
     let f = intern_no_implicit self genv env lvar f in
     let args = extract_regular_arguments args in
@@ -2746,35 +2782,10 @@ let hole self genv env lvar ?loc k =
   GHole k
 
 let genarg self genv env lvar ?loc gen =
-  let (ltacvars, ntnvars) = lvar in
-  (* Preventively declare notation variables in ltac as non-bindings *)
-  Id.Map.iter (fun x status -> status.Genintern.ntnvar_used_as_binder <- false) ntnvars;
-  let extra = ltacvars.ltac_extra in
-  (* We inform ltac that the interning vars and the notation vars are bound *)
-  (* but we could instead rely on the "intern_sign" *)
-  let lvars = Id.Set.union ltacvars.ltac_bound ltacvars.ltac_vars in
-  let lvars = Id.Set.union lvars (Id.Map.domain ntnvars) in
-  let ltacvars = Id.Set.union lvars env.ids in
-  (* Propagating enough information for mutual interning with tac-in-term *)
-  let intern_sign = {
-    Genintern.intern_ids = env.ids;
-    Genintern.intern_univs = env.local_univs.bound;
-    Genintern.notation_variable_status = ntnvars
-  } in
-  let ist = {
-    Genintern.genv;
-    ltacvars;
-    extra;
-    intern_sign;
-    strict_check = match env.strict_check with None -> false | Some b -> b;
-  } in
-  let intern = if env.pattern_mode
-    then Genintern.generic_intern_pat
-    else Genintern.generic_intern_constr
-  in
-  let glb = intern ?loc ist gen in
-  DAst.make ?loc @@
-  GGenarg glb
+  let c, info = genarg_gen self genv env lvar ?loc gen in
+  if info.passthrough_impls then
+    apply_impargs self genv env lvar loc c []
+  else c
 
 let genargglob self genv env lvar ?loc gen =
   DAst.make ?loc @@ GGenarg gen
