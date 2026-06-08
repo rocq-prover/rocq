@@ -2245,6 +2245,19 @@ let pp_array fmt t =
     Format.fprintf fmt "%a" pp_mllam t.(len - 1);
   Format.fprintf fmt "|]@]"
 
+let pp_array_mlf fmt t =
+  let len = Array.length t in
+  let rec aux i =
+    if i < 0 then Format.fprintf fmt "(makevec 0 0)" else
+    if i = 0 then Format.fprintf fmt "(makevec %i %a)" len pp_mllam_mlf t.(0) else begin
+    Format.fprintf fmt "(store@\n";
+    aux (i-1);
+    Format.fprintf fmt "@\n%i %a)" i pp_mllam_mlf t.(i)
+  end in
+  Format.fprintf fmt "@[<2>";
+  aux (len-1);
+  Format.fprintf fmt "@]"
+
 let pp_cofix fmt (gn, s) =
   let pp_dummy fmt len =
     let dummy = String.concat "; " (List.make len "0") in
@@ -2337,13 +2350,13 @@ let pp_global_mlf fmt g =
       (hash_global g)
         pp_gname gn pp_ldecls_mlf params
         pp_mllam_mlf (MLmatch(annot,a,accu,bs))
-  (*
   | Gtblfixtype (g, params, t) ->
+      Format.fprintf fmt "@[($%a (lambda (%a)@\n  %a@))]@\n@." pp_gname g
+        pp_ldecls_mlf params pp_array_mlf t
+  (* | Gtblnorm (g, params, t) ->
       Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_array t
-  | Gtblnorm (g, params, t) ->
-      Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_array t
+        pp_ldecls params pp_array t *)
+  (*
   | Gtblcofix (g, params, s) ->
       Format.fprintf fmt "@[let %a%a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
         pp_ldecls params pp_cofix (g, s);
