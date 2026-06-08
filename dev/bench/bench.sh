@@ -49,13 +49,13 @@ check_variable () {
 : "${old_coq_version:=dev}"
 : "${num_of_iterations:=1}"
 : "${timeout:=3h}"
-: "${coq_opam_packages:=rocq-stdlib rocq-bignums coq-hott coq-performance-tests-lite coq-engine-bench-lite rocq-elpi rocq-mathcomp-boot rocq-mathcomp-order rocq-mathcomp-ssreflect rocq-mathcomp-finite-group rocq-mathcomp-algebra rocq-mathcomp-solvable rocq-mathcomp-field rocq-mathcomp-group-representation coq-mathcomp-odd-order coq-mathcomp-analysis coq-math-classes coq-corn coq-compcert rocq-equations rocq-metarocq-utils rocq-metarocq-common rocq-metarocq-template rocq-metarocq-pcuic rocq-metarocq-safechecker rocq-metarocq-erasure rocq-metarocq-translations coq-color coq-coqprime coq-coqutil coq-bedrock2 coq-rewriter coq-fiat-core coq-fiat-parsers coq-fiat-crypto-with-bedrock coq-unimath coq-coquelicot coq-iris-examples coq-verdi coq-verdi-raft coq-fourcolor coq-rewriter-perf-SuperFast coq-vst coq-category-theory coq-neural-net-interp-computed-lite}"
+: "${coq_opam_packages:=rocq-stdlib coq-flocq rocq-bignums coq-hott coq-performance-tests-lite coq-engine-bench-lite rocq-elpi rocq-mathcomp-boot rocq-mathcomp-order rocq-mathcomp-ssreflect rocq-mathcomp-finite-group rocq-mathcomp-algebra rocq-mathcomp-solvable rocq-mathcomp-field rocq-mathcomp-group-representation coq-mathcomp-odd-order coq-mathcomp-analysis coq-math-classes coq-corn coq-compcert rocq-equations rocq-metarocq-utils rocq-metarocq-common rocq-metarocq-template rocq-metarocq-pcuic rocq-metarocq-safechecker rocq-metarocq-erasure rocq-metarocq-translations coq-color coq-coqprime coq-coqutil coq-bedrock2 coq-rewriter coq-fiat-core coq-fiat-parsers coq-fiat-crypto-with-bedrock coq-unimath coq-coquelicot coq-iris-examples coq-verdi coq-verdi-raft coq-fourcolor coq-rewriter-perf-SuperFast coq-vst coq-category-theory coq-neural-net-interp-computed-lite}"
 : "${coq_native:=}"
 : "${auto_overlays:=1}"
 
 # example: coq-hott.dev git+https://github.com/some-user/coq-hott#some-branch
 # (make sure to include the version for the opam package, note that just https won't work)
-: "${new_opam_override_urls:=}"
+: "${new_opam_override_urls:=rocq-stdlib.dev git+https://github.com/skyskimmer/rocq-stdlib#idZ}"
 : "${old_opam_override_urls:=}"
 
 if [ "$CI" ]; then
