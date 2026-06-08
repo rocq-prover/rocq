@@ -31,11 +31,6 @@ val get_mlf_filename : unit -> string * string
    whether are in byte mode or not; file is expected to be .ml file *)
 val compile : string -> Nativecode.global list -> profile:bool -> string
 
-(** [compile_mlf file code ~profile] will compile native [code] to [file],
-   and return the name of the object file; this name depends on
-   whether are in byte mode or not; file is expected to be .mlf file *)
-val compile_mlf : string -> Nativecode.global list -> profile:bool -> string
-
 type native_library = Nativecode.global list * Nativevalues.symbols
 
 (** [compile_library (code, _) file] is similar to [compile file code]
