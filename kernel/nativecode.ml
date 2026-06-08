@@ -2050,19 +2050,20 @@ let pp_mllam_mlf fmt l =
     | MLprimitive (p, args) ->
       Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_primitive_mlf p (pp_args_mlf true) args
     | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
-    | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
+    | MLglobal g -> Format.fprintf fmt "@[$%a@]" pp_gname g
     | MLapp(f, args) ->
         Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_mllam_mlf f (pp_args_mlf true) args
     | MLlet(id,def,body) ->
         Format.fprintf fmt "@[(let@ ($%a@ %a)@\n@[<2>%a@])@]"
           pp_lname id pp_mllam_mlf def pp_mllam_mlf body
-    | _ -> Format.fprintf fmt "000"
-    (* | MLletrec(defs, body) ->
-        Format.fprintf fmt "@[(%a@ in@\n%a)@]" pp_letrec defs
-          pp_mllam body
     | MLif(t,l1,l2) ->
-        Format.fprintf fmt "@[(if %a then@\n  %a@\nelse@\n  %a)@]"
-          pp_mllam t pp_mllam l1 pp_mllam l2
+        Format.fprintf fmt "@[(if %a@\n  %a@\n  %a)@]"
+          pp_mllam_mlf t pp_mllam_mlf l1 pp_mllam_mlf l2
+    | MLletrec(defs, body) ->
+        Format.fprintf fmt "@[(let (rec @[<2>%a%a@]))@]" pp_letrec_mlf defs
+          pp_mllam_mlf body
+    | _ -> Format.fprintf fmt "000"
+    (* 
     | MLmatch (annot, c, accu_br, br) ->
       let ind = annot.asw_ind in
       let prefix = annot.asw_prefix in
@@ -2099,19 +2100,7 @@ let pp_mllam_mlf fmt l =
           "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  true@\n| _ ->@\n  false@\nend@]"
         pp_mllam c accu *)
 
-  (* and pp_letrec fmt defs =
-    let len = Array.length defs in
-    let pp_one_rec (fn, argsn, body) =
-      Format.fprintf fmt "%a%a =@\n  %a"
-        pp_lname fn
-        pp_ldecls argsn pp_mllam body in
-    Format.fprintf fmt "@[let rec ";
-    pp_one_rec defs.(0);
-    for i = 1 to len - 1 do
-      Format.fprintf fmt "@\nand ";
-      pp_one_rec defs.(i)
-    done;
-
+  (*
   and pp_cargs fmt args =
     let len = Array.length args in
     match len with
@@ -2157,6 +2146,16 @@ let pp_mllam_mlf fmt l =
     Array.iter pp_branch bs
 
   *)
+  and pp_letrec_mlf fmt defs =
+    let len = Array.length defs in
+    let pp_one_rec (fn, argsn, body) =
+      Format.fprintf fmt "($%a@ %a)"
+        pp_lname fn
+        pp_mllam_mlf (MLlam(argsn, body));
+      Format.fprintf fmt "@\n" in
+    for i = 0 to len - 1 do
+      pp_one_rec defs.(i)
+    done
   and pp_blam_mlf fmt l =
     match l with
     | MLprimitive (_, _) | MLlam _ | MLletrec _ | MLlet _ | MLapp _ | MLif _ ->
