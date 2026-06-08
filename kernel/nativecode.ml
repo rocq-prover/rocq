@@ -2069,6 +2069,22 @@ let pp_mllam_mlf fmt l =
     | MLletrec(defs, body) ->
         Format.fprintf fmt "@[(let (rec @[<2>%a%a@]))@]" pp_letrec_mlf defs
           pp_mllam_mlf body
+    | MLarray arr ->
+      let len = Array.length arr in
+      if Int.equal len 0 then begin
+        Format.fprintf fmt "@[(makevec 0 0)@]"
+      end else if Int.equal len 1 then begin
+        (* We have to emulate a 1-uplet *)
+        Format.fprintf fmt "@[(makevec 1 %a)@]" pp_mllam_mlf arr.(0)
+      end else begin
+        Format.fprintf fmt "@[(block (tag 0)";
+        for i = 0 to len - 1 do
+          Format.fprintf fmt "@ %a" pp_mllam_mlf arr.(i)
+        done;
+        Format.fprintf fmt ")@]"
+      end;
+    | MLsetref (s, body) ->
+        Format.fprintf fmt "@[(store $%s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam_mlf body
     (* | MLmatch (annot, c, accu_br, br) ->
       let ind = annot.asw_ind in
       let prefix = annot.asw_prefix in
@@ -2081,25 +2097,6 @@ let pp_mllam_mlf fmt l =
     | MLconstruct(prefix,ind,tag,args) ->
         Format.fprintf fmt "@[<2>(Obj.magic@ @[<2>(%s%a)@] : Nativevalues.t)@]"
           (string_of_construct prefix ~constant:false ind tag) pp_cargs args
-    | MLsetref (s, body) ->
-        Format.fprintf fmt "@[%s@ :=@\n Some (%a)@]" s pp_mllam body
-    | MLarray arr ->
-      (* We need to ensure that the array does not use the flat representation
-          if ever the first argument is a float *)
-      let len = Array.length arr in
-      if Int.equal len 0 then begin
-        Format.fprintf fmt "@[(Obj.magic [||])@]"
-      end else if Int.equal len 1 then begin
-        (* We have to emulate a 1-uplet *)
-        Format.fprintf fmt "@[(Obj.magic (ref (%a)))@]" pp_mllam arr.(0)
-      end else begin
-        Format.fprintf fmt "@[(Obj.magic (";
-        for i = 0 to len - 2 do
-          Format.fprintf fmt "%a,@ " pp_mllam arr.(i)
-        done;
-        pp_mllam fmt arr.(len-1);
-        Format.fprintf fmt "))@]"
-      end;
     | MLisaccu (prefix, ind, c) ->
         let accu = string_of_accu_construct prefix ind in
         Format.fprintf fmt
