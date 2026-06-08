@@ -2049,17 +2049,17 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam_mlf l1 pp_mllam_mlf l2
     | MLprimitive (p, args) ->
       Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_primitive_mlf p (pp_args_mlf true) args
-    | _ -> Format.fprintf fmt "0"
-    (* | MLlocal ln -> Format.fprintf fmt "@[%a@]" pp_lname ln
+    | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
-    | MLletrec(defs, body) ->
+    | MLapp(f, args) ->
+        Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_mllam_mlf f (pp_args_mlf true) args
+    | MLlet(id,def,body) ->
+        Format.fprintf fmt "@[(let@ ($%a@ %a)@\n@[<2>%a@])@]"
+          pp_lname id pp_mllam_mlf def pp_mllam_mlf body
+    | _ -> Format.fprintf fmt "000"
+    (* | MLletrec(defs, body) ->
         Format.fprintf fmt "@[(%a@ in@\n%a)@]" pp_letrec defs
           pp_mllam body
-    | MLlet(id,def,body) ->
-        Format.fprintf fmt "@[(@[let@ %a@ =@ %a@ in@]@\n%a)@]"
-          pp_lname id pp_mllam def pp_mllam body
-    | MLapp(f, args) ->
-        Format.fprintf fmt "@[<2>%a@ %a@]" pp_mllam f (pp_args true) args
     | MLif(t,l1,l2) ->
         Format.fprintf fmt "@[(if %a then@\n  %a@\nelse@\n  %a)@]"
           pp_mllam t pp_mllam l1 pp_mllam l2
