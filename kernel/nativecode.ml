@@ -2093,7 +2093,11 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt ")@]"
       end;
     | MLsetref (s, body) ->
-        Format.fprintf fmt "@[(store $%s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam_mlf body
+        let s = match s with
+          | "rt1" -> "(global $Nativelib $rt1)" (* we have to do this as there is no other indication of the origin of those variables *)
+          | "rt2" -> "(global $Nativelib $rt2)"
+          | s -> "$"^s in
+        Format.fprintf fmt "@[(store %s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam_mlf body
     (* | MLmatch (annot, c, accu_br, br) ->
       let ind = annot.asw_ind in
       let prefix = annot.asw_prefix in
