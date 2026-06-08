@@ -1829,7 +1829,7 @@ let pp_ldecls fmt ids =
 
 let pp_ldecls_mlf fmt ids =
     let len = Array.length ids in
-    if len = 0 then Format.fprintf fmt "($_)" else (* argument list cannot be empty in malfunction *)
+    if len = 0 then Format.fprintf fmt "$_" else (* argument list cannot be empty in malfunction *)
     for i = 0 to len - 1 do
       Format.fprintf fmt " $%a" pp_lname ids.(i)
     done
@@ -2179,11 +2179,11 @@ let pp_mllam_mlf fmt l =
       done
     end else Format.fprintf fmt "0" (* 0 is () in malfunction *)
   and pp_primitive_mlf fmt = function
-    | Mk_prod -> Format.fprintf fmt "(Global $Nativevalues $mk_prod)"
-    | Mk_sort -> Format.fprintf fmt "(Global $Nativevalues $mk_sort_accu)"
-    | Mk_ind -> Format.fprintf fmt "(Global $Nativevalues $mk_ind_accu)"
-    | Mk_const -> Format.fprintf fmt "(Global $Nativevalues $mk_constant_accu)"
-    | Mk_sw -> Format.fprintf fmt "(Global $Nativevalues $mk_sw_accu)"
+    | Mk_prod -> Format.fprintf fmt "(global $Nativevalues $mk_prod)"
+    | Mk_sort -> Format.fprintf fmt "(global $Nativevalues $mk_sort_accu)"
+    | Mk_ind -> Format.fprintf fmt "(global $Nativevalues $mk_ind_accu)"
+    | Mk_const -> Format.fprintf fmt "(global $Nativevalues $mk_constant_accu)"
+    | Mk_sw -> Format.fprintf fmt "(global $Nativevalues $mk_sw_accu)"
     | Mk_fix(rec_pos,start) -> (* TODO: what is that ??? *)
         let pp_rec_pos fmt rec_pos =
           Format.fprintf fmt "@[[| %i" rec_pos.(0);
@@ -2220,7 +2220,7 @@ let pp_mllam_mlf fmt l =
     | MLparray_of_array -> Format.fprintf fmt "(global $Nativevalues $parray_of_array)"
     | Coq_primitive (op, false) ->
        Format.fprintf fmt "(global $Nativelib $no_check_%s)" (CPrimitives.to_string op)
-    | Coq_primitive (op, true) -> Format.fprintf fmt "(Global $Nativelib $%s)" (CPrimitives.to_string op)
+    | Coq_primitive (op, true) -> Format.fprintf fmt "(global $Nativelib $%s)" (CPrimitives.to_string op)
     | Get_value -> Format.fprintf fmt "(global $Nativecode $get_value)"
     | Get_sort -> Format.fprintf fmt "(global $Nativecode $get_sort)"
     | Get_name -> Format.fprintf fmt "(global $Nativecode $get_name)"
