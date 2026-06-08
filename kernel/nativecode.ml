@@ -2160,10 +2160,10 @@ let pp_mllam_mlf fmt l =
   and pp_blam_mlf fmt l =
     match l with
     | MLprimitive (_, _) | MLlam _ | MLletrec _ | MLlet _ | MLapp _ | MLif _ ->
-        Format.fprintf fmt "(%a)" pp_mllam l
+        Format.fprintf fmt "(%a)" pp_mllam_mlf l
     | MLconstruct(_,_,_,args) when Array.length args > 0 ->
-        Format.fprintf fmt "(%a)" pp_mllam l
-    | _ -> pp_mllam fmt l
+        Format.fprintf fmt "(%a)" pp_mllam_mlf l
+    | _ -> pp_mllam_mlf fmt l
   and pp_args_mlf sep fmt args =
     let sep = if sep then "" else "," in
     let len = Array.length args in
@@ -2174,11 +2174,11 @@ let pp_mllam_mlf fmt l =
       done
     end else Format.fprintf fmt "0" (* 0 is () in malfunction *)
   and pp_primitive_mlf fmt = function
-    | Mk_prod -> Format.fprintf fmt "(Global $Stdlib $mk_prod)"
-    | Mk_sort -> Format.fprintf fmt "(Global $Stdlib $mk_sort_accu)"
-    | Mk_ind -> Format.fprintf fmt "(Global $Stdlib $mk_ind_accu)"
-    | Mk_const -> Format.fprintf fmt "(Global $Stdlib $mk_constant_accu)"
-    | Mk_sw -> Format.fprintf fmt "(Global $Stdlib $mk_sw_accu)"
+    | Mk_prod -> Format.fprintf fmt "(Global $Nativevalues $mk_prod)"
+    | Mk_sort -> Format.fprintf fmt "(Global $Nativevalues $mk_sort_accu)"
+    | Mk_ind -> Format.fprintf fmt "(Global $Nativevalues $mk_ind_accu)"
+    | Mk_const -> Format.fprintf fmt "(Global $Nativevalues $mk_constant_accu)"
+    | Mk_sw -> Format.fprintf fmt "(Global $Nativevalues $mk_sw_accu)"
     | Mk_fix(rec_pos,start) -> (* TODO: what is that ??? *)
         let pp_rec_pos fmt rec_pos =
           Format.fprintf fmt "@[[| %i" rec_pos.(0);
