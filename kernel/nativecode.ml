@@ -1815,17 +1815,20 @@ let string_of_gname g =
   | Gnamed id ->
       Format.sprintf "named_%s" (string_of_id id)
 
+let string_of_gname_mlf g =
+  let name = string_of_gname g in
+  if String.contains name '.' then begin (* the global name comes from a module *)
+    let name = Str.global_replace (Str.regexp_string ".") " $" name in
+    Format.sprintf "(global $%s)" name
+  end else
+  if name = "()" then "0"
+  else Format.sprintf "$%s" name
+
 let pp_gname fmt g =
   Format.fprintf fmt "%s" (string_of_gname g)
 
 let pp_gname_mlf fmt g =
-  let name = string_of_gname g in
-  if String.contains name '.' then begin (* the global name comes from a module *)
-    let name = Str.global_replace (Str.regexp_string ".") " $" name in
-    Format.fprintf fmt "(global $%s)" name
-  end else
-  if name = "()" then Format.fprintf fmt "0"
-  else Format.fprintf fmt "$%s" name
+  Format.fprintf fmt "%s" (string_of_gname_mlf g)
 
 let pp_lname fmt ln =
   Format.fprintf fmt "x_%s_%i" (string_of_name ln.lname) ln.luid
