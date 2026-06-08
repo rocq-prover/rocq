@@ -1824,7 +1824,8 @@ let pp_gname_mlf fmt g =
     let name = Str.global_replace (Str.regexp_string ".") " $" name in
     Format.fprintf fmt "(global $%s)" name
   end else
-  Format.fprintf fmt "$%s" name
+  if name = "()" then Format.fprintf fmt "0"
+  else Format.fprintf fmt "$%s" name
 
 let pp_lname fmt ln =
   Format.fprintf fmt "x_%s_%i" (string_of_name ln.lname) ln.luid
@@ -2167,20 +2168,13 @@ let pp_mllam_mlf fmt l =
     for i = 0 to len - 1 do
       pp_one_rec defs.(i)
     done
-  and pp_blam_mlf fmt l =
-    match l with
-    | MLprimitive (_, _) | MLlam _ | MLletrec _ | MLlet _ | MLapp _ | MLif _ ->
-        Format.fprintf fmt "(%a)" pp_mllam_mlf l
-    | MLconstruct(_,_,_,args) when Array.length args > 0 ->
-        Format.fprintf fmt "(%a)" pp_mllam_mlf l
-    | _ -> pp_mllam_mlf fmt l
   and pp_args_mlf sep fmt args =
     let sep = if sep then "" else "," in
     let len = Array.length args in
     if len > 0 then begin
-      Format.fprintf fmt "%a" pp_blam_mlf args.(0);
+      Format.fprintf fmt "%a" pp_mllam_mlf args.(0);
       for i = 1 to len - 1 do
-        Format.fprintf fmt "%s@ %a" sep pp_blam_mlf args.(i)
+        Format.fprintf fmt "%s@ %a" sep pp_mllam_mlf args.(i)
       done
     end else Format.fprintf fmt "0" (* 0 is () in malfunction *)
   and pp_primitive_mlf fmt = function
