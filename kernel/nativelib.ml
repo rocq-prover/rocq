@@ -183,21 +183,13 @@ let call_compiler ?profile:(profile=false) ml_filename =
 
 let compile fn code ~profile:profile =
   write_ml_code fn code;
+  write_mlf_code (fn ^ "mlf") code;
   let r = call_compiler ~profile fn in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
   delay_cleanup_file fn;
+  delay_cleanup_file (fn ^ "mlf");
   r
-
-  
-let compile_mlf fn code ~profile:_ =
-  write_mlf_code fn code;
-  (* let r = call_compiler ~profile fn in
-  (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
-     cf #15263 *)
-  delay_cleanup_file fn;
-  r *)
-  ""
 
 
 type native_library = Nativecode.global list * Nativevalues.symbols
