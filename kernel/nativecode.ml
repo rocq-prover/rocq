@@ -2065,7 +2065,7 @@ let pp_mllam_mlf fmt l =
     | MLprimitive (p, args) ->
       Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_primitive_mlf p (pp_args_mlf true) args
     | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
-    | MLglobal g -> Format.fprintf fmt "@[$%a@]" pp_gname_mlf g
+    | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname_mlf g
     | MLapp(f, args) ->
         Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_mllam_mlf f (pp_args_mlf true) args
     | MLlet(id,def,body) ->
@@ -2331,7 +2331,7 @@ let pp_global fmt g =
 let pp_global_mlf fmt g =
   match g with
   | Glet (gn, c) ->
-      Format.fprintf fmt "@[( $%a  %a )@]@\n@." pp_gname_mlf gn pp_mllam_mlf c
+      Format.fprintf fmt "@[( %a  %a )@]@\n@." pp_gname_mlf gn pp_mllam_mlf c
   | Gtype (ind, lar) -> (* types are not needed in malfunction, we will leave them as comments *)
     let rec aux s arity =
       if Int.equal arity 0 then s else aux (s^" * Nativevalues.t") (arity-1) in
@@ -2357,10 +2357,10 @@ let pp_global_mlf fmt g =
         pp_gname_mlf gn pp_ldecls_mlf params
         pp_mllam_mlf (MLmatch(annot,a,accu,bs))
   | Gtblfixtype (g, params, t) ->
-      Format.fprintf fmt "@[($%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
+      Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
         pp_ldecls_mlf params pp_array_mlf t
   | Gtblnorm (g, params, t) ->
-      Format.fprintf fmt "@[($%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
+      Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
         pp_ldecls_mlf params pp_array_mlf t
   (*
   | Gtblcofix (g, params, s) ->
