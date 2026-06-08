@@ -195,7 +195,7 @@ let decl_constant na suff univs c =
 
 (* Calling a global tactic *)
 let ltac_call tac (args:glob_tactic_arg list) =
-  CAst.make @@ TacArg (TacCall (CAst.make (ArgArg(Loc.tag @@ Lazy.force tac),args)))
+  CAst.make @@ TacArg (TacCall (CAst.make (ArgArg(Loc.tag tac),args)))
 
 let constr_of sigma v = match Value.to_constr v with
   | Some c -> EConstr.to_constr sigma c
@@ -264,8 +264,7 @@ let cdir = ["Stdlib";plugin_dir]
 
 let znew_ring_path =
   DirPath.make (List.map Id.of_string ["InitialRing";plugin_dir;"Stdlib"])
-let zltac s =
-  lazy(KerName.make (ModPath.MPfile znew_ring_path) (Id.of_string s))
+let zltac s = KerName.make (ModPath.MPfile znew_ring_path) (Id.of_string s)
 
 (* Ring theory *)
 
@@ -512,7 +511,7 @@ let interp_cst_tac env sigma rk kind (zero,one,add,mul,opp) cst_tac =
     | Some (Closed lc) ->
         closed_term_ast (List.map Smartlocate.global_with_alias lc)
     | None ->
-        let t = ArgArg(Loc.tag @@ Lazy.force ltac_inv_morph_nothing) in
+        let t = ArgArg(Loc.tag ltac_inv_morph_nothing) in
               CAst.make (TacArg (TacCall (CAst.make (t,[]))))
 
 let make_hyp env sigma c =
@@ -535,7 +534,7 @@ let interp_power env sigma pow =
   let sigma, carrier = Evd.fresh_global env sigma (rocq_hypo ()) in
   match pow with
   | None ->
-      let t = ArgArg(Loc.tag (Lazy.force ltac_inv_morph_nothing)) in
+      let t = ArgArg(Loc.tag ltac_inv_morph_nothing) in
       let sigma, c = plapp sigma rocq_None [|carrier|] in
       sigma, (CAst.make (TacArg (TacCall (CAst.make (t,[])))), c)
   | Some (tac, spec) ->
@@ -708,7 +707,7 @@ let new_field_path =
   DirPath.make (List.map Id.of_string ["Field_tac";plugin_dir;"Stdlib"])
 
 let field_ltac s =
-  lazy(KerName.make (ModPath.MPfile new_field_path) (Id.of_string s))
+  KerName.make (ModPath.MPfile new_field_path) (Id.of_string s)
 
 
 let _ = add_map "field"

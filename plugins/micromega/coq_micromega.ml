@@ -1047,8 +1047,6 @@ let parse_formula (genv, sigma) parse_atom env tg term =
   in
   xparse_formula prop_op Mc.IsProp env tg (*Reductionops.whd_zeta*) term
 
-(*  let dump_bool b = Lazy.force (if b then rocq_true else rocq_false)*)
-
 let undump_kind sigma k =
   if EConstr.eq_constr sigma k (rocq_IsProp()) then Mc.IsProp
   else Mc.IsBool

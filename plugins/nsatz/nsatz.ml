@@ -124,7 +124,8 @@ let mul = function
   | (Const n,q) when Q.(equal one) n -> q
   | (p,q) -> Mul(p,q)
 
-let gen_constant n = lazy (UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref n))
+let gen_constant n () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref n)
+let force_constant f : constr = f ()
 
 let tpexpr  = gen_constant "plugins.ring.pexpr"
 let ttconst = gen_constant "plugins.ring.const"
@@ -151,14 +152,14 @@ let pxH = gen_constant "num.pos.xH"
 let nN0 = gen_constant "num.N.N0"
 let nNpos = gen_constant "num.N.Npos"
 
-let mkt_app name l =  mkApp (Lazy.force name, Array.of_list l)
+let mkt_app name l =  mkApp (force_constant name, Array.of_list l)
 
-let tlp () = mkt_app tlist [mkt_app tpexpr [Lazy.force tz]]
+let tlp () = mkt_app tlist [mkt_app tpexpr [force_constant tz]]
 let tllp () = mkt_app tlist [tlp()]
 
 let mkt_pos n =
   let rec mkt_pos n =
-  if Z.(equal one) n then Lazy.force pxH
+  if Z.(equal one) n then force_constant pxH
   else if Z.is_even n then
     mkt_app pxO [mkt_pos Z.(n asr 1)]
   else
@@ -167,11 +168,11 @@ let mkt_pos n =
 
 let mkt_n n =
   if Q.(equal zero) n
-  then Lazy.force nN0
+  then force_constant nN0
   else mkt_app nNpos [mkt_pos n]
 
 let mkt_z z  =
-  if Q.(equal zero) z then  Lazy.force z0
+  if Q.(equal zero) z then  force_constant z0
   else if Q.(lt zero) z then
     mkt_app zpos [mkt_pos z]
   else
@@ -180,28 +181,28 @@ let mkt_z z  =
 let rec mkt_term t  =  match t with
 | Zero -> mkt_term (Const Q.zero)
 | Const r -> let n = r |> Q.num |> Q.of_bigint in
-  mkt_app ttconst [Lazy.force tz; mkt_z n]
-| Var v -> mkt_app ttvar [Lazy.force tz; mkt_pos (Q.of_string v)]
-| Opp t1 -> mkt_app  ttopp [Lazy.force tz; mkt_term t1]
-| Add (t1,t2) -> mkt_app  ttadd [Lazy.force tz; mkt_term t1; mkt_term t2]
-| Sub (t1,t2) -> mkt_app  ttsub [Lazy.force tz; mkt_term t1; mkt_term t2]
-| Mul (t1,t2) -> mkt_app  ttmul [Lazy.force tz; mkt_term t1; mkt_term t2]
+  mkt_app ttconst [force_constant tz; mkt_z n]
+| Var v -> mkt_app ttvar [force_constant tz; mkt_pos (Q.of_string v)]
+| Opp t1 -> mkt_app  ttopp [force_constant tz; mkt_term t1]
+| Add (t1,t2) -> mkt_app  ttadd [force_constant tz; mkt_term t1; mkt_term t2]
+| Sub (t1,t2) -> mkt_app  ttsub [force_constant tz; mkt_term t1; mkt_term t2]
+| Mul (t1,t2) -> mkt_app  ttmul [force_constant tz; mkt_term t1; mkt_term t2]
 | Pow (t1,n) ->  if Int.equal n 0 then
-    mkt_app ttconst [Lazy.force tz; mkt_z Q.one]
+    mkt_app ttconst [force_constant tz; mkt_z Q.one]
 else
-    mkt_app ttpow [Lazy.force tz; mkt_term t1; mkt_n (Q.of_int n)]
+    mkt_app ttpow [force_constant tz; mkt_term t1; mkt_n (Q.of_int n)]
 
 let rec parse_pos p =
   match Constr.kind p with
 | App (a,[|p2|]) ->
-    if Constr.equal a (Lazy.force pxO) then Q.(mul (of_int 2)) (parse_pos p2)
+    if Constr.equal a (force_constant pxO) then Q.(mul (of_int 2)) (parse_pos p2)
     else Q.(add one) Q.(mul (of_int 2) (parse_pos p2))
 | _ -> Q.one
 
 let parse_z z =
   match Constr.kind z with
 | App (a,[|p2|]) ->
-    if Constr.equal a (Lazy.force zpos) then parse_pos p2 else Q.neg (parse_pos p2)
+    if Constr.equal a (force_constant zpos) then parse_pos p2 else Q.neg (parse_pos p2)
 | _ -> Q.zero
 
 let parse_n z =
@@ -213,15 +214,15 @@ let parse_n z =
 let rec parse_term p =
   match Constr.kind p with
 | App (a,[|_;p2|]) ->
-    if Constr.equal a (Lazy.force ttvar) then Var (Q.to_string (parse_pos p2))
-    else if Constr.equal a (Lazy.force ttconst) then Const (parse_z p2)
-    else if Constr.equal a (Lazy.force ttopp) then Opp (parse_term p2)
+    if Constr.equal a (force_constant ttvar) then Var (Q.to_string (parse_pos p2))
+    else if Constr.equal a (force_constant ttconst) then Const (parse_z p2)
+    else if Constr.equal a (force_constant ttopp) then Opp (parse_term p2)
     else Zero
 | App (a,[|_;p2;p3|]) ->
-    if Constr.equal a (Lazy.force ttadd) then Add (parse_term p2, parse_term p3)
-    else if Constr.equal a (Lazy.force ttsub) then Sub (parse_term p2, parse_term p3)
-    else if Constr.equal a (Lazy.force ttmul) then Mul (parse_term p2, parse_term p3)
-    else if Constr.equal a (Lazy.force ttpow) then
+    if Constr.equal a (force_constant ttadd) then Add (parse_term p2, parse_term p3)
+    else if Constr.equal a (force_constant ttsub) then Sub (parse_term p2, parse_term p3)
+    else if Constr.equal a (force_constant ttmul) then Mul (parse_term p2, parse_term p3)
+    else if Constr.equal a (force_constant ttpow) then
       Pow (parse_term p2, Q.to_int (parse_n p3))
     else Zero
 | _ -> Zero
@@ -521,9 +522,9 @@ let nsatz lpol =
          let ltterm =
            List.fold_right
              (fun t r ->
-                mkt_app lcons [mkt_app tpexpr [Lazy.force tz];t;r])
+                mkt_app lcons [mkt_app tpexpr [force_constant tz];t;r])
              lt
-             (mkt_app lnil [mkt_app tpexpr [Lazy.force tz]]) in
+             (mkt_app lnil [mkt_app tpexpr [force_constant tz]]) in
          mkt_app lcons [tlp ();ltterm;r])
       res
       (mkt_app lnil [tlp ()]) in
