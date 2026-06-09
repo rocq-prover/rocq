@@ -2089,19 +2089,9 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt "@[(let (rec @[<2>%a%a@]))@]" pp_letrec_mlf defs
           pp_mllam_mlf body
     | MLarray arr ->
-      let len = Array.length arr in
-      if Int.equal len 0 then begin
-        Format.fprintf fmt "@[(makevec 0 0)@]"
-      end else if Int.equal len 1 then begin
-        (* We have to emulate a 1-uplet *)
-        Format.fprintf fmt "@[(makevec 1 %a)@]" pp_mllam_mlf arr.(0)
-      end else begin
-        Format.fprintf fmt "@[(block (tag 0)";
-        for i = 0 to len - 1 do
-          Format.fprintf fmt "@ %a" pp_mllam_mlf arr.(i)
-        done;
-        Format.fprintf fmt ")@]"
-      end;
+      Format.fprintf fmt "@[(block (tag 0)";
+      Array.iter (Format.fprintf fmt "@ %a" pp_mllam_mlf) arr;
+      Format.fprintf fmt ")@]"
     | MLsetref (s, body) ->
         let s = match s with
           | "rt1" -> "(global $Nativelib $rt1)" (* we have to do this as there is no other indication of the origin of those variables *)
@@ -2110,7 +2100,7 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt "@[(store %s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam_mlf body
     | MLmatch (_, c, accu_br, br) ->
       Format.fprintf fmt (* accumulator is always tag 0 *)
-        "@[(let ($matched_value %a) (switch $matched_value @\n  ((tag 0)@\n  %a)@\n%a))@]"
+        "@[(let ($matched_value %a) (switch $matched_value @\n@ @ ((tag 0)@\n@ @ %a)@\n  @[%a@]))@]"
         pp_mllam_mlf c pp_mllam_mlf accu_br pp_branches_mlf br
     | MLconstruct(_,_,tag,[||]) -> (* not a construct but a constant *)
         Format.fprintf fmt "%i"
