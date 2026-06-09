@@ -1979,11 +1979,23 @@ let get_used_variables pf = pf.using
 
 let definition_scope ps = ps.pinfo.info.scope
 
+let { Goptions.get = auto_clear } =
+  Goptions.declare_bool_option_and_ref ~key:["Proof";"Using";"Clear";"Unused"]
+    ~value:false
+    ()
+
 let set_used_variables ps ~using =
   let open Context.Named.Declaration in
-  let () = if not (Option.is_empty ps.using) then
+  let using = match ps.using, using with
+    | None, Some using -> Some using
+    | Some using, None -> Some using
+    | Some _, Some _ ->
       CErrors.user_err Pp.(str "Used section variables can be declared only once.")
+    | None, None -> None
   in
+  match using with
+  | None -> ps
+  | Some using ->
   let env = Global.env () in
   let kept = Environ.really_needed env using in
   let vars_of = Environ.global_vars_set in
@@ -2000,7 +2012,8 @@ let set_used_variables ps ~using =
   let kept =
     Environ.fold_named_context aux env ~init:kept
   in
-  { ps with using = Some kept }
+  let proof = if auto_clear() then Proof.set_used_variables env ~kept ps.proof else ps.proof in
+  { ps with proof; using = Some kept }
 
 let interpret_proof_using pstate using =
   let env = Global.env () in
@@ -2011,7 +2024,7 @@ let interpret_proof_using pstate using =
   Proof_using.definition_using env sigma ~using ~terms
 
 let set_proof_using pstate using =
-  let using = interpret_proof_using pstate using in
+  let using = Option.map (interpret_proof_using pstate) using in
   set_used_variables pstate ~using
 
 let get_open_goals ps =

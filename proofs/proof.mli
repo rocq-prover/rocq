@@ -209,3 +209,13 @@ val get_goal_context_gen : t -> int -> Evd.evar_map * Environ.env
 val get_proof_context : t -> Evd.evar_map * Environ.env
 
 val purge_side_effects : t -> t * Evd.side_effects
+
+(** [set_used_variables env kept p] clears variables not in [kept]
+    from the proof terms, with an error if this is impossible
+    (eg "#[refine]" with the refine term using a forbidden
+    variable). *)
+val set_used_variables : Environ.env -> kept:Names.Id.Set.t -> t -> t
+
+(** Exposed for printing *)
+exception ProofUsingClearDependency of
+    Environ.env * Evd.evar_map * Names.Id.t * Evarutil.clear_dependency_error * Names.GlobRef.t option
