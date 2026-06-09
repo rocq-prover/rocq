@@ -448,6 +448,17 @@ The following options modify the behavior of ``Proof using``.
    invalid value will generate an error on a subsequent :cmd:`Proof`
    or :cmd:`Qed` command.
 
+.. flag:: Proof Using Clear Unused
+
+   When this :term:`flag` is on, :cmd:`Proof using` automatically
+   clears variables which are not allowed by the `using` expression.
+
+.. note::
+
+   When used variables are specified through :opt:`Default Proof
+   Using` or :attr:`using`, :flag:`Proof Using Clear Unused` only
+   takes effect at the :cmd:`Proof` command. If that command is left
+   implicit, no clearing occurs even when the flag is on.
 
 .. flag:: Suggest Proof Using
 

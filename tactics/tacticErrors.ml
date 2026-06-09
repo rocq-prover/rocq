@@ -76,6 +76,15 @@ let clear_dependency_msg env sigma id err inglobal =
       str "Cannot remove " ++ ppid id ++ str " as it would leave the existential " ++
       Printer.pr_existential_key env sigma ev ++ str" without candidates."
 
+let proof_using_clear_dependency_msg env sigma id err inglobal =
+  let msg =
+    match err with
+    | Evarutil.OccurHypInSimpleClause None ->
+      Id.print id ++ str " is used" ++ clear_in_global_msg inglobal ++ str " in the proof."
+    | _ -> clear_dependency_msg env sigma (Some id) err inglobal
+  in
+  str "Invalid \"Proof using\":" ++ spc() ++ msg
+
 let replacing_dependency_msg env sigma id err inglobal =
   let pp = clear_in_global_msg inglobal in
   match err with
@@ -118,6 +127,8 @@ exception Unhandled
 let tactic_interp_error_handler = function
   | IntroAlreadyDeclared id ->
       Id.print id ++ str " is already declared."
+  | Proof.ProofUsingClearDependency (env, sigma, id, err, inglobal) ->
+    proof_using_clear_dependency_msg env sigma id err inglobal
   | ClearDependency (env,sigma,id,err,inglobal) ->
       clear_dependency_msg env sigma id err inglobal
   | ReplacingDependency (env,sigma,id,err,inglobal) ->
