@@ -2059,7 +2059,8 @@ let pp_mllam_mlf fmt l =
 
   let rec pp_mllam_mlf fmt l =
     match l with
-    | MLint i -> pp_int fmt i
+    | MLint i when i >= 0 -> pp_int fmt i
+    | MLint i -> Format.fprintf fmt "(neg %i)" (-i) (* i < 0 *)
     | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile_mlf i)
     | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile_mlf f)
     | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile_mlf s)
