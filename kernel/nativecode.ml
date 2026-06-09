@@ -2061,11 +2061,11 @@ let pp_mllam_mlf fmt l =
     match l with
     | MLint i when i >= 0 -> pp_int fmt i
     | MLint i -> Format.fprintf fmt "(neg %i)" (-i) (* i < 0 *)
-    | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile_mlf i)
-    | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile_mlf f)
-    | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile_mlf s)
+    | MLuint i -> Format.fprintf fmt "%s" (Uint63.compile_mlf i)
+    | MLfloat f -> Format.fprintf fmt "%s" (Float64.compile_mlf f)
+    | MLstring s -> Format.fprintf fmt "%s" (Pstring.compile_mlf s)
     | MLlam(ids,body) ->
-        Format.fprintf fmt "@[(lambda (%a) @ %a)@]"
+        Format.fprintf fmt "@[<2>(lambda (%a) @ %a)@]"
           pp_ldecls_mlf ids pp_mllam_mlf body
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam_mlf l1 pp_mllam_mlf l2
@@ -2076,7 +2076,7 @@ let pp_mllam_mlf fmt l =
     | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname_mlf g
     | MLapp(f, [||]) -> (* not an application and instead simply a function *)
-        Format.fprintf fmt "@[%a@]" pp_mllam_mlf f
+        Format.fprintf fmt "%a" pp_mllam_mlf f
     | MLapp(f, args) ->
         Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_mllam_mlf f pp_args_mlf args
     | MLlet(id,def,body) ->
@@ -2100,7 +2100,7 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt "@[(store %s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam_mlf body
     | MLmatch (_, c, accu_br, br) ->
       Format.fprintf fmt (* accumulator is always tag 0 *)
-        "@[(let ($matched_value %a) (switch $matched_value @\n@ @ ((tag 0)@\n@ @ %a)@\n  @[%a@]))@]"
+        "@[(let ($matched_value %a) (switch $matched_value @\n@ @ ((tag 0)@\n    %a)@\n  @[%a@]))@]"
         pp_mllam_mlf c pp_mllam_mlf accu_br pp_branches_mlf br
     | MLconstruct(_,_,tag,[||]) -> (* not a construct but a constant *)
         Format.fprintf fmt "%i"
@@ -2123,16 +2123,16 @@ let pp_mllam_mlf fmt l =
     done
   and pp_branches_mlf fmt bs =
     let rec pp_branch fmt (cargs,body) =
-      let pp_pat fmt = function
-        | ConstPattern i ->
-          Format.fprintf fmt "%i (let" i
-        | NonConstPattern (tag,args) ->
-          Format.fprintf fmt "(tag %i) (let%a"
-            tag pp_cparams_mlf args in
+      let pp_pat_and_block fmt = function
+        | ConstPattern i, body ->
+          Format.fprintf fmt "%i %a" i pp_mllam_mlf body
+        | NonConstPattern (tag,args), body ->
+          Format.fprintf fmt "@[<2>(tag %i) (let%a@\n%a)@]"
+            tag pp_cparams_mlf args pp_mllam_mlf body in
       match cargs with
       | [] -> ()
       | pat::pats -> (* be duplicate the branches because there is no simpler alternative to due to match bindings *)
-        Format.fprintf fmt "(%a@\n  %a))@\n%a" pp_pat pat pp_mllam_mlf body pp_branch (pats, body)
+        Format.fprintf fmt "(%a)@\n%a" pp_pat_and_block (pat, body) pp_branch (pats, body)
     in
     Array.iter (pp_branch fmt) bs
   and pp_letrec_mlf fmt defs =
@@ -2160,17 +2160,9 @@ let pp_mllam_mlf fmt l =
     | Mk_const -> Format.fprintf fmt "(global $Nativevalues $mk_constant_accu)"
     | Mk_sw -> Format.fprintf fmt "(global $Nativevalues $mk_sw_accu)"
     | Mk_fix(rec_pos,start) ->
-        let len = Array.length rec_pos in
-        let rec pp_array_part i =
-          if i < 0 then Format.fprintf fmt "(makevec 0 0)" else
-          if i = 0 then Format.fprintf fmt "(makevec %i %i)" len rec_pos.(0) else begin
-          Format.fprintf fmt "(store@\n";
-          pp_array_part (i-1);
-          Format.fprintf fmt "@%i %i)" i rec_pos.(i)
-        end in
-        Format.fprintf fmt "(apply (global $Nativevalues $mk_fix_accu) @[";
-        pp_array_part (len-1);
-        Format.fprintf fmt "@] %i)" start
+        Format.fprintf fmt "@[<2>(apply (global $Nativevalues $mk_fix_accu) (block (tag 0)";
+        Array.iter (fun i -> Format.fprintf fmt "@\n%a" pp_mllam_mlf (MLint i)) rec_pos;
+        Format.fprintf fmt ")@]@\n %i)" start
     | Mk_cofix(start) -> Format.fprintf fmt "(apply (global $Nativevalues $mk_cofix_accu) %i)" start
     | Mk_rel i -> Format.fprintf fmt "(apply (global $Nativevalues $mk_rel_accu) %i)" i
     | Mk_var id ->
@@ -2226,9 +2218,9 @@ let pp_array fmt t =
   Format.fprintf fmt "|]@]"
 
 let pp_array_mlf fmt t =
-  Format.fprintf fmt "@[<2>(block (tag 0) ";
+  Format.fprintf fmt "(block (tag 0)";
   Array.iter (Format.fprintf fmt "@ %a" pp_mllam_mlf) t;
-  Format.fprintf fmt ")@]"
+  Format.fprintf fmt ")"
 
 let pp_cofix fmt (gn, s) =
   let pp_dummy fmt len =
@@ -2328,16 +2320,16 @@ let pp_global_mlf fmt g =
         pp_gname_mlf gn pp_ldecls_mlf params
         pp_mllam_mlf (MLmatch(annot,a,accu,bs))
   | Gtblfixtype (g, [||], t) -> (* not a function but a definition *)
-      Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname_mlf g
+      Format.fprintf fmt "@[<2>(%a %a)@]@\n@." pp_gname_mlf g
         pp_array_mlf t
   | Gtblfixtype (g, params, t) ->
-      Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
+      Format.fprintf fmt "@[<2>(%a (lambda (%a)@\n%a))@]@\n@." pp_gname_mlf g
         pp_ldecls_mlf params pp_array_mlf t
   | Gtblnorm (g, [||], t) -> (* not a function but a definition *)
-      Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname_mlf g
+      Format.fprintf fmt "@[<2>(%a %a)@]@\n@." pp_gname_mlf g
         pp_array_mlf t
   | Gtblnorm (g, params, t) ->
-      Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
+      Format.fprintf fmt "@[<2>(%a (lambda (%a)@\n%a))@]@\n@." pp_gname_mlf g
         pp_ldecls_mlf params pp_array_mlf t
   | Gtblcofix (g, [||], s) -> (* not a function but a definition *)
       Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname_mlf g
