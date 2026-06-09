@@ -2101,13 +2101,10 @@ let pp_mllam_mlf fmt l =
           | "rt2" -> "(global $Nativelib $rt2)"
           | s -> "$"^s in
         Format.fprintf fmt "@[(store %s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam_mlf body
-    (* | MLmatch (annot, c, accu_br, br) ->
-      let ind = annot.asw_ind in
-      let prefix = annot.asw_prefix in
-      let accu = string_of_accu_construct prefix ind in
-      Format.fprintf fmt
-        "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  %a@\n%aend@]"
-        pp_mllam c accu pp_mllam accu_br (pp_branches prefix ind) br *)
+    | MLmatch (_, c, accu_br, br) ->
+      Format.fprintf fmt (* accumulator is always tag 0 *)
+        "@[(let ($matched_value %a) (switch $matched_value @\n ((tag 0)@\n  %a)@\n%a))@]"
+        pp_mllam_mlf c pp_mllam_mlf accu_br pp_branches_mlf br
     | _ -> Format.fprintf fmt "000"
     (* 
     | MLconstruct(prefix,ind,tag,args) ->
@@ -2127,44 +2124,30 @@ let pp_mllam_mlf fmt l =
     | 1 -> Format.fprintf fmt "@ %a" pp_blam args.(0)
     | _ -> Format.fprintf fmt "@ @[<2>(%a)@]" (pp_args false) args
 
-  and pp_cparam fmt param =
+  *)
+  and pp_cparam_mlf fmt param =
     match param with
-    | Some l -> pp_mllam fmt (MLlocal l)
+    | Some l -> pp_mllam_mlf fmt (MLlocal l)
     | None -> Format.fprintf fmt "_"
-
-  and pp_cparams fmt params =
+  and pp_cparams_mlf fmt params =
     let len = Array.length params in
-    match len with
-    | 0 -> ()
-    | 1 -> Format.fprintf fmt " %a" pp_cparam params.(0)
-    | _ ->
-        let aux fmt params =
-          Format.fprintf fmt "%a" pp_cparam params.(0);
-          for i = 1 to len - 1 do
-            Format.fprintf fmt ",%a" pp_cparam params.(i)
-          done in
-        Format.fprintf fmt "(%a)" aux params
-
-  and pp_branches prefix ind fmt bs =
-    let pp_branch (cargs,body) =
+    for i = 0 to len - 1 do
+      Format.fprintf fmt " ($%a (field $matched_value %i))" pp_cparam_mlf params.(i) i
+    done
+  and pp_branches_mlf fmt bs =
+    let rec pp_branch fmt (cargs,body) =
       let pp_pat fmt = function
         | ConstPattern i ->
-          Format.fprintf fmt "| %s "
-            (string_of_construct prefix ~constant:true ind i)
+          Format.fprintf fmt "%i (let" i
         | NonConstPattern (tag,args) ->
-          Format.fprintf fmt "| %s%a "
-            (string_of_construct prefix ~constant:false ind tag) pp_cparams args in
-      let rec pp_pats fmt pats =
-        match pats with
-        | [] -> ()
-        | pat::pats ->
-          Format.fprintf fmt "%a%a" pp_pat pat pp_pats pats
-      in
-      Format.fprintf fmt "%a ->@\n  %a@\n" pp_pats cargs pp_mllam body
+          Format.fprintf fmt "(tag %i) (let%a"
+            tag pp_cparams_mlf args in
+      match cargs with
+      | [] -> ()
+      | pat::pats -> (* be duplicate the branches because there is no simpler alternative to due to match bindings *)
+        Format.fprintf fmt "(%a@\n  %a))@\n%a" pp_pat pat pp_mllam_mlf body pp_branch (pats, body)
     in
-    Array.iter pp_branch bs
-
-  *)
+    Array.iter (pp_branch fmt) bs
   and pp_letrec_mlf fmt defs =
     let len = Array.length defs in
     let pp_one_rec (fn, argsn, body) =
