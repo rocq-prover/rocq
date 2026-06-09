@@ -1821,8 +1821,10 @@ let string_of_gname_mlf g =
     let name = Str.global_replace (Str.regexp_string ".") " $" name in
     Format.sprintf "(global $%s)" name
   end else
-  if name = "()" then "0"
-  else Format.sprintf "$%s" name
+  match name with
+  | "()" -> "0"
+  | "_" -> "_"
+  | _ -> Format.sprintf "$%s" name
 
 let pp_gname fmt g =
   Format.fprintf fmt "%s" (string_of_gname g)
@@ -2070,6 +2072,8 @@ let pp_mllam_mlf fmt l =
       Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_primitive_mlf p (pp_args_mlf true) args
     | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname_mlf g
+    | MLapp(f, [||]) -> (* not an application and instead simply a function *)
+        Format.fprintf fmt "@[%a@]" pp_mllam_mlf f
     | MLapp(f, args) ->
         Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_mllam_mlf f (pp_args_mlf true) args
     | MLlet(id,def,body) ->
@@ -2349,9 +2353,15 @@ let pp_global_mlf fmt g =
       (hash_global g)
         pp_gname_mlf gn pp_ldecls_mlf params
         pp_mllam_mlf (MLmatch(annot,a,accu,bs))
+  | Gtblfixtype (g, [||], t) -> (* not a function but a definition *)
+      Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname_mlf g
+        pp_array_mlf t
   | Gtblfixtype (g, params, t) ->
       Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
         pp_ldecls_mlf params pp_array_mlf t
+  | Gtblnorm (g, [||], t) -> (* not a function but a definition *)
+      Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname_mlf g
+        pp_array_mlf t
   | Gtblnorm (g, params, t) ->
       Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
         pp_ldecls_mlf params pp_array_mlf t
