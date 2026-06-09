@@ -1912,7 +1912,7 @@ let pp_mllam fmt l =
     for i = 1 to len - 1 do
       Format.fprintf fmt "@\nand ";
       pp_one_rec defs.(i)
-    done;
+    done
 
   and pp_blam fmt l =
     match l with
