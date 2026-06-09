@@ -1326,7 +1326,7 @@ let build_leaf sigma pb =
 (* Build the sub-pattern-matching problem for a given branch "C x1..xn as x" *)
 (* spiwack: the [initial] argument keeps track whether the branch is a
    toplevel branch ([true]) or a deep one ([false]). *)
-let build_branch ~program_mode initial current realargs deps (realnames,curname) sigma pb arsign eqns const_info =
+let build_branch ~program_mode initial current realargs deps (realnames,curname) sigma pb arsign eqns primproj const_info =
   (* We remember that we descend through constructor C *)
   let history =
     push_history_pattern const_info.cs_nargs (fst const_info.cs_cstr) pb.history in
@@ -1356,6 +1356,26 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
     List.map_i (fun i d -> (mkRel i, map_constr (lift i) d)) 1 typs in
 
   let typs,extenv = push_rel_context sigma typs pb.env in
+
+  (* When emulating a match on a primitive record, propagate the body of the
+     projections in the environment *)
+  let primtyps = match primproj with
+  | None -> typs
+  | Some projs ->
+    let rec expand i k accu typs = match typs with
+    | [] -> accu
+    | LocalDef _ as decl :: typs ->
+      expand i (k + 1) (decl :: accu) typs
+    | LocalAssum (na, t) :: typs ->
+      let (p, r) = projs.(i) in
+      let (_, u) = const_info.cs_cstr in
+      (* Follow the definition of make_case_or_project *)
+      let r = Vars.subst_instance_relevance u (ERelevance.make r) in
+      let body = mkProj (Projection.make p true, r, Vars.lift k current) in
+      expand (i + 1) (k + 1) (LocalDef (na, body, t) :: accu) typs
+    in
+    expand 0 0 [] (List.rev typs)
+  in
 
   let typs' =
     List.map (fun (c,d) ->
@@ -1434,7 +1454,7 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
       tomatch = tomatch;
       pred = pred;
       history = history;
-      mat = List.map (push_rels_eqn_with_names sigma typs) submat }
+      mat = List.map (push_rels_eqn_with_names sigma primtyps) submat }
 
 (**********************************************************************
  INVARIANT:
@@ -1480,8 +1500,9 @@ let compile ~program_mode sigma pb =
             let pb,deps = generalize_problem (names,dep) sigma pb deps in
 
           (* We compile branches *)
+            let primproj = Environ.get_projections !!(pb.env) (fst mind) in
             let fold_br sigma eqn cstr =
-              let used, sigma, j = compile_branch initial current realargs (names,dep) deps sigma pb arsign eqn cstr in
+              let used, sigma, j = compile_branch initial current realargs (names,dep) deps sigma pb arsign eqn primproj cstr in
               sigma, (used, j)
             in
             let sigma, brvals = Array.fold_left2_map fold_br sigma eqns cstrs in
@@ -1544,8 +1565,8 @@ let compile ~program_mode sigma pb =
     else pop_problem cur sigma pb
 
   (* Building the sub-problem when all patterns are variables *)
-  and compile_branch initial current realargs names deps sigma pb arsign eqns cstr =
-    let sigma, sign, pb = build_branch ~program_mode initial current realargs deps names sigma pb arsign eqns cstr in
+  and compile_branch initial current realargs names deps sigma pb arsign eqns primproj cstr =
+    let sigma, sign, pb = build_branch ~program_mode initial current realargs deps names sigma pb arsign eqns primproj cstr in
     let used, sigma, j = compile sigma pb in
     used, sigma, (sign, j.uj_val)
 
