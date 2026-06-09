@@ -2173,18 +2173,22 @@ let pp_mllam_mlf fmt l =
     | Mk_ind -> Format.fprintf fmt "(global $Nativevalues $mk_ind_accu)"
     | Mk_const -> Format.fprintf fmt "(global $Nativevalues $mk_constant_accu)"
     | Mk_sw -> Format.fprintf fmt "(global $Nativevalues $mk_sw_accu)"
-    | Mk_fix(rec_pos,start) -> (* TODO: what is that ??? *)
-        let pp_rec_pos fmt rec_pos =
-          Format.fprintf fmt "@[[| %i" rec_pos.(0);
-          for i = 1 to Array.length rec_pos - 1 do
-            Format.fprintf fmt ";@ %i" rec_pos.(i)
-          done;
-          Format.fprintf fmt " |]@]" in
-        Format.fprintf fmt "mk_fix_accu %a %i" pp_rec_pos rec_pos start
-    | Mk_cofix(start) -> Format.fprintf fmt "mk_cofix_accu %i" start
+    | Mk_fix(rec_pos,start) ->
+        let len = Array.length rec_pos in
+        let rec pp_array_part i =
+          if i < 0 then Format.fprintf fmt "(makevec 0 0)" else
+          if i = 0 then Format.fprintf fmt "(makevec %i %i)" len rec_pos.(0) else begin
+          Format.fprintf fmt "(store@\n";
+          pp_array_part (i-1);
+          Format.fprintf fmt "@%i %i)" i rec_pos.(i)
+        end in
+        Format.fprintf fmt "(apply (global $Nativevalues $mk_fix_accu) @[";
+        pp_array_part (len-1);
+        Format.fprintf fmt "@] %i)" start
+    | Mk_cofix(start) -> Format.fprintf fmt "(apply (global $Nativevalues $mk_cofix_accu) %i)" start
     | Mk_rel i -> Format.fprintf fmt "(apply (global $Nativevalues $mk_rel_accu) %i)" i
     | Mk_var id ->
-        Format.fprintf fmt "mk_var_accu (Names.Id.of_string \"%s\")" (string_of_id id)
+        Format.fprintf fmt "(apply (global $Nativevalues $mk_var_accu) (apply (global $Names $Id $of_string) \"%s\"))" (string_of_id id)
     | Mk_proj -> Format.fprintf fmt "(global $Nativevalues $mk_proj_accu)"
     | Mk_empty_instance -> Format.fprintf fmt "(global $UVars $Instance $empty)"
     | Is_int -> Format.fprintf fmt "(global $Nativevalues $is_int)"
@@ -2200,7 +2204,7 @@ let pp_mllam_mlf fmt l =
     | Mk_int -> Format.fprintf fmt "(global $Nativevalues $mk_int)"
     | Val_to_int -> Format.fprintf fmt "(global $Nativevalues $val_to_int)"
     | Mk_evar -> Format.fprintf fmt "(global $Nativevalues $mk_evar_accu)"
-    | MLand -> Format.fprintf fmt "(&&)"
+    | MLand -> Format.fprintf fmt "(&&)" (* TODO: fix that *)
     | MLnot -> Format.fprintf fmt "(global $not)"
     | MLland -> Format.fprintf fmt "(global $land)"
     | MLmagic -> Format.fprintf fmt "Obj.magic"
@@ -2237,15 +2241,15 @@ let pp_array fmt t =
 
 let pp_array_mlf fmt t =
   let len = Array.length t in
-  let rec aux i =
+  let rec pp_array_part i =
     if i < 0 then Format.fprintf fmt "(makevec 0 0)" else
     if i = 0 then Format.fprintf fmt "(makevec %i %a)" len pp_mllam_mlf t.(0) else begin
     Format.fprintf fmt "(store@\n";
-    aux (i-1);
+    pp_array_part (i-1);
     Format.fprintf fmt "@\n%i %a)" i pp_mllam_mlf t.(i)
   end in
   Format.fprintf fmt "@[<2>";
-  aux (len-1);
+  pp_array_part (len-1);
   Format.fprintf fmt "@]"
 
 let pp_cofix fmt (gn, s) =
