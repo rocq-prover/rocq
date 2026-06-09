@@ -2353,7 +2353,7 @@ let pp_global_mlf fmt g =
   | Gopen s ->
       Format.fprintf fmt ";@[open %s@]@." s
   | Gletcase(gn,params,annot,a,accu,bs) ->
-      Format.fprintf fmt "@[; Hash = %i@\n(rec ($%a (lambda (%a)@\n  %a)))@]@\n@."
+      Format.fprintf fmt "@[; Hash = %i@\n(rec (%a (lambda (%a)@\n  %a)))@]@\n@."
       (hash_global g)
         pp_gname_mlf gn pp_ldecls_mlf params
         pp_mllam_mlf (MLmatch(annot,a,accu,bs))
