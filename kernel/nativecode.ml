@@ -2269,6 +2269,15 @@ let pp_cofix fmt (gn, s) =
   let len = Array.length s in
   Format.fprintf fmt "@[let %a = %a in@\n%a%a@]" pp_gname gn pp_dummy len pp_knot len pp_gname gn
 
+let pp_cofix_mlf fmt (gn, s) =
+  let pp_knot fmt n =
+    for i = 0 to n - 1 do
+      Format.fprintf fmt "@[<2>(store %a %i @[<2>%a@] )@]@\n" pp_gname_mlf gn i pp_mllam_mlf s.(i)
+    done
+  in
+  let len = Array.length s in
+  Format.fprintf fmt "@[(let (%a (makevec %i 0))@\n(seq%a %a))@]" pp_gname_mlf gn len pp_knot len pp_gname_mlf gn
+
 let type_of_global gn c = match gn with
   | Ginternal "symbols_tbl" -> ""
   | _ -> match c with
@@ -2365,14 +2374,14 @@ let pp_global_mlf fmt g =
   | Gtblnorm (g, params, t) ->
       Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
         pp_ldecls_mlf params pp_array_mlf t
-  (*
+  | Gtblcofix (g, [||], s) -> (* not a function but a definition *)
+      Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname_mlf g
+        pp_cofix_mlf (g, s);
   | Gtblcofix (g, params, s) ->
-      Format.fprintf fmt "@[let %a%a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname_mlf g
-        pp_ldecls params pp_cofix (g, s);
-   *)
+      Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
+        pp_ldecls_mlf params pp_cofix_mlf (g, s);
   | Gcomment s ->
       List.iter (fun line -> Format.fprintf fmt ";@[ %s @]@." line) (String.split_on_char '\n' s)
-  | _ -> ()
 
 (** Compilation of elements in environment **)
 let rec compile_with_fv ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
