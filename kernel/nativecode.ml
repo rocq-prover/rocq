@@ -2132,7 +2132,7 @@ let pp_mllam_mlf fmt l =
   and pp_cparams_mlf fmt params =
     let len = Array.length params in
     for i = 0 to len - 1 do
-      Format.fprintf fmt " ($%a (field $matched_value %i))" pp_cparam_mlf params.(i) i
+      Format.fprintf fmt " (%a (field $matched_value %i))" pp_cparam_mlf params.(i) i
     done
   and pp_branches_mlf fmt bs =
     let rec pp_branch fmt (cargs,body) =
@@ -2339,7 +2339,12 @@ let pp_global_mlf fmt g =
     Format.fprintf fmt "@[;type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
   | Gopen s ->
       Format.fprintf fmt ";@[open %s@]@." s
-  | Gletcase(gn,params,annot,a,accu,bs) ->
+  | Gletcase(gn,[||],annot,a,accu,bs) -> (* simple biding and not a function *)
+      Format.fprintf fmt "@[; Hash = %i@\n(%a %a)@]@\n@." (* no need to be recursive as we are sane and do not create recursive values other than function *)
+      (hash_global g)
+        pp_gname_mlf gn
+        pp_mllam_mlf (MLmatch(annot,a,accu,bs))
+  | Gletcase(gn,params,annot,a,accu,bs) -> (* a function *)
       Format.fprintf fmt "@[; Hash = %i@\n(rec (%a (lambda (%a)@\n  %a)))@]@\n@."
       (hash_global g)
         pp_gname_mlf gn pp_ldecls_mlf params
