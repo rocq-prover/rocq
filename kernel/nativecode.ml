@@ -2069,13 +2069,13 @@ let pp_mllam_mlf fmt l =
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam_mlf l1 pp_mllam_mlf l2
     | MLprimitive (p, args) ->
-      Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_primitive_mlf p (pp_args_mlf true) args
+      Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_primitive_mlf p pp_args_mlf args
     | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname_mlf g
     | MLapp(f, [||]) -> (* not an application and instead simply a function *)
         Format.fprintf fmt "@[%a@]" pp_mllam_mlf f
     | MLapp(f, args) ->
-        Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_mllam_mlf f (pp_args_mlf true) args
+        Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_mllam_mlf f pp_args_mlf args
     | MLlet(id,def,body) ->
         Format.fprintf fmt "@[(let@ ($%a@ %a)@\n@[<2>%a@])@]"
           pp_lname id pp_mllam_mlf def pp_mllam_mlf body
@@ -2107,28 +2107,18 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt "@[(store %s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam_mlf body
     | MLmatch (_, c, accu_br, br) ->
       Format.fprintf fmt (* accumulator is always tag 0 *)
-        "@[(let ($matched_value %a) (switch $matched_value @\n ((tag 0)@\n  %a)@\n%a))@]"
+        "@[(let ($matched_value %a) (switch $matched_value @\n  ((tag 0)@\n  %a)@\n%a))@]"
         pp_mllam_mlf c pp_mllam_mlf accu_br pp_branches_mlf br
-    | _ -> Format.fprintf fmt "000"
-    (* 
-    | MLconstruct(prefix,ind,tag,args) ->
-        Format.fprintf fmt "@[<2>(Obj.magic@ @[<2>(%s%a)@] : Nativevalues.t)@]"
-          (string_of_construct prefix ~constant:false ind tag) pp_cargs args
-    | MLisaccu (prefix, ind, c) ->
-        let accu = string_of_accu_construct prefix ind in
+    | MLconstruct(_,_,tag,[||]) -> (* not a construct but a constant *)
+        Format.fprintf fmt "%i"
+          tag
+    | MLconstruct(_,_,tag,args) ->
+        Format.fprintf fmt "@[<2>(block (tag %i) %a)@]"
+          tag pp_args_mlf args
+    | MLisaccu (_, _, c) ->
         Format.fprintf fmt
-          "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  true@\n| _ ->@\n  false@\nend@]"
-        pp_mllam c accu *)
-
-  (*
-  and pp_cargs fmt args =
-    let len = Array.length args in
-    match len with
-    | 0 -> ()
-    | 1 -> Format.fprintf fmt "@ %a" pp_blam args.(0)
-    | _ -> Format.fprintf fmt "@ @[<2>(%a)@]" (pp_args false) args
-
-  *)
+          "@[(switch %a@\n  ((tag 0) 1)@\n  (_ (tag _) 0))@]"
+        pp_mllam_mlf c
   and pp_cparam_mlf fmt param =
     match param with
     | Some l -> pp_mllam_mlf fmt (MLlocal l)
@@ -2162,13 +2152,12 @@ let pp_mllam_mlf fmt l =
     for i = 0 to len - 1 do
       pp_one_rec defs.(i)
     done
-  and pp_args_mlf sep fmt args =
-    let sep = if sep then "" else "," in
+  and pp_args_mlf fmt args =
     let len = Array.length args in
     if len > 0 then begin
       Format.fprintf fmt "%a" pp_mllam_mlf args.(0);
       for i = 1 to len - 1 do
-        Format.fprintf fmt "%s@ %a" sep pp_mllam_mlf args.(i)
+        Format.fprintf fmt "@ %a" pp_mllam_mlf args.(i)
       done
     end else Format.fprintf fmt "0" (* 0 is () in malfunction *)
   and pp_primitive_mlf fmt = function
@@ -2244,17 +2233,9 @@ let pp_array fmt t =
   Format.fprintf fmt "|]@]"
 
 let pp_array_mlf fmt t =
-  let len = Array.length t in
-  let rec pp_array_part i =
-    if i < 0 then Format.fprintf fmt "(makevec 0 0)" else
-    if i = 0 then Format.fprintf fmt "(makevec %i %a)" len pp_mllam_mlf t.(0) else begin
-    Format.fprintf fmt "(store@\n";
-    pp_array_part (i-1);
-    Format.fprintf fmt "@\n%i %a)" i pp_mllam_mlf t.(i)
-  end in
-  Format.fprintf fmt "@[<2>";
-  pp_array_part (len-1);
-  Format.fprintf fmt "@]"
+  Format.fprintf fmt "@[<2>(block (tag 0) ";
+  Array.iter (Format.fprintf fmt "@ %a" pp_mllam_mlf) t;
+  Format.fprintf fmt ")@]"
 
 let pp_cofix fmt (gn, s) =
   let pp_dummy fmt len =
@@ -2268,15 +2249,6 @@ let pp_cofix fmt (gn, s) =
   in
   let len = Array.length s in
   Format.fprintf fmt "@[let %a = %a in@\n%a%a@]" pp_gname gn pp_dummy len pp_knot len pp_gname gn
-
-let pp_cofix_mlf fmt (gn, s) =
-  let pp_knot fmt n =
-    for i = 0 to n - 1 do
-      Format.fprintf fmt "@[<2>(store %a %i @[<2>%a@] )@]@\n" pp_gname_mlf gn i pp_mllam_mlf s.(i)
-    done
-  in
-  let len = Array.length s in
-  Format.fprintf fmt "@[(let (%a (makevec %i 0))@\n(seq%a %a))@]" pp_gname_mlf gn len pp_knot len pp_gname_mlf gn
 
 let type_of_global gn c = match gn with
   | Ginternal "symbols_tbl" -> ""
@@ -2376,10 +2348,10 @@ let pp_global_mlf fmt g =
         pp_ldecls_mlf params pp_array_mlf t
   | Gtblcofix (g, [||], s) -> (* not a function but a definition *)
       Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname_mlf g
-        pp_cofix_mlf (g, s);
+        pp_array_mlf s
   | Gtblcofix (g, params, s) ->
       Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
-        pp_ldecls_mlf params pp_cofix_mlf (g, s);
+        pp_ldecls_mlf params pp_array_mlf s
   | Gcomment s ->
       List.iter (fun line -> Format.fprintf fmt ";@[ %s @]@." line) (String.split_on_char '\n' s)
 
