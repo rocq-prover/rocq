@@ -46,7 +46,7 @@ let to_string i = Int64.to_string i
 let compile i = Printf.sprintf "Uint63.of_int64 (%LiL)" i
 
 (* Compiles an unsigned int to malfunction code *)
-let compile_mlf i = Printf.sprintf "(apply (global &Uint63 &of_int64) (%LiL)" i
+let compile_mlf i = Printf.sprintf "(apply (global &Uint63 &of_int64) (%LiL.i64)" i
 
     (* comparison *)
 let lt x y =
