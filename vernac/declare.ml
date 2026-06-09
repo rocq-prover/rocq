@@ -1981,27 +1981,26 @@ let definition_scope ps = ps.pinfo.info.scope
 
 let set_used_variables ps ~using =
   let open Context.Named.Declaration in
+  let () = if not (Option.is_empty ps.using) then
+      CErrors.user_err Pp.(str "Used section variables can be declared only once.")
+  in
   let env = Global.env () in
-  let ctx = Environ.keep_hyps env using in
-  let ctx_set =
-    List.fold_right Id.Set.add (List.map NamedDecl.get_id ctx) Id.Set.empty in
+  let kept = Environ.really_needed env using in
   let vars_of = Environ.global_vars_set in
-  let aux env _status entry (ctx, all_safe as orig) =
+  (* add any letins which only depend on kept variables *)
+  let aux env _status entry kept =
     match entry with
-    | LocalAssum ({Context.binder_name=x},_) ->
-       if Id.Set.mem x all_safe then orig
-       else (ctx, all_safe)
-    | LocalDef ({Context.binder_name=x},bo, ty) as decl ->
-       if Id.Set.mem x all_safe then orig else
+    | LocalAssum ({Context.binder_name=x},_) -> kept
+    | LocalDef ({Context.binder_name=x},bo, ty) ->
+       if Id.Set.mem x kept then kept else
        let vars = Id.Set.union (vars_of env bo) (vars_of env ty) in
-       if Id.Set.subset vars all_safe
-       then (decl :: ctx, Id.Set.add x all_safe)
-       else (ctx, all_safe) in
-  let ctx, _ =
-    Environ.fold_named_context aux env ~init:(ctx,ctx_set) in
-  if not (Option.is_empty ps.using) then
-    CErrors.user_err Pp.(str "Used section variables can be declared only once");
-  ctx, { ps with using = Some (Context.Named.to_vars ctx) }
+       if Id.Set.subset vars kept
+       then (Id.Set.add x kept)
+       else kept in
+  let kept =
+    Environ.fold_named_context aux env ~init:kept
+  in
+  { ps with using = Some kept }
 
 let interpret_proof_using pstate using =
   let env = Global.env () in
