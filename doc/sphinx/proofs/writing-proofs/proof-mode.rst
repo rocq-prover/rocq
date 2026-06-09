@@ -387,48 +387,49 @@ When the proof is completed, you can exit proof mode with commands such as
 
 .. _example-print-using:
 
-   .. example :: Declaring section variables
+.. example:: Declaring section variables
 
-      When a :ref:`section <section-mechanism>` is closed with :cmd:`End`, section
-      variables declared with :cmd:`Proof using` are added to the theorem as
-      additional variables.  You can see the effect on the theorem's statement
-      with commands such as :cmd:`Check`, :cmd:`Print` and :cmd:`About` after the
-      section is closed.  The :cmd:`Print` and :cmd:`About` commands also show the
-      section variables associated with a theorem before the section is closed.
+   When a :ref:`section <section-mechanism>` is closed with :cmd:`End`, section
+   variables declared with :cmd:`Proof using` are added to the theorem as
+   additional variables.  You can see the effect on the theorem's statement
+   with commands such as :cmd:`Check`, :cmd:`Print` and :cmd:`About` after the
+   section is closed.  The :cmd:`Print` and :cmd:`About` commands also show the
+   section variables associated with a theorem before the section is closed.
 
-      Adding the unnecessary section variable `radixNotZero` changes how `foo'` can be
-      applied.
+   Adding the unnecessary section variable `radixNotZero` changes how `foo'` can be
+   applied.
 
-      .. rocqtop:: in
+   .. rocqtop:: in
 
-         Section bar.
-           Variable radix : nat.
-           Hypothesis radixNotZero : 0 < radix.
+      Section bar.
+        Variable radix : nat.
+        Hypothesis radixNotZero : 0 < radix.
 
-           Lemma foo : 0 = 0.
-           Proof. reflexivity. Qed.
+        Lemma foo : 0 = 0.
+        Proof. reflexivity. Qed.
 
-           Lemma foo' : 0 = 0.
-           Proof using radixNotZero. reflexivity. Qed.  (* radixNotZero is not needed *)
+        Lemma foo' : 0 = 0.
+        Proof using radixNotZero. reflexivity. Qed.  (* radixNotZero is not needed *)
 
-      .. rocqtop:: all
+   .. rocqtop:: all
 
-           Print foo'.   (* Doesn't show radixNotZero yet *)
-         End bar.
-         Print foo.      (* Doesn't change after the End *)
-         Print foo'.     (* "End" added type radix (used by radixNotZero) and radixNotZero *)
-         Goal 0 = 0.
-         Proof.
+        Print foo'.   (* Doesn't show radixNotZero yet *)
+      End bar.
 
-      .. rocqtop:: in
+      Print foo.      (* Doesn't change after the End *)
+      Print foo'.     (* "End" added type radix (used by radixNotZero) and radixNotZero *)
+      Goal 0 = 0.
+      Proof.
 
-         Fail apply foo'.  (* Fails because of the extra variable *)
+   .. rocqtop:: in
 
-      .. rocqtop:: all
+      Fail apply foo'.  (* Fails because of the extra variable *)
 
-         apply (foo' 5).   (* Can be used if the extra variable is provided explicitly *)
+   .. rocqtop:: all
 
-      .. rocqtop:: abort none
+      apply (foo' 5).   (* Can be used if the extra variable is provided explicitly *)
+
+   .. rocqtop:: abort none
 
 Proof using options
 ```````````````````
