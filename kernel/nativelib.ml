@@ -126,7 +126,7 @@ let write_mlf_code fn ?(header=[]) code =
   Format.fprintf fmt "type t\n";
   let defined_values = List.map_filter global_to_mlf_name code in
   let defined_values = List.map (fun s -> String.sub s 1 ((String.length s)-1)) defined_values in
-  List.iter (Format.fprintf fmt "val %s : t\n") defined_values;
+  List.iter (Format.fprintf fmt "val %s : t\n@.") defined_values;
   close_out ch_mli_out
 
 let error_native_compiler_failed e =
@@ -206,12 +206,7 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
   let remove f = if Sys.file_exists f then Sys.remove f in
   remove link_filename;
   remove (f ^ ".cmi");
-  let initial_args = ["cmx"]
-    (* if Dynlink.is_native then
-      ["opt"; "-shared"]
-     else
-      ["ocamlc"; "-c"] *)
-  in
+  let initial_args = ["cmx"] in
   let profile_args =
     if profile then
       ["-g"]
@@ -230,15 +225,24 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
        ::include_dirs) in
   (* let ocamlfind = Boot.Env.ocamlfind () in *)
   let malfunction = "malfunction" in
-
+  let ocamlfind = Boot.Env.ocamlfind () in
   debug_native_compiler (fun () -> Pp.str (malfunction ^ " " ^ (String.concat " " args)));
   try
-    let _ = CUnix.sys_command "ocamlc" ["-opaque"; "-c"; f^".mli"] in
-    let res = CUnix.sys_command malfunction args in
-    match res with
+    let res1 = CUnix.sys_command ocamlfind ["ocamlc"; "-opaque"; "-c"; f^".mli"] in
+    let res2 = CUnix.sys_command malfunction args in
+    let res3 = if Dynlink.is_native then CUnix.sys_command ocamlfind ["opt"; "-shared"; "-o"; f^".cmxs"; f^".cmx"] else Unix.WEXITED 0 in
+    let _ = match res1 with
+    | Unix.WEXITED 0 -> ()
+    | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
+      error_native_compiler_failed (Inl res1) in
+    let _ = match res1 with
+    | Unix.WEXITED 0 -> ()
+    | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
+      error_native_compiler_failed (Inl res2) in
+    match res1 with
     | Unix.WEXITED 0 -> link_filename
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
-      error_native_compiler_failed (Inl res)
+      error_native_compiler_failed (Inl res3)
   with Unix.Unix_error (e,_,_) ->
     error_native_compiler_failed (Inr e)
 
