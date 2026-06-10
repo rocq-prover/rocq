@@ -224,6 +224,10 @@ let var_status_ctxt ?(check=true) id ctxt =
 
 let var_status ?check id env = var_status_ctxt ?check id env.env_named_context
 
+let section_variables_ctxt ctxt = ctxt.env_named_secvars
+
+let section_variables env = section_variables_ctxt env.env_named_context
+
 let match_named_context_val c = match c.env_named_ctx with
 | [] -> None
 | decl :: ctx ->

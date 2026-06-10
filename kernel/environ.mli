@@ -109,6 +109,9 @@ val var_status_eq : var_status -> var_status -> bool
 val var_status_ctxt : ?check:bool -> Id.t -> named_context_val -> var_status
 val var_status : ?check:bool -> Id.t -> env -> var_status
 
+val section_variables_ctxt : named_context_val -> Id.Set.t
+val section_variables : env -> Id.Set.t
+
 val named_context_of_val : named_context_val -> Constr.named_context
 val val_of_named_context : (var_status * Constr.named_declaration) list -> named_context_val
 val empty_named_context_val : named_context_val

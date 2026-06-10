@@ -19,4 +19,13 @@ Section S.
     Unshelve.
     all:exact n.
   Qed.
+
+  Variable A : Type.
+
+  Derive X : A -> A in (X = X) as H.
+  Proof using Type*.
+    reflexivity.
+    Unshelve.
+    exact (fun x => x).
+  Qed.
 End S.

@@ -36,15 +36,12 @@ let rec close_fwd env sigma s =
     in
   if Id.Set.equal s s' then s else close_fwd env sigma s'
 
-let set_of_type env sigma fixnames ty =
-  List.fold_right Id.Set.remove fixnames
-  (List.fold_left (fun acc ty ->
+let set_of_type env sigma ty =
+  let s = List.fold_left (fun acc ty ->
       Id.Set.union (Termops.global_vars_set env sigma ty) acc)
-    Id.Set.empty ty)
-
-let full_set fixnames env =
-  let add id ids = if List.mem_f Id.equal id fixnames then ids else Id.Set.add id ids in
-  List.fold_right add (List.map NamedDecl.get_id (named_context env)) Id.Set.empty
+      Id.Set.empty ty
+  in
+  Id.Set.inter s (Environ.section_variables env)
 
 let warn_all_collection_precedence = CWarnings.create ~name:"all-collection-precedence" ~category:Deprecation.Version.v8_15
     Pp.(fun () -> str "Variable " ++ Id.print all_collection_id ++ str " is shadowed by Collection named " ++ Id.print all_collection_id ++ str " containing all variables.")
@@ -61,23 +58,22 @@ let warn_variable_shadowing = CWarnings.create ~name:"variable-shadowing" ~categ
 let err_redefine_all_collection () =
   CErrors.user_err Pp.(str "\"" ++ Id.print all_collection_id ++ str "\" is a predefined collection containing all variables. It can't be redefined.")
 
-let process_expr env sigma fixnames e v_ty =
-  let variable_exists id =
-    try ignore (lookup_named id env); true with | Not_found -> false in
+let process_expr env sigma e v_ty =
+  let variable_exists id = Termops.is_section_variable_env ~check:false env id in
   let rec aux = function
     | SsEmpty -> Id.Set.empty
     | SsType -> v_ty
     | SsSingl { CAst.v = id } -> set_of_id id
     | SsUnion(e1,e2) -> Id.Set.union (aux e1) (aux e2)
     | SsSubstr(e1,e2) -> Id.Set.diff (aux e1) (aux e2)
-    | SsCompl e -> Id.Set.diff (full_set fixnames env) (aux e)
+    | SsCompl e -> Id.Set.diff (Environ.section_variables env) (aux e)
     | SsFwdClose e -> close_fwd env sigma (aux e)
   and set_of_id id =
     if Id.equal id all_collection_id then
       begin
         if variable_exists all_collection_id then
           warn_all_collection_precedence ();
-        full_set fixnames env
+        Environ.section_variables env
       end
     else if is_known_name id then
       begin
@@ -86,24 +82,24 @@ let process_expr env sigma fixnames e v_ty =
         aux (CList.assoc_f Id.equal id !known_names)
       end
     else
-    if List.exists (Id.equal id) fixnames then
-      CErrors.user_err Pp.(str "Invalid recursive variable: " ++ Id.print id ++ str ".")
-    else if not (List.exists (NamedDecl.get_id %> Id.equal id) (named_context env)) then
+    if not (Environ.mem_named id env) then
       CErrors.user_err Pp.(str "Unknown variable: " ++ Id.print id ++ str ".")
+    else if not (variable_exists id) then
+      CErrors.user_err Pp.(Id.print id ++ str " is not a section variable.")
     else
       Id.Set.singleton id
   in
   aux e
 
-let process_expr env sigma fixnames e ty =
-  let v_ty = set_of_type env sigma fixnames ty in
-  let s = Id.Set.union v_ty (process_expr env sigma fixnames e v_ty) in
+let process_expr env sigma e ty =
+  let v_ty = set_of_type env sigma ty in
+  let s = Id.Set.union v_ty (process_expr env sigma e v_ty) in
   Id.Set.elements s
 
 type t = Names.Id.Set.t
 
-let definition_using env evd ~fixnames ~using ~terms =
-  let l = process_expr env evd fixnames using terms in
+let definition_using env evd ~using ~terms =
+  let l = process_expr env evd using terms in
   Names.Id.Set.(CList.fold_right add l empty)
 
 let name_set id expr =
@@ -154,9 +150,7 @@ let suggest_common env ppid used ids_typ skip =
 
   let needed = minimize_hyps env (remove_ids_and_lets env used ids_typ) in
   let all_needed = really_needed env needed in
-  let all = List.fold_left (fun all d -> S.add (NamedDecl.get_id d) all)
-      S.empty (named_context env)
-  in
+  let all = Environ.section_variables env in
   let all = S.diff all skip in
   let fwd_typ = close_fwd env (Evd.from_env env) ids_typ in
   let () = debug_proof_using (fun () ->
