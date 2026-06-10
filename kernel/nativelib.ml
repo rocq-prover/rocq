@@ -206,7 +206,7 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
   let remove f = if Sys.file_exists f then Sys.remove f in
   remove link_filename;
   remove (f ^ ".cmi");
-  let initial_args = ["cmo"]
+  let initial_args = ["cmx"]
     (* if Dynlink.is_native then
       ["opt"; "-shared"]
      else
@@ -233,6 +233,7 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
 
   debug_native_compiler (fun () -> Pp.str (malfunction ^ " " ^ (String.concat " " args)));
   try
+    let _ = CUnix.sys_command "ocamlc" ["-opaque"; "-c"; f^".mli"] in
     let res = CUnix.sys_command malfunction args in
     match res with
     | Unix.WEXITED 0 -> link_filename
@@ -253,7 +254,6 @@ let compile fn code ~profile:profile =
   delay_cleanup_file fn;
   delay_cleanup_file fn_mlf;
   r
-
 
 type native_library = Nativecode.global list * Nativevalues.symbols
 
