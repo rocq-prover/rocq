@@ -587,10 +587,10 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
     | Some pm -> finish_obligations env sigma rec_sign possible_guard poly udecl fix
     | None -> finish_regular env sigma use_inference_hook fix in
   (* Combine the internal well-founded/obligation hook with any external one. *)
-  let hook = match hook, wf_hook with
+  let hook = match wf_hook, hook with
     | None, h | h, None -> h
-    | Some h1, Some h2 ->
-      Some (Declare.Hook.make (fun st -> Declare.Hook.call ~hook:h2 st; Declare.Hook.call ~hook:h1 st)) in
+    | Some h1, Some h2 -> Some (Declare.Hook.seq h1 h2)
+  in
   let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?hook ?typing_flags ?user_warns ~ntns:fix.fixntns () in
   let cinfo = build_recthms fix in
   match pm with
