@@ -829,6 +829,13 @@ let check_name_freshness locality {CAst.loc;v=id} : unit =
   then
     user_err ?loc  (Id.print id ++ str " already exists.")
 
+(* Fold a list of declaration hooks into a single hook that runs them all,
+   in order, when the constant is saved. *)
+let hook_of_hooks hooks =
+  match hooks with
+  | [] -> None
+  | _ -> Some (Declare.Hook.make (fun st -> List.iter (fun hook -> Declare.Hook.call ~hook st) hooks))
+
 let vernac_definition_hook ~hooks ~canonical_instance ~local ~poly ~reversible kind =
   let hooks =
     let open Decls in
@@ -846,9 +853,7 @@ let vernac_definition_hook ~hooks ~canonical_instance ~local ~poly ~reversible k
       make (fun { S.dref } -> Canonical.declare_canonical_structure dref) :: hooks
     | _ -> hooks
   in
-  match hooks with
-  | [] -> None
-  | _ -> Some (Declare.Hook.make (fun st -> List.iter (fun hook -> Declare.Hook.call ~hook st) hooks))
+  hook_of_hooks hooks
 
 let default_thm_id = Id.of_string "Unnamed_thm"
 
@@ -927,14 +932,19 @@ let vernac_start_proof ~atts kind l =
     List.iter (fun ((id, _), _) -> Dumpglob.dump_definition id false "prf") l;
   let DefAttributes.{
     scope; locality=local; poly; program=program_mode;
-    user_warns; typing_flags; using; clearbody;
+    user_warns; typing_flags; using; clearbody; hooks
     } = atts
   in
+  (* Run programmable-attribute hooks when the theorem/lemma is completed,
+     just as for [Definition]. The special coercion/canonical hooks of
+     [vernac_definition_hook] do not apply to proofs, so we only fold the
+     attribute-provided hooks. *)
+  let hook = hook_of_hooks hooks in
   List.iter (fun ((id, _), _) -> check_name_freshness scope id) l;
   match l with
   | [] -> assert false
   | [({v=name; loc},udecl),(bl,typ)] ->
-    ComDefinition.do_definition_interactive ?loc
+    ComDefinition.do_definition_interactive ?loc ?hook
       ~typing_flags ~program_mode ~name ~poly ?clearbody ~scope
       ~kind:(Decls.IsProof kind) ?user_warns ?using udecl bl typ
   | ((lid,_),_) :: _ ->
@@ -942,7 +952,7 @@ let vernac_start_proof ~atts kind l =
         { fname; binders; rtype; body_def = None; univs; notations = []}) l in
     let pm, proof =
       ComFixpoint.do_mutually_recursive ~refine:false ~program_mode ~use_inference_hook:program_mode
-        ~scope ?clearbody ~kind:(Decls.IsProof kind) ~poly ?typing_flags
+        ?hook ~scope ?clearbody ~kind:(Decls.IsProof kind) ~poly ?typing_flags
         ?user_warns ?using (CUnknownRecOrder, fix) in
     assert (Option.is_empty pm);
     Option.get proof
