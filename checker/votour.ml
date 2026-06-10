@@ -466,9 +466,9 @@ let visit_vo f =
     Printf.printf "File format: %ld\n%!" version;
     Printf.printf "The file has %d segments, choose the one to visit:\n"
       (Array.length segments);
-    Array.iteri (fun i ObjFile.{ name; pos; header } ->
+    Array.iteri (fun i ObjFile.{ name; pos; header; hash } ->
       let size = if Sys.word_size = 64 then header.size64 else header.size32 in
-      Printf.printf "  %d: %s, starting at byte %Ld (size %iw)\n" i name pos size)
+      Printf.printf "  %d: %s, starting at byte %Ld (size %iw, hash %s)\n" i name pos size (Digest.to_hex hash))
       segments;
     match read_num (Array.length segments) with
     | CmdChild seg ->
