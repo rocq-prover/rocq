@@ -1818,8 +1818,15 @@ let string_of_gname g =
 let string_of_gname_mlf g =
   let name = string_of_gname g in
   if String.contains name '.' then begin (* the global name comes from a module *)
-    let name = Str.global_replace (Str.regexp_string ".") " $" name in
-    Format.sprintf "(global $%s)" name
+    let name = String.split_on_char '.' name in
+    let name = match name with
+      | [] -> []
+      | modul::rest when String.starts_with ~prefix:"Coq_native" modul ->
+        (modul^"_mlf")::rest (* we try to access ml values that had just been compiled, we instead decide to access the corresponding mlf values *)
+      | name -> name in
+    let name = List.map ((^) " $") name in
+    let name = List.fold_left (^) "" name in
+    Format.sprintf "(global%s)" name
   end else
   match name with
   | "()" -> "0"
@@ -2331,6 +2338,19 @@ let pp_global_mlf fmt g =
         pp_ldecls_mlf params pp_array_mlf s
   | Gcomment s ->
       List.iter (fun line -> Format.fprintf fmt ";@[ %s @]@." line) (String.split_on_char '\n' s)
+
+let global_to_mlf_name g =
+  match g with
+  | Gtblfixtype (gn,_,_)
+  | Gtblnorm (gn,_,_)
+  | Gtblcofix (gn,_,_)
+  | Gletcase(gn,_,_,_,_,_)
+  | Glet (gn,_) ->
+    let gn = string_of_gname_mlf gn in
+    if gn = "_" then None else Some gn 
+  | Gtype _
+  | Gcomment _
+  | Gopen _ -> None
 
 (** Compilation of elements in environment **)
 let rec compile_with_fv ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =

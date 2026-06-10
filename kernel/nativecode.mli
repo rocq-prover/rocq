@@ -32,6 +32,8 @@ val pp_global : Format.formatter -> global -> unit
 
 val pp_global_mlf : Format.formatter -> global -> unit
 
+val global_to_mlf_name : global -> string option
+
 val mk_open : string -> global
 
 val get_value : symbols -> int -> Nativevalues.t
