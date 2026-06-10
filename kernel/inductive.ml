@@ -1291,21 +1291,30 @@ let filter_predicate_tree ?evars pctxlen env p elt =
   else
     filter_type apply_filter_tree ?evars pctxlen env 0 p elt
 
+let judgment_of_fixpoint (_, types, bodies) =
+  Array.map2 (fun typ body -> { uj_val = body ; uj_type = typ }) types bodies
 
-let find_mutfix_trees ?evars env recindxs bodies =
+let find_mutfix_trees ?evars env0 env recindxs (_, typarray, _ as recdef) =
+  let illformed i recindx =
+    error_ill_formed_rec_body env0 (Type_errors.FixGuardError (NotEnoughAbstractionInFixBody recindx))
+      (pi1 recdef) i env
+      (judgment_of_fixpoint recdef)
+  in
   let rec find_ind env recindx k def =
     match kind (whd_all ?evars env def) with
-    | Lambda (na, ty, body) ->
+    | Prod (na, ty, body) ->
       if Int.equal k recindx then
         let (ind, _), _ = find_inductive ?evars env ty in
         WfPaths.lookup_subterms env ind
       else
         let env = push_rel (LocalAssum (na, ty)) env in
         find_ind env recindx (k+1) body
-    | _ -> assert false
+    | _ -> raise Not_found
   in
   (* Do it on every fixpoint *)
-  Array.map2 (fun recindx def -> find_ind env recindx 0 def) recindxs bodies
+  Array.map2_i (fun i recindx def ->
+    try find_ind env recindx 0 def with Not_found -> illformed i recindx)
+    recindxs typarray
 
 (**[subterm_specif renv t] computes the recursive structure of [t] and
    compare its size with the size of the initial recursive argument of
@@ -1552,9 +1561,6 @@ let pop_argument ?evars renv rs stack na ty b =
     (* No argument against lambda *)
     push_var_renv renv rs (na, ty), [], b, false
 
-let judgment_of_fixpoint (_, types, bodies) =
-  Array.map2 (fun typ body -> { uj_val = body ; uj_type = typ }) types bodies
-
 let rec reduce_and_contract_cofix ?evars env c =
   let c = whd_all ?evars env c in
   let hd, args = decompose_app c in
@@ -1675,7 +1681,7 @@ let check_one_fix ?evars renv recpos trees def =
           decrarg
       in
       let renv' = push_fix_renv renv recdef in
-      let internal_trees = find_mutfix_trees ?evars renv'.env recindxs bodies in
+      let internal_trees = find_mutfix_trees ?evars renv.env renv'.env recindxs recdef in
       let rs = Array.fold_left2_i (fun j rs recindx body ->
         let decrarg_spec = Subterm.on_fixpoints internal_trees i decrarg_spec j in
         let stack = uniform_stack @ List.make (recindx - nuniformparams) (SArg default_spec) @ [SArg decrarg_spec] in
