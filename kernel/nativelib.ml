@@ -197,11 +197,11 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
   let remove f = if Sys.file_exists f then Sys.remove f in
   remove link_filename;
   remove (f ^ ".cmi");
-  let initial_args =
-    if Dynlink.is_native then
+  let initial_args = ["cmo"]
+    (* if Dynlink.is_native then
       ["opt"; "-shared"]
      else
-      ["ocamlc"; "-c"]
+      ["ocamlc"; "-c"] *)
   in
   let profile_args =
     if profile then
@@ -209,21 +209,22 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
     else
       []
   in
-  let flambda_args = if Sys.(backend_type = Native) then ["-Oclassic"] else [] in
+  (* let flambda_args = if Sys.(backend_type = Native) then ["-Oclassic"] else [] in *)
   let args =
     initial_args @
+      [mlf_filename] @
       profile_args @
-        flambda_args @
+        (* flambda_args @ *)
       ("-o"::link_filename
-       ::"-rectypes"
-       ::"-w"::"a"
-       ::include_dirs) @
-    ["-impl"; mlf_filename] in
-  let ocamlfind = Boot.Env.ocamlfind () in
+       (* ::"-rectypes" *)
+       (* ::"-w"::"a" *)
+       ::include_dirs) in
+  (* let ocamlfind = Boot.Env.ocamlfind () in *)
+  let malfunction = "malfunction" in
 
-  debug_native_compiler (fun () -> Pp.str (ocamlfind ^ " " ^ (String.concat " " args)));
+  debug_native_compiler (fun () -> Pp.str (malfunction ^ " " ^ (String.concat " " args)));
   try
-    let res = CUnix.sys_command ocamlfind args in
+    let res = CUnix.sys_command malfunction args in
     match res with
     | Unix.WEXITED 0 -> link_filename
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
@@ -231,15 +232,13 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
   with Unix.Unix_error (e,_,_) ->
     error_native_compiler_failed (Inr e)
 
-let _ = call_mlf_compiler
-
 let compile fn code ~profile:profile =
   let fn_mlf = (Filename.chop_extension fn) ^ "_mlf.nativemlf" in
   write_ml_code fn code;
   write_mlf_code fn_mlf code;
   let r = call_compiler ~profile fn in
-  (* let r_mlf = call_mlf_compiler ~profile fn_mlf in
-  let _ = r_mlf in *)
+  let r_mlf = call_mlf_compiler ~profile fn_mlf in
+  let _ = r_mlf in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
   delay_cleanup_file fn;
