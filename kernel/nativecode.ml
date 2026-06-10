@@ -2070,15 +2070,15 @@ let pp_mllam_mlf fmt l =
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam_mlf l1 pp_mllam_mlf l2
     | MLprimitive (Lazy, args) -> (* lazy values must be treated separately *)
-      Format.fprintf fmt "@[<2>(lazy@ %a)@]" pp_args_mlf args
+      Format.fprintf fmt "@[<2>(lazy%a)@]" pp_args_mlf args
     | MLprimitive (p, args) ->
-      Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_primitive_mlf p pp_args_mlf args
+      Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_primitive_mlf p pp_args_mlf args
     | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname_mlf g
     | MLapp(f, [||]) -> (* not an application and instead simply a function *)
         Format.fprintf fmt "%a" pp_mllam_mlf f
     | MLapp(f, args) ->
-        Format.fprintf fmt "@[<2>(apply %a@ %a)@]" pp_mllam_mlf f pp_args_mlf args
+        Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_mllam_mlf f pp_args_mlf args
     | MLlet(id,def,body) ->
         Format.fprintf fmt "@[(let@ ($%a@ %a)@\n@[<2>%a@])@]"
           pp_lname id pp_mllam_mlf def pp_mllam_mlf body
@@ -2106,7 +2106,7 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt "%i"
           tag
     | MLconstruct(_,_,tag,args) ->
-        Format.fprintf fmt "@[<2>(block (tag %i) %a)@]"
+        Format.fprintf fmt "@[<2>(block (tag %i)%a)@]"
           tag pp_args_mlf args
     | MLisaccu (_, _, c) ->
         Format.fprintf fmt
@@ -2136,23 +2136,15 @@ let pp_mllam_mlf fmt l =
     in
     Array.iter (pp_branch fmt) bs
   and pp_letrec_mlf fmt defs =
-    let len = Array.length defs in
     let pp_one_rec (fn, argsn, body) =
-      Format.fprintf fmt "($%a@ %a)"
+      Format.fprintf fmt "($%a@ %a)@\n"
         pp_lname fn
-        pp_mllam_mlf (MLlam(argsn, body));
-      Format.fprintf fmt "@\n" in
-    for i = 0 to len - 1 do
-      pp_one_rec defs.(i)
-    done
+        pp_mllam_mlf (MLlam(argsn, body)) in
+    Array.iter pp_one_rec defs
   and pp_args_mlf fmt args =
-    let len = Array.length args in
-    if len > 0 then begin
-      Format.fprintf fmt "%a" pp_mllam_mlf args.(0);
-      for i = 1 to len - 1 do
-        Format.fprintf fmt "@ %a" pp_mllam_mlf args.(i)
-      done
-    end else Format.fprintf fmt "0" (* 0 is () in malfunction *)
+    if args <> [||] then
+      Array.iter (Format.fprintf fmt "@ %a" pp_mllam_mlf) args
+    else Format.fprintf fmt "@ 0" (* 0 is () in malfunction *)
   and pp_primitive_mlf fmt = function
     | Mk_prod -> Format.fprintf fmt "(global $Nativevalues $mk_prod)"
     | Mk_sort -> Format.fprintf fmt "(global $Nativevalues $mk_sort_accu)"
@@ -2307,10 +2299,10 @@ let pp_global_mlf fmt g =
       Array.iter (pp_const_sig fmt) lar
     in
     Format.fprintf fmt "@[;type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
-  | Gopen s ->
-      Format.fprintf fmt ";@[open %s@]@." s
+  | Gopen _ ->
+      () (* open do not exist in malfunction, and there is no interest in leaving them as comments *)
   | Gletcase(gn,[||],annot,a,accu,bs) -> (* simple biding and not a function *)
-      Format.fprintf fmt "@[; Hash = %i@\n(%a %a)@]@\n@." (* no need to be recursive as we are sane and do not create recursive values other than function *)
+      Format.fprintf fmt "@[; Hash = %i@\n(%a %a)@]@\n@." (* no need to be recursive as we are sane and do not create recursive values other than functions *)
       (hash_global g)
         pp_gname_mlf gn
         pp_mllam_mlf (MLmatch(annot,a,accu,bs))
