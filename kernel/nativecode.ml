@@ -2119,7 +2119,7 @@ let pp_mllam_mlf fmt l =
   and pp_cparams_mlf fmt params =
     let len = Array.length params in
     for i = 0 to len - 1 do
-      Format.fprintf fmt " (%a (field $matched_value %i))" pp_cparam_mlf params.(i) i
+      Format.fprintf fmt " (%a (field %i $matched_value))" pp_cparam_mlf params.(i) i
     done
   and pp_branches_mlf fmt bs =
     let rec pp_branch fmt (cargs,body) =
