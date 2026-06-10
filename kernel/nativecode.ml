@@ -2086,7 +2086,7 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt "@[(if %a@\n  %a@\n  %a)@]"
           pp_mllam_mlf t pp_mllam_mlf l1 pp_mllam_mlf l2
     | MLletrec(defs, body) ->
-        Format.fprintf fmt "@[(let (rec @[<2>%a%a@]))@]" pp_letrec_mlf defs
+        Format.fprintf fmt "@[<2>(let (rec @[<2>%a@])@\n%a)@]" pp_letrec_mlf defs
           pp_mllam_mlf body
     | MLarray arr ->
       Format.fprintf fmt "@[(block (tag 0)";
