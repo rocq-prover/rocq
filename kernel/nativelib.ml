@@ -117,8 +117,17 @@ let write_mlf_code fn ?(header=[]) code =
   let fmt = Format.formatter_of_out_channel ch_out in
   Format.fprintf fmt "@[(module@]@\n";
   List.iter (pp_global_mlf fmt) (header@code);
-  Format.fprintf fmt "@[(_ 0) (export))@]@.";
-  close_out ch_out
+  Format.fprintf fmt "@[(export";
+  List.iter (Format.fprintf fmt " %s") (List.map_filter global_to_mlf_name code);
+  Format.fprintf fmt "))@]@.";
+  close_out ch_out;
+  let ch_mli_out = open_out ((Filename.chop_extension fn)^".mli") in
+  let fmt = Format.formatter_of_out_channel ch_mli_out in
+  Format.fprintf fmt "type t\n";
+  let defined_values = List.map_filter global_to_mlf_name code in
+  let defined_values = List.map (fun s -> String.sub s 1 ((String.length s)-1)) defined_values in
+  List.iter (Format.fprintf fmt "val %s : t\n") defined_values;
+  close_out ch_mli_out
 
 let error_native_compiler_failed e =
   let msg = match e with
