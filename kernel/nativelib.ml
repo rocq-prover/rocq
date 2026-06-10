@@ -220,7 +220,7 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
       profile_args @
         (* flambda_args @ *)
       ("-o"::link_filename
-       (* ::"-rectypes" *)
+       ::"-rectypes"
        (* ::"-w"::"a" *)
        ::include_dirs) in
   (* let ocamlfind = Boot.Env.ocamlfind () in *)
@@ -248,16 +248,15 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
 
 let compile fn code ~profile:profile =
   let fn_mlf = (Filename.chop_extension fn) ^ "_mlf.nativemlf" in
-  write_ml_code fn code;
+  (* write_ml_code fn code; *)
   write_mlf_code fn_mlf code;
-  let r = call_compiler ~profile fn in
+  (* let r = call_compiler ~profile fn in *)
   let r_mlf = call_mlf_compiler ~profile fn_mlf in
-  let _ = r_mlf in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
-  delay_cleanup_file fn;
+  (* delay_cleanup_file fn; *)
   delay_cleanup_file fn_mlf;
-  r
+  r_mlf
 
 type native_library = Nativecode.global list * Nativevalues.symbols
 
