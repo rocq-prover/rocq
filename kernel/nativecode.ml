@@ -2078,6 +2078,8 @@ let pp_mllam_mlf fmt l =
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam_mlf l1 pp_mllam_mlf l2
     | MLprimitive (Lazy, args) -> (* lazy values must be treated separately *)
       Format.fprintf fmt "@[<2>(lazy%a)@]" pp_args_mlf args
+    | MLprimitive (p, [||]) -> (* not a function and just a value *)
+      Format.fprintf fmt "%a" pp_primitive_mlf p
     | MLprimitive (p, args) ->
       Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_primitive_mlf p pp_args_mlf args
     | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
