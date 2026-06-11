@@ -361,9 +361,12 @@ let synterp_extra_dep ?loc from file id =
   let from = Libnames.add_dirpath_suffix hd tl in
   ComExtraDeps.declare_extra_dep ?loc ~from ~file id
 
-let synterp_begin_section ({v=id} as lid) =
+let synterp_begin_section ~poly ({v=id} as lid) =
   Dumpglob.dump_definition lid true "sec";
-  Lib.Synterp.open_section id
+  Lib.Synterp.open_section id;
+  (* If there was no polymorphism attribute this just sets the option
+     to its current value ie noop. *)
+  Goptions.set_bool_option_value_gen ~stage:Summary.Stage.Synterp ~locality:OptLocal ["Universe"; "Polymorphism"] poly
 
 let with_synterp_state =
   let with_local_state () f =
@@ -403,7 +406,7 @@ let rec synterp ~intern ?loc ~atts v =
     | VernacInclude in_asts ->
       EVernacInclude (synterp_include in_asts)
     | VernacBeginSection lid ->
-      synterp_begin_section lid;
+      synterp_begin_section ~poly:(only_polymorphism atts) lid;
       EVernacBeginSection lid
     | VernacEndSegment lid ->
       synterp_end_segment lid;

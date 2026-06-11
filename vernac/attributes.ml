@@ -281,7 +281,7 @@ let is_universe_polymorphism =
   let b = ref false in
   let () = let open Goptions in
     declare_bool_option
-      { optstage = Summary.Stage.Interp;
+      { optstage = Summary.Stage.Synterp;
         optdepr  = None;
         optkey   = universe_polymorphism_option_name;
         optread  = (fun () -> !b);
