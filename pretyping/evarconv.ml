@@ -1618,7 +1618,7 @@ let apply_on_subterm env evd fixed f test c t =
           let args = Evd.expand_existential !evdref (evk, args) in
           let args = List.Smart.map (applyrec acc) args in
           EConstr.mkLEvar !evdref (evk, args)
-      | _ -> map_constr_with_binders_left_to_right env !evdref
+      | _ -> map_constr_with_binders_left_to_right ~partial_app:true env !evdref
               (fun d (env,(k,c)) -> (push_rel d env, (k+1,lift 1 c)))
               applyrec acc t
     else
@@ -1633,7 +1633,7 @@ let apply_on_subterm env evd fixed f test c t =
                 evdref := evd'; t')
      else (
        debug_ho_unification (fun () -> Pp.str "failed");
-       map_constr_with_binders_left_to_right env !evdref
+       map_constr_with_binders_left_to_right ~partial_app:true env !evdref
         (fun d (env,(k,c)) -> (push_rel d env, (k+1,lift 1 c)))
         applyrec acc t))
   in
@@ -1724,7 +1724,7 @@ let thin_evars env sigma sign c =
        if not (Id.Set.mem id ctx) then raise (TypingFailed !sigma)
        else t
     | _ ->
-       map_constr_with_binders_left_to_right env !sigma
+       map_constr_with_binders_left_to_right ~partial_app:true env !sigma
         (fun d (env,acc) -> (push_rel d env, acc+1))
         applyrec (env,acc) t
   in

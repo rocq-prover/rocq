@@ -538,7 +538,7 @@ let map_left2 f a g b =
     r, s
   end
 
-let map_constr_with_binders_left_to_right env sigma g f l c =
+let map_constr_with_binders_left_to_right ~partial_app env sigma g f l c =
   let open RelDecl in
   let open EConstr in
   match EConstr.kind sigma c with
@@ -565,8 +565,8 @@ let map_constr_with_binders_left_to_right env sigma g f l c =
       let b' = f (g (LocalDef (na,bo,t)) l) b in
         if bo' == bo && t' == t && b' == b then c
         else mkLetIn (na, bo', t', b')
-  | App (c,[||]) -> assert false
-  | App (t,al) ->
+  | App (t, al) ->
+    if partial_app then
       (*Special treatment to be able to recognize partially applied subterms*)
       let a = al.(Array.length al - 1) in
       let app = (mkApp (t, Array.sub al 0 (Array.length al - 1))) in
@@ -574,6 +574,11 @@ let map_constr_with_binders_left_to_right env sigma g f l c =
       let a' = f l a in
         if app' == app && a' == a then c
         else mkApp (app', [| a' |])
+    else
+      let t' = f l t in
+      let al' = Array.Smart.map (fun c -> f l c) al in
+      if t' == t && al' == al then c
+      else mkApp (t', al')
   | Proj (p,r,b) ->
     let b' = f l b in
       if b' == b then c

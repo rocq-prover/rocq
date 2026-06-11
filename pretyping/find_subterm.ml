@@ -70,7 +70,7 @@ type ('a, 'b) testing_function = {
    (b,l), b=true means no occurrence except the ones in l and b=false,
    means all occurrences except the ones in l *)
 
-let replace_term_occ_gen_modulo env sigma like_first test bywhat cl count t =
+let replace_term_occ_gen_modulo env sigma ~partial_app ~like_first test bywhat cl count t =
   let count = ref count in
   let rec substrec (nested, k) t =
     if Locusops.occurrences_done !count then t else
@@ -105,7 +105,7 @@ let replace_term_occ_gen_modulo env sigma like_first test bywhat cl count t =
     | Result.Error () ->
       subst_below (nested, k) t
   and subst_below k t =
-    map_constr_with_binders_left_to_right env sigma (fun d (nested, k) -> (nested, k + 1)) substrec k t
+    map_constr_with_binders_left_to_right ~partial_app env sigma (fun d (nested, k) -> (nested, k + 1)) substrec k t
   in
   let t' = substrec (false, 0) t in
   (!count, t')
@@ -114,14 +114,14 @@ let replace_term_occ_modulo env evd occs test bywhat t =
   let occs',like_first =
     match occs with AtOccs occs -> occs,false | LikeFirst -> AllOccurrences,true in
   proceed_with_occurrences
-    (replace_term_occ_gen_modulo env evd like_first test bywhat None) occs' t
+    (replace_term_occ_gen_modulo env evd ~partial_app:true ~like_first test bywhat None) occs' t
 
 let replace_term_occ_decl_modulo env evd occs test bywhat d =
   let (plocs,hyploc),like_first =
     match occs with AtOccs occs -> occs,false | LikeFirst -> (AllOccurrences,InHyp),true in
   proceed_with_occurrences
     (map_named_declaration_with_hyploc
-       (replace_term_occ_gen_modulo env evd like_first test bywhat)
+       (replace_term_occ_gen_modulo env evd ~partial_app:true ~like_first test bywhat)
        hyploc)
     plocs d
 
@@ -153,6 +153,6 @@ let subst_closed_term_occ_decl env evd occs c d =
   let bywhat () = mkRel 1 in
   proceed_with_occurrences
     (map_named_declaration_with_hyploc
-       (fun _ -> replace_term_occ_gen_modulo env evd like_first test bywhat None)
+       (fun _ -> replace_term_occ_gen_modulo env evd ~partial_app:true ~like_first test bywhat None)
        hyploc) plocs d,
   test.testing_state

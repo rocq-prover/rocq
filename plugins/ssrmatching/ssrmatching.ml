@@ -916,7 +916,7 @@ let subst_tpattern env sigma ise uc u occ_state c h k =
               Context.Rel.Declaration.LocalAssum(x,y) in
         EConstr.push_rel ctx_item env, h' + 1 in
       let self acc c = subst_loop acc c in
-      let f' = map_constr_with_binders_left_to_right env sigma inc_h self acc f in
+      let f' = map_constr_with_binders_left_to_right ~partial_app:true env sigma inc_h self acc f in
       mkApp (f', Array.map_left (subst_loop acc) a) in
   let c = subst_loop (env, h) c in
   Evd.ustate !evd, c

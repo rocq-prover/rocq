@@ -41,6 +41,7 @@ val it_mkLambda_or_LetIn_from_no_LetIn : Constr.constr -> Constr.rel_context -> 
 (** {6 Generic iterators on constr} *)
 
 val map_constr_with_binders_left_to_right :
+  partial_app:bool ->
   Environ.env -> Evd.evar_map ->
   (rel_declaration -> 'a -> 'a) ->
   ('a -> constr -> constr) ->
