@@ -1821,8 +1821,6 @@ let string_of_gname_mlf g =
     let name = String.split_on_char '.' name in
     let name = match name with
       | [] -> []
-      | modul::rest when String.starts_with ~prefix:"Coq_native" modul ->
-        (modul^"_mlf")::rest (* we try to access ml values that had just been compiled, we instead decide to access the corresponding mlf values *)
       | name -> name in
     let name = List.map ((^) " $") name in
     let name = List.fold_left (^) "" name in
@@ -2357,7 +2355,7 @@ let global_to_mlf_name g =
   | Gletcase(gn,_,_,_,_,_)
   | Glet (gn,_) ->
     let gn = string_of_gname_mlf gn in
-    if gn = "_" then None else Some gn 
+    if gn = "_" then None else Some gn
   | Gtype _
   | Gcomment _
   | Gopen _ -> None
