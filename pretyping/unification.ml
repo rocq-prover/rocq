@@ -2131,7 +2131,7 @@ let make_pattern_test from_prefix_of_ind is_correct_type env sigma (pending,c) =
     end
   | None -> Result.Ok (Some c1)
   in
-  { match_fun = matching_fun; merge_fun = merge_fun;
+  { match_fun = matching_fun; merge_fun = merge_fun; with_partial_apps = true;
     testing_state = None; last_found = None },
   (fun test -> match test.testing_state with
   | None -> None

@@ -22,12 +22,16 @@ exception SubtermUnificationError of subterm_unification_error
 (** A testing function is typically a unification function returning a
     substitution or failing with Error, together with a function to merge
     substitutions and an initial substitution;
+    [with_partial_apps] controls whether partial application prefixes are
+    considered, i.e. if [match_fun] may return [Ok] for some [App] argument,
+    one must set it to true;
     last_found is used for error messages and it has to be initialized
     with None. *)
 
 type ('a, 'b) testing_function = {
   match_fun : int -> 'a -> constr -> ('b, unit) Result.t;
   merge_fun : 'b -> 'a -> ('a, unit) Result.t;
+  with_partial_apps : bool;
   mutable testing_state : 'a;
   mutable last_found : position_reporting option
 }
