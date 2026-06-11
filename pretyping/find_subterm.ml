@@ -137,7 +137,7 @@ let make_eq_univs_test env evd c =
       with Evd.UniversesDiffer | UGraph.UniverseInconsistency _ -> Result.Error ()
     );
   merge_fun = (fun evd _ -> Result.Ok evd);
-  with_partial_apps = true;
+  with_partial_apps = (isApp evd c || isProj evd c); (* Proj is handled like application *)
   testing_state = evd;
   last_found = None
 }
