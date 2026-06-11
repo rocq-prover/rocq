@@ -123,10 +123,9 @@ let write_mlf_code fn ?(header=[]) code =
   close_out ch_out;
   let ch_mli_out = open_out ((Filename.chop_extension fn)^".mli") in
   let fmt = Format.formatter_of_out_channel ch_mli_out in
-  Format.fprintf fmt "type t\n";
   let defined_values = List.map_filter global_to_mlf_name code in
   let defined_values = List.map (fun s -> String.sub s 1 ((String.length s)-1)) defined_values in
-  List.iter (Format.fprintf fmt "val %s : t\n@.") defined_values;
+  List.iter (Format.fprintf fmt "val %s : Nativevalues.t Lazy.t\n@.") defined_values;
   close_out ch_mli_out
 
 let error_native_compiler_failed e =
@@ -228,7 +227,7 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
   let ocamlfind = Boot.Env.ocamlfind () in
   debug_native_compiler (fun () -> Pp.str (malfunction ^ " " ^ (String.concat " " args)));
   try
-    let res1 = CUnix.sys_command ocamlfind ["ocamlc"; "-opaque"; "-c"; f^".mli"] in
+    let res1 = CUnix.sys_command ocamlfind (["ocamlc"; "-opaque"; "-c"; f^".mli"]@include_dirs) in
     let res2 = CUnix.sys_command malfunction args in
     let res3 = if Dynlink.is_native then CUnix.sys_command ocamlfind ["opt"; "-shared"; "-o"; f^".cmxs"; f^".cmx"] else Unix.WEXITED 0 in
     let _ = match res1 with
@@ -247,15 +246,15 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
     error_native_compiler_failed (Inr e)
 
 let compile fn code ~profile:profile =
-  let fn_mlf = (Filename.chop_extension fn) ^ "_mlf.nativemlf" in
+  (* let fn_mlf = (Filename.chop_extension fn) ^ "_mlf.nativemlf" in *)
   (* write_ml_code fn code; *)
-  write_mlf_code fn_mlf code;
+  write_mlf_code fn code;
   (* let r = call_compiler ~profile fn in *)
-  let r_mlf = call_mlf_compiler ~profile fn_mlf in
+  let r_mlf = call_mlf_compiler ~profile fn in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
   (* delay_cleanup_file fn; *)
-  delay_cleanup_file fn_mlf;
+  delay_cleanup_file fn;
   r_mlf
 
 type native_library = Nativecode.global list * Nativevalues.symbols
