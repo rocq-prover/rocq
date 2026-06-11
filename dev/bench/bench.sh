@@ -96,6 +96,7 @@ export COQ_LOG_DIR=$log_dir
 # maps CI project (first arg of "overlay")
 # to space separated list of opam packages which use the project's url
 declare -A auto_overlay_map
+auto_overlay_map[stdlib]="rocq-stdlib"
 auto_overlay_map[elpi]="rocq-elpi"
 auto_overlay_map[equations]="rocq-equations"
 auto_overlay_map[metarocq]="rocq-metarocq-utils rocq-metarocq-common rocq-metarocq-template rocq-metarocq-pcuic rocq-metarocq-safechecker rocq-metarocq-erasure rocq-metarocq-translations"
