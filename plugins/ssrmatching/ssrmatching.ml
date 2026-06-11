@@ -886,33 +886,39 @@ let has_instances = function
 | None -> false
 | Some instances -> not (List.is_empty !instances)
 
+exception NoMatchTC
+
 let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : find_P =
   fun env c h ~k ->
   let upat_that_matched_ref = upat_that_matched in
   let upat_that_matched = match !upat_that_matched_ref with
   | None ->
-    let failed_because_of_TC = ref false in
-    begin try
-      let () = match instances with
-      | None when not disable_FO -> match_upats_FO upats env sigma0 ise c
-      | _ -> ()
-      in
-      let on_instance = match instances with
-      | None -> fun x -> raise (FoundUnif x)
-      | Some r -> fun x -> r := !r @ [x]
-      in
-      failed_because_of_TC:=match_upats_HO ~on_instance upats env sigma0 ise c;
-      raise NoMatch
-    with FoundUnif sigma_u -> env,0,[sigma_u]
-    | (NoMatch|NoProgress) when has_instances instances ->
-      env, 0, uniquize (!(Option.get instances))
-    | NoMatch when (not raise_NoMatch) ->
-      if !failed_because_of_TC then ssrfail env ise upats_origin upats SsrTCFail
-      else ssrfail env ise upats_origin upats SsrMatchFail
-    | NoProgress when (not raise_NoMatch) ->
-      ssrfail env ise upats_origin upats SsrProgressFail
-    | NoProgress -> raise NoMatch
-    end
+    let ans =
+      try
+        let () = match instances with
+        | None when not disable_FO -> match_upats_FO upats env sigma0 ise c
+        | _ -> ()
+        in
+        let on_instance = match instances with
+        | None -> fun x -> raise (FoundUnif x)
+        | Some r -> fun x -> r := !r @ [x]
+        in
+        if match_upats_HO ~on_instance upats env sigma0 ise c then raise NoMatchTC else raise NoMatch
+      with
+      | FoundUnif sigma_u -> [sigma_u]
+      | (NoMatch|NoMatchTC|NoProgress) when has_instances instances ->
+        uniquize (!(Option.get instances))
+      | NoMatch ->
+        if raise_NoMatch then raise NoMatch
+        else ssrfail env ise upats_origin upats SsrMatchFail
+      | NoMatchTC ->
+        if raise_NoMatch then raise NoMatch
+        else ssrfail env ise upats_origin upats SsrTCFail
+      | NoProgress ->
+        if raise_NoMatch then raise NoMatch
+        else ssrfail env ise upats_origin upats SsrProgressFail
+    in
+    env, 0, ans
   | Some r -> r
   in
   let expl, sigma, uc, ({up_f = pf; up_a = pa} as u) = match instances with
