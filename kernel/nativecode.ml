@@ -1302,7 +1302,7 @@ let compile_prim env decl cond paux =
   else
     add_decl decl (compile_cond cond paux)
 
- let rec ml_of_lam env l t =
+let rec ml_of_lam env l t =
   match node t with
   | Lrel(id ,i) -> get_rel env id i
   | Lvar id -> get_var env id
@@ -2359,6 +2359,17 @@ let global_to_mlf_name g =
   | Gtype _
   | Gcomment _
   | Gopen _ -> None
+
+let is_type_decl g =
+  match g with
+  | Gtblfixtype _
+  | Gtblnorm _
+  | Gtblcofix _
+  | Gletcase _
+  | Gcomment _
+  | Gopen _
+  | Glet _ -> false
+  | Gtype _ -> true
 
 (** Compilation of elements in environment **)
 let rec compile_with_fv ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
