@@ -2092,6 +2092,8 @@ let pp_mllam_mlf fmt l =
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname_mlf g
     | MLapp(f, [||]) -> (* not an application and instead simply a function *)
         Format.fprintf fmt "%a" pp_mllam_mlf f
+    | MLapp(MLglobal (Ginternal "Lazy.force"), args) -> (* force has to be hardcoded as mlf won't let us bypass the force keyword *)
+        Format.fprintf fmt "@[<2>(force%a)@]" pp_args_mlf args
     | MLapp(f, args) ->
         Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_mllam_mlf f pp_args_mlf args
     | MLlet(id,def,body) ->
