@@ -16,6 +16,9 @@ if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 # See ci-compcert.sh
 export COQEXTRAFLAGS='-native-compiler no'
+
+# custom makefile doesn't print times without this
+export TIMING=1
 ( cd "${CI_BUILD_DIR}/vst"
   make IGNORECOQVERSION=true IGNORECOMPCERTVERSION=true
 )
