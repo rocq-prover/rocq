@@ -1724,7 +1724,7 @@ let thin_evars env sigma sign c =
        if not (Id.Set.mem id ctx) then raise (TypingFailed !sigma)
        else t
     | _ ->
-       map_constr_with_binders_left_to_right ~partial_app:true env !sigma
+       map_constr_with_binders_left_to_right ~partial_app:false env !sigma
         (fun d (env,acc) -> (push_rel d env, acc+1))
         applyrec (env,acc) t
   in
