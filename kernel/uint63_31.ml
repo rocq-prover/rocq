@@ -46,7 +46,9 @@ let to_string i = Int64.to_string i
 let compile i = Printf.sprintf "Uint63.of_int64 (%LiL)" i
 
 (* Compiles an unsigned int to malfunction code *)
-let compile_mlf i = Printf.sprintf "(apply (global &Uint63 &of_int64) (%LiL.i64))" i
+let compile_mlf i =
+  if Int64.compare i 0L >= 0 then Printf.sprintf "(apply (global &Uint63 &of_int64) %Li.i64)" i (* the internal value (a signed integer) is positive *)
+  else Printf.sprintf "(apply (global &Uint63 &of_int64) (neg.i64 %Li.i64))" (Int64.neg i) (* the internal value is negative and we must take it into account *)
 
     (* comparison *)
 let lt x y =

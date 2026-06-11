@@ -44,7 +44,9 @@ let to_string i = Int64.to_string (to_uint64 i)
 let compile i = Printf.sprintf "Uint63.of_int (%i)" i
 
 (* Compiles an unsigned int to malfunction code *)
-let compile_mlf i = Printf.sprintf "(apply (global $Uint63 $of_int) %i)" i
+let compile_mlf i =
+  if i >= 0 then Printf.sprintf "(apply (global $Uint63 $of_int) %i)" i
+  else Printf.sprintf "(apply (global $Uint63 $of_int) (neg %i))" (-i)
 
 let zero = 0
 let one = 1

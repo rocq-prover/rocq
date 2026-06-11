@@ -2076,6 +2076,12 @@ let pp_mllam_mlf fmt l =
           pp_ldecls_mlf ids pp_mllam_mlf body
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam_mlf l1 pp_mllam_mlf l2
+    | MLprimitive (MLland, args) -> (* malfunction has a special operator for logical and *)
+      Format.fprintf fmt "(& %a)" pp_args_mlf args
+    | MLprimitive (MLnot, args) ->
+      Format.fprintf fmt "(== 0 %a)" pp_args_mlf args
+    | MLprimitive (MLmagic, args) -> (* Obj.magic is unneeded in malfunction *)
+      Format.fprintf fmt "%a" pp_args_mlf args
     | MLprimitive (Lazy, args) -> (* lazy values must be treated separately *)
       Format.fprintf fmt "@[<2>(lazy%a)@]" pp_args_mlf args
     | MLprimitive (p, [||]) -> (* not a function and just a value *)
@@ -2184,15 +2190,12 @@ let pp_mllam_mlf fmt l =
     | Val_to_int -> Format.fprintf fmt "(global $Nativevalues $val_to_int)"
     | Mk_evar -> Format.fprintf fmt "(global $Nativevalues $mk_evar_accu)"
     | MLand -> Format.fprintf fmt "(lambda ($a $b) (if $a $b 0))"
-    | MLnot -> Format.fprintf fmt "(global $not)"
-    | MLland -> Format.fprintf fmt "(global $land)"
-    | MLmagic -> Format.fprintf fmt "(lambda ($a) $a)"
     | MLsubst_instance_instance -> Format.fprintf fmt "(global $UVars $subst_instance_instance)"
     | MLsubst_instance_sort -> Format.fprintf fmt "(global $UVars $subst_instance_sort)"
     | MLparray_of_array -> Format.fprintf fmt "(global $Nativevalues $parray_of_array)"
     | Coq_primitive (op, false) ->
-       Format.fprintf fmt "(global $Nativelib $no_check_%s)" (CPrimitives.to_string op)
-    | Coq_primitive (op, true) -> Format.fprintf fmt "(global $Nativelib $%s)" (CPrimitives.to_string op)
+       Format.fprintf fmt "(global $Nativevalues $no_check_%s)" (CPrimitives.to_string op)
+    | Coq_primitive (op, true) -> Format.fprintf fmt "(global $Nativevalues $%s)" (CPrimitives.to_string op)
     | Get_value -> Format.fprintf fmt "(global $Nativecode $get_value)"
     | Get_sort -> Format.fprintf fmt "(global $Nativecode $get_sort)"
     | Get_name -> Format.fprintf fmt "(global $Nativecode $get_name)"
@@ -2203,7 +2206,10 @@ let pp_mllam_mlf fmt l =
     | Get_instance -> Format.fprintf fmt "(global $Nativecode $get_instance)"
     | Get_proj -> Format.fprintf fmt "(global $Nativecode $get_proj)"
     | Get_symbols -> Format.fprintf fmt "(global $Nativelib $get_symbols)"
-    | Lazy -> assert false (* this case has been treated separately in pp_mllam_mlf *)
+    | MLnot
+    | MLland
+    | MLmagic
+    | Lazy -> assert false (* theses cases has been treated separately in pp_mllam_mlf *)
   in
   Format.fprintf fmt "@[%a@]" pp_mllam_mlf l
 
