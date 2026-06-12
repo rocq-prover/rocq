@@ -2082,6 +2082,8 @@ let pp_mllam_mlf fmt l =
       Format.fprintf fmt "%a" pp_args_mlf args
     | MLprimitive (Lazy, args) -> (* lazy values must be treated separately *)
       Format.fprintf fmt "@[<2>(lazy%a)@]" pp_args_mlf args
+    | MLprimitive (Array_get, args) ->
+      Format.fprintf fmt "@[<2>(load%a)@]" pp_args_mlf args
     | MLprimitive (p, [||]) -> (* not a function and just a value *)
       Format.fprintf fmt "%a" pp_primitive_mlf p
     | MLprimitive (p, args) ->
@@ -2181,7 +2183,6 @@ let pp_mllam_mlf fmt l =
     | Is_string -> Format.fprintf fmt "(global $Nativevalues $is_string)"
     | Is_parray -> Format.fprintf fmt "(global $Nativevalues $is_parray)"
     | Cast_accu -> Format.fprintf fmt "(global $Nativevalues $cast_accu)"
-    | Array_get -> Format.fprintf fmt "(global $Stdlib $Array $get)"
     | Force_cofix -> Format.fprintf fmt "(global $Nativevalues $force_cofix)"
     | Mk_uint -> Format.fprintf fmt "(global $Nativevalues $mk_uint)"
     | Mk_float -> Format.fprintf fmt "(global $Nativevalues $mk_float)"
@@ -2206,6 +2207,7 @@ let pp_mllam_mlf fmt l =
     | Get_instance -> Format.fprintf fmt "(global $Nativecode $get_instance)"
     | Get_proj -> Format.fprintf fmt "(global $Nativecode $get_proj)"
     | Get_symbols -> Format.fprintf fmt "(global $Nativelib $get_symbols)"
+    | Array_get
     | MLnot
     | MLland
     | MLmagic
@@ -2241,6 +2243,9 @@ let pp_cofix fmt (gn, s) =
   in
   let len = Array.length s in
   Format.fprintf fmt "@[let %a = %a in@\n%a%a@]" pp_gname gn pp_dummy len pp_knot len pp_gname gn
+
+let pp_cofix_mlf fmt (gn, s) =
+  Format.fprintf fmt "@[(let (rec (%a (lazy %a))) (force %a))@]" pp_gname_mlf gn pp_array_mlf s pp_gname_mlf gn
 
 let type_of_global gn c = match gn with
   | Ginternal "symbols_tbl" -> ""
@@ -2340,10 +2345,10 @@ let pp_global_mlf fmt g =
         pp_ldecls_mlf params pp_array_mlf t
   | Gtblcofix (g, [||], s) -> (* not a function but a definition *)
       Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname_mlf g
-        pp_array_mlf s
+        pp_cofix_mlf (g, s)
   | Gtblcofix (g, params, s) ->
       Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname_mlf g
-        pp_ldecls_mlf params pp_array_mlf s
+        pp_ldecls_mlf params pp_cofix_mlf (g, s)
   | Gcomment s ->
       List.iter (fun line -> Format.fprintf fmt ";@[ %s @]@." line) (String.split_on_char '\n' s)
 
