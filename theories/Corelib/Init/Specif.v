@@ -910,8 +910,6 @@ Inductive sumbool (A B:Prop) : Set :=
   | right : B -> {A} + {B}
  where "{ A } + { B }" := (sumbool A B) : type_scope.
 
-Add Printing If sumbool.
-
 Arguments left {A B} _, [A] B _.
 Arguments right {A B} _ , A [B] _.
 
@@ -925,8 +923,6 @@ Inductive sumor (A:Type) (B:Prop) : Type :=
   | inleft : A -> A + {B}
   | inright : B -> A + {B}
  where "A + { B }" := (sumor A B) : type_scope.
-
-Add Printing If sumor.
 
 Arguments inleft {A B} _ , [A] B _.
 Arguments inright {A B} _ , A [B] _.

@@ -249,7 +249,7 @@ GRAMMAR EXTEND Gram
         { CAst.make ~loc @@ CIf (c, po, b1, b2) }
       | "if"; c = term LEVEL "200"; "is"; db1 = if_dthen; b2 = if_else ->
         { let b1, (na, t), rt = db1 in
-          CAst.make ~loc @@ CCases (MatchStyle, rt, [c, na, t], [b1; b2]) }
+          CAst.make ~loc @@ CCases (IfStyle, rt, [c, na, t], [b1; b2]) }
       | "fix"; c = fix_decls -> { let (id,dcls) = c in CAst.make ~loc @@ CFix (id,dcls) }
       | "cofix"; c = cofix_decls -> { let (id,dcls) = c in CAst.make ~loc @@ CCoFix (id,dcls) } ]
     | "9"
