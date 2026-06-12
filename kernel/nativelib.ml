@@ -123,11 +123,7 @@ let write_mlf_code fn ?(header=[]) code =
   close_out ch_out;
   let ch_mli_out = open_out ((Filename.chop_extension fn)^".mli") in
   let fmt = Format.formatter_of_out_channel ch_mli_out in
-  let defined_types = List.filter is_type_decl code in
-  List.iter (pp_global fmt) defined_types; (* we define types in the .mli as they would have been in the .ml to allow Ocaml code to interface with it *)
-  let defined_values = List.map_filter global_to_mlf_name code in
-  let defined_values = List.map (fun s -> String.sub s 1 ((String.length s)-1)) defined_values in
-  List.iter (Format.fprintf fmt "val %s : Nativevalues.t Lazy.t\n@.") defined_values;
+  List.iter (pp_global_interface fmt) code;
   close_out ch_mli_out
 
 let error_native_compiler_failed e =

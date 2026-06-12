@@ -34,7 +34,7 @@ val pp_global_mlf : Format.formatter -> global -> unit
 
 val global_to_mlf_name : global -> string option
 
-val is_type_decl : global -> bool
+val pp_global_interface : Format.formatter -> global -> unit
 
 val mk_open : string -> global
 
