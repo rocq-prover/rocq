@@ -67,6 +67,26 @@ let find_rectype_a env sigma c =
   | Ind ind -> (ind, l)
   | _ -> raise Not_found
 
+type env = {
+  env : Environ.env;
+  norm_params : bool;
+}
+
+let push_rel decl env =
+  { env with env = Environ.push_rel decl env.env }
+
+let push_rel_context ctx env =
+  { env with env = Environ.push_rel_context ctx env.env }
+
+let push_rels_assum ctx env =
+  let fold (na, t) accu = Environ.push_rel (LocalAssum (na, t)) accu in
+  { env with env = List.fold_right fold ctx env.env }
+
+let push_rec_types rdef env =
+  { env with env = Environ.push_rec_types rdef env.env }
+
+let (!!) e = e.env
+
 (* Instantiate inductives and parameters in constructor type *)
 
 let type_constructor mind mib u (ctx, typ) params =
@@ -79,20 +99,23 @@ let type_constructor mind mib u (ctx, typ) params =
     substl (subst_of_rel_context_instance mib.mind_params_ctxt params)
       ctyp
 
-
-
 let construct_of_constr const env sigma tag typ =
-  let t, allargs = app_type env sigma (EConstr.of_constr typ) in
+  let t, allargs = app_type !!env sigma (EConstr.of_constr typ) in
   match Constr.kind t with
   | Ind ((mind,_ as ind), u as indu) ->
-    let mib,mip = lookup_mind_specif env ind in
+    let mib,mip = lookup_mind_specif !!env ind in
     let nparams = mib.mind_nparams in
     let i = invert_tag const tag mip.mind_reloc_tbl in
     let params = Array.sub allargs 0 nparams in
     let ctyp = type_constructor mind mib u (mip.mind_nf_lc.(i-1)) params in
+    let params =
+      if env.norm_params then
+        Array.map (fun c -> EConstr.Unsafe.to_constr (Reductionops.nf_all !!env sigma (EConstr.of_constr c))) params
+      else params
+    in
     (mkApp(mkConstructUi(indu,i), params), ctyp)
   | _ ->
-     assert (Constr.equal t (Typeops.type_of_int env));
+     assert (Constr.equal t (Typeops.type_of_int !!env));
       (mkInt (Uint63.of_int tag), t)
 
 let construct_of_constr_const env sigma tag typ =
@@ -145,7 +168,7 @@ let build_case_type (pctx, p) realargs c =
 
 (* La fonction de normalisation *)
 
-let rec nf_val env sigma v t = nf_whd env sigma (Vmvalues.whd_val v) t
+let rec nf_val (env : env) sigma v t = nf_whd env sigma (Vmvalues.whd_val v) t
 
 and nf_vtype env sigma v =  nf_val env sigma v crazy_type
 
@@ -154,8 +177,8 @@ and nf_whd env sigma whd typ =
   | Vprod p ->
       let dom = nf_vtype env sigma (dom p) in
       let name = Name (Id.of_string "x") in
-      let vc = reduce_fun (nb_rel env) (codom p) in
-      let r = Retyping.relevance_of_type env sigma (EConstr.of_constr dom) in
+      let vc = reduce_fun (nb_rel !!env) (codom p) in
+      let r = Retyping.relevance_of_type !!env sigma (EConstr.of_constr dom) in
       let r = EConstr.Unsafe.to_relevance r in
       let name = make_annot name r in
       let codom = nf_vtype (push_rel (LocalAssum (name,dom)) env) sigma vc  in
@@ -190,12 +213,12 @@ and nf_whd env sigma whd typ =
   | Vaccu (Aid idkey, stk) ->
       constr_type_of_idkey env sigma idkey stk
   | Vaccu (Aind ((mi, i) as ind), stk) ->
-     let mib = Environ.lookup_mind mi env in
+     let mib = Environ.lookup_mind mi !!env in
      let nb_univs =
        UVars.AbstractContext.size (Declareops.inductive_polymorphic_context mib)
      in
      let mk u =
-       let pind = (ind, u) in (mkIndU pind, type_of_ind env pind)
+       let pind = (ind, u) in (mkIndU pind, type_of_ind !!env pind)
      in
      nf_univ_args ~nb_univs mk env sigma stk
   | Vaccu (Asort s, stk) ->
@@ -246,7 +269,7 @@ and nf_evar env sigma evk stk =
 and constr_type_of_idkey env sigma (idkey : Vmvalues.id_key) stk =
   match idkey with
   | ConstKey cst ->
-     let cbody = EConstr.lookup_constant env sigma cst in
+     let cbody = EConstr.lookup_constant !!env sigma cst in
      let nb_univs =
        UVars.AbstractContext.size (Declareops.constant_polymorphic_context cbody)
      in
@@ -256,11 +279,11 @@ and constr_type_of_idkey env sigma (idkey : Vmvalues.id_key) stk =
      in
      nf_univ_args ~nb_univs mk env sigma stk
    | VarKey id ->
-      let ty = NamedDecl.get_type (lookup_named id env) in
+      let ty = NamedDecl.get_type (lookup_named id !!env) in
       nf_stk env sigma (mkVar id) ty stk
   | RelKey i ->
-      let n = (nb_rel env - i) in
-      let ty = RelDecl.get_type (lookup_rel n env) in
+      let n = (nb_rel !!env - i) in
+      let ty = RelDecl.get_type (lookup_rel n !!env) in
       nf_stk env sigma (mkRel n) (lift n ty) stk
   | EvarKey evk ->
       nf_evar env sigma evk stk
@@ -278,12 +301,12 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
   | Zfix (f,vargs) :: stk ->
       assert (from = 0) ;
       let fa, typ = nf_fix_app env sigma f vargs in
-      let _,_,codom = decompose_prod env sigma typ in
+      let _,_,codom = decompose_prod !!env sigma typ in
       nf_stk env sigma (mkApp(fa,[|c|])) (subst1 c codom) stk
   | Zswitch sw :: stk ->
       assert (from = 0) ;
-      let ((mind,_ as ind), u), allargs = find_rectype_a env sigma (EConstr.of_constr t) in
-      let (mib,mip) = Inductive.lookup_mind_specif env ind in
+      let ((mind,_ as ind), u), allargs = find_rectype_a !!env sigma (EConstr.of_constr t) in
+      let (mib,mip) = Inductive.lookup_mind_specif !!env ind in
       let nparams = mib.mind_nparams in
       let params,realargs = Util.Array.chop nparams allargs in
       let pctx =
@@ -294,12 +317,12 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
       in
       let p, relevance = nf_predicate env sigma (ind,u) mip params (type_of_switch sw) pctx in
       (* Calcul du type des branches *)
-      let btypes = build_branches_type env sigma ind mib mip u params (pctx, p) in
+      let btypes = build_branches_type !!env sigma ind mib mip u params (pctx, p) in
       (* calcul des branches *)
-      let bsw = branch_of_switch (nb_rel env) sw in
+      let bsw = branch_of_switch (nb_rel !!env) sw in
       let mkbranch i (n,v) =
         let decl, nas, lft, codom = btypes.(i) in
-        let b = nf_val (Termops.push_rels_assum decl env) sigma v codom in
+        let b = nf_val (push_rels_assum decl env) sigma v codom in
         (* No let-ins in [codom], so we have to ignore the ones from the branch *)
         let b = exliftn lft b in
         (nas, b)
@@ -307,16 +330,16 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
       let branchs = Array.mapi mkbranch bsw in
       let tcase = build_case_type (pctx, p) realargs c in
       let p = (get_case_annot pctx, p) in
-      let ci = Inductiveops.make_case_info env ind MatchStyle in
-      let iv = if Inductiveops.Internal.should_invert_case env sigma relevance ci then
+      let ci = Inductiveops.make_case_info !!env ind MatchStyle in
+      let iv = if Inductiveops.Internal.should_invert_case !!env sigma relevance ci then
           CaseInvert {indices=realargs}
         else NoInvert
       in
       nf_stk env sigma (mkCase (ci, u, params, (p,relevance), iv, c, branchs)) tcase stk
   | Zproj p :: stk ->
     let () = assert (from = 0) in
-    let ((ind, u), args) = Inductiveops.find_mrectype env sigma (EConstr.of_constr t) in
-    let (mib, mip) = Inductive.lookup_mind_specif env ind in
+    let ((ind, u), args) = Inductiveops.find_mrectype !!env sigma (EConstr.of_constr t) in
+    let (mib, mip) = Inductive.lookup_mind_specif !!env ind in
     let pars = List.firstn mib.mind_nparams args in
     let ty = match mip.mind_record with
     | NotRecord | FakeRecord -> assert false
@@ -338,16 +361,16 @@ and nf_predicate env sigma ind mip params v pctx =
     | Vfun f -> (k + 1, reduce_fun k f)
     | _ -> assert false
   in
-  let (_, v) = List.fold_right fold pctx (nb_rel env, v) in
+  let (_, v) = List.fold_right fold pctx (nb_rel !!env, v) in
   let env = push_rel_context pctx env in
   let body = nf_vtype env sigma v in
-  let rel = Retyping.relevance_of_type env sigma (EConstr.of_constr body) in
+  let rel = Retyping.relevance_of_type !!env sigma (EConstr.of_constr body) in
   body, EConstr.Unsafe.to_relevance rel
 
 and nf_telescope env sigma len f typ =
   let open CClosure in
   let t = ref (inject typ) in
-  let infos = Evarutil.create_clos_infos env sigma RedFlags.all in
+  let infos = Evarutil.create_clos_infos !!env sigma RedFlags.all in
   let tab = create_tab () in
   let init i =
     let typ, stk = whd_stack infos tab !t [] in
@@ -376,14 +399,14 @@ and nf_bargs env sigma b ofs t =
   snd @@ nf_telescope env sigma len fargs t
 
 and nf_fun env sigma f typ =
-  let k = nb_rel env in
+  let k = nb_rel !!env in
   let vb = reduce_fun k f in
   let name,dom,codom =
-    try decompose_prod env sigma typ
+    try decompose_prod !!env sigma typ
     with DestKO ->
       CErrors.anomaly
         Pp.(strbrk "Returned a functional value in type " ++
-            Termops.Internal.print_constr_env env sigma (EConstr.of_constr typ))
+            Termops.Internal.print_constr_env !!env sigma (EConstr.of_constr typ))
   in
   let body = nf_val (push_rel (LocalAssum (name,dom)) env) sigma vb codom in
   mkLambda(name,dom,body)
@@ -391,7 +414,7 @@ and nf_fun env sigma f typ =
 and nf_fix env sigma f =
   let init = current_fix f in
   let rec_args = rec_args f in
-  let k = nb_rel env in
+  let k = nb_rel !!env in
   let vb, vt = reduce_fix k f in
   let ndef = Array.length vt in
   let ft = Array.map (fun v -> nf_val env sigma v crazy_type) vt in
@@ -399,7 +422,7 @@ and nf_fix env sigma f =
   let names = Array.map (fun t ->
       make_annot name @@
       EConstr.Unsafe.to_relevance @@
-      Retyping.relevance_of_type env sigma (EConstr.of_constr t)) ft in
+      Retyping.relevance_of_type !!env sigma (EConstr.of_constr t)) ft in
   (* Body argument of the tuple is ignored by push_rec_types *)
   let env = push_rec_types (names,ft,ft) env in
   (* We lift here because the types of arguments (in tt) will be evaluated
@@ -417,20 +440,20 @@ and nf_fix_app env sigma f vargs =
 
 and nf_cofix env sigma cf =
   let init = current_cofix cf in
-  let k = nb_rel env in
+  let k = nb_rel !!env in
   let vb,vt = reduce_cofix k cf in
   let cft = Array.map (fun v -> nf_val env sigma v crazy_type) vt in
   let name = Name (Id.of_string "Fcofix") in
   let names = Array.map (fun t ->
       make_annot name @@
       EConstr.Unsafe.to_relevance @@
-      Retyping.relevance_of_type env sigma (EConstr.of_constr t)) cft in
+      Retyping.relevance_of_type !!env sigma (EConstr.of_constr t)) cft in
   let env = push_rec_types (names,cft,cft) env in
   let cfb = Util.Array.map2 (fun v t -> nf_val env sigma v t) vb cft in
   mkCoFix (init,(names,cft,cfb))
 
 and nf_array env sigma t typ =
-  let ty, allargs = app_type env sigma (EConstr.of_constr typ) in
+  let ty, allargs = app_type !!env sigma (EConstr.of_constr typ) in
   let typ_elem = allargs.(0) in
   let vdef = Parray.default t in
   (* Do not cast into an array out of fear that floats may sneak in *)
@@ -442,7 +465,15 @@ and nf_array env sigma t typ =
 let evars_of_evar_map sigma =
   { Genlambda.evars_val = Evd.evar_handler sigma }
 
-let cbv_vm env sigma c t  =
+type vm_flags = {
+  vm_normalize_params : bool;
+}
+
+let default_vm_flags = {
+  vm_normalize_params = false;
+}
+
+let cbv_vm ?(flags = default_vm_flags) env sigma c t  =
   if not (Environ.typing_flags env).enable_VM then
     CErrors.user_err Pp.(str "vm_compute reduction has been disabled.");
   if Termops.occur_meta sigma c then
@@ -451,4 +482,5 @@ let cbv_vm env sigma c t  =
   let c = EConstr.Unsafe.to_constr c in
   let t = EConstr.Unsafe.to_constr t in
   let v = Vmsymtable.val_of_constr env (evars_of_evar_map sigma) c in
+  let env = { env; norm_params = flags.vm_normalize_params } in
   EConstr.of_constr (nf_val env sigma v t)

@@ -11,5 +11,9 @@
 open EConstr
 open Environ
 
+type vm_flags = {
+  vm_normalize_params : bool;
+}
+
 (** {6 Reduction functions } *)
-val cbv_vm : env -> Evd.evar_map -> constr -> types -> constr
+val cbv_vm : ?flags:vm_flags -> env -> Evd.evar_map -> constr -> types -> constr
