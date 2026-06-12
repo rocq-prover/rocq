@@ -1149,7 +1149,7 @@ Helper tactics
       .. rocqtop:: in extra-stdlib
 
          Goal forall (P Q : Prop) (Hp : {P} + {~P}) (Hq : {Q} + {~Q}),
-             P -> ~Q -> (if Hp then true else false) = (if Hq then false else true).
+             P -> ~Q -> (if Hp is left _ then true else false) = (if Hq is left _ then false else true).
          Proof.
 
       .. rocqtop:: all extra-stdlib

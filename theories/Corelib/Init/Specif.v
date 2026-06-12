@@ -963,7 +963,7 @@ Section Choice_lemmas.
      {f:S -> bool | forall x:S, f x = true /\ R1 x \/ f x = false /\ R2 x}.
   Proof.
     intro H.
-    exists (fun z:S => if H z then true else false).
+    exists (fun z:S => if H z is left _ then true else false).
     intro z; destruct (H z); auto.
   Defined.
 
