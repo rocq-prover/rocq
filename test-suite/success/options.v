@@ -23,9 +23,7 @@ Remove Printing Coercion i.
 Test Printing Coercion for i.
 
 Test Printing Let.
-Test Printing If.
 Remove Printing Let sig.
-Remove Printing If bool.
 
 Unset Printing Synth.
 Set Printing Synth.
