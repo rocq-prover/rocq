@@ -67,8 +67,14 @@ end
 
 type ('raw, 'glb) constr_intern_fun = ?loc:Loc.t -> glob_sign -> 'raw -> 'glb
 
+let wrap_constr_intern (type raw glb) (tag:(raw,glb) GenConstr.tag) (f:(raw, glb) constr_intern_fun)
+  : (raw, Glob_term.glob_constr) constr_intern_fun =
+  fun ?loc ist v ->
+  let v = f ?loc ist v in
+  DAst.make ?loc @@ Glob_term.GGenarg (Glb (tag, v))
+
 module CInternObj = struct
-  type ('r, 'g) t = ('r, 'g) constr_intern_fun
+  type ('r, _) t = ('r, Glob_term.glob_constr) constr_intern_fun
 end
 
 module NtnSubstObj =
@@ -82,7 +88,9 @@ module NtnSubst = GenConstr.Register (NtnSubstObj)
 
 let intern = Intern.obj
 let register_intern0 = Intern.register0
-let register_intern_constr = CIntern.register
+let register_intern_constr_gen = CIntern.register
+let register_intern_constr tag f =
+  register_intern_constr_gen tag (wrap_constr_intern tag f)
 
 let generic_intern ist (GenArg (Rawwit wit, v)) =
   let (ist, v) = intern wit ist v in
@@ -90,15 +98,16 @@ let generic_intern ist (GenArg (Rawwit wit, v)) =
 
 let generic_intern_constr ?loc ist (GenConstr.Raw (tag, v)) =
   let internf = CIntern.get tag in
-  GenConstr.Glb (tag, internf ?loc ist v)
+  internf ?loc ist v
 
 module InternPatObj = struct
-  type ('raw, 'glb) t = ('raw, 'glb) constr_intern_fun
+  type ('raw, _) t = ('raw, Glob_term.glob_constr) constr_intern_fun
 end
 
 module InternPat = GenConstr.Register (InternPatObj)
 
-let register_intern_pat = InternPat.register
+let register_intern_pat_gen = InternPat.register
+let register_intern_pat tag f = register_intern_pat_gen tag (wrap_constr_intern tag f)
 
 let generic_intern_pat ?loc ist (GenConstr.Raw (tag, v)) =
   match InternPat.find_opt tag with
@@ -107,7 +116,7 @@ let generic_intern_pat ?loc ist (GenConstr.Raw (tag, v)) =
     CErrors.user_err ?loc Pp.(str "This quotation is not supported in tactic patterns (" ++ str name ++ str ").")
   | Some internf ->
     let v = internf ?loc ist v in
-    GenConstr.Glb (tag, v)
+    v
 
 (** Notation substitution *)
 
