@@ -31,6 +31,7 @@ type 'a project = {
   ml_includes : path sourced list;
   r_includes  : (path * logic_path) sourced list;
   q_includes  : (path * logic_path) sourced list;
+  packages : string list;
   extra_args : string sourced list;
   defs : (string * string) sourced list;
 

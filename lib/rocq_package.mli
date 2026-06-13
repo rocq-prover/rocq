@@ -8,20 +8,17 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-type t =
-  { boot : bool
-  ; coqlib : string option
-  ; sort : bool
-  ; vos : bool
-  ; noglob : bool
-  ; ml_path : string list
-  ; vo_path : (bool * string * string) list
-  ; packages : string list
-  ; dyndep : string
-  ; worker : string option
-  ; files : string list
-  }
+(** Rocq package (encoded as a findlib package). *)
+type t = {
+  name : string;
+  (** Package name (fully-qualified findlib package name). *)
+  dir : string;
+  (** Directory holding the package's Rocq files (first argument of "-Q"). *)
+  logpath : string;
+  (** Logical path associated to the directory (second argument of "-Q"). *)
+}
 
-val make : unit -> t
-val usage : unit -> 'a
-val parse : t -> string list -> t
+(** [resolve ps] uses findlib to resolve the Rocq packages [ps], together with
+    their transitive dependencies. A user error is triggered if a package does
+    not exist, or if a dependency loop is found. *)
+val resolve : string list -> t list
