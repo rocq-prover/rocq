@@ -605,11 +605,11 @@ let check_case_info env (indsp,u) ci =
 (************************************************************************)
 (************************************************************************)
 
-let apply_branch ((_, i), _u) args ci lf =
+let apply_branch ((_, i), _u) args ci brctxs brs =
   let args = List.skipn ci.ci_npar args in
-  let br = lf.(i - 1) in
-  let ctx, br = Term.decompose_lambda_n_decls ci.ci_cstr_ndecls.(i - 1) br in
-  let subst = subst_of_rel_context_instance_list ctx args in
+  let brctx = brctxs.(i - 1) in
+  let _, br = brs.(i - 1) in
+  let subst = subst_of_rel_context_instance_list brctx args in
   Vars.substl subst br
 
 let contract_fix ((recindices,bodynum),(_,_,bodies as typedbodies)) =
@@ -777,6 +777,13 @@ module Subterm : sig
 
 type size = Large | Strict
 
+type var
+(* Levels to the redex stack *)
+
+val of_int : int -> var
+
+type vars
+
 (**
   Possible specifications for a term, from most to least acceptable:
   - DeadCode: the term has been built by elimination over an empty type;
@@ -786,12 +793,12 @@ type size = Large | Strict
     the argument itself is a large subterm, becomes strict after a [match];
     the wf_paths argument specifies which constructor arguments are recursive,
     it can never be empty or this downgrades the specification to [NotSubterm];
-    the [int set] is the same as in [Vars l];
+    the [vars] is the same as in [Vars l];
   - NotSubterm: the term is not a subterm in any kind **)
 type t = private
   | DeadCode
-  | Vars of Int.Set.t
-  | Subterm of size * WfPaths.t * Int.Set.t
+  | Vars of vars
+  | Subterm of size * WfPaths.t * vars
   | NotSubterm
 
 val structural : WfPaths.t -> t
@@ -800,8 +807,8 @@ val strict_subterm : WfPaths.t -> t
 val dead_code : t
 val not_subterm : t
 
-val internal : int -> t
-val make_internal : int -> t lazy_t -> t lazy_t
+val internal : var -> t
+val make_internal : var -> t lazy_t -> t lazy_t
 
 type check_result =
   | InvalidSubterm
@@ -816,12 +823,24 @@ val on_branches : env -> inductive -> t lazy_t -> int -> t lazy_t list
 val on_projection : t -> int -> t
 val on_array : t -> t
 
+val on_fixpoints : WfPaths.t array -> int -> t lazy_t -> int -> t lazy_t
+
 val prune_path : ?evars:CClosure.evar_handler ->
   env -> t -> pinductive -> types list -> t
+
+val prune_path_tree : ?evars:CClosure.evar_handler ->
+  env -> WfPaths.t -> pinductive -> types list -> WfPaths.t option
 
 end = struct
 
 type size = Large | Strict
+
+type var = int
+(* Levels to the redex stack *)
+
+let of_int n = n
+
+type vars = Int.Set.t
 
 (* merging information *)
 let inter_size s1 s2 =
@@ -926,7 +945,18 @@ let on_array discr =
   Lazy.force (on_constructors (lazy discr) 0 0)
 
 
-
+let on_fixpoints trees i spec j =
+  lazy begin match Lazy.force spec with
+  | DeadCode | Vars _ | NotSubterm as spec -> spec
+  | Subterm (_, tree, vars) as spec ->
+    if WfPaths.incl trees.(i) tree then
+      if Int.equal i j then
+        spec
+      else
+        Subterm (Strict, trees.(j), vars)
+    else
+      NotSubterm
+  end
 
 
 (* The following functions are almost duplicated from indtypes.ml, except
@@ -1052,6 +1082,13 @@ let get_recargs_approx ?evars env tree ind args =
   assigned Norec *)
   build_recargs_nested (env,[]) tree (ind, args)
 
+let prune_path_tree ?evars env tree ind args =
+  let recargs = get_recargs_approx ?evars env tree ind args in
+  let tree = WfPaths.restrict tree recargs in
+  if WfPaths.is_norec tree then
+    None
+  else
+    Some tree
 
 let prune_path ?evars env spec ind args =
   match spec with
@@ -1112,6 +1149,20 @@ let push_ctxt_renv renv ctxt =
     rel_min = renv.rel_min+n;
     genv = iterate (fun ge -> lazy Subterm.not_subterm::ge) n renv.genv }
 
+let push_branch_renv lazy_subterm_specif renv ctxt specs =
+  let rec push renv tele specs = match tele, specs with
+    | [], [] -> renv
+    | LocalDef (na, def, ty) :: tele, specs ->
+      let spec = lazy_subterm_specif renv def in
+      let renv = push_let renv (na, def, ty, spec) in
+      push renv tele specs
+    | LocalAssum (na, ty) :: tele, spec :: specs ->
+      let renv = push_var renv (na, ty, spec) in
+      push renv tele specs
+    | LocalAssum _ :: _, [] | [], _ :: _ -> assert false
+  in
+  push renv (List.rev ctxt) specs
+
 let push_fix_renv renv (_,v,_ as recdef) =
   let n = Array.length v in
   { env = push_rec_types recdef renv.env;
@@ -1140,16 +1191,11 @@ let rec needreduce_of_stack = function
   | SArg _ :: l -> needreduce_of_stack l
   | SClosure (needreduce,_,_,_) :: l -> needreduce ||| needreduce_of_stack l
 
-let redex_level rs = List.length rs
-
 let push_stack_closure renv needreduce c stack =
   (SClosure (needreduce, renv, 0, c)) :: stack
 
 let push_stack_closures renv l stack =
   List.fold_right (push_stack_closure renv NoNeedReduce) l stack
-
-let push_stack_args l stack =
-  List.fold_right (fun spec stack -> SArg spec :: stack) l stack
 
 let lift_stack k =
    List.map (function
@@ -1180,88 +1226,136 @@ let has_constant_parameters env nvars k ((mind, _), _) args =
   let (lpar, _) = List.chop auxnpar args in
   List.for_all (fun c -> noccur_with_meta (1 + k) nvars c) lpar
 
-(* [restrict_spec env spec p] restricts the size information in spec to what is
-   allowed to flow out of a match with predicate p in environment env. *)
-let restrict_spec ?evars env spec p =
-  match spec with
-  | Subterm.NotSubterm | Subterm.Vars _ -> spec
-  | _ ->
-  let absctx, ar = whd_decompose_lambda_decls ?evars env p in
-  let absctxlen = Context.Rel.length absctx in
-  (* Optimization: if the predicate is not dependent, no restriction is needed
-     and we avoid building the recargs tree. *)
-  if noccur_with_meta 1 absctxlen ar then spec
-  else
-  let env = push_rel_context absctx env in
-  let arctx, s = whd_decompose_prod ?evars env ar in
-  let env = push_rel_context arctx env in
-  let i,args = decompose_app_list (whd_all ?evars env s) in
-  match kind i with
-  | Ind i ->
-    if has_constant_parameters env absctxlen (List.length arctx) i args then spec
+let find_rectype_codom ?evars env ty =
+  let ctx, ret = whd_decompose_prod ?evars env ty in
+  let env = push_rel_context ctx env in
+  let ty, args = decompose_app_list (whd_all ?evars env ret) in
+  match kind ty with
+  | Ind ind -> ctx, ind, args
+  | _ -> raise Not_found
+
+type filter = Pass | Block | Prune of env * pinductive * types list
+type codomain_filter = Pass' | Test of env * int * types
+
+let apply_filter_stack_one stack_element_specif not_subterm ?evars elt = function
+  | Pass -> SArg (stack_element_specif ?evars elt)
+  | Block -> SArg not_subterm
+  | Prune (env, ind, args) ->
+    SArg (lazy (
+      let lazy spec = stack_element_specif ?evars elt in
+      Subterm.prune_path ?evars env spec ind args))
+
+let apply_filter_spec not_subterm ?evars spec = function
+  | Pass -> spec
+  | Block -> not_subterm
+  | Prune (env, ind, args) ->
+    Subterm.prune_path ?evars env spec ind args
+
+let apply_filter_tree ?evars tree = function
+  | Pass -> Some tree
+  | Block -> None
+  | Prune (env, ind, args) ->
+    Subterm.prune_path_tree ?evars env tree ind args
+
+(** In context [env = pctx, Δ], with [|pctx| = pctxlen] and [|Δ| = k],
+    returns what filter needs to be applied to [elt] from [t] *)
+let filter_type apply_filter ?evars pctxlen env k t elt =
+  match find_rectype_codom ?evars env t with
+  | ctx, ind, args ->
+    if has_constant_parameters env pctxlen (k + List.length ctx) ind args then
+      apply_filter ?evars elt Pass
     else
-      Subterm.prune_path ?evars env spec i args
-  | _ -> Subterm.not_subterm
+      apply_filter ?evars elt (Prune (Environ.push_rel_context ctx env, ind, args))
+  | exception Not_found ->
+      apply_filter ?evars elt Block
 
-(* [filter_stack_domain env spec p] restricts the size information in stack to
-   what is allowed to enter under a match with predicate p in environment env. *)
-let filter_stack_domain stack_element_specif not_subterm ?evars env p stack =
-  let absctx, ar = Term.decompose_lambda_decls p in
-  let absctxlen = Context.Rel.length absctx in
+let filter_predicate_stack stack_element_specif not_subterm ?evars pctxlen env p stack =
   (* Optimization: if the predicate is not dependent, no restriction is needed
      and we avoid building the recargs tree. *)
-  if noccur_with_meta 1 absctxlen ar then
-    stack
+  if noccur_with_meta 1 pctxlen p then
+    List.map (fun elt -> SArg (stack_element_specif ?evars elt)) stack, Pass'
   else
-    let env = push_rel_context absctx env in
-    let rec filter_stack env k ar stack = match stack with
-    | [] -> []
-    | elt :: stack' ->
-      let t = whd_all ?evars env ar in
-      match kind t with
-      | Prod (n, a, c0) ->
-        let d = LocalAssum (n, a) in
-        let ctx, a = whd_decompose_prod ?evars env a in
-        let env = push_rel_context ctx env in
-        let ty, args = decompose_app_list (whd_all ?evars env a) in
-        let elt = match kind ty with
-        | Ind ind ->
-          let spec = stack_element_specif ?evars elt in
-          if has_constant_parameters env absctxlen (k + List.length ctx) ind args then
-            spec
-          else
-            lazy (Subterm.prune_path ?evars env (Lazy.force spec) ind args)
-        | _ -> not_subterm
-        in
-        SArg elt :: filter_stack (push_rel d env) (k + 1) c0 stack'
-      | _ ->
-        List.map (fun _ -> SArg not_subterm) stack
-  in
-  filter_stack env 0 ar stack
+    let on_hyp = filter_type (apply_filter_stack_one stack_element_specif not_subterm) ?evars pctxlen in
+    let rec filter_stack env k p res = function
+      | [] -> env, k, p, List.rev res
+      | elt :: stack ->
+        match kind (whd_all ?evars env p) with
+        | Prod (na, ty, p) ->
+          let elt = on_hyp env k ty elt in
+          let env = Environ.push_rel (LocalAssum (na, ty)) env in
+          filter_stack env (k+1) p (elt :: res) stack
+        | _ -> env, k, p, List.rev res
+    in
+    let env, nhyps, codomain, stack = filter_stack env 0 p [] stack in
+    stack, Test (env, nhyps, codomain)
 
-(* [subterm_specif renv t] computes the recursive structure of [t] and
+let filter_predicate_codomain ?evars pctxlen ret spec =
+  match ret with
+  | Test (env, k, t) ->
+    filter_type (apply_filter_spec Subterm.not_subterm) ?evars pctxlen env k t spec
+  | Pass' -> spec
+
+let filter_predicate_tree ?evars pctxlen env p elt =
+  if noccur_with_meta 1 pctxlen p then
+    Some elt
+  else
+    filter_type apply_filter_tree ?evars pctxlen env 0 p elt
+
+let judgment_of_fixpoint (_, types, bodies) =
+  Array.map2 (fun typ body -> { uj_val = body ; uj_type = typ }) types bodies
+
+let find_mutfix_trees ?evars env0 env recindxs (_, typarray, _ as recdef) =
+  let illformed i recindx =
+    error_ill_formed_rec_body env0 (Type_errors.FixGuardError (NotEnoughAbstractionInFixBody recindx))
+      (pi1 recdef) i env
+      (judgment_of_fixpoint recdef)
+  in
+  let rec find_ind env recindx k def =
+    match kind (whd_all ?evars env def) with
+    | Prod (na, ty, body) ->
+      if Int.equal k recindx then
+        let (ind, _), _ = find_inductive ?evars env ty in
+        WfPaths.lookup_subterms env ind
+      else
+        let env = push_rel (LocalAssum (na, ty)) env in
+        find_ind env recindx (k+1) body
+    | _ -> raise Not_found
+  in
+  (* Do it on every fixpoint *)
+  Array.map2_i (fun i recindx def ->
+    try find_ind env recindx 0 def with Not_found -> illformed i recindx)
+    recindxs typarray
+
+(**[subterm_specif renv t] computes the recursive structure of [t] and
    compare its size with the size of the initial recursive argument of
    the fixpoint we are checking. [renv] collects such information
    about variables.
 *)
-
 let rec subterm_specif ?evars renv stack t =
-  (* maybe reduction is not always necessary! *)
-  let f,l = decompose_app_list (whd_all ?evars renv.env t) in
-    match kind f with
-    | Rel k -> subterm_var k renv
-    | Case (ci, u, pms, p, iv, c, lbr) -> (* iv ignored: it's just a cache *)
-      let (ci, (p,_), _iv, c, lbr) = expand_case renv.env (ci, u, pms, p, iv, c, lbr) in
-      let stack' = push_stack_closures renv l stack in
-      let stack' = filter_stack_domain stack_element_specif (lazy Subterm.not_subterm) ?evars renv.env p stack' in
-      let cases_spec = Subterm.on_branches renv.env ci.ci_ind (lazy_subterm_specif ?evars renv [] c) in
-      let stl =
-        Array.mapi (fun i br' ->
-                    let stack_br = push_stack_args (cases_spec i) stack' in
-                    subterm_specif ?evars renv stack_br br')
-                  lbr in
-      let spec = Subterm.inter_spec stl in
-      restrict_spec ?evars renv.env spec p
+  let f, l = decompose_app_list (whd_all ?evars renv.env t) in
+  match kind f with
+  | Rel k -> subterm_var k renv
+  | Case (ci, u, pms, (p, _), _, c, brs) ->
+    let specif = lookup_mind_specif renv.env ci.ci_ind in
+    let pctx = expand_arity specif (ci.ci_ind, u) pms (fst p) in
+    let penv = Environ.push_rel_context pctx renv.env in
+    let pctxlen = List.length pctx in
+
+    let stack = push_stack_closures renv l stack in
+    let stack, ret = filter_predicate_stack stack_element_specif (lazy Subterm.not_subterm) ?evars pctxlen penv (snd p) stack in
+
+    let c_spec = lazy_subterm_specif ?evars renv [] c in
+    let constrargs_spec = Subterm.on_branches renv.env ci.ci_ind c_spec in
+    let brctxs = expand_branch_contexts specif u pms brs in
+    let stl =
+      Array.map2_i (fun i brctx (_, br) ->
+        let renv = push_branch_renv (fun renv t -> lazy_subterm_specif ?evars renv [] t) renv brctx (constrargs_spec i) in
+        (* No need to lift stack as term closures were abstracted out. *)
+        subterm_specif ?evars renv stack br)
+        brctxs brs
+    in
+    let spec = Subterm.inter_spec stl in
+    filter_predicate_codomain ?evars pctxlen ret spec
 
     | Fix ((recindxs,i),(_,typarray,bodies as recdef)) ->
       (* when proving that the fixpoint f(x)=e is less than n, it is enough
@@ -1388,7 +1482,12 @@ let set_need_reduce env l err rs =
   Int.Set.fold (fun n -> set_need_reduce_one env n err) l rs
 
 let set_need_reduce_top env err rs =
-  set_need_reduce_one env (List.length rs) err rs
+  NeedReduce (env, err) :: List.tl rs
+
+let push_redex rs = NoNeedReduce :: rs
+let pop_redex rs = List.sep_first rs
+
+let redex_level rs = Subterm.of_int (List.length rs)
 
 type check_subterm_result = Subterm.check_result =
   | InvalidSubterm
@@ -1424,7 +1523,7 @@ let find_uniform_parameters recindx nargs bodies =
   in
   Array.fold_left (aux 0) min_indx bodies
 
-(** Given a fixpoint [fix f x y z n {struct n} := phi(f x y u t, ..., f x y u' t')]
+(** Given a fixpoint [fix f x y z n := phi(f x y u t, ..., f x y u' t')]
     with [z] not uniform we build in context [x:A, y:B(x), z:C(x,y)] a term
     [fix f z n := phi(f u t, ..., f u' t')], say [psi], of some type
     [forall (z:C(x,y)) (n:I(x,y,z)), T(x,y,z,n)], so that
@@ -1446,42 +1545,31 @@ let drop_uniform_parameters nuniformparams bodies =
   in
   Array.map (aux 0) bodies
 
-let filter_fix_stack_domain ?evars nr decrarg stack nuniformparams =
-  let rec aux i nuniformparams stack =
-    match stack with
-    | [] -> []
-    | a :: stack ->
-      let uniform, nuniformparams = if nuniformparams = 0 then false, 0 else true, nuniformparams -1 in
-      let a =
-        if uniform then a
-        else if Int.equal i decrarg then SArg (stack_element_specif ?evars a)
-        (* We forget the needreduce status of the structural argument here,
-           since it's checked in [non_absorbed_stack]. *)
-        else
-          (* deactivate the status of non-uniform parameters since we
-             cannot guarantee that they are preserve in the recursive
-             calls *)
-          SArg (Lazy.from_val (Subterm.internal nr)) in
-      a :: aux (i+1) nuniformparams stack
-  in aux 0 nuniformparams stack
+let split_fix_stack nuniformparams decrarg stack =
+  let l = List.length stack in
+  let decrarg_spec =
+    if decrarg < l then Some (List.nth stack decrarg) else None
+  in
+  List.firstn (min nuniformparams l) stack, decrarg_spec
 
-let pop_argument ?evars needreduce renv elt stack x a b =
-  match needreduce, elt with
-  | NoNeedReduce, SClosure (NoNeedReduce, _, n, c) ->
+(** Returns the new renv, stack, body and whether the lambda is properly erased *)
+let pop_argument ?evars renv rs stack na ty b =
+  match stack with
+  | SClosure (NoNeedReduce, _, n, c) as elt :: stack ->
     (* Neither function nor args have rec calls on internally bound variables *)
     let spec = stack_element_specif ?evars elt in
     (* Thus, args do not a priori require to be rechecked, so we push a let *)
     (* maybe the body of the let will have to be locally expanded though, see Rel case *)
-    push_let renv (x,lift n c,a,spec), lift1_stack stack, b
-  | _, SClosure (_, _, n, c) ->
+    push_let renv (na, lift n c, ty, spec), lift1_stack stack, b, true
+  | SClosure (_, _, n, c) :: stack ->
     (* Either function or args have rec call on internally bound variables *)
-    renv, stack, subst1 (lift n c) b
-  | _, SArg spec ->
+    renv, stack, subst1 (lift n c) b, true
+  | SArg spec :: stack ->
     (* Going down a case branch *)
-    push_var renv (x,a,spec), lift1_stack stack, b
-
-let judgment_of_fixpoint (_, types, bodies) =
-  Array.map2 (fun typ body -> { uj_val = body ; uj_type = typ }) types bodies
+    push_var renv (na, ty, spec), lift1_stack stack, b, false
+  | [] ->
+    (* No argument against lambda *)
+    push_var_renv renv rs (na, ty), [], b, false
 
 let rec reduce_and_contract_cofix ?evars env c =
   let c = whd_all ?evars env c in
@@ -1497,73 +1585,82 @@ let rec reduce_and_contract_cofix ?evars env c =
 let check_one_fix ?evars renv recpos trees def =
   let nfi = Array.length recpos in
 
-  (* Checks if [t] only make valid recursive calls
+  (**Checks if [t] only makes valid recursive calls
      [stack] is the list of constructor's argument specification and
      arguments that will be applied after reduction.
      example u in t where we have (match .. with |.. => t end) u;
      [rs] is the stack of redexes traversed w/o having been triggered *)
-  let rec check_rec_call_stack renv stack rs t =
-      match kind t with
-        | App (f,args) ->
-            begin
-              let rs, stack =
-                Array.fold_right (fun a (rs,stack) ->
-                    let needreduce,rs = check_rec_call renv rs a in
-                    let stack = push_stack_closure renv needreduce a stack in
-                    (rs,stack)) args (rs,stack)
-              in
-              check_rec_call_stack renv stack rs f
-            end
+  let rec check_in_stack renv stack rs t =
+    match kind t with
+    | App (f, args) ->
+      let rs, stack =
+        Array.fold_right (fun a (rs, stack) ->
+          let needreduce, rs = check_in_redex renv rs a in
+          let stack = push_stack_closure renv needreduce a stack in
+          (rs, stack))
+          args (rs, stack)
+      in
+      check_in_stack renv stack rs f
 
-        | Rel p ->
-            let rs =
-              (* Test if [p] is a fixpoint (recursive call) *)
-              if renv.rel_min <= p && p < renv.rel_min+nfi then
-                (* the position of the invoked fixpoint: *)
-                let glob = renv.rel_min+nfi-1-p in
-                (* the decreasing arg of the rec call: *)
-                let np = recpos.(glob) in
-                if List.length stack <= np then
-                  set_need_reduce_top renv.env (NotEnoughArgumentsForFixCall glob) rs
-                else
-                  (* Retrieve the expected tree for the argument *)
-                  (* Check the decreasing arg is smaller *)
-                  let z = List.nth stack np in
-                  match Subterm.check (Lazy.force (stack_element_specif ?evars z)) trees.(glob) with
-                  | NeedReduce l -> set_need_reduce renv.env l (illegal_rec_call renv glob z) rs
-                  | InvalidSubterm -> raise (FixGuardError (renv.env, illegal_rec_call renv glob z))
-              else rs
-            in
-            check_rec_call_state renv NoNeedReduce stack rs (fun () ->
-                match lookup_rel p renv.env with
-                | LocalAssum _ -> None
-                | LocalDef (_,c,_) -> Some (lift p c, []))
+    | Rel p ->
+      let rs =
+        (* Test if [p] is a fixpoint (recursive call) *)
+        if renv.rel_min <= p && p < renv.rel_min+nfi then
+          (* the position of the invoked fixpoint: *)
+          let glob = renv.rel_min+nfi-1-p in
+          (* the decreasing arg of the rec call: *)
+          let np = recpos.(glob) in
+          if List.length stack <= np then
+            set_need_reduce_top renv.env (NotEnoughArgumentsForFixCall glob) rs
+          else
+            (* Retrieve the expected tree for the argument *)
+            (* Check the decreasing arg is smaller *)
+            let z = List.nth stack np in
+            match Subterm.check (Lazy.force (stack_element_specif ?evars z)) trees.(glob) with
+            | NeedReduce l -> set_need_reduce renv.env l (illegal_rec_call renv glob z) rs
+            | InvalidSubterm -> raise (FixGuardError (renv.env, illegal_rec_call renv glob z))
+        else rs
+      in
+      check_needreduce renv NoNeedReduce stack rs (fun () ->
+        match lookup_rel p renv.env with
+        | LocalAssum _ -> None
+        | LocalDef (_, c, _) -> Some (lift p c, []))
 
-        | Case (ci, u, pms, ret, iv, c_0, br) -> (* iv ignored: it's just a cache *)
-            let (ci, (p,_), _iv, c_0, brs) = expand_case renv.env (ci, u, pms, ret, iv, c_0, br) in
-            let needreduce_c_0, rs = check_rec_call renv rs c_0 in
-            let rs = check_inert_subterm_rec_call renv rs p in
-            (* compute the recarg info for the arguments of each branch *)
-            let rs' = NoNeedReduce::rs in
-            let nr = redex_level rs' in
-            let c_spec = Subterm.make_internal nr (lazy_subterm_specif ?evars renv [] c_0) in
-            let case_spec = Subterm.on_branches renv.env ci.ci_ind c_spec in
-            let stack' = filter_stack_domain stack_element_specif (Lazy.from_val (Subterm.internal nr)) ?evars renv.env p stack in
-            let rs' =
-              Array.fold_left_i (fun k rs' br' ->
-                  let stack_br = push_stack_args (case_spec k) stack' in
-                  check_rec_call_stack renv stack_br rs' br') rs' brs in
-            let needreduce_br, rs = List.sep_first rs' in
-            check_rec_call_state renv (needreduce_br ||| needreduce_c_0) stack rs (fun () ->
-              (* we try hard to reduce the match away by looking for a
-                 constructor in c_0 (we unfold definitions too) *)
-              let hd, args = reduce_and_contract_cofix ?evars renv.env c_0 in
-              match kind hd with
-              | Construct cstr -> Some (apply_branch cstr (Array.to_list args) ci brs, [])
-              | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
-              | Sort _ | Int _ | Float _ | String _ | Array _ -> assert false
-              | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
-              | Proj _ | Cast _ | Meta _ | Evar _ -> None)
+    | Case (ci, u, pms, (p, _), _, c, brs) -> (* iv ignored: it's just a cache *)
+      let specif = lookup_mind_specif renv.env ci.ci_ind in
+      let pctx = expand_arity specif (ci.ci_ind, u) pms (fst p) in
+      let penv = Environ.push_rel_context pctx renv.env in
+      let pctxlen = List.length pctx in
+
+      let rs = push_redex rs in
+      let rs = check_term renv rs c in
+      let renv' = push_ctxt_renv renv pctx in
+      let rs = check_term renv' rs (snd p) in
+      let nr = redex_level rs in
+
+      let filtered_stack, _ = filter_predicate_stack stack_element_specif ?evars (Lazy.from_val (Subterm.internal nr)) pctxlen penv (snd p) stack in
+
+      let c_spec = Subterm.make_internal nr (lazy_subterm_specif ?evars renv [] c) in
+      let constrargs_spec = Subterm.on_branches renv.env ci.ci_ind c_spec in
+      let brctxs = expand_branch_contexts specif u pms brs in
+      let rs =
+        Array.fold_left2_i (fun i rs brctx (_, br) ->
+          let renv = push_branch_renv (fun renv t -> lazy_subterm_specif ?evars renv [] t) renv brctx (constrargs_spec i) in
+          (* No need to lift stack as term closures were abstracted out. *)
+          check_in_stack renv filtered_stack rs br)
+          rs brctxs brs
+      in
+      let needreduce, rs = pop_redex rs in
+      check_needreduce renv needreduce stack rs (fun () ->
+        (* we try hard to reduce the match away by looking for a
+            constructor in c_0 (we unfold definitions too) *)
+        let hd, args = reduce_and_contract_cofix ?evars renv.env c in
+        match kind hd with
+        | Construct cstr -> Some (apply_branch cstr (Array.to_list args) ci brctxs brs, [])
+        | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
+        | Sort _ | Int _ | Float _ | String _ | Array _ -> assert false
+        | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
+        | Proj _ | Cast _ | Meta _ | Evar _ -> None)
 
         (* Enables to traverse Fixpoint definitions in a more intelligent
            way, ie, the rule :
@@ -1577,156 +1674,135 @@ let check_one_fix ?evars renv recpos trees def =
                 S+{yp} in e
            then f is guarded with respect to S in (g a1 ... am).
            Eduardo 7/9/98 *)
-        | Fix ((recindxs,i),(_,typarray,bodies as recdef) as fix) ->
-            let decrArg = recindxs.(i) in
-            let nbodies = Array.length bodies in
-            let rs' = Array.fold_left (check_inert_subterm_rec_call renv) (NoNeedReduce::rs) typarray in
-            let renv' = push_fix_renv renv recdef in
-            let nuniformparams = find_uniform_parameters recindxs (List.length stack) bodies in
-            let bodies = drop_uniform_parameters nuniformparams bodies in
-            let fix_stack = filter_fix_stack_domain ?evars (redex_level rs) decrArg stack nuniformparams in
-            let fix_stack = if List.length stack > decrArg then List.firstn (decrArg+1) fix_stack else fix_stack in
-            let stack_this = lift_stack nbodies fix_stack in
-            let stack_others = lift_stack nbodies (List.firstn nuniformparams fix_stack) in
-            (* Check guard in the expanded fix *)
-            let illformed () =
-              error_ill_formed_rec_body renv.env (Type_errors.FixGuardError (NotEnoughAbstractionInFixBody recindxs.(i)))
-                (pi1 recdef) i (push_rec_types recdef renv.env)
-                (judgment_of_fixpoint recdef) in
-            let rs' = Array.fold_left2_i (fun j rs' recindx body ->
-                let fix_stack = if Int.equal i j then stack_this else stack_others in
-                check_nested_fix_body illformed renv' (recindx+1) fix_stack rs' body) rs' recindxs bodies in
-            let needreduce_fix, rs = List.sep_first rs' in
-            let absorbed_stack, non_absorbed_stack = List.chop nuniformparams stack in
-            check_rec_call_state renv needreduce_fix non_absorbed_stack rs (fun () ->
-              (* we try hard to reduce the fix away by looking for a
-                 constructor in [decrArg] (we unfold definitions too) *)
-              if List.length stack <= decrArg then None else
-              match List.nth stack decrArg with
-              | SArg _ -> (* A match on the way *) None
-              | SClosure (_,_,n,recArg) ->
-              let c = whd_all ?evars renv.env (lift n recArg) in
-              let hd, _ = decompose_app_list c in
-              match kind hd with
-              | Construct _ -> Some (contract_fix fix, absorbed_stack)
-              | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
-              | Sort _ | Int _ | Float _ | String _
-              | Array _ -> assert false
-              | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
-              | Proj _ | Cast _ | Meta _ | Evar _ -> None)
+    | Fix ((recindxs, i), (_, typarray, bodies as recdef) as fix) ->
+      let nuniformparams = find_uniform_parameters recindxs (List.length stack) bodies in
+      let bodies = drop_uniform_parameters nuniformparams bodies in
+      let rs = push_redex rs in
+      let rs = Array.fold_left (check_term renv) rs typarray in
+      let uniform_stack, decrarg = split_fix_stack nuniformparams recindxs.(i) stack in
+      let uniform_stack = lift_stack (Array.length bodies) uniform_stack in
+      let default_spec = Lazy.from_val (Subterm.internal (redex_level rs)) in
+      let decrarg_spec =
+        Option.cata
+          (fun elt -> stack_element_specif ?evars elt)
+          (* We forget the needreduce status of the structural argument here,
+             since it's checked in [non_absorbed_stack]. *)
+          default_spec
+          decrarg
+      in
+      let renv' = push_fix_renv renv recdef in
+      let internal_trees = find_mutfix_trees ?evars renv.env renv'.env recindxs recdef in
+      let rs = Array.fold_left2_i (fun j rs recindx body ->
+        let decrarg_spec = Subterm.on_fixpoints internal_trees i decrarg_spec j in
+        let stack = uniform_stack @ List.make (recindx - nuniformparams) (SArg default_spec) @ [SArg decrarg_spec] in
+        check_in_stack renv' stack rs body)
+        rs recindxs bodies
+      in
+      let needreduce_fix, rs = List.sep_first rs in
+      let absorbed_stack, non_absorbed_stack = List.chop nuniformparams stack in
+      check_needreduce renv needreduce_fix non_absorbed_stack rs (fun () ->
+        (* we try hard to reduce the fix away by looking for a
+            constructor in [decrArg] (we unfold definitions too) *)
+        match decrarg with
+        | None | Some SArg _ -> (* A match on the way *) None
+        | Some SClosure (_, _, n, recArg) ->
+        let c = whd_all ?evars renv.env (lift n recArg) in
+        let hd, _ = decompose_app_list c in
+        match kind hd with
+        | Construct _ -> Some (contract_fix fix, absorbed_stack)
+        | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
+        | Sort _ | Int _ | Float _ | String _
+        | Array _ -> assert false
+        | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
+        | Proj _ | Cast _ | Meta _ | Evar _ -> None)
 
-        | Const (kn,_u as cu) ->
-            check_rec_call_state renv NoNeedReduce stack rs (fun () ->
-                if evaluable_constant kn renv.env then Some (constant_value_in renv.env cu, [])
-                else None)
+    | Const (kn, _ as cu) ->
+      check_needreduce renv NoNeedReduce stack rs (fun () ->
+        if evaluable_constant kn renv.env then Some (constant_value_in renv.env cu, [])
+        else None)
 
-        | Lambda (x,a,b) ->
-            begin
-              let needreduce, rs = check_rec_call renv rs a in
-              match stack with
-              | elt :: stack ->
-                let renv, stack, b = pop_argument ?evars needreduce renv elt stack x a b in
-                check_rec_call_stack renv stack rs b
-              | [] ->
-                check_rec_call_stack (push_var_renv renv (redex_level rs) (x,a)) [] rs b
-            end
+    | Lambda (na, ty, b) ->
+      let renv', stack, b, erase_ty = pop_argument ?evars renv (redex_level rs) stack na ty b in
+      let rs =
+        if erase_ty then
+          snd (check_in_redex renv rs ty)
+          (* Erase the type annotation *)
+        else
+          check_term renv rs ty
+      in
+      check_in_stack renv' stack rs b
 
-        | Prod (x,a,u) ->
-            (* Note: we cannot ensure that the stack is empty because
-               non-accessible branches of "match" expressions can have
-               arbitrary types (see #17073) *)
-            let rs = check_inert_subterm_rec_call renv rs a in
-            (* Note: can recursive calls on [x] be else than inert "dead code"? *)
-            check_rec_call_stack (push_var_renv renv (redex_level rs) (x,a)) [] rs u
+    | Prod (na, a, b) ->
+      assert (List.is_empty stack);
+      let rs = check_term renv rs a in
+      (* Note: can recursive calls on [x] be else than inert "dead code"? *)
+      check_term (push_var_renv renv (redex_level rs) (na, a)) rs b
 
-        | CoFix (_i,(_,typarray,bodies as recdef)) ->
-            let rs = Array.fold_left (check_inert_subterm_rec_call renv) rs typarray in
-            let renv' = push_fix_renv renv recdef in
-            Array.fold_left (fun rs body ->
-                let needreduce', rs = check_rec_call renv' rs body in
-                check_rec_call_state renv needreduce' stack rs (fun _ -> None))
-              rs bodies
+    | CoFix (_, (_, typarray, bodies as recdef)) ->
+      let rs = Array.fold_left (check_term renv) rs typarray in
+      let renv' = push_fix_renv renv recdef in
+      let rs = Array.fold_left (check_term renv') rs bodies in
+      check_needreduce renv NoNeedReduce stack rs (fun () -> None)
 
-        | Ind _ | Construct _ ->
-            check_rec_call_state renv NoNeedReduce stack rs (fun () -> None)
+    | Ind _ | Construct _ ->
+      check_needreduce renv NoNeedReduce stack rs (fun () -> None)
 
-        | Proj (p, _, c) ->
-            begin
-              let needreduce', rs = check_rec_call renv rs c in
-              check_rec_call_state renv needreduce' stack rs (fun () ->
-              (* we try hard to reduce the proj away by looking for a
-                 constructor in c (we unfold definitions too) *)
-              let hd, args = reduce_and_contract_cofix ?evars renv.env c in
-              match kind hd with
-              | Construct _ -> Some (args.(Projection.npars p + Projection.arg p), [])
-              | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
-              | Sort _ | Int _ | Float _ | String _ | Array _ -> assert false
-              | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
-              | Proj _ | Cast _ | Meta _ | Evar _ -> None)
-            end
+    | Proj (p, _, c) ->
+      let needreduce', rs = check_in_redex renv rs c in
+      check_needreduce renv needreduce' stack rs (fun () ->
+        (* we try hard to reduce the proj away by looking for a
+           constructor in c (we unfold definitions too) *)
+        let hd, args = reduce_and_contract_cofix ?evars renv.env c in
+        match kind hd with
+        | Construct _ -> Some (args.(Projection.npars p + Projection.arg p), [])
+        | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
+        | Sort _ | Int _ | Float _ | String _ | Array _ -> assert false
+        | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
+        | Proj _ | Cast _ | Meta _ | Evar _ -> None)
 
-        | Var id ->
-            check_rec_call_state renv NoNeedReduce stack rs (fun () ->
-              let open! Context.Named.Declaration in
-              match lookup_named id renv.env with
-              | LocalAssum _ -> None
-              | LocalDef (_,c,_) -> Some (c, []))
+    | Var id ->
+      check_needreduce renv NoNeedReduce stack rs (fun () ->
+        let open! Context.Named.Declaration in
+        match lookup_named id renv.env with
+        | LocalAssum _ -> None
+        | LocalDef (_, c, _) -> Some (c, []))
 
-        | LetIn (x,c,t,b) ->
-            let needreduce_c, rs = check_rec_call renv rs c in
-            let needreduce_t, rs = check_rec_call renv rs t in
-            begin
-              match needreduce_of_stack stack ||| needreduce_c ||| needreduce_t with
-              | NoNeedReduce ->
-                  (* Stack do not require to beta-reduce; let's look if the body of the let needs *)
-                  let spec = lazy_subterm_specif ?evars renv [] c in
-                  let stack = lift1_stack stack in
-                  check_rec_call_stack (push_let renv (x,c,t,spec)) stack rs b
-              | NeedReduce _ -> check_rec_call_stack renv stack rs (subst1 c b)
-            end
+    | LetIn (na, def, ty, b) ->
+      let needreduce_c, rs = check_in_redex renv rs def in
+      let needreduce_t, rs = check_in_redex renv rs ty in
+      begin match needreduce_of_stack stack ||| needreduce_c ||| needreduce_t with
+      | NoNeedReduce ->
+        (* Stack do not require to beta-reduce; let's look if the body of the let needs *)
+        let spec = lazy_subterm_specif ?evars renv [] def in
+        let stack = lift1_stack stack in
+        check_in_stack (push_let renv (na, def, ty, spec)) stack rs b
+      | NeedReduce _ -> check_in_stack renv stack rs (subst1 def b)
+      end
 
-        | Cast (c,_,t) ->
-            let rs = check_inert_subterm_rec_call renv rs t in
-            let rs = check_rec_call_stack renv stack rs c in
-            rs
+    | Cast (c, _, ty) ->
+      let _, rs = check_in_redex renv rs ty in
+      (* The type annotation is erased by cast erasure *)
+      check_in_stack renv stack rs c
 
-        | Sort _ | Int _ | Float _ | String _ ->
-            (* See [Prod]: we cannot ensure that the stack is empty *)
-            rs
+    | Sort _ | Int _ | Float _ | String _ ->
+      assert (List.is_empty stack);
+      rs
 
-        | Array (_u,t,def,ty) ->
-            (* See [Prod]: we cannot ensure that the stack is empty *)
-            let rs = Array.fold_left (check_inert_subterm_rec_call renv) rs t in
-            let rs = check_inert_subterm_rec_call renv rs def in
-            let rs = check_inert_subterm_rec_call renv rs ty in
-            rs
+    | Array (_, t, def, ty) ->
+      assert (List.is_empty stack);
+      let rs = Array.fold_left (check_term renv) rs t in
+      let rs = check_term renv rs def in
+      let rs = check_term renv rs ty in
+      rs
 
-        (* stack is not checked because it will depend on evar definition *)
-        | Evar _ -> rs (* TODO: check if evar has a definition in ?evars *)
+    (* stack is not checked because it will depend on evar definition *)
+    | Evar _ -> rs (* TODO: check if evar has a definition in ?evars *)
 
-        | Meta _ -> assert false
+    | Meta _ -> assert false
 
-  and check_nested_fix_body illformed renv decr stack rs body =
-    if Int.equal decr 0 then
-      check_inert_subterm_rec_call renv rs body
-    else
-      match kind (whd_all ?evars renv.env body) with
-        | Lambda (x,a,body) ->
-          begin
-            let rs = check_inert_subterm_rec_call renv rs a in
-            match stack with
-            | elt :: stack ->
-              let renv', stack', body' = pop_argument NoNeedReduce renv elt stack x a body in
-              check_nested_fix_body illformed renv' (decr-1) stack' rs body'
-            | [] ->
-              let renv' = push_var_renv renv (redex_level rs) (x,a) in
-              check_nested_fix_body illformed renv' (decr-1) [] rs body
-          end
-        | _ -> illformed ()
-
-  and check_rec_call_state renv needreduce_of_head stack rs expand_head =
-    (* Test if either the head or the stack of a state
-       needs the state to be reduced before continuing checking *)
+  (** Test if either the head or the stack
+      needs the term to be reduced before continuing checking *)
+  and check_needreduce renv needreduce_of_head stack rs expand_head =
     match needreduce_of_head ||| needreduce_of_stack stack with
     | NoNeedReduce -> rs
     | NeedReduce _ as e ->
@@ -1734,24 +1810,28 @@ let check_one_fix ?evars renv recpos trees def =
            for expansion, in the hope to be eventually erased *)
         match expand_head () with
         | None -> e :: List.tl rs
-        | Some (c, stack') -> check_rec_call_stack renv (stack'@stack) rs c
+        | Some (c, stack') -> check_in_stack renv (stack'@stack) rs c
 
-  and check_inert_subterm_rec_call renv rs c =
-    (* Check rec calls of a term which does not interact with its
-       immediate context and which can be possibly erased at higher
-       level of the redex stack *)
-    let need_reduce, rs = check_rec_call renv rs c in
-    check_rec_call_state renv need_reduce [] rs (fun () -> None)
+  (** Check rec calls of a term which cannot change at the current
+      level of the redex stack (but possibly at a higher level still). *)
+  and check_term renv rs c =
+    check_in_stack renv [] rs c
 
-  and check_rec_call renv rs c =
-    (* either fails if a non guarded call occurs or tells if there is
-       rec call on a variable bound at the top of [c] and update the
-       need for reduction in the redex stack with rec calls on
-       variables bound at higher levels of the redex stack *)
-    List.sep_first (check_rec_call_stack renv [] (NoNeedReduce::rs) c)
+  (** Check rec calls of a term which may change after reduction
+      at the current level of the redex stack.
+      Either fails if a non guarded call occurs or tells if there is
+      rec call on a variable bound at the top of [c] while updating the
+      need for reduction in rest of the redex stack if there are
+      rec calls on variables bound at higher levels of the redex stack.
+      In practice, we push a redex level, do the regular check
+      then pop it back for immediate examination. *)
+  and check_in_redex renv rs c =
+    let rs = push_redex rs in
+    let rs = check_in_stack renv [] rs c in
+    pop_redex rs
 
   in
-  let need_reduce, rs = check_rec_call renv [] def in
+  let need_reduce, rs = check_in_redex renv [] def in
   assert (List.is_empty rs);
   match need_reduce with
   | NeedReduce (env,err) -> raise (FixGuardError (env,err))
@@ -1933,25 +2013,29 @@ let check_one_cofix ?evars env nbfix def deftype =
             else
               raise (CoFixGuardError (env,UnguardedRecursiveCall c))
 
-        | Case (ci, u, pms, p, iv, tm, br) -> (* iv ignored: just a cache *)
-          begin
-            let (_, (p,_), _iv, tm, vrest) = expand_case env (ci, u, pms, p, iv, tm, br) in
-            let tree = match restrict_spec ?evars env (Subterm.strict_subterm tree) p with
-            | Vars _ | DeadCode -> assert false
-            | Subterm (_, tree', _) -> tree'
-            | _ -> raise (CoFixGuardError (env, ReturnPredicateNotCoInductive c))
-            in
-               if (noccur_with_meta n nbfix p) then
-                 if (noccur_with_meta n nbfix tm) then
-                   if (List.for_all (noccur_with_meta n nbfix) args) then
-                     Array.iter (check_rec_call env alreadygrd n tree) vrest
-                   else
-                     raise (CoFixGuardError (env,RecCallInCaseFun c))
-                 else
-                   raise (CoFixGuardError (env,RecCallInCaseArg c))
-               else
-                 raise (CoFixGuardError (env,RecCallInCasePred c))
-           end
+        | Case (ci, u, pms, (p, _), _, tm, brs) -> (* iv ignored: just a cache *)
+          let specif = lookup_mind_specif env ci.ci_ind in
+          let pctx = expand_arity specif (ci.ci_ind, u) pms (fst p) in
+          let penv = Environ.push_rel_context pctx env in
+          let pctxlen = List.length pctx in
+          let tree = match filter_predicate_tree ?evars pctxlen penv (snd p) tree with
+            | Some tree -> tree
+            | None -> raise (CoFixGuardError (env, ReturnPredicateNotCoInductive c))
+          in
+          let () = if not (noccur_with_meta n nbfix tm) then
+            raise (CoFixGuardError (env, RecCallInCaseArg c))
+          in
+          let () = if not (noccur_with_meta (n + List.length pctx) nbfix (snd p)) then
+            raise (CoFixGuardError (env, RecCallInCasePred c))
+          in
+          let () = if not (List.for_all (noccur_with_meta n nbfix) args) then
+            raise (CoFixGuardError (env, RecCallInCaseFun c))
+          in
+          let brctxs = expand_branch_contexts specif u pms brs in
+          Array.iter2 (fun brctx (_, br) ->
+            let env = Environ.push_rel_context brctx env in
+            check_rec_call env alreadygrd (n + List.length brctx) tree br)
+            brctxs brs
 
         | Meta _ -> assert false
         | Evar _ ->
