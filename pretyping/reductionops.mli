@@ -262,7 +262,8 @@ val is_conv_nounivs : ?reds:TransparentState.t -> env -> evar_map -> constr -> c
     @raise UniverseInconsistency iff catch_incon is set to false,
     otherwise returns false in that case.
  *)
-val infer_conv : ?catch_incon:bool -> ?pb:conv_pb -> ?ts:TransparentState.t ->
+val infer_conv : ?on_evars:Conversion.on_evars -> ?catch_incon:bool ->
+  ?pb:conv_pb -> ?ts:TransparentState.t ->
   env -> evar_map -> constr -> constr -> evar_map option
 
 (** Conversion with inference of universe constraints *)
