@@ -2245,6 +2245,30 @@ let pp_cofix fmt (gn, s) =
   Format.fprintf fmt "@[let %a = %a in@\n%a%a@]" pp_gname gn pp_dummy len pp_knot len pp_gname gn
 
 let pp_cofix_mlf fmt (gn, s) =
+  let subst_gname gn v l =
+    let rec aux l =
+      match l with
+      | MLglobal id when eq_gname gn id -> v
+      | MLglobal _ | MLlocal _ | MLint _ | MLuint _ | MLfloat _ | MLstring _ -> l
+      | MLprimitive (p, args) -> MLprimitive (p, Array.map aux args)
+      | MLlam(params,body) -> MLlam(params, aux body)
+      | MLletrec(defs,body) ->
+        let arec (f,params,body) = (f,params,aux body) in
+        MLletrec(Array.map arec defs, aux body)
+      | MLlet(id,def,body) -> MLlet(id,aux def, aux body)
+      | MLapp(f,args) -> MLapp(aux f, Array.map aux args)
+      | MLif(t,b1,b2) -> MLif(aux t, aux b1, aux b2)
+      | MLmatch(annot,a,accu,bs) ->
+          let auxb (cargs,body) = (cargs,aux body) in
+          MLmatch(annot,a,aux accu, Array.map auxb bs)
+      | MLconstruct(prefix,c,tag,args) -> MLconstruct(prefix,c,tag,Array.map aux args)
+      | MLsetref(s,l1) -> MLsetref(s,aux l1)
+      | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
+      | MLarray arr -> MLarray (Array.map aux arr)
+      | MLisaccu (s, ind, l) -> MLisaccu (s, ind, aux l)
+    in
+    aux l
+  in let s = Array.map (subst_gname gn (MLapp(MLglobal (Ginternal "Lazy.force"), [|MLglobal gn|])) ) s in
   Format.fprintf fmt "@[(let (rec (%a (lazy %a))) (force %a))@]" pp_gname_mlf gn pp_array_mlf s pp_gname_mlf gn
 
 let type_of_global gn c = match gn with
