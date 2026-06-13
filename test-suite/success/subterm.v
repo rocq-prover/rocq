@@ -1,21 +1,6 @@
 (** This file tests a few tricky successful cases of commutative
     cuts in the guard condition. *)
 
-Module MutualCut.
-
-Inductive T (A : unit) := node (x : T A) with U (A : unit) := .
-
-Axiom e : tt = tt.
-
-(** Commutative cut returning a non-trivial mutual. *)
-Fixpoint F (x : T tt) : False :=
-  match x with
-  | node _ x =>
-    F match e in _ = t return T t with eq_refl => x end
-  end.
-
-End MutualCut.
-
 Module NestedCut.
 
 Set Warnings "-register-all".

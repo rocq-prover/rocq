@@ -491,6 +491,50 @@ let fold_rel_context f env ~init =
         f env rd (fold_right env)
   in fold_right env
 
+(* [fold_constr_with_binders_env f env acc c] folds [f env] on the immediate
+   subterms of [c] starting from [acc] and proceeding from left to right
+   as for [Constr.fold_constr_with_binders], but it carries the environment
+   [env] which is extended via [push_rel] (resp. [push_rec_types]) at each
+   binder traversal; it is not recursive. *)
+let fold_constr_with_binders_env f env acc c =
+  match kind c with
+  | (Rel _ | Meta _ | Var _ | Sort _ | Const _ | Ind _
+    | Construct _ | Int _ | Float _ | String _) -> acc
+  | Cast (c, _, t) -> f env (f env acc c) t
+  | Prod (na, t, c) ->
+    f (push_rel (LocalAssum (na, t)) env) (f env acc t) c
+  | Lambda (na, t, c) ->
+    f (push_rel (LocalAssum (na, t)) env) (f env acc t) c
+  | LetIn (na, b, t, c) ->
+    f (push_rel (LocalDef (na, b, t)) env) (f env (f env acc b) t) c
+  | App (c, l) -> Array.fold_left (f env) (f env acc c) l
+  | Proj (_p, _r, c) -> f env acc c
+  | Evar (_, l) -> SList.Skip.fold (f env) acc l
+  | Case (ci, u, pms, (p, _), iv, c, bl) ->
+    let mib = lookup_mind (fst ci.ci_ind) env in
+    let mip = mib.mind_packets.(snd ci.ci_ind) in
+    let specif = (mib, mip) in
+    let pctx = expand_arity specif (ci.ci_ind, u) pms (fst p) in
+    let bctxs = expand_branch_contexts specif u pms bl in
+    let fold_ctx accu ctx (_, body) =
+      f (push_rel_context ctx env) accu body
+    in
+    let acc = Array.fold_left (f env) acc pms in
+    let acc = fold_ctx acc pctx p in
+    let acc = fold_invert (f env) acc iv in
+    let acc = f env acc c in
+    Array.fold_left2 fold_ctx acc bctxs bl
+  | Fix (_, (lna, tl, bl)) ->
+    let env' = push_rec_types (lna, tl, bl) env in
+    let fd = Array.map2 (fun t b -> (t, b)) tl bl in
+    Array.fold_left (fun acc (t, b) -> f env' (f env acc t) b) acc fd
+  | CoFix (_, (lna, tl, bl)) ->
+    let env' = push_rec_types (lna, tl, bl) env in
+    let fd = Array.map2 (fun t b -> (t, b)) tl bl in
+    Array.fold_left (fun acc (t, b) -> f env' (f env acc t) b) acc fd
+  | Array (_u, t, def, ty) ->
+    f env (f env (Array.fold_left (f env) acc t) def) ty
+
 (* Named context *)
 
 let named_context_of_val c = c.env_named_ctx
