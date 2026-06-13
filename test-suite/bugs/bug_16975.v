@@ -43,8 +43,8 @@ Notation "X ≃ Y" := (weq X%type Y%type) : type_scope.
 
 Definition pr1weq {X Y : Type} := pr1 : X ≃ Y -> (X -> Y).
 Coercion pr1weq : weq >-> Funclass.
-Definition make_weq {X Y : Type} (f : X -> Y) (is: isweq f) : X ≃ Y.
-exact (tpair (λ f : X -> Y, isweq f) f is).
+Definition make_weq {X Y : Type} (f : X -> Y) (isf: isweq f) : X ≃ Y.
+exact (tpair (λ f : X -> Y, isweq f) f isf).
 Defined.
 
 Theorem twooutof3c {X Y Z : Type} (f : X -> Y) (g : Y -> Z)
