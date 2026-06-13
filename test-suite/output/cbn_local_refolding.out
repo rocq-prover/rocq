@@ -1,0 +1,179 @@
+"id: let match arg"
+     : string
+     = fun x : nat => id match x with
+                         | 0 => 0
+                         | S p => p
+                         end
+     : nat -> nat
+"id: let pcase arg"
+     : string
+     = fun x : nat => id (pcase x)
+     : nat -> nat
+"id: let-bound function"
+     : string
+     = fun x : nat => id match x with
+                         | 0 => 0
+                         | S p => p
+                         end
+     : nat -> nat
+"fst: let match arg"
+     : string
+     = fun x : nat => fstn match x with
+                           | 0 => 0
+                           | S p => p
+                           end 0
+     : nat -> nat
+"snd: let match arg"
+     : string
+     = fun x : nat => sndn 0 match x with
+                             | 0 => 0
+                             | S p => p
+                             end
+     : nat -> nat
+"id: proof local function"
+     : string
+     = id (local_pcase x)
+     : nat
+"id: section let function"
+     : string
+     = fun x : nat => id (sec_pcase x)
+     : nat -> nat
+"def: let dictionary"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"def: let open arg"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"def: let beta open arg"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"def: nested let dictionary and arg"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"def: let wrapper"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"def: let in dictionary body"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"def: closed constructor control"
+     : string
+     = fun y : nat => y
+     : nat -> nat
+"class: let dictionary"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"class: let open arg"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"class: let beta open arg"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"class: nested let dictionary and arg"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"class: let wrapper"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"class: let in dictionary body"
+     : string
+     = fun x : nat => difference dnat x 1
+     : nat -> nat
+"class: closed constructor control"
+     : string
+     = fun y : nat => y
+     : nat -> nat
+"set: let dictionary"
+     : string
+     = fun y : set => difference set_difference set0 y
+     : set -> set
+"set: let open second arg"
+     : string
+     = fun y : set => difference set_difference set0 y
+     : set -> set
+"set: let wrapper"
+     : string
+     = fun y : set => difference set_difference set0 y
+     : set -> set
+"set: closed constructor control"
+     : string
+     = exist (fun _ : nat => True) 0 I
+     : set
+"body: let around scrutinee"
+     : string
+     = fun x : nat => difference dlet_arg x 1
+     : nat -> nat
+"body: let in branch"
+     : string
+     = fun x : nat => difference dlet_branch x 1
+     : nat -> nat
+"body: dictionary constant is let"
+     : string
+     = fun x : nat => difference dlet_fun x 1
+     : nat -> nat
+"body: closed constructor control"
+     : string
+     = fun y : nat => y
+     : nat -> nat
+"proof local: dictionary"
+     : string
+     = difference D x 1
+     : nat
+"proof local: open arg"
+     : string
+     = difference dnat x' 1
+     : nat
+"proof local: wrapper"
+     : string
+     = f x 1
+     : nat
+"proof local: inline dictionary"
+     : string
+     = difference D x 1
+     : nat
+"proof local set: dictionary"
+     : string
+     = difference D set0 y
+     : set
+"proof local set: open arg"
+     : string
+     = difference set_difference set0 y'
+     : set
+"proof local set: wrapper"
+     : string
+     = f set0 y
+     : set
+"tactic: proof local dictionary"
+     : string
+1 goal
+  
+  x : nat
+  D := dnat : Difference nat
+  ============================
+  difference D x 1 = difference D x 1
+"tactic: term let dictionary"
+     : string
+1 goal
+  
+  x : nat
+  ============================
+  difference dnat x 1 = difference dnat x 1
+"tactic: proof local arg"
+     : string
+1 goal
+  
+  x : nat
+  x' := x : nat
+  ============================
+  difference dnat x' 1 = difference dnat x' 1
