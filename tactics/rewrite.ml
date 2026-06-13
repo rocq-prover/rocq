@@ -1497,7 +1497,7 @@ module Strategies =
       let strategy ({ env = env ; term1 = t ; ty1 = ty ; cstr = (prop, cstr) ; evars = evars } as state) =
         let sigma = goalevars evars in
         let entry, pv = Proofview.init sigma [] in
-        let secenv = reset_with_named_context (Global.named_context_val ()) env in
+        let secenv = Environ.reset_with_named_context (Global.named_context_val ()) env in
         let (res, pv, _, _, _) =
           Proofview.apply ~name:(Id.of_string "rewrite")
                 ~poly:PolyFlags.default secenv (tac ~env:env ~carrier:ty ~lhs:t ~rel:cstr) pv in
@@ -1745,7 +1745,7 @@ let cl_rewrite_clause_newtac ?origsigma ~progress abs strat clause =
       let ctx = named_context_of_val_with_status @@ named_context_val env in
       let filter (_, decl) = not (occur_var_in_decl env sigma id decl) in
       let nctx = List.filter filter ctx in
-      Environ.reset_with_named_context (val_of_named_context nctx) env
+      EConstr.reset_with_named_context (val_of_named_context nctx) env
     in
     try
       let res = cl_rewrite_clause_aux abs strat env sigma ty clause in

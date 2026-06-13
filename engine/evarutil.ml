@@ -251,7 +251,7 @@ let csubst_subst sigma { csubst_len = k; csubst_var = v; csubst_rel = s } c =
 type ext_named_context = {
   ext_subst : csubst;
   ext_avoid : Id.Set.t;
-  ext_ctx : named_context_val;
+  ext_ctx : EConstr.named_context_val;
 }
 
 let ext_named_context_val ext = ext.ext_ctx
@@ -380,7 +380,7 @@ let push_rel_context_to_named_context env sigma typ =
 
 let ext_named_context_of_env env sigma =
   let avoid = Environ.ids_of_named_context_val (Environ.named_context_val env) in
-  let init = { ext_subst = empty_csubst; ext_avoid = avoid; ext_ctx = named_context_val env } in
+  let init = { ext_subst = empty_csubst; ext_avoid = avoid; ext_ctx = EConstr.named_context_val env } in
   Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context sigma d acc)
     (EConstr.rel_context env) ~init
 
@@ -597,9 +597,8 @@ let clear_hyps_in_evi_main env sigma hyps terms ids =
     List.map (check_and_clear_in_constr env evdref (OccurHypInSimpleClause None) ids ~global) terms in
   let nhyps =
     let check_context status decl =
-      let decl = EConstr.of_named_decl decl in
       let err = OccurHypInSimpleClause (Some (NamedDecl.get_id decl)) in
-      status, EConstr.Unsafe.to_named_decl @@ NamedDecl.map_constr (check_and_clear_in_constr env evdref err ids ~global) decl
+      status, NamedDecl.map_constr (check_and_clear_in_constr env evdref err ids ~global) decl
     in
     remove_hyps ids check_context hyps
   in

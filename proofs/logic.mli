@@ -52,14 +52,14 @@ val pr_move_location :
   ('a -> Pp.t) -> 'a move_location -> Pp.t
 
 val convert_hyp : check:bool -> reorder:bool -> Environ.env -> evar_map ->
-  EConstr.named_declaration -> Environ.named_context_val
+  EConstr.named_declaration -> EConstr.named_context_val
 
 type cannot_move_hyp
 exception CannotMoveHyp of cannot_move_hyp
 
 val move_hyp_in_named_context : Environ.env -> Evd.evar_map -> Id.t -> Id.t move_location ->
-  Environ.named_context_val -> Environ.named_context_val
+  EConstr.named_context_val -> EConstr.named_context_val
 
 val insert_decl_in_named_context : Environ.env -> Evd.evar_map ->
   Environ.var_status * EConstr.named_declaration -> Id.t move_location ->
-  Environ.named_context_val -> Environ.named_context_val
+  EConstr.named_context_val -> EConstr.named_context_val

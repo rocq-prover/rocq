@@ -193,7 +193,7 @@ val map_rel_context_in_env :
 val fold_named_context_both_sides :
   ('a -> Constr.named_declaration -> Constr.named_declaration list -> 'a) ->
     Constr.named_context -> init:'a -> 'a
-val mem_named_context_val : Id.t -> named_context_val -> bool
+val mem_named_context_val : Id.t -> _ pnamed_context_val -> bool
 
 val clear_named_body : Id.t -> env -> env
 
@@ -212,7 +212,7 @@ val is_section_variable : env -> Id.t -> bool
 (** Check if the ident has [SecVar] status in this enviroment.
     By default [check=true] and produce anomaly if it is not bound.
     If [check=false] returns [false] if it is not bound. *)
-val is_section_variable_sign : ?check:bool -> Environ.named_context_val -> Id.t -> bool
+val is_section_variable_sign : ?check:bool -> _ Environ.pnamed_context_val -> Id.t -> bool
 val is_section_variable_env : ?check:bool -> env -> Id.t -> bool
 
 val is_template_polymorphic_ref : env -> Evd.evar_map -> constr -> bool

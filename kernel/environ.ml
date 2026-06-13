@@ -76,12 +76,14 @@ end
 
 type mind_key = mutual_inductive_body * link_info ref * KerName.t
 
-type named_context_val = {
-  env_named_ctx : Constr.named_context;
-  env_named_map : Constr.named_declaration Id.Map.t;
-  env_named_idx : Constr.named_declaration Range.t;
+type ('c,'t,'r) pnamed_context_val = {
+  env_named_ctx : ('c,'t,'r) Context.Named.pt;
+  env_named_map : ('c,'t,'r) Context.Named.Declaration.pt Id.Map.t;
+  env_named_idx : ('c,'t,'r) Context.Named.Declaration.pt Range.t;
   env_named_secvars : Id.Set.t;
 }
+
+type named_context_val = (constr, types, Sorts.relevance) pnamed_context_val
 
 type rel_context_val = {
   env_rel_ctx : Constr.rel_context;
@@ -509,8 +511,11 @@ let val_of_named_context ctxt =
     ctxt empty_named_context_val
 
 
+let eq_pnamed_context_val deq c1 c2 =
+   c1 == c2 || Id.Map.equal deq c1.env_named_map c2.env_named_map
+
 let eq_named_context_val c1 c2 =
-   c1 == c2 || Context.Named.equal Sorts.relevance_equal Constr.equal (named_context_of_val c1) (named_context_of_val c2)
+  eq_pnamed_context_val (Context.Named.Declaration.equal Sorts.relevance_equal Constr.equal) c1 c2
 
 (* A local const is evaluable if it is defined  *)
 

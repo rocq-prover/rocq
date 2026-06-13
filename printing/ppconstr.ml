@@ -893,7 +893,7 @@ let compact_named_context sigma sign =
     | NamedDecl.LocalDef (i,c,t), q ->
       CompactedDecl.LocalDef ([Some status,i],c,t) :: q
   in
-  let ctx = EConstr.fold_named_context_val (fun _ status d acc -> compact acc status d) sign ~init:[] in
+  let ctx = Environ.fold_named_context_val (fun _ status d acc -> compact acc status d) sign ~init:[] in
   List.map (function
       | CompactedDecl.LocalAssum (ids, t) -> CompactedDecl.LocalAssum (List.rev ids, t)
       | CompactedDecl.LocalDef (ids, a, b) -> CompactedDecl.LocalDef (List.rev ids, a, b))

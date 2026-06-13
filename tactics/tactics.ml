@@ -329,7 +329,7 @@ let rename_hyp repl =
         | None -> status, decl
         | Some id -> ProofVar, NamedDecl.set_id id decl
       in
-      let ohyps = EConstr.named_context_of_val_with_status @@ Environ.named_context_val env in
+      let ohyps = named_context_of_val_with_status @@ EConstr.named_context_val env in
       let nhyps = List.map map ohyps in
       let nconcl = subst concl in
       let nctx = val_of_named_context nhyps in
@@ -448,7 +448,7 @@ let internal_cut ?(check=true) replace id t =
         let nexthyp = get_next_hyp_position env sigma id (named_context_of_val sign) in
         let sigma,sign',t,concl = clear_hyps2 env sigma (Id.Set.singleton id) sign t concl in
         let sign' = insert_decl_in_named_context env sigma (ProofVar,LocalAssum (make_annot id r,t)) nexthyp sign' in
-        Environ.reset_with_named_context sign' env,t,concl,sigma
+        EConstr.reset_with_named_context sign' env,t,concl,sigma
       else
         (if check && mem_named_context_val id sign then
           TacticErrors.intro_already_declared id;
@@ -604,17 +604,16 @@ let e_change_in_hyps ~check ~reorder f args = match args with
         let id = NamedDecl.get_id d in
         match Id.Map.find id reds with
         | reds ->
-          let d = EConstr.of_named_decl d in
           let fold redfun (sigma, d) = match redfun env sigma d with
           | NoChange -> sigma, d
           | Changed (sigma, d) -> sigma, d
           in
           let (sigma, d) = List.fold_right fold reds (sigma, d) in
           let () = evdref := sigma in
-          status, EConstr.Unsafe.to_named_decl d
+          status, d
         | exception Not_found -> status, d
       in
-      let sign = Environ.map_named_val map (Environ.named_context_val env) in
+      let sign = Environ.map_named_val map (EConstr.named_context_val env) in
       let env = reset_with_named_context sign env in
       (env, !evdref)
     | StableHypConv | AnyHypConv ->
@@ -2603,7 +2602,7 @@ let pose_tac na c =
     Proofview.Unsafe.tclEVARS sigma <*>
     Refine.refine ~typecheck:false begin fun sigma ->
       let id = make_annot id rel in
-      let nhyps = EConstr.push_named_context_val ProofVar (NamedDecl.LocalDef (id, c, t)) hyps in
+      let nhyps = push_named_context_val ProofVar (NamedDecl.LocalDef (id, c, t)) hyps in
       let (sigma, ev) = Evarutil.new_pure_evar nhyps sigma ~relevance concl in
       let inst = EConstr.identity_subst_val hyps in
       let body = mkEvar (ev, SList.cons (mkRel 1) inst) in

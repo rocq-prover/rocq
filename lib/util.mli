@@ -11,6 +11,8 @@
 (** This module contains numerous utility functions on strings, lists,
    arrays, etc. *)
 
+type 'a eq_fn = 'a -> 'a -> bool
+
 (** Mapping under pairs *)
 
 val on_fst : ('a -> 'b) -> 'a * 'c -> 'b * 'c
@@ -24,7 +26,7 @@ val fold_snd : ('c -> 'b -> 'c * 'b) -> 'c -> 'a * 'b -> 'c * ('a * 'b)
 
 (** Equality on pairs *)
 
-val eq_pair : ('a -> 'a -> bool) -> ('b -> 'b -> bool) -> ('a * 'b -> 'a * 'b -> bool)
+val eq_pair : 'a eq_fn -> 'b eq_fn -> ('a * 'b) eq_fn
 
 (** Mapping under triplets *)
 

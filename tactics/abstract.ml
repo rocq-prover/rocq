@@ -33,17 +33,17 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
     let sigma = Proofview.Goal.sigma gl in
     (* XXX we cannot use [tclENV] here because toplevel callers may pass wrong
        named contexts when nesting abstracts. See #5641. *)
-    let section_sign = Global.named_context_val () in
+    let section_sign = EConstr.of_named_context_val @@ Global.named_context_val () in
     let goal_sign = Proofview.Goal.hyps gl in
     let sign,secsign =
       List.fold_right
         (fun d (s1,s2) ->
            match Environ.var_status (NamedDecl.get_id d) env with
-           | SecVar -> (s1,push_named_context_val SecVar d s2)
+           | SecVar -> (s1,Environ.push_named_context_val SecVar d s2)
            | ProofVar -> (Context.Named.add d s1,s2))
         goal_sign (Context.Named.empty, Environ.empty_named_context_val)
     in
-    let bad id = match lookup_named_val id section_sign with
+    let bad id = match Environ.lookup_named_ctxt id section_sign with
     | (_ : named_declaration) -> true
     | exception Not_found ->
       Evd.seff_mem_label id (Evd.eval_side_effects sigma) ||
