@@ -889,7 +889,7 @@ let compare_head_gen_proj env sigma equ eqs eqev eqc' nargs m n =
   | Proj (p, _, c), App (f, args)
   | App (f, args), Proj (p, _, c) ->
       (match kind f with
-      | Const (p', u) when Environ.QConstant.equal env (Projection.constant p) p' ->
+      | Const (p', u) when Environ.QConstant.equal env (Environ.projection_repr_constant env (Projection.repr p)) p' ->
           let npars = Projection.npars p in
           if Array.length args == npars + 1 then
             eqc' 0 c args.(npars)

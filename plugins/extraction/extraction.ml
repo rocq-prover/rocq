@@ -295,8 +295,7 @@ let fake_match_projection env p =
     | LocalAssum (na,ty) :: rem ->
       let ty = Vars.substl subst (liftn 1 j ty) in
       if arg != proj_arg then
-        let lab = match na.binder_name with Name id -> id | Anonymous -> assert false in
-        let kn = Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg:arg lab in
+        let kn = Projection.Repr.make ind ~proj_npars:mib.mind_nparams ~proj_arg:arg in
         fold (arg+1) (j+1) (mkProj (Projection.make kn false, na.binder_relevance, mkRel 1)::subst) rem
       else
         let p = ([|x|], liftn 1 2 ty) in

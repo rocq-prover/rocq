@@ -417,7 +417,7 @@ let expand_projection env sigma pr c args =
     try Inductiveops.find_mrectype env sigma ty
     with Not_found -> retype_error BadRecursiveType
   in
-    mkApp (mkConstU (Projection.constant pr,u),
+    mkApp (mkConstU (Environ.projection_repr_constant env (Projection.repr pr), u),
            Array.of_list (ind_args @ (c :: args)))
 
 let relevance_of_constant env sigma (c, u) =

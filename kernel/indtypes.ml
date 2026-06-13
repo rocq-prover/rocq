@@ -474,7 +474,7 @@ let compute_projections ind ~nparamargs ~nf_lc ~consnrealdecls =
       match na.Context.binder_name with
       | Name id ->
         let r = na.Context.binder_relevance in
-        let kn = Projection.Repr.make ind ~proj_npars:nparamargs ~proj_arg:i id in
+        let kn = Projection.Repr.make ind ~proj_npars:nparamargs ~proj_arg:i in
         (* from [params, field1,..,fieldj |- t(params,field1,..,fieldj)]
            to [params, x:I, field1,..,fieldj |- t(params,field1,..,fieldj] *)
         let t = liftn 1 j t in

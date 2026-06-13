@@ -1216,14 +1216,14 @@ let dependency_closure env sigma sign hyps =
         sign in
     List.rev lh
 
-let global_app_of_constr sigma c =
+let global_app_of_constr env sigma c =
   let open GlobRef in
   match EConstr.kind sigma c with
   | Const (c, u) -> (ConstRef c, u), None
   | Ind (i, u) -> (IndRef i, u), None
   | Construct (c, u) -> (ConstructRef c, u), None
   | Var id -> (VarRef id, EConstr.EInstance.empty), None
-  | Proj (p, _, c) -> (ConstRef (Projection.constant p), EConstr.EInstance.empty), Some c
+  | Proj (p, _, c) -> (ConstRef (Environ.projection_repr_constant env (Projection.repr p)), EConstr.EInstance.empty), Some c
   | _ -> raise Not_found
 
 let prod_applist sigma c l =

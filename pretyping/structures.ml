@@ -194,7 +194,10 @@ let rec of_constr sigma t =
 
 let print = function
     Const_cs c -> Nametab.pr_global_env Id.Set.empty c
-  | Proj_cs p -> Nametab.pr_global_env Id.Set.empty (GlobRef.ConstRef (Names.Projection.Repr.constant p))
+  | Proj_cs p ->
+    let ind = Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef (Names.Projection.Repr.inductive p)) in
+    let pos = Names.Projection.Repr.arg p in
+    ind ++ str ".(" ++ int pos ++ str")"
   | Prod_cs -> str "forall _, _"
   | Default_cs -> str "_"
   | Sort_cs s -> UnivGen.QualityOrSet.pr Sorts.Quality.raw_printer s
@@ -408,7 +411,7 @@ let rec decompose_projection ?metas env sigma c args =
      let _ = GlobRefMap.find env (GlobRef.ConstRef c) !object_table in
      get_nth n args
   | Proj (p, _, c) ->
-     let _ = GlobRefMap.find env (GlobRef.ConstRef (Names.Projection.constant p)) !object_table in
+     let _ = GlobRefMap.find env (GlobRef.ConstRef (Environ.projection_repr_constant env (Projection.repr p))) !object_table in
      c
   | _ -> raise Not_found
 
@@ -464,8 +467,10 @@ end
 
 module PrimitiveProjections = struct
 
+type data = Names.Projection.Repr.t
+
 let prim_table =
-  Summary.ref (Cmap_env.empty : Names.Projection.Repr.t Cmap_env.t) ~name:"record-prim-projs"
+  Summary.ref (Cmap_env.empty : data Cmap_env.t) ~name:"record-prim-projs"
 
 let register p c =
   prim_table := Cmap_env.add c p !prim_table

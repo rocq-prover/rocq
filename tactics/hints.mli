@@ -19,7 +19,7 @@ open Typeclasses
 
 exception Bound
 
-val decompose_app_bound : evar_map -> constr -> GlobRef.t * constr array
+val decompose_app_bound : env -> evar_map -> constr -> GlobRef.t * constr array
 
 type debug = Debug | Info | Off
 

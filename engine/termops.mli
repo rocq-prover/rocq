@@ -199,7 +199,7 @@ val clear_named_body : Id.t -> env -> env
 
 val global_vars_set : env -> Evd.evar_map -> constr -> Id.Set.t
 val global_vars_set_of_decl : env -> Evd.evar_map -> named_declaration -> Id.Set.t
-val global_app_of_constr : Evd.evar_map -> constr -> (GlobRef.t * EInstance.t) * constr option
+val global_app_of_constr : env -> Evd.evar_map -> constr -> (GlobRef.t * EInstance.t) * constr option
 
 (** Gives an ordered list of hypotheses, closed by dependencies,
    containing a given set *)

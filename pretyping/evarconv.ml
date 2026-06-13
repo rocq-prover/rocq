@@ -83,7 +83,7 @@ let unfold_projection_under_eta env evd ts n c =
   let rec go c lams =
     match EConstr.kind evd c with
     | Lambda (b, t, c) -> go c ((b,t)::lams)
-    | Proj (p, r, c) when QConstant.equal env n (Projection.constant p) ->
+    | Proj (p, r, c) when QConstant.equal env n (Environ.projection_repr_constant env (Projection.repr p)) ->
       let c = unfold_projection env evd ts p r c in
       begin
         match c with
@@ -301,7 +301,7 @@ let decompose_proj ?metas env sigma (t1, sk1) =
    (* I only recognize ConstRef projections since these are the only ones for which
       I know how to obtain the number of parameters. *)
   let (proji, u), arg =
-    match Termops.global_app_of_constr sigma t1 with
+    match Termops.global_app_of_constr env sigma t1 with
     | (Names.GlobRef.ConstRef proji, u), arg -> (proji, u), arg
     | _ -> raise Not_found
     | exception _ -> raise Not_found in
@@ -1138,7 +1138,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
             ise_try evd [f1; f2]
 
         (* Catch the p.c ~= p c' cases *)
-        | Proj (p,_,c), Const (p',u) when QConstant.equal env (Projection.constant p) p' ->
+        | Proj (p,_,c), Const (p',u) when QConstant.equal env (Environ.projection_repr_constant env (Projection.repr p)) p' ->
           let res =
             try Some (destApp evd (Retyping.expand_projection env evd p c []))
             with Retyping.RetypeError _ -> None
@@ -1149,7 +1149,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                 appr2
             | None -> UnifFailure (evd,NotSameHead))
 
-        | Const (p,u), Proj (p',_,c') when QConstant.equal env p (Projection.constant p') ->
+        | Const (p,u), Proj (p',_,c') when QConstant.equal env p (Environ.projection_repr_constant env (Projection.repr p')) ->
           let res =
             try Some (destApp evd (Retyping.expand_projection env evd p' c' []))
             with Retyping.RetypeError _ -> None
@@ -1391,7 +1391,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           end
 
         (* Catch the c.(p) ~= p c' cases *)
-        | Proj (p1,_,c1), Const (p2,_) when QConstant.equal env (Projection.constant p1) p2 ->
+        | Proj (p1,_,c1), Const (p2,_) when QConstant.equal env (Environ.projection_repr_constant env (Projection.repr p1)) p2 ->
           let c1 =
             try Some (destApp evd (Retyping.expand_projection env evd p1 c1 []))
             with Retyping.RetypeError _ -> None
@@ -1402,7 +1402,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           | None -> UnifFailure (evd,NotSameHead)
           end
 
-        | Const (p1,_), Proj (p2,_,c2) when QConstant.equal env p1 (Projection.constant p2) ->
+        | Const (p1,_), Proj (p2,_,c2) when QConstant.equal env p1 (Environ.projection_repr_constant env (Projection.repr p2)) ->
           let c2 =
             try Some (destApp evd (Retyping.expand_projection env evd p2 c2 []))
             with Retyping.RetypeError _ -> None

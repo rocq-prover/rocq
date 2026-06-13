@@ -130,7 +130,7 @@ let constr_key env kind c =
       | Construct (c,u) -> mkKGlob env (GlobRef.ConstructRef c)
       | Var id -> mkKGlob env (GlobRef.VarRef id)
       | App (f, _) -> aux f
-      | Proj (p, _, _) -> mkKGlob env (GlobRef.ConstRef (Projection.constant p))
+      | Proj (p, _, _) -> mkKGlob env (GlobRef.ConstRef (Environ.projection_repr_constant env (Projection.repr p)))
       | Cast (p, _, _) -> aux p
       | Lambda _ -> KLam
       | Prod _ -> KProd

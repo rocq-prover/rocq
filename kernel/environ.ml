@@ -923,6 +923,21 @@ let lookup_projection p env =
     let arg = Projection.arg p in
     relevances.(arg), tys.(arg)
 
+let projection_repr_label env p =
+  let mind, i = Projection.Repr.inductive p in
+  let mib = lookup_mind mind env in
+  match mib.mind_packets.(i).mind_record with
+  | NotRecord | FakeRecord -> anomaly ~label:"lookup_projection" Pp.(str "not a projection")
+  | PrimRecord { projections; _ } -> projections.(Projection.Repr.arg p)
+
+let projection_repr_constant env p =
+  let mind, _ = Projection.Repr.inductive p in
+  let knu = MutInd.user mind in
+  let knc = MutInd.canonical mind in
+  let label = projection_repr_label env p in
+  let cst = Constant.make knu knc in
+  Constant.change_label cst label
+
 let get_projection env ind ~proj_arg =
   let mib = lookup_mind (fst ind) env in
   Declareops.inductive_make_projection ind mib ~proj_arg

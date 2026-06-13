@@ -81,7 +81,7 @@ type cost = {
 
 let hintmap_of env sigma secvars concl =
   (* Warning: for computation sharing, we need to return a closure *)
-  let hdc = try Some (decompose_app_bound sigma concl) with Bound -> None in
+  let hdc = try Some (decompose_app_bound env sigma concl) with Bound -> None in
   match hdc with
   | None -> fun db -> Hint_db.map_none ~secvars db
   | Some hdc ->

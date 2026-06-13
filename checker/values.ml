@@ -239,7 +239,7 @@ let v_caseinfo =
 
 let v_cast = v_enum "cast_kind" 3
 
-let v_proj_repr = v_tuple "projection_repr" [|v_ind;v_int;v_int;v_cst|]
+let v_proj_repr = v_tuple "projection_repr" [|v_ind;v_int;v_int|]
 let v_proj = v_tuple "projection" [|v_proj_repr; v_bool|]
 
 let v_uint63 =

@@ -314,7 +314,7 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
 
   | PApp (c1, arg1), App (c2, arg2) ->
     begin match c1, EConstr.kind sigma c2 with
-    | PRef (GlobRef.ConstRef r), Proj (pr,_,c) when not (Environ.QConstant.equal env r (Projection.constant pr)) ->
+    | PRef (GlobRef.ConstRef r), Proj (pr,_,c) when not (Environ.QConstant.equal env r (Environ.projection_repr_constant env (Projection.repr pr))) ->
       raise PatternMatchingFailure
     | PProj (pr1,c1), Proj (pr,_,c) ->
       let () = if not (Int.equal (Array.length arg1) (Array.length arg2) && Environ.QProjection.equal env pr1 pr) then raise PatternMatchingFailure in
@@ -331,7 +331,7 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
 
   | PApp (c, args), Proj (pr, _, c2) ->
     begin match c with
-    | PRef (GlobRef.ConstRef c1) when not (Environ.QConstant.equal env c1 (Projection.constant pr)) ->
+    | PRef (GlobRef.ConstRef c1) when not (Environ.QConstant.equal env c1 (Environ.projection_repr_constant env (Projection.repr pr))) ->
       raise PatternMatchingFailure
     | _ ->
       begin match Retyping.expand_projection env sigma pr c2 [] with

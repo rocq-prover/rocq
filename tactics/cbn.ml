@@ -798,7 +798,7 @@ let rec whd_state_gen ?csts flags env sigma =
       else fold ()
     | Proj (p, r, c) when RedFlags.red_projection flags p ->
       (let npars = Projection.npars p in
-       match ReductionBehaviour.get (Projection.constant p) with
+       match ReductionBehaviour.get (Environ.projection_repr_constant env (Projection.repr p)) with
          | None ->
            let stack' = (c, Stack.Proj (p, r, cst_l) :: stack) in
            let stack'', csts = whrec Cst_stack.empty stack' in
