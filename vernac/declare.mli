@@ -278,8 +278,9 @@ module Proof : sig
   val definition_scope : t -> Locality.definition_scope
 
   (** Sets the section variables assumed by the proof, returns its closure
-   * (w.r.t. type dependencies and let-ins covered by it) *)
-  val set_proof_using : t -> Vernacexpr.section_subset_expr -> Constr.named_context * t
+      (w.r.t. type dependencies and let-ins covered by it).
+      With [None], get the variables from the "using" attribute. *)
+  val set_proof_using : t -> Vernacexpr.section_subset_expr option -> t
 
   (** Gets the set of variables declared to be used by the proof. None means
       no "Proof using" or #[using] was given *)

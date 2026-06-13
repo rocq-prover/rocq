@@ -1,0 +1,18 @@
+File "./output/ProofUsingClear.v", line 11, characters 15-16:
+The command has indeed failed with message:
+The reference y was not found in the current environment.
+File "./output/ProofUsingClear.v", line 16, characters 2-19:
+The command has indeed failed with message:
+Invalid "Proof using": x is used in the proof.
+File "./output/ProofUsingClear.v", line 18, characters 15-16:
+The command has indeed failed with message:
+The variable y was not found in the current environment.
+1 goal
+  
+  x, y : nat
+  z := x + x : nat
+  ============================
+  bar = bar
+File "./output/ProofUsingClear.v", line 29, characters 2-13:
+The command has indeed failed with message:
+Invalid "Proof using": x is used implicitly in bar in the proof.

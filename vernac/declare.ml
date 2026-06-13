@@ -962,26 +962,22 @@ let declare_parameter ~loc ~name ~scope ~hook ~impargs ~uctx pe =
 
 (* Using processing *)
 let interp_proof_using_gen f env evd cinfo using =
-  let cextract v (fixnames, terms) =
-    let name, new_terms = f v in
-    name :: fixnames, new_terms @ terms
-  in
-  let fixnames, terms = CList.fold_right cextract cinfo ([],[]) in
-  Proof_using.definition_using env evd ~fixnames ~terms ~using
+  let terms = CList.concat_map f cinfo in
+  Proof_using.definition_using env evd ~terms ~using
 
 let interp_proof_using_cinfo env evd cinfo using =
-  let f { CInfo.name; typ; _ } = name, [typ] in
+  let f { CInfo.typ; _ } = [typ] in
   interp_proof_using_gen f env evd cinfo using
 
-let gather_mutual_using_data cinfo =
-  List.fold_left2 (fun acc CInfo.{name} (body, typ) ->
+let gather_mutual_using_data bodies_types =
+  List.fold_left (fun acc (body, typ) ->
       let l = Option.List.flatten EConstr.[Option.map of_constr typ; Some (of_constr body)] in
-      (name, l) :: acc) [] cinfo
+      l :: acc) [] bodies_types
 
 let interp_mutual_using env cinfo bodies_types using =
   let evd = Evd.from_env env in
   Option.map (fun using ->
-      let cinfos = gather_mutual_using_data cinfo bodies_types in
+      let cinfos = gather_mutual_using_data bodies_types in
       let f x = x in
       interp_proof_using_gen f env evd cinfos using)
     using
@@ -1983,48 +1979,52 @@ let get_used_variables pf = pf.using
 
 let definition_scope ps = ps.pinfo.info.scope
 
+let { Goptions.get = auto_clear } =
+  Goptions.declare_bool_option_and_ref ~key:["Proof";"Using";"Clear";"Unused"]
+    ~value:false
+    ()
+
 let set_used_variables ps ~using =
   let open Context.Named.Declaration in
+  let using = match ps.using, using with
+    | None, Some using -> Some using
+    | Some using, None -> Some using
+    | Some _, Some _ ->
+      CErrors.user_err Pp.(str "Used section variables can be declared only once.")
+    | None, None -> None
+  in
+  match using with
+  | None -> ps
+  | Some using ->
   let env = Global.env () in
-  let ctx = Environ.keep_hyps env using in
-  let ctx_set =
-    List.fold_right Id.Set.add (List.map NamedDecl.get_id ctx) Id.Set.empty in
+  let kept = Environ.really_needed env using in
   let vars_of = Environ.global_vars_set in
-  let aux env _status entry (ctx, all_safe as orig) =
+  (* add any letins which only depend on kept variables *)
+  let aux env _status entry kept =
     match entry with
-    | LocalAssum ({Context.binder_name=x},_) ->
-       if Id.Set.mem x all_safe then orig
-       else (ctx, all_safe)
-    | LocalDef ({Context.binder_name=x},bo, ty) as decl ->
-       if Id.Set.mem x all_safe then orig else
+    | LocalAssum ({Context.binder_name=x},_) -> kept
+    | LocalDef ({Context.binder_name=x},bo, ty) ->
+       if Id.Set.mem x kept then kept else
        let vars = Id.Set.union (vars_of env bo) (vars_of env ty) in
-       if Id.Set.subset vars all_safe
-       then (decl :: ctx, Id.Set.add x all_safe)
-       else (ctx, all_safe) in
-  let ctx, _ =
-    Environ.fold_named_context aux env ~init:(ctx,ctx_set) in
-  if not (Option.is_empty ps.using) then
-    CErrors.user_err Pp.(str "Used section variables can be declared only once");
-  ctx, { ps with using = Some (Context.Named.to_vars ctx) }
-
-(* Interprets the expression in the current proof context, from vernacentries *)
-let get_recnames pf =
-  if Option.has_some pf.pinfo.Proof_info.possible_guard then
-    List.map (fun c -> c.CInfo.name) pf.pinfo.Proof_info.cinfo
-  else
-    []
+       if Id.Set.subset vars kept
+       then (Id.Set.add x kept)
+       else kept in
+  let kept =
+    Environ.fold_named_context aux env ~init:kept
+  in
+  let proof = if auto_clear() then Proof.set_used_variables env ~kept ps.proof else ps.proof in
+  { ps with proof; using = Some kept }
 
 let interpret_proof_using pstate using =
   let env = Global.env () in
   let pf = get pstate in
   let sigma, _ = Proof.get_proof_context pf in
-  let fixnames = get_recnames pstate in
   let initial_goals pf = Proofview.initial_goals Proof.((data pf).entry) in
   let terms = List.map pi3 (initial_goals (get pstate)) in
-  Proof_using.definition_using env sigma ~fixnames ~using ~terms
+  Proof_using.definition_using env sigma ~using ~terms
 
 let set_proof_using pstate using =
-  let using = interpret_proof_using pstate using in
+  let using = Option.map (interpret_proof_using pstate) using in
   set_used_variables pstate ~using
 
 let get_open_goals ps =
@@ -2595,8 +2595,7 @@ let solve_obligation ?check_final prg num tac =
   let using =
     let using = Internal.get_using prg in
     let env = Global.env () in
-    let f {CInfo.name; typ; _} = name, [typ] in
-    Option.map (interp_proof_using_gen f env evd [cinfo]) using
+    Option.map (interp_proof_using_cinfo env evd [cinfo]) using
   in
   let poly = Internal.get_poly prg in
   let info = Info.make ~kind ~poly () in

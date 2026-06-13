@@ -18,7 +18,6 @@ type t = Names.Id.Set.t
 val definition_using
   : Environ.env
   -> Evd.evar_map
-  -> fixnames:Names.Id.t list (* names of fixpoint occurring recursively, if any *)
   -> using:Vernacexpr.section_subset_expr
   -> terms:EConstr.constr list
   -> t
