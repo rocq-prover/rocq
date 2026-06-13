@@ -2633,8 +2633,7 @@ let vernac_proof pstate tac using =
   let usings = if Option.is_empty using then "using:no" else "using:yes" in
   Aux_file.record_in_aux_at "VernacProof" (tacs^" "^usings);
   let pstate = Option.fold_left vernac_set_end_tac pstate tac in
-  let set_proof_using ps using = Declare.Proof.set_proof_using ps using |> snd in
-  let pstate = Option.fold_left set_proof_using pstate using in
+  let pstate = Declare.Proof.set_proof_using pstate using in
   let pstate = Declare.Proof.finish_late_init pstate Explicit in
   pstate
 
