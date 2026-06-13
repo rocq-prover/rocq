@@ -34,14 +34,19 @@ is often not successful and prints the expanded form.
 Pattern-matching on boolean values: the if expression
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. insertprodn term_if term_if
+.. insertprodn term_if if_else
 
 .. prodn::
    term_if ::= if @term {? {? as @name } return @term100 } then @term else @term
+   | if @term is @if_dthen @if_else
+   if_dthen ::= @pattern {? in @pattern } {? return @term100 } then @term
+   if_else ::= else @term
 
-For inductive types with exactly two constructors and for pattern matching
-expressions that do not depend on the arguments of the constructors, it is possible
-to use a ``if … then … else`` notation. For instance, the definition
+The `if g is c then t else e` syntax is syntactic sugar for `match g
+with c => t | _ => e end`.
+
+For the ``bool`` type (i.e., what is registered as `core.bool.type`), it is possible
+to use a ``if … then … else`` notation. For instance, the definitions
 
 .. rocqtop:: all
 
@@ -51,31 +56,42 @@ to use a ``if … then … else`` notation. For instance, the definition
    | false => true
    end.
 
+.. rocqtop:: reset all
+
+   Definition not (b:bool) := if b is true then false else true.
+
 can be alternatively written
 
 .. rocqtop:: reset all
 
    Definition not (b:bool) := if b then false else true.
 
-More generally, for an inductive type with constructors :n:`@ident__1`
-and :n:`@ident__2`, the following terms are equal:
+.. deprecated:: 9.3
 
-:n:`if @term__0 {? {? as @name } return @term } then @term__1 else @term__2`
+   More generally, for an inductive type with constructors :n:`@ident__1`
+   and :n:`@ident__2`, the following terms are equal:
 
-:n:`match @term__0 {? {? as @name } return @term } with | @ident__1 {* _ } => @term__1 | @ident__2 {* _ } => @term__2 end`
+   :n:`if @term__0 {? {? as @name } return @term } then @term__1 else @term__2`
 
-.. example::
+   :n:`match @term__0 {? {? as @name } return @term } with | @ident__1 {* _ } => @term__1 | @ident__2 {* _ } => @term__2 end`
 
-  .. rocqtop:: all
+   .. example::
 
-     Check (fun x (H:{x=0}+{x<>0}) =>
-     match H with
-     | left _ => true
-     | right _ => false
-     end).
+      .. rocqtop:: all
 
-Notice that the printing uses the :g:`if` syntax because :g:`sumbool` is
-declared as such (see :ref:`controlling-match-pp`).
+         Check (fun x (H:{x=0}+{x<>0}) =>
+         match H with
+         | left _ => true
+         | right _ => false
+         end).
+
+   Notice that the printing uses the :g:`if` syntax because :g:`sumbool` is
+   declared as such (see :ref:`controlling-match-pp`).
+
+   .. warn:: The "if <c> then _" syntax for non boolean guard is deprecated. Use "if <c> is <first_constructor> then _" instead.
+
+      The "if _ then _ else" syntax is reserved for the special
+      ``bool`` type, use an explicit ``is`` for other inductive types.
 
 .. _irrefutable-patterns:
 
