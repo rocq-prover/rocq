@@ -222,19 +222,9 @@ let encode_inductive env r =
 
 (* Parameterization of the translation from constr to ast      *)
 
-(* Tables for Cases printing under a "if" form, a "let" form,  *)
-
-let has_two_constructors lc =
-  Int.equal (Array.length lc) 2 (* & lc.(0) = 0 & lc.(1) = 0 *)
+(* Table for Cases printing under a "let" form,  *)
 
 let isomorphic_to_tuple lc = Int.equal (Array.length lc) 1
-
-let encode_bool env ({CAst.loc} as r) =
-  let (x,lc) = encode_inductive env r in
-  if not (has_two_constructors lc) then
-    user_err ?loc
-      (str "This type has not exactly two constructors.");
-  x
 
 let encode_tuple env ({CAst.loc} as r) =
   let (x,lc) = encode_inductive env r in
@@ -242,18 +232,6 @@ let encode_tuple env ({CAst.loc} as r) =
     user_err ?loc
       (str "This type cannot be seen as a tuple type.");
   x
-
-module PrintingCasesIf =
-  PrintingFlags.PrintingInductiveMake (struct
-    let encode = encode_bool
-    let field = "If"
-    let title = "Types leading to pretty-printing of Cases using a `if' form:"
-    let member_message s b =
-      str "Cases on elements of " ++ s ++
-      str
-        (if b then " are printed using a `if' form"
-         else " are not printed using a `if' form")
-  end)
 
 module PrintingCasesLet =
   PrintingFlags.PrintingInductiveMake (struct
@@ -268,7 +246,6 @@ module PrintingCasesLet =
          else " are not printed using a `let' form")
   end)
 
-module PrintingIf  = Goptions.MakeRefTable(PrintingCasesIf)
 module PrintingLet = Goptions.MakeRefTable(PrintingCasesLet)
 
 (** univ and sort detyping *)
@@ -616,6 +593,9 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
       n, aliastyp, Some typ
   in
   let constructs = Array.init (Array.length bl) (fun i -> (ci.ci_ind,i+1)) in
+  let ci_bool =
+    match Rocqlib.lib_ref_opt "core.bool.type" with None -> false
+    | Some bool -> GlobRef.CanOrd.equal (IndRef ci.ci_ind) bool in
   let tag =
     let tag = ci.ci_pp_info.style in
     if flags.flg.always_regular_match_style then
@@ -624,7 +604,7 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
       tag
     else if PrintingLet.active ci.ci_ind then
       LetStyle
-    else if PrintingIf.active ci.ci_ind then
+    else if ci_bool then
       IfStyle
     else
       tag
@@ -641,7 +621,7 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
     let (nal,d) = it_destRLambda_or_LetIn_names constagsl.(0) bl'.(0) in
     GLetTuple (nal,(alias,pred),tomatch,d)
   | IfStyle, None ->
-      if Array.for_all (fun br -> is_nondep_branch sigma br) bl then
+      if ci_bool && Array.for_all (fun br -> is_nondep_branch sigma br) bl then
         let map i br =
           let ctx, body = RobustExpand.branch (snd env) sigma (ci.ci_ind, i + 1) univs params br in
           EConstr.it_mkLambda_or_LetIn body ctx
@@ -653,7 +633,11 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
         GIf (tomatch,(alias,pred), nondepbrs.(0), nondepbrs.(1))
       else
         let eqnl = detype_eqns constructs (ci, univs, params, bl) in
-        GCases (tag,pred,[tomatch,(alias,aliastyp)],eqnl)
+        if Array.length bl = 2 && is_nondep_branch sigma bl.(0)
+           && not (is_nondep_branch sigma bl.(1)) then
+          GCases (tag,pred,[tomatch,(alias,aliastyp)],List.rev eqnl)
+        else
+          GCases (tag,pred,[tomatch,(alias,aliastyp)],eqnl)
   | _ ->
       let eqnl = detype_eqns constructs (ci, univs, params, bl) in
       GCases (tag,pred,[tomatch,(alias,aliastyp)],eqnl)

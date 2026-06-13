@@ -15,7 +15,6 @@ let commands = [
    "Add Field";
    "Add Morphism";
    "Add Printing Constructor";
-   "Add Printing If";
    "Add Printing Let";
    "Add Printing Record";
    "Add Ring A Aplus Amult Aone Azero Ainv Aeq T [ c1 ... cn ]. ";
@@ -94,7 +93,6 @@ let commands = [
    "Record";
    "Remark";
    "Remove Printing Constructor";
-   "Remove Printing If";
    "Remove Printing Let";
    "Remove Printing Record";
    "Require";
@@ -128,7 +126,6 @@ let commands = [
      "Syntactic Definition";
      "Syntax";];
   [
-   "Test Printing If";
    "Test Printing Let";
    "Test Printing Synth";
    "Test Printing Wildcard";
@@ -194,7 +191,6 @@ let state_preserving = [
   "Print Scopes.";
   "Print Section";
 
-  "Print Table Printing If.";
   "Print Table Printing Let.";
   "Print Tables.";
   "Print Term";
@@ -219,7 +215,6 @@ let state_preserving = [
   "Show Proof";
   "Show Tree";
 
-  "Test Printing If";
   "Test Printing Let";
   "Test Printing Synth";
   "Test Printing Wildcard";

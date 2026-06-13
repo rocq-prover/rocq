@@ -63,7 +63,7 @@ comparison : Set
 
 comparison is not universe polymorphic
 Expands to: Inductive Corelib.Init.Datatypes.comparison
-Declared in library Corelib.Init.Datatypes, line 369, characters 10-20
+Declared in library Corelib.Init.Datatypes, line 367, characters 10-20
 Inductive comparison : Set :=
     Eq : comparison | Lt : comparison | Gt : comparison.
 bar : foo
@@ -105,7 +105,7 @@ nat_rect is not universe polymorphic
 Arguments nat_rect P%_function_scope O S%_function_scope n%_nat_scope
 nat_rect is transparent
 Expands to: Constant Corelib.Init.Datatypes.nat_rect
-Declared in library Corelib.Init.Datatypes, line 187, characters 0-54
+Declared in library Corelib.Init.Datatypes, line 185, characters 0-54
 
 nat_ind :
 forall P : nat -> Prop,
@@ -115,7 +115,7 @@ nat_ind is not universe polymorphic
 Arguments nat_ind P%_function_scope O S%_function_scope n%_nat_scope
 nat_ind is transparent
 Expands to: Constant Corelib.Init.Datatypes.nat_ind
-Declared in library Corelib.Init.Datatypes, line 187, characters 0-54
+Declared in library Corelib.Init.Datatypes, line 185, characters 0-54
 
 nat_sind :
 forall P : nat -> SProp,
@@ -125,7 +125,7 @@ nat_sind is not universe polymorphic
 Arguments nat_sind P%_function_scope O S%_function_scope n%_nat_scope
 nat_sind is transparent
 Expands to: Constant Corelib.Init.Datatypes.nat_sind
-Declared in library Corelib.Init.Datatypes, line 187, characters 0-54
+Declared in library Corelib.Init.Datatypes, line 185, characters 0-54
 nat_rect =
 fun (P : nat -> Type) (O : P 0) (S : forall n : nat, P n -> P (S n)) =>
 fix F (n : nat) : P n :=

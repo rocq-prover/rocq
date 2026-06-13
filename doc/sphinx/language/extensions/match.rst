@@ -34,10 +34,13 @@ is often not successful and prints the expanded form.
 Pattern-matching on boolean values: the if expression
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. insertprodn term_if term_if
+.. insertprodn term_if if_else
 
 .. prodn::
    term_if ::= if @term {? {? as @name } return @term100 } then @term else @term
+   | if @term is @if_dthen @if_else
+   if_dthen ::= @pattern {? in @pattern } {? return @term100 } then @term
+   if_else ::= else @term
 
 For inductive types with exactly two constructors and for pattern matching
 expressions that do not depend on the arguments of the constructors, it is possible
@@ -76,6 +79,9 @@ and :n:`@ident__2`, the following terms are equal:
 
 Notice that the printing uses the :g:`if` syntax because :g:`sumbool` is
 declared as such (see :ref:`controlling-match-pp`).
+
+The `if g is c then t else e` syntax is syntactic sugar for `match g
+with c => t | _ => e end`.
 
 .. _irrefutable-patterns:
 
@@ -313,19 +319,6 @@ written using the :ref:`let-tuple syntax <let-tuple>`.
    Use the :cmd:`Add` and :cmd:`Remove` commands to update this set.
 
 
-Printing matching on booleans
-+++++++++++++++++++++++++++++
-
-If an inductive type is isomorphic to the boolean type, pattern matching
-can be written using ``if`` … ``then`` … ``else`` ….  This table controls
-which types are written this way:
-
-.. table:: Printing If @qualid
-
-   This :term:`table` specifies a set of qualids for which pattern matching is displayed using
-   ``if`` … ``then`` … ``else`` ….  Use the :cmd:`Add` and :cmd:`Remove`
-   commands to update this set.
-
 This example emphasizes what the printing settings offer.
 
 .. example::
@@ -355,7 +348,7 @@ Printing regular match syntax
 
    When enabled, this flag makes printing avoid the alternate case
    analysis syntaxes (with :ref:`if <if-then-else>` and :ref:`let
-   <irrefutable-patterns>`), overriding :table:`Printing If` and
+   <irrefutable-patterns>`), overriding
    :table:`Printing Let` and disregarding the syntax used to input the
    case analysis (so e.g. `let 'tt := tt in tt` will be printed using `match`).
 
