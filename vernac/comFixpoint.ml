@@ -563,7 +563,7 @@ let finish_regular env sigma use_inference_hook fix =
   let sigma = Pretyping.(solve_remaining_evars ?hook:inference_hook all_no_fail_flags env sigma) in
   sigma, ground_fixpoint env sigma fix, [], None
 
-let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ~poly ?typing_flags ?user_warns ?using (rec_order, fixl)
+let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ?hook ~poly ?typing_flags ?user_warns ?using (rec_order, fixl)
   : Declare.OblState.t option * Declare.Proof.t option =
   let env = Global.env () in
   let env = Environ.update_typing_flags ?typing_flags env in
@@ -571,7 +571,7 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
   check_recursive ~kind env sigma fix;
 
   if refine then
-    let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?typing_flags ?user_warns ~ntns:fix.fixntns () in
+    let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?hook ?typing_flags ?user_warns ~ntns:fix.fixntns () in
     let cinfo = build_recthms fix in
     let possible_guard = (possible_guard, fix.fixrs) in
     let lemma = Declare.Proof.start_mutual_definitions_refine ~info ~cinfo ~bodies:fix.fixdefs ~possible_guard ?using sigma in
@@ -582,10 +582,15 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   let sigma = Evd.minimize_universes ~poly sigma in
 
-  let sigma, ({fixdefs=bodies;fixrs;fixtypes;fixwfs} as fix), obls, hook =
+  let sigma, ({fixdefs=bodies;fixrs;fixtypes;fixwfs} as fix), obls, wf_hook =
     match pm with
     | Some pm -> finish_obligations env sigma rec_sign possible_guard poly udecl fix
     | None -> finish_regular env sigma use_inference_hook fix in
+  (* Combine the internal well-founded/obligation hook with any external one. *)
+  let hook = match wf_hook, hook with
+    | None, h | h, None -> h
+    | Some h1, Some h2 -> Some (Declare.Hook.seq h1 h2)
+  in
   let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?hook ?typing_flags ?user_warns ~ntns:fix.fixntns () in
   let cinfo = build_recthms fix in
   match pm with

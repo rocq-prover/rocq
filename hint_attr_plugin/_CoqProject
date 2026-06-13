@@ -1,0 +1,7 @@
+-Q theories HintAttr
+-I src
+
+src/hintAttr.ml
+src/hint_attr_plugin.mlpack
+theories/HintAttr.v
+theories/test.v

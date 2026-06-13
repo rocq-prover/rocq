@@ -66,6 +66,7 @@ module Hook : sig
   val make_g : (S.t -> 'a -> 'a) -> 'a g
   val make : (S.t -> unit) -> t
   val call : ?hook:t -> S.t -> unit
+  val seq : t -> t -> t
 end
 
 (** {2 One-go, non-interactive declaration API } *)

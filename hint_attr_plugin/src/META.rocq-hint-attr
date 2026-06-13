@@ -1,0 +1,11 @@
+package "hint" (
+    directory = "."
+    version = "dev"
+    description = "A #[hint(db=...,cost=...,visibility=...)] programmable attribute"
+    requires = ""
+    archive(byte) = "hint_attr_plugin.cma"
+    archive(native) = "hint_attr_plugin.cmxa"
+    plugin(byte) = "hint_attr_plugin.cma"
+    plugin(native) = "hint_attr_plugin.cmxs"
+)
+directory = "."
