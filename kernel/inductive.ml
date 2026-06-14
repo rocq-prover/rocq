@@ -1784,7 +1784,6 @@ let inductive_of_mutfix ?evars env ((nvect, bodynum), (names, types, bodies as r
       let () = if not (noccur_with_meta k nbfix ty) then
         anomaly ~label:"check_one_fix" (Pp.str "Bad occurrence of recursive call.")
       in
-      let env = push_rel (LocalAssum (na, ty)) env in
       if Int.equal k (recarg + 1) then
         (* get the inductive type of the fixpoint *)
         let (mind, _) =
@@ -1792,12 +1791,14 @@ let inductive_of_mutfix ?evars env ((nvect, bodynum), (names, types, bodies as r
           with Not_found ->
             raise_err env i (RecursionNotOnInductiveType ty)
         in
-        let mib, _ = lookup_mind_specif env (out_punivs mind)in
+        let mib, _ = lookup_mind_specif env (out_punivs mind) in
         let () = if mib.mind_finite != Finite then
           raise_err env i (RecursionNotOnInductiveType ty)
         in
+        let env = push_rel (LocalAssum (na, ty)) env in
         (mind, (env, body))
       else
+        let env = push_rel (LocalAssum (na, ty)) env in
         find_ind env i recarg (k+1) body
     | _ -> raise_err env i (NotEnoughAbstractionInFixBody recarg)
   in
