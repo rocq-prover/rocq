@@ -117,6 +117,7 @@ let write_mlf_code fn ?(header=[]) code =
   close_out ch_out;
   let ch_mli_out = open_out ((Filename.chop_extension fn)^".mli") in
   let fmt = Format.formatter_of_out_channel ch_mli_out in
+  Format.fprintf fmt "type t\n";
   List.iter (pp_global_interface fmt) code;
   close_out ch_mli_out
 
