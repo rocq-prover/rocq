@@ -921,45 +921,21 @@ let subst_tpattern env sigma ise uc u occ_state c h k =
   let c = subst_loop (env, h) c in
   Evd.ustate !evd, c
 
-let find_tpattern_instances ~instances ~upat_that_matched ~upats sigma0 ise occ_state : unit find_P =
-  fun env c h ~k ->
-  let upat_that_matched_ref = upat_that_matched in
-  let upat_that_matched = match !upat_that_matched_ref with
-  | None ->
-    let on_instance x = instances := !instances @ [x] in
-    let ans =
-      try
-        let _ : bool = match_upats_HO ~on_instance upats env sigma0 ise c in
-        raise NoMatch
-      with
-      | (NoMatch|NoProgress) when not (List.is_empty !instances) -> uniquize !instances
-      | NoMatch -> raise NoMatch
-      | NoProgress -> raise NoMatch
-    in
-    env, 0, ans
-  | Some r -> r
-  in
-  let expl, sigma, uc, u =
-    let (e, n, xs) = upat_that_matched in
-    match List.nth_opt xs n with
-    | None -> raise NoMatch
-    | Some r -> r
-  in
-  let uc, _c = subst_tpattern env sigma ise uc u occ_state c h k in
-  (* Fixup upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
-  let (env, n, xs) = upat_that_matched in
-  upat_that_matched_ref := Some (env, n + 1, (expl, sigma, uc, u) :: List.tl xs)
-
 let find_all_instances sigma0 { tpat_sigma = ise; tpat_pats = upats } : unit find_P =
   let occ_state = create_occ_state None in
-  let upat_that_matched = ref None in
-  let find = find_tpattern_instances ~instances:(ref []) ~upat_that_matched ~upats sigma0 ise occ_state in
-  fun env concl h ~k ->
-  let rec loop () = match find env concl h ~k with
-  | () -> loop ()
-  | exception NoMatch -> ()
+  fun env c h ~k ->
+  let instances = ref [] in
+  let on_instance x = instances := !instances @ [x] in
+  let () = match match_upats_HO ~on_instance upats env sigma0 ise c with
+  | (_ : bool) -> ()
+  | exception (NoMatch | NoProgress) -> ()
   in
-  loop ()
+  let ans = uniquize !instances in
+  let iter (expl, sigma, uc, u) =
+    let _, _ = subst_tpattern env sigma ise uc u occ_state c h k in
+    ()
+  in
+  List.iter iter ans
 
 let find_tpattern ~disable_FO ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : EConstr.t find_P =
   fun env c h ~k ->
