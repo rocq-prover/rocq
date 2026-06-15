@@ -292,6 +292,7 @@ type primitive =
   | Lazy
   | Coq_primitive of CPrimitives.t * bool (* check for accu *)
   | Mk_empty_instance
+  | Str_decode
 
 let eq_primitive p1 p2 =
   match p1, p2 with
@@ -333,6 +334,7 @@ let eq_primitive p1 p2 =
   | Get_symbols, Get_symbols
   | Lazy, Lazy
   | Mk_empty_instance, Mk_empty_instance
+  | Str_decode, Str_decode
     -> true
 
   | Mk_fix (rp1, i1), Mk_fix (rp2, i2) -> Int.equal i1 i2 && eq_rec_pos rp1 rp2
@@ -384,7 +386,8 @@ let eq_primitive p1 p2 =
     | Get_symbols
     | Lazy
     | Coq_primitive _
-    | Mk_empty_instance), _
+    | Mk_empty_instance
+    | Str_decode), _
     -> false
 
 let primitive_hash = function
@@ -436,6 +439,7 @@ let primitive_hash = function
   | Lazy -> 42
   | Mk_empty_instance -> 43
   | Mk_string -> 44
+  | Str_decode -> 45
 
 type mllambda =
   | MLlocal        of lname
@@ -1827,6 +1831,7 @@ let string_of_gname_mlf g =
     Format.sprintf "(global%s)" name
   end else
   match name with
+  | s when String.length s > 0 && s.[0] = '"' -> s
   | "()" -> "0"
   | "_" -> "_"
   | _ -> Format.sprintf "$%s" name
@@ -2056,6 +2061,7 @@ let pp_mllam fmt l =
     | Get_proj -> Format.fprintf fmt "get_proj"
     | Get_symbols -> Format.fprintf fmt "get_symbols"
     | Lazy -> Format.fprintf fmt "lazy"
+    | Str_decode -> Format.fprintf fmt "str_decode"
   in
   Format.fprintf fmt "@[%a@]" pp_mllam l
 
@@ -2207,6 +2213,7 @@ let pp_mllam_mlf fmt l =
     | Get_instance -> Format.fprintf fmt "(global $Nativecode $get_instance)"
     | Get_proj -> Format.fprintf fmt "(global $Nativecode $get_proj)"
     | Get_symbols -> Format.fprintf fmt "(global $Nativelib $get_symbols)"
+    | Str_decode -> Format.fprintf fmt "(global $Nativevalues $str_decode)"
     | Array_get
     | MLnot
     | MLland
@@ -2735,8 +2742,7 @@ let mk_norm_code env sigma prefix t =
   header::gl, symbols, (mind_updates, const_updates)
 
 let mk_library_header (symbols : Nativevalues.symbols) =
-  let symbols = Format.sprintf "(str_decode \"%s\")" (str_encode symbols) in
-  [Glet(Ginternal "symbols_tbl", MLglobal (Ginternal symbols))]
+  [Glet(Ginternal "symbols_tbl", MLprimitive (Str_decode, [|MLglobal (Ginternal ("\"" ^ (str_encode symbols) ^ "\""))|]))]
 
 let update_location r =
   r.upd_info := Linked r.upd_prefix
