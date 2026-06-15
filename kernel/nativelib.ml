@@ -98,12 +98,6 @@ let get_ml_filename () =
   let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
   filename, prefix
 
-let get_mlf_filename () =
-  let temp_dir = force_temp_dir() in
-  let filename = Filename.temp_file ~temp_dir "Coq_native" (source_ext^"mlf") in
-  let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
-  filename, prefix
-
 let write_ml_code fn ?(header=[]) code =
   let header = open_header@header in
   let ch_out = open_out fn in
