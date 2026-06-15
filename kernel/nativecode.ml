@@ -2398,31 +2398,16 @@ let global_to_mlf_name g =
 
 let pp_global_interface fmt g =
   match g with
-  | Gtblnorm (ident, args, _)
-  | Gtblcofix (ident, args, _)
-  | Gtblfixtype (ident, args, _) ->
+  | Gtblnorm (ident, _,_)
+  | Gtblcofix (ident, _,_)
+  | Gtblfixtype (ident, _,_)
+  | Gletcase (ident, _,_,_,_,_)
+  | Glet (ident, _) ->
     let ident = string_of_gname ident in
-    Format.fprintf fmt "val %s : " ident;
-    for _ = 0 to Array.length args do
-      Format.fprintf fmt "Nativevalues.t -> "
-    done;
-    Format.fprintf fmt "Nativevalues.t array\n@."
-  | Gletcase (ident, args, _,_,_,_) ->
-    let ident = string_of_gname ident in
-    Format.fprintf fmt "val %s : " ident;
-    for _ = 0 to Array.length args do
-      Format.fprintf fmt "Nativevalues.t -> "
-    done;
-    Format.fprintf fmt "Nativevalues.t\n@."
+    if ident <> "_" then
+      Format.fprintf fmt "val %s : t@." ident
   | Gcomment _
-  | Glet (Ginternal "_", _)
   | Gopen _ -> ()
-  | Glet (Ginternal "symbols_tbl", _) -> (* for strange reasons, type_of_global will return "" for symbols_tbl, so we have to treat it separately *)
-      Format.fprintf fmt "val symbols_tbl : Nativevalues.t\n@."
-  | Glet (ident, lam) ->
-    let typ = type_of_global ident lam in
-    let ident = string_of_gname ident in
-      Format.fprintf fmt "val %s%s\n@." ident typ
   | Gtype _ -> pp_global fmt g
 
 (** Compilation of elements in environment **)
