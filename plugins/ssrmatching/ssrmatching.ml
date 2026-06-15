@@ -763,10 +763,10 @@ let assert_done r =
   match !r with Some x -> x | None -> CErrors.anomaly (str"do_once never called.")
 
 type subst = Environ.env -> EConstr.t -> EConstr.t -> int -> EConstr.t
-type find_P =
+type 'a find_P =
   Environ.env -> EConstr.t -> int ->
-  k:subst ->
-     EConstr.t
+  k:subst -> 'a
+
 type conclude = unit ->
   EConstr.t * ssrdir * (bool * Evd.evar_map * UState.t * EConstr.t)
 
@@ -882,10 +882,6 @@ end
 let ssrfail env sigma upats_origin upats e =
   raise (SsrMatchingFailure (env, sigma, upats_origin, upats, e))
 
-let has_instances = function
-| None -> false
-| Some instances -> not (List.is_empty !instances)
-
 exception NoMatchTC
 
 let subst_tpattern env sigma ise uc u occ_state c h k =
@@ -925,27 +921,61 @@ let subst_tpattern env sigma ise uc u occ_state c h k =
   let c = subst_loop (env, h) c in
   Evd.ustate !evd, c
 
-let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : find_P =
-  let () = if Option.has_some instances then assert (raise_NoMatch && not !(occ_state.skip_occ)) in
+let find_tpattern_instances ~instances ~upat_that_matched ~upats sigma0 ise occ_state : EConstr.t find_P =
   fun env c h ~k ->
   let upat_that_matched_ref = upat_that_matched in
   let upat_that_matched = match !upat_that_matched_ref with
   | None ->
     let ans =
       try
-        let () = match instances with
-        | None when not disable_FO -> match_upats_FO upats env sigma0 ise c
-        | _ -> ()
-        in
-        let on_instance = match instances with
-        | None -> fun x -> raise (FoundUnif x)
-        | Some r -> fun x -> r := !r @ [x]
-        in
+        let on_instance x = instances := !instances @ [x] in
+        let _ : bool = match_upats_HO ~on_instance upats env sigma0 ise c in
+        raise NoMatch
+      with
+      | (NoMatch|NoProgress) when not (List.is_empty !instances) -> uniquize !instances
+      | NoMatch -> raise NoMatch
+      | NoProgress -> raise NoMatch
+    in
+    env, 0, ans
+  | Some r -> r
+  in
+  let expl, sigma, uc, u =
+    let (e, n, xs) = upat_that_matched in
+    match List.nth_opt xs n with
+    | None -> raise NoMatch
+    | Some r -> r
+  in
+  let uc, c = subst_tpattern env sigma ise uc u occ_state c h k in
+  (* Fixup upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
+  let () =
+    let (env, n, xs) = upat_that_matched in
+    upat_that_matched_ref := Some (env, n + 1, (expl, sigma, uc, u) :: List.tl xs)
+  in
+  c
+
+let find_all_instances sigma0 { tpat_sigma = ise; tpat_pats = upats } : unit find_P =
+  let occ_state = create_occ_state None in
+  let upat_that_matched = ref None in
+  let find = find_tpattern_instances ~instances:(ref []) ~upat_that_matched ~upats sigma0 ise occ_state in
+  fun env concl h ~k ->
+  try
+    while true do
+      ignore (find env concl h ~k)
+    done; raise NoMatch
+  with NoMatch -> ()
+
+let find_tpattern ~disable_FO ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : EConstr.t find_P =
+  fun env c h ~k ->
+  let upat_that_matched_ref = upat_that_matched in
+  let upat_that_matched = match !upat_that_matched_ref with
+  | None ->
+    let ans =
+      try
+        let () = if not disable_FO then match_upats_FO upats env sigma0 ise c in
+        let on_instance x = raise (FoundUnif x) in
         if match_upats_HO ~on_instance upats env sigma0 ise c then raise NoMatchTC else raise NoMatch
       with
-      | FoundUnif sigma_u -> [sigma_u]
-      | (NoMatch|NoMatchTC|NoProgress) when has_instances instances ->
-        uniquize (!(Option.get instances))
+      | FoundUnif sigma_u -> sigma_u
       | NoMatch ->
         if raise_NoMatch then raise NoMatch
         else ssrfail env ise upats_origin upats SsrMatchFail
@@ -956,17 +986,10 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upat
         if raise_NoMatch then raise NoMatch
         else ssrfail env ise upats_origin upats SsrProgressFail
     in
-    env, 0, ans
+    env, 0, [ans]
   | Some r -> r
   in
-  let expl, sigma, uc, u = match instances with
-  | None -> List.hd (pi3 upat_that_matched)
-  | Some _ ->
-    let (e, n, xs) = upat_that_matched in
-    match List.nth_opt xs n with
-    | None -> raise NoMatch
-    | Some r -> r
-  in
+  let expl, sigma, uc, u = List.hd (pi3 upat_that_matched) in
 (*   pp(lazy(str"sigma@tmatch=" ++ pr_evar_map None sigma)); *)
   if !(occ_state.skip_occ) then ((*ignore(k env u.up_t 0);*) c)
   else
@@ -974,7 +997,6 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upat
     (* Fixup upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
     let () =
       let (env, n, xs) = upat_that_matched in
-      let n = if Option.has_some instances then n + 1 else n in
       upat_that_matched_ref := Some (env, n, (expl, sigma, uc, u) :: List.tl xs)
     in
     c
@@ -989,14 +1011,13 @@ let conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats { m
   else ssrfail env sigma upats_origin upats (SsrOccMissing (!nocc, max_occ, p'))
 
 (* upats_origin makes a better error message only            *)
-let mk_tpattern_matcher ?(all_instances=false)
+let mk_tpattern_matcher
   ?(raise_NoMatch=false) ?upats_origin sigma0 occ { tpat_sigma = ise; tpat_pats = upats }
 =
   let occ_state = create_occ_state occ in
   let upat_that_matched = ref None in
-  let instances = if all_instances then Some (ref []) else None in
   let disable_FO = occ = Some(true,[1]) in
-  find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state,
+  find_tpattern ~disable_FO ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state,
   conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats occ_state
 
 type ('inpat, 'term) ssrpattern =
@@ -1604,17 +1625,13 @@ let ssrinstancesof arg =
   let pat = match cpat with T x -> x | _ -> errorstrm (str"Not supported") in
   let rigid ev = Evd.mem sigma ev in
   let tpat = mk_tpattern ~rigid env pat L2R pat (empty_tpatterns sigma0) in
-  let find, conclude =
-    mk_tpattern_matcher ~all_instances:true ~raise_NoMatch:true sigma None tpat
-  in
+  let find = find_all_instances sigma tpat in
   let print env p c _ = ppnl (hov 1 (str"instance:" ++ spc() ++ pr_econstr_env env (Proofview.Goal.sigma gl) p ++ spc()
                                      ++ str "matches:" ++ spc() ++ pr_econstr_env env (Proofview.Goal.sigma gl) c)); c in
-  ppnl (str"BEGIN INSTANCES");
-  try
-    while true do
-      ignore(find env concl 1 ~k:print)
-    done; raise NoMatch
-  with NoMatch -> ppnl (str"END INSTANCES"); Tacticals.tclIDTAC
+  let () = ppnl (str"BEGIN INSTANCES") in
+  let () = find env concl 1 ~k:print in
+  let () = ppnl (str"END INSTANCES") in
+  Tacticals.tclIDTAC
   end
 
 module Internal =
