@@ -235,7 +235,7 @@ let string_of_class = function
   | CL_CONST sp ->
     string_of_qualid (Nametab.shortest_qualid_of_global Id.Set.empty (GlobRef.ConstRef sp))
   | CL_PROJ sp ->
-    let sp = Projection.Repr.constant sp in
+    let sp = Environ.projection_repr_constant (Global.env ()) sp in
     string_of_qualid (Nametab.shortest_qualid_of_global Id.Set.empty (GlobRef.ConstRef sp))
   | CL_IND sp ->
       string_of_qualid (Nametab.shortest_qualid_of_global Id.Set.empty (GlobRef.IndRef sp))
@@ -444,7 +444,7 @@ let reference_arity_length env sigma ref =
   List.length (fst (Reductionops.splay_arity env sigma (EConstr.of_constr t)))
 
 let projection_arity_length env sigma p =
-  reference_arity_length env sigma (GlobRef.ConstRef (Projection.Repr.constant p))
+  reference_arity_length env sigma (GlobRef.ConstRef (Environ.projection_repr_constant env p))
 
 let class_params env sigma = function
   | CL_FUN | CL_SORT -> 0

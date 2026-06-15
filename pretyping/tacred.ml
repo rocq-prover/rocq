@@ -87,10 +87,10 @@ let evaluable_of_global_reference ?loc = function
 
 let soft_evaluable_of_global_reference = evaluable_of_global_reference
 
-let global_of_evaluable_reference = function
+let global_of_evaluable_reference env = function
   | Evaluable.EvalConstRef cst -> GlobRef.ConstRef cst
   | Evaluable.EvalVarRef id -> GlobRef.VarRef id
-  | Evaluable.EvalProjectionRef p -> GlobRef.ConstRef (Projection.Repr.constant p)
+  | Evaluable.EvalProjectionRef p -> GlobRef.ConstRef (Environ.projection_repr_constant env p)
 
 type evaluable_reference =
   | EvalConst of Constant.t
@@ -851,7 +851,7 @@ and whd_simpl_stack infos env sigma =
            let unf = Projection.unfolded p in
            if unf || is_evaluable env sigma (EvalProjectionRef (Projection.repr p)) then
              let npars = Projection.npars p in
-             match unf, ReductionBehaviour.get_from_db infos.red_behavior (Projection.constant p) with
+             match unf, ReductionBehaviour.get_from_db infos.red_behavior (Environ.projection_repr_constant env (Projection.repr p)) with
               | false, Some NeverUnfold -> NotReducible
               | false, Some (UnfoldWhen { recargs } | UnfoldWhenNoMatch { recargs })
                 when not (List.is_empty recargs) ->
@@ -1116,7 +1116,7 @@ let whd_simpl_orelse_delta_but_fix env sigma c =
       | CoFix _ | Fix _ -> s'
       | Proj (p,_,t) when
           (match EConstr.kind sigma constr with
-          | Const (c', _) -> QConstant.equal env (Projection.constant p) c'
+          | Const (c', _) -> QConstant.equal env (Environ.projection_repr_constant env (Projection.repr p)) c'
           | _ -> false) ->
         let npars = Projection.npars p in
           if List.length stack <= npars then
@@ -1156,7 +1156,7 @@ let simpl env sigma c =
 let matches_head env sigma c t =
   let t, l = decompose_app sigma t in
   match EConstr.kind sigma t, Array.is_empty l with
-    | Proj (p, _, _), _ -> Constr_matching.matches env sigma c (mkConstU (Projection.constant p, EInstance.empty))
+    | Proj (p, _, _), _ -> Constr_matching.matches env sigma c (mkConstU (Environ.projection_repr_constant env (Projection.repr p), EInstance.empty))
     | _, false -> Constr_matching.matches env sigma c t
     | _ -> raise Constr_matching.PatternMatchingFailure
 
@@ -1279,7 +1279,7 @@ let string_of_evaluable_ref env = function
 (* Removing fZETA for finer behaviour would break many developments *)
 let unfold_side_flags = RedFlags.[fBETA;fMATCH;fFIX;fCOFIX;fZETA]
 let unfold_side_red = RedFlags.(mkflags [fBETA;fMATCH;fFIX;fCOFIX;fZETA])
-let unfold_red kn =
+let unfold_red env kn =
   let open RedFlags in
   let flags = fDELTA :: unfold_side_flags in
   let flags = match kn with
@@ -1291,13 +1291,13 @@ let unfold_red kn =
         | Some p -> fCONST sp :: fPROJ p :: flags
       end
     | Evaluable.EvalProjectionRef p ->
-      fPROJ p :: fCONST (Projection.Repr.constant p) :: flags
+      fPROJ p :: fCONST (Environ.projection_repr_constant env p) :: flags
   in
   mkflags flags
 
 let unfold env sigma name c =
   if is_evaluable env sigma name then
-    clos_norm_flags (unfold_red name) env sigma c
+    clos_norm_flags (unfold_red env name) env sigma c
   else
     user_err Pp.(str (string_of_evaluable_ref env name^" is opaque."))
 

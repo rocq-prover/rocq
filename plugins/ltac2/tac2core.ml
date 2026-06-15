@@ -215,7 +215,7 @@ let () = define "constant_print" (constant @-> ret pp) @@ fun c ->
   Nametab.pr_global_env Id.Set.empty (ConstRef c)
 
 let () = define "projection_print" (projection @-> ret pp) @@ fun p ->
-  Nametab.pr_global_env Id.Set.empty (ConstRef (Projection.constant p))
+  Nametab.pr_global_env Id.Set.empty (ConstRef (Environ.projection_repr_constant (Global.env ()) (Projection.repr p)))
 
 let () = define "ind_print" (inductive @-> ret pp) @@ fun ind ->
   Nametab.pr_global_env Id.Set.empty (IndRef ind)
@@ -1421,7 +1421,7 @@ let () =
 
 let () =
   define "projection_to_constant" (projection @-> ret (option constant)) @@ fun p ->
-  Some (Projection.constant p)
+  Some (Environ.projection_repr_constant (Global.env ()) (Projection.repr p))
 
 let () = define "module_equal" (modpath @-> modpath @-> ret bool) @@ fun a b ->
   ModPath.equal a b

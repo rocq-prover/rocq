@@ -840,7 +840,7 @@ let change_of_red_expr_val ?occs redexp =
 let reduce redexp cl =
   let trace env sigma =
     let open Printer in
-    let pr = ((fun e -> pr_econstr_env e), (fun e -> pr_leconstr_env e), pr_evaluable_reference, (fun e -> pr_constr_pattern_env e), int, Redexpr.pr_glob_user_red_expr) in
+    let pr = ((fun e -> pr_econstr_env e), (fun e -> pr_leconstr_env e), (fun e -> pr_evaluable_reference env e), (fun e -> pr_constr_pattern_env e), int, Redexpr.pr_glob_user_red_expr) in
     Pp.(hov 2 (Ppred.pr_red_expr_env env sigma pr str redexp))
   in
   Proofview.Goal.enter begin fun gl ->

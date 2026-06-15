@@ -815,15 +815,15 @@ and detype_r d flags avoid env sigma t =
     | Proj (p,_,c) ->
       if Projection.unfolded p && flags.flg.unfolded_primproj_as_match then
         let c = detype d flags avoid env sigma c in
-        let id = Projection.label p in
-        let nargs, parg =
+        let id, nargs, parg =
           try
             let _, mip = Global.lookup_inductive (Projection.inductive p) in
-            mip.mind_consnrealargs.(0), Projection.arg p
+            let id = Environ.projection_repr_label (snd env) (Projection.repr p) in
+            id, mip.mind_consnrealargs.(0), Projection.arg p
           with e when !Flags.in_debugger ->
             (* kinda weird printing but the name should be enough to
                indicate which projection it is *)
-            1, 0
+            Id.of_string_soft (Projection.Repr.to_string @@ Projection.repr p), 1, 0
         in
         let pathole = DAst.make @@ PatVar Anonymous in
         let patargs = List.init nargs (fun i ->
@@ -840,7 +840,17 @@ and detype_r d flags avoid env sigma t =
           let pars = Projection.npars p in
           let hole = DAst.make @@ GHole (GInternalHole) in
           let args = List.make pars hole in
-          GApp (DAst.make @@ GRef (GlobRef.ConstRef (Projection.constant p), None),
+          let proj =
+            try Environ.projection_repr_constant (snd env) (Projection.repr p)
+            with e when !Flags.in_debugger ->
+              let p = Projection.repr p in
+              let mind, _ = Projection.Repr.inductive p in
+              let knu = MutInd.user mind in
+              let knc = MutInd.canonical mind in
+              let label = Id.of_string_soft (Projection.Repr.to_string p) in
+              Constant.change_label (Constant.make knu knc) label
+          in
+          GApp (DAst.make @@ GRef (GlobRef.ConstRef proj, None),
                 (args @ [detype d flags avoid env sigma c]))
         in
         if !Flags.in_debugger || !Flags.in_ml_toplevel

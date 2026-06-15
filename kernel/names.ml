@@ -788,22 +788,14 @@ struct
       { proj_ind : inductive;
         proj_npars : int;
         proj_arg : int;
-        proj_name : Constant.t;
-        (** The only relevant data is the label, the rest is canonically derived
-            from proj_ind. *)
       }
 
-    let make proj_ind ~proj_npars ~proj_arg proj_name =
-      let proj_name = KerPair.change_label (fst proj_ind) proj_name in
-      {proj_ind;proj_npars;proj_arg;proj_name}
+    let make proj_ind ~proj_npars ~proj_arg =
+      {proj_ind;proj_npars;proj_arg}
 
     let inductive c = c.proj_ind
 
     let mind c = fst c.proj_ind
-
-    let constant c = c.proj_name
-
-    let label c = Constant.label c.proj_name
 
     let npars c = c.proj_npars
 
@@ -814,9 +806,7 @@ struct
       if c <> 0 then c
       else
         let c = Int.compare a.proj_npars b.proj_npars in
-        if c <> 0 then c
-        else
-          Id.compare (Constant.label a.proj_name) (Constant.label b.proj_name)
+        c
 
     module CanOrd = struct
       type nonrec t = t
@@ -846,25 +836,22 @@ struct
     end
 
     let canonize p =
-      let { proj_ind; proj_npars; proj_arg; proj_name } = p in
+      let { proj_ind; proj_npars; proj_arg } = p in
       let proj_ind' = Ind.canonize proj_ind in
-      let proj_name' = Constant.canonize proj_name in
-      if proj_ind' == proj_ind && proj_name' == proj_name then p
-      else { proj_ind = proj_ind'; proj_name = proj_name'; proj_npars; proj_arg }
+      if proj_ind' == proj_ind then p
+      else { proj_ind = proj_ind'; proj_npars; proj_arg }
 
     module Self_Hashcons = struct
       type nonrec t = t
       let hashcons p =
         let hind, ind = hcons_ind p.proj_ind in
-        let _, na = Constant.hcons p.proj_name in
         Hashset.Combine.combinesmall p.proj_arg hind, {
           proj_ind = ind;
           proj_npars = p.proj_npars;
           proj_arg = p.proj_arg;
-          proj_name = na;
         }
       let eq p p' =
-        p == p' || (p.proj_ind == p'.proj_ind && p.proj_npars == p'.proj_npars && p.proj_arg == p'.proj_arg && p.proj_name == p'.proj_name)
+        p == p' || (p.proj_ind == p'.proj_ind && p.proj_npars == p'.proj_npars && p.proj_arg == p'.proj_arg)
     end
     module HashRepr = Hashcons.Make(Self_Hashcons)
     let hcons = Hashcons.simple_hcons HashRepr.generate HashRepr.hcons ()
@@ -880,11 +867,21 @@ struct
       let ind' = f ind in
       if ind == ind' then p
       else
-        let proj_name = KerPair.change_label ind' (label p) in
-        {p with proj_ind = (ind',snd p.proj_ind); proj_name}
+        {p with proj_ind = (ind',snd p.proj_ind)}
 
-    let to_string p = Constant.to_string (constant p)
-    let print p = Constant.print (constant p)
+    let to_string p =
+      let (mind, i) = p.proj_ind in
+      Printf.sprintf "%s.%i.(%i)" (MutInd.to_string mind) i p.proj_arg
+
+    let debug_to_string p =
+      let (mind, i) = p.proj_ind in
+      Printf.sprintf "%s.%i.(%i)" (MutInd.debug_to_string mind) i p.proj_arg
+
+    let print p =
+      let open Pp in
+      let (mind, i) = p.proj_ind in
+      (MutInd.print mind) ++ str "." ++ int i ++ str "." ++ surround (int p.proj_arg)
+
   end
 
   type t = Repr.t * bool
@@ -895,8 +892,6 @@ struct
   let inductive (c,_) = Repr.inductive c
   let npars (c,_) = Repr.npars c
   let arg (c,_) = Repr.arg c
-  let constant (c,_) = Repr.constant c
-  let label (c,_) = Repr.label c
   let repr = fst
   let unfolded = snd
   let unfold (c, b as p) = if b then p else (c, true)
@@ -946,14 +941,17 @@ struct
     let c' = Repr.map_npars f c in
     if c' == c then x else (c', b)
 
-  let to_string p = Constant.to_string (constant p)
-  let print p = Constant.print (constant p)
+  let debug_to_string (p, unfolded) =
+    if unfolded then Printf.sprintf "unfolded(%s)" (Repr.debug_to_string p)
+    else Repr.debug_to_string p
 
-  let debug_to_string p =
-    (if unfolded p then "unfolded(" else "") ^
-    Constant.debug_to_string (constant p) ^
-    (if unfolded p then ")" else "")
+  let to_string (p, unfolded) =
+    if unfolded then Printf.sprintf "unfolded(%s)" (Repr.to_string p)
+    else Repr.to_string p
+
   let debug_print p = str (debug_to_string p)
+
+  let print p = str (to_string p)
 
 end
 

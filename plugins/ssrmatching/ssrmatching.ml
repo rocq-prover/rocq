@@ -493,7 +493,7 @@ let mk_tpattern ?p_origin ?(hack=false) ?(ok = all_ok) ~rigid env t dir p { tpat
       let np = proj_nparams env p in
       if np = 0 || np > List.length a then KpatConst, f, a else
       let a1, a2 = List.chop np a in KpatProj p, (applistc f a1), a2
-    | Proj (p,_,arg) -> KpatProj (Projection.constant p), f, a
+    | Proj (p,_,arg) -> KpatProj ((Environ.projection_repr_constant env (Projection.repr p))), f, a
     | Var _ | Ind _ | Construct _ -> KpatFixed, f, a
     | Evar (k, _) ->
       if rigid k then KpatEvar k, f, a else
@@ -542,7 +542,7 @@ let nb_cs_proj_args env ise pc f u =
   | Prod _ -> na Prod_cs
   | Sort s -> na (Sort_cs (ESorts.quality_or_set ise s))
   | Const (c',_) when Environ.QConstant.equal env c' pc -> nargs_of_proj u.up_f
-  | Proj (c',_,_) when Environ.QConstant.equal env (Names.Projection.constant c') pc -> nargs_of_proj u.up_f
+  | Proj (c',_,_) when Environ.QConstant.equal env ((Environ.projection_repr_constant env (Projection.repr c'))) pc -> nargs_of_proj u.up_f
   | Proj (c',_,_) -> let _ = na (Proj_cs (Names.Projection.repr c')) in 0
   | Var _ | Ind _ | Construct _ | Const _ -> na (Const_cs (fst @@ destRef ise f))
   | _ -> -1
@@ -589,7 +589,7 @@ let filter_upat env sigma i0 f n u fpats =
   let () = if !i0 < np then i0 := n in (u, np) :: fpats
 
 let eq_prim_proj env sigma c t = match EConstr.kind sigma t with
-  | Proj(p,_,_) -> Environ.QConstant.equal env (Projection.constant p) c
+  | Proj(p,_,_) -> Environ.QConstant.equal env ((Environ.projection_repr_constant env (Projection.repr p))) c
   | _ -> false
 
 let filter_upat_FO env sigma i0 f n u fpats =

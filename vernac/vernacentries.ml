@@ -338,7 +338,7 @@ let print_strategy r =
     let fold key lvl (vacc, cacc, pacc) = match key with
     | Conv_oracle.EvalVarRef id -> ((GlobRef.VarRef id, lvl) :: vacc, cacc, pacc)
     | Conv_oracle.EvalConstRef cst -> (vacc, (GlobRef.ConstRef cst, lvl) :: cacc, pacc)
-    | Conv_oracle.EvalProjectionRef p -> (vacc, cacc, (GlobRef.ConstRef (Projection.Repr.constant p), lvl) :: pacc)
+    | Conv_oracle.EvalProjectionRef p -> (vacc, cacc, (GlobRef.ConstRef (Environ.projection_repr_constant (Global.env ()) p), lvl) :: pacc)
     in
     let var_lvl, cst_lvl, prj_lvl = fold_strategy fold oracle ([], [], []) in
     let var_msg =

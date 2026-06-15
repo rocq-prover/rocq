@@ -338,8 +338,8 @@ let pr_pconstant = pr_puniverses pr_constant
 let pr_pinductive = pr_puniverses pr_inductive
 let pr_pconstructor = pr_puniverses pr_constructor
 
-let pr_evaluable_reference ref =
-  pr_global (Tacred.global_of_evaluable_reference ref)
+let pr_evaluable_reference env ref =
+  pr_global (Tacred.global_of_evaluable_reference env ref)
 
 (* XXX inline this in only caller in himsg? *)
 let pr_notation_interpretation_env env sigma c =

@@ -237,7 +237,7 @@ val default_ext_instance : ext_named_context -> constr SList.t
 val ext_rev_subst : ext_named_context -> Id.t -> constr
 
 val push_rel_decl_to_named_context :
-  evar_map -> rel_declaration -> ext_named_context -> ext_named_context
+  env -> evar_map -> rel_declaration -> ext_named_context -> ext_named_context
 
 val push_rel_context_to_named_context :
   Environ.env -> evar_map -> types ->

@@ -71,7 +71,7 @@ let push_rel sigma d env =
   let env = {
     static_env = push_rel d env.static_env;
     renamed_env = push_rel d' env.renamed_env;
-    extra = lazy (push_rel_decl_to_named_context sigma d' (Lazy.force env.extra));
+    extra = lazy (push_rel_decl_to_named_context env.renamed_env sigma d' (Lazy.force env.extra));
     lvar = env.lvar;
     } in
   d', env
@@ -83,7 +83,7 @@ let push_rel_context ?(force_names=false) sigma ctx env =
   let env = {
     static_env = push_rel_context ctx env.static_env;
     renamed_env = push_rel_context ctx' env.renamed_env;
-    extra = lazy (List.fold_right (fun d acc -> push_rel_decl_to_named_context sigma d acc) ctx' (Lazy.force env.extra));
+    extra = lazy (List.fold_right (fun d acc -> push_rel_decl_to_named_context env.renamed_env sigma d acc) ctx' (Lazy.force env.extra));
     lvar = env.lvar;
     } in
   ctx', env

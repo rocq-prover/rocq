@@ -354,7 +354,7 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
     Some (all_mode_match, hintl)
 
 and e_trivial_resolve db_list local_db secvars env sigma concl : hint_v list =
-  let hd = try Some (decompose_app_bound sigma concl) with Bound -> None in
+  let hd = try Some (decompose_app_bound env sigma concl) with Bound -> None in
   try
     (match e_my_find_search db_list local_db secvars hd true env sigma concl with
     | Some (_,l) -> l
@@ -362,7 +362,7 @@ and e_trivial_resolve db_list local_db secvars env sigma concl : hint_v list =
   with Not_found -> []
 
 let e_possible_resolve db_list local_db secvars env sigma concl =
-  let hd = try Some (decompose_app_bound sigma concl) with Bound -> None in
+  let hd = try Some (decompose_app_bound env sigma concl) with Bound -> None in
   try
     e_my_find_search db_list local_db secvars hd false env sigma concl
   with Not_found -> Some (true, [])

@@ -66,10 +66,10 @@ let check_reference_arity ref =
   if not (Reductionops.is_arity env (Evd.from_env env) (EConstr.of_constr c)) (* FIXME *) then
     raise (CoercionError (NotAClass ref))
 
-let check_arity = function
+let check_arity env = function
   | CL_FUN | CL_SORT -> ()
   | CL_CONST cst -> check_reference_arity (GlobRef.ConstRef cst)
-  | CL_PROJ p -> check_reference_arity (GlobRef.ConstRef (Projection.Repr.constant p))
+  | CL_PROJ p -> check_reference_arity (GlobRef.ConstRef (Environ.projection_repr_constant env p))
   | CL_SECVAR id -> check_reference_arity (GlobRef.VarRef id)
   | CL_IND kn -> check_reference_arity (GlobRef.IndRef kn)
 
@@ -158,11 +158,11 @@ let get_strength stre ref cls clt =
   let stref = strength_of_global ref in
   strength_min [stre;stres;stret;stref]
 
-let ident_key_of_class = function
+let ident_key_of_class env = function
   | CL_FUN -> "Funclass"
   | CL_SORT -> "Sortclass"
   | CL_CONST sp -> Id.to_string (Constant.label sp)
-  | CL_PROJ sp -> Id.to_string (Projection.Repr.label sp)
+  | CL_PROJ sp -> Id.to_string (Environ.projection_repr_label env sp)
   | CL_IND (sp,_) -> Id.to_string (MutInd.label sp)
   | CL_SECVAR id -> Id.to_string id
 
@@ -209,8 +209,8 @@ let build_id_coercion ?loc idf_opt source poly =
       | Some idf -> idf
       | None ->
           let cl,u,_ = find_class_type env sigma t in
-          Id.of_string ("Id_"^(ident_key_of_class source)^"_"^
-                        (ident_key_of_class cl))
+          Id.of_string ("Id_"^(ident_key_of_class env source)^"_"^
+                        (ident_key_of_class env cl))
   in
   let univs = Evd.univ_entry ~poly sigma in
   let val_f = EConstr.to_constr sigma val_f in
@@ -320,8 +320,8 @@ let add_new_coercion_core coef stre ~reversible source target isid : unit =
       raise (CoercionError NoTarget)
   in
   check_target clt target;
-  check_arity cls;
-  check_arity clt;
+  check_arity env cls;
+  check_arity env clt;
   let local = match get_strength stre coef cls clt with
   | `LOCAL -> true
   | `GLOBAL -> false
