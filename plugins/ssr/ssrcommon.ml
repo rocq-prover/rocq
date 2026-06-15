@@ -924,13 +924,41 @@ let applyn ?(beta=false) ~with_evars ?(first_goes_last=false) n t =
     ]
   end
 
+(* [src] is the evar map produced while interpreting an ssr term and [dst] is
+   the current proof evar map before those interpretation effects are recorded.
+   Most evars freshly created in [src] must stay fresh: [refine_with] abstracts
+   them into regular subgoals.  However, [src] may contain solutions to evars that
+   already existed in [dst], for instance evars created by an Ltac [open_constr]
+   argument.  Propagate only those solutions, and only when their bodies do not
+   depend on fresh undefined evars from [src]. *)
+let propagate_old_evar_definitions ~src ~dst =
+  let initial = dst in
+  let safe_to_define body =
+    let body = Evarutil.nf_evar src body in
+    let deps = Evarutil.undefined_evars_of_term src body in
+    if Evar.Set.for_all (fun dep -> Evd.mem initial dep) deps
+    then Some body
+    else None
+  in
+  Evd.fold_undefined begin fun ev _ dst ->
+    match Evd.find_defined src ev with
+    | None -> dst
+    | Some evi ->
+      let body = match Evd.evar_body evi with Evar_defined body -> body in
+      match safe_to_define body with
+      | None -> dst
+      | Some body -> Evd.define ev body dst
+  end initial dst
+
 let refine_with ?(first_goes_last=false) ?beta ?(with_evars=true) oc =
   let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let uct = Evd.ustate (fst oc) in
+  let src = fst oc in
+  let uct = Evd.ustate src in
   let n, oc = abs_evars_pirrel env sigma oc in
+  let sigma = propagate_old_evar_definitions ~src ~dst:sigma in
   Proofview.Unsafe.tclEVARS (Evd.set_ustate sigma uct) <*>
   Proofview.tclORELSE (applyn ~with_evars ~first_goes_last ?beta n oc)
     (fun _ -> Proofview.tclZERO dependent_apply_error)
