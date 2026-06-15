@@ -20,6 +20,9 @@ Declared in library sort_poly_elab, line 14, characters 13-19
      U < sort_poly_elab.26
      sort_poly_elab.26 < sort_poly_elab.25
      sort_poly_elab.26 < sort_poly_elab.27
+Minimized universes:
+ sort_poly_elab.27 := sort_poly_elab.26+1
+ sort_poly_elab.25 := sort_poly_elab.26+1
 Normalized constraints:
  {sort_poly_elab.26} |= U < sort_poly_elab.26 *)
 @eq_refl Type@{sort_poly_elab.29} q2
@@ -30,6 +33,9 @@ Normalized constraints:
      U < sort_poly_elab.29
      sort_poly_elab.29 < sort_poly_elab.28
      sort_poly_elab.29 < sort_poly_elab.30
+Minimized universes:
+ sort_poly_elab.30 := sort_poly_elab.29+1
+ sort_poly_elab.28 := sort_poly_elab.29+1
 Normalized constraints:
  {sort_poly_elab.29} |= U < sort_poly_elab.29 *)
 @eq_refl Type@{sort_poly_elab.32} q3
@@ -40,6 +46,9 @@ Normalized constraints:
      U < sort_poly_elab.32
      sort_poly_elab.32 < sort_poly_elab.31
      sort_poly_elab.32 < sort_poly_elab.33
+Minimized universes:
+ sort_poly_elab.33 := sort_poly_elab.32+1
+ sort_poly_elab.31 := sort_poly_elab.32+1
 Normalized constraints:
  {sort_poly_elab.32} |= U < sort_poly_elab.32 *)
 exfalso@{α ; u} : forall (A : Type@{α ; u}) (_ : False), A
@@ -149,6 +158,10 @@ fun A : SProp =>
      sort_poly_elab.62 <= sort_poly_elab.61
      sort_poly_elab.62 <= sort_poly_elab.64
      sort_poly_elab.63 = sort_poly_elab.62
+Minimized universes:
+ sort_poly_elab.64 := sort_poly_elab.62
+ sort_poly_elab.63 := sort_poly_elab.62
+ sort_poly_elab.61 := sort_poly_elab.62
 Normalized constraints:
  {sort_poly_elab.62} |=  *)
 fun A : SProp =>
@@ -172,6 +185,10 @@ fun A : SProp =>
      sort_poly_elab.66 <= sort_poly_elab.65
      sort_poly_elab.66 <= sort_poly_elab.70
      sort_poly_elab.68 = sort_poly_elab.66
+Minimized universes:
+ sort_poly_elab.70 := sort_poly_elab.66
+ sort_poly_elab.68 := sort_poly_elab.66
+ sort_poly_elab.65 := sort_poly_elab.66
 Normalized constraints:
  {sort_poly_elab.69 sort_poly_elab.67 sort_poly_elab.66} |=  *)
 ignore@{α ; u} : forall {A : Type@{α ; u}} (_ : A), unit
@@ -231,6 +248,11 @@ x : P (v@{SProp ; sort_poly_elab.92} A false)
      sort_poly_elab.91 < sort_poly_elab.89
      sort_poly_elab.88 <= sort_poly_elab.87
      sort_poly_elab.89 <= sort_poly_elab.87
+Collapsed sorts:
+ α63 := Type
+Minimized universes:
+ sort_poly_elab.89 := sort_poly_elab.91+1
+ sort_poly_elab.87 := max(sort_poly_elab.88, sort_poly_elab.91+1)
 Normalized constraints:
  {sort_poly_elab.92 sort_poly_elab.91 sort_poly_elab.90 sort_poly_elab.88} |=  *)
 zog@{α ; u} : forall _ : Type@{α ; u}, Type@{α ; u}
@@ -775,6 +797,8 @@ end
      : testind'@{Test ;
 }
 (* {sort_poly_elab.354} |= Set <= sort_poly_elab.354
+Minimized universes:
+ sort_poly_elab.354 := Set
 Normalized constraints:
   *)
 unit@{α ; u} : Type@{α ; u}
@@ -884,6 +908,10 @@ fun (A : SProp) (x y : R6@{SProp ; } A) =>
      sort_poly_elab.365 <= sort_poly_elab.364
      sort_poly_elab.365 <= sort_poly_elab.367
      sort_poly_elab.366 = sort_poly_elab.365
+Minimized universes:
+ sort_poly_elab.367 := sort_poly_elab.365
+ sort_poly_elab.366 := sort_poly_elab.365
+ sort_poly_elab.364 := sort_poly_elab.365
 Normalized constraints:
  {sort_poly_elab.365} |=  *)
 File "./output/sort_poly_elab.v", line 577, characters 10-17:
@@ -998,6 +1026,8 @@ sort_poly_elab.396}
          (_ : sexists@{α410 ; sort_poly_elab.396} A B),
        P
 (* {α410}; {sort_poly_elab.396} |= 
+Collapsed sorts:
+ α410 := Type
 Normalized constraints:
  {sort_poly_elab.396} |=  *)
 R8@{α α0 ; u} : Type@{α ; u+1}

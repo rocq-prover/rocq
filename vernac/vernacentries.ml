@@ -2129,13 +2129,32 @@ let check_may_eval env sigma redexp rc =
     let ctx = Evd.sort_context_set sigma in
     (* NB: flags only used for collapse_sort_variables
        XXX get current option value instead of default? *)
-    let ctx' = Evd.sort_context_set @@ Evd.minimize_universes ~poly:PolyFlags.default sigma in
+    let sigma' = Evd.minimize_universes ~poly:PolyFlags.default sigma in
+    let ctx' = Evd.sort_context_set sigma' in
+    let defsorts = Sorts.QVar.Set.(elements @@ diff (fst (fst ctx)) (fst (fst ctx'))) in
+    let defunivs = Univ.Level.Set.(elements @@ diff (snd (fst ctx)) (snd (fst ctx'))) in
+    let pr_defsort q =
+      Termops.pr_evd_qvar sigma q ++ str " := " ++
+      Termops.pr_evd_quality sigma' (UState.nf_qvar (Evd.ustate sigma') q)
+    in
+    let pr_defuniv u =
+      Termops.pr_evd_level sigma u ++ str " := " ++
+      Univ.Universe.pr (Termops.pr_evd_level sigma)
+        (UState.nf_universe (Evd.ustate sigma') (Univ.Universe.make u))
+    in
     if !PrintingFlags.print_universes && not (UnivGen.is_empty_sort_context ctx) then
       fnl() ++
       (Printer.pr_in_comment
          (UnivGen.pr_sort_context (Evd.sort_printer sigma) ctx ++ fnl() ++
-          v 1 (str "Normalized constraints:" ++ cut() ++
-               UnivGen.pr_sort_context (Evd.sort_printer sigma) ctx')))
+          (if List.is_empty defsorts then mt() else
+             v 1 (str "Collapsed sorts:" ++ cut() ++ prlist_with_sep cut pr_defsort defsorts)
+             ++ fnl()) ++
+          (if List.is_empty defunivs then mt() else
+             v 1 (str "Minimized universes:" ++ cut() ++ prlist_with_sep cut pr_defuniv defunivs)
+             ++ fnl()) ++
+          v 1
+            (str "Normalized constraints:" ++ cut() ++
+             UnivGen.pr_sort_context (Evd.sort_printer sigma) ctx')))
     else mt()
   in
   hdr ++ pp ++ ppunivs
