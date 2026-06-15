@@ -888,6 +888,43 @@ let has_instances = function
 
 exception NoMatchTC
 
+let subst_tpattern env sigma ise uc u occ_state c h k =
+  let {up_f = pf; up_a = pa} = u in
+  let evd = ref (Evd.set_ustate sigma uc) in
+  let match_EQ f = match_EQ env !evd (ise, u) f in
+  let pn = Array.length pa in
+  let rec subst_loop (env,h as acc) c' =
+    if !(occ_state.skip_occ) then c' else
+    let f, a = splay_app sigma c' in
+    let test () = match match_EQ f with
+      | Some sigma ->
+        (match unif_EQ_args env sigma pa a with
+         | Some sigma -> evd := sigma; true
+         | None -> false)
+      | None -> false
+    in
+    if Array.length a >= pn && test () then
+      let open EConstr in
+      let a1, a2 = Array.chop (Array.length pa) a in
+      let fa1 = mkApp (f, a1) in
+      let f' = if subst_occ occ_state then k env u.up_t fa1 h else fa1 in
+      mkApp (f', Array.map_left (subst_loop acc) a2)
+    else
+      let open EConstr in
+      (* TASSI: clear letin values to avoid unfolding *)
+      let inc_h rd (env,h') =
+        let ctx_item =
+          match rd with
+          | Context.Rel.Declaration.LocalAssum _ as x -> x
+          | Context.Rel.Declaration.LocalDef (x,_,y) ->
+              Context.Rel.Declaration.LocalAssum(x,y) in
+        EConstr.push_rel ctx_item env, h' + 1 in
+      let self acc c = subst_loop acc c in
+      let f' = map_constr_with_binders_left_to_right env sigma inc_h self acc f in
+      mkApp (f', Array.map_left (subst_loop acc) a) in
+  let c = subst_loop (env, h) c in
+  Evd.ustate !evd, c
+
 let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : find_P =
   fun env c h ~k ->
   let upat_that_matched_ref = upat_that_matched in
@@ -921,7 +958,7 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upat
     env, 0, ans
   | Some r -> r
   in
-  let expl, sigma, uc, ({up_f = pf; up_a = pa} as u) = match instances with
+  let expl, sigma, uc, u = match instances with
   | None -> List.hd (pi3 upat_that_matched)
   | Some _ ->
     let (e, n, xs) = upat_that_matched in
@@ -933,47 +970,16 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upat
     end
   in
 (*   pp(lazy(str"sigma@tmatch=" ++ pr_evar_map None sigma)); *)
-  if !(occ_state.skip_occ) then ((*ignore(k env u.up_t 0);*) c) else
-  let evd = ref (Evd.set_ustate sigma uc) in
-  let match_EQ f = match_EQ env !evd (ise, u) f in
-  let pn = Array.length pa in
-  let rec subst_loop (env,h as acc) c' =
-    if !(occ_state.skip_occ) then c' else
-    let f, a = splay_app sigma c' in
-    let test () = match match_EQ f with
-      | Some sigma ->
-        (match unif_EQ_args env sigma pa a with
-         | Some sigma -> evd := sigma; true
-         | None -> false)
-      | None -> false
+  if !(occ_state.skip_occ) then ((*ignore(k env u.up_t 0);*) c)
+  else
+    let uc, c = subst_tpattern env sigma ise uc u occ_state c h k in
+    (* Fixup upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
+    let () =
+      let (env, n, xs) = upat_that_matched in
+      let n = if Option.has_some instances then n + 1 else n in
+      upat_that_matched_ref := Some (env, n, (expl, sigma, uc, u) :: List.tl xs)
     in
-    if Array.length a >= pn && test () then
-      let open EConstr in
-      let a1, a2 = Array.chop (Array.length pa) a in
-      let fa1 = mkApp (f, a1) in
-      let f' = if subst_occ occ_state then k env u.up_t fa1 h else fa1 in
-      mkApp (f', Array.map_left (subst_loop acc) a2)
-    else
-      let open EConstr in
-      (* TASSI: clear letin values to avoid unfolding *)
-      let inc_h rd (env,h') =
-        let ctx_item =
-          match rd with
-          | Context.Rel.Declaration.LocalAssum _ as x -> x
-          | Context.Rel.Declaration.LocalDef (x,_,y) ->
-              Context.Rel.Declaration.LocalAssum(x,y) in
-        EConstr.push_rel ctx_item env, h' + 1 in
-      let self acc c = subst_loop acc c in
-      let f' = map_constr_with_binders_left_to_right env sigma inc_h self acc f in
-      mkApp (f', Array.map_left (subst_loop acc) a) in
-  let c' = subst_loop (env,h) c in
-  (* Fixup upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
-  let () =
-    let (env, n, xs) = upat_that_matched in
-    let n = if Option.has_some instances then n + 1 else n in
-    upat_that_matched_ref := Some (env, n, (expl, sigma, Evd.ustate !evd, u) :: List.tl xs)
-  in
-  c'
+    c
 
 let conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats { max_occ; nocc } : conclude = fun () ->
   let env, (c, sigma, uc, ({up_f = pf; up_a = pa} as u)) =
