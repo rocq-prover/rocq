@@ -921,14 +921,14 @@ let subst_tpattern env sigma ise uc u occ_state c h k =
   let c = subst_loop (env, h) c in
   Evd.ustate !evd, c
 
-let find_tpattern_instances ~instances ~upat_that_matched ~upats sigma0 ise occ_state : EConstr.t find_P =
+let find_tpattern_instances ~instances ~upat_that_matched ~upats sigma0 ise occ_state : unit find_P =
   fun env c h ~k ->
   let upat_that_matched_ref = upat_that_matched in
   let upat_that_matched = match !upat_that_matched_ref with
   | None ->
+    let on_instance x = instances := !instances @ [x] in
     let ans =
       try
-        let on_instance x = instances := !instances @ [x] in
         let _ : bool = match_upats_HO ~on_instance upats env sigma0 ise c in
         raise NoMatch
       with
@@ -945,34 +945,31 @@ let find_tpattern_instances ~instances ~upat_that_matched ~upats sigma0 ise occ_
     | None -> raise NoMatch
     | Some r -> r
   in
-  let uc, c = subst_tpattern env sigma ise uc u occ_state c h k in
+  let uc, _c = subst_tpattern env sigma ise uc u occ_state c h k in
   (* Fixup upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
-  let () =
-    let (env, n, xs) = upat_that_matched in
-    upat_that_matched_ref := Some (env, n + 1, (expl, sigma, uc, u) :: List.tl xs)
-  in
-  c
+  let (env, n, xs) = upat_that_matched in
+  upat_that_matched_ref := Some (env, n + 1, (expl, sigma, uc, u) :: List.tl xs)
 
 let find_all_instances sigma0 { tpat_sigma = ise; tpat_pats = upats } : unit find_P =
   let occ_state = create_occ_state None in
   let upat_that_matched = ref None in
   let find = find_tpattern_instances ~instances:(ref []) ~upat_that_matched ~upats sigma0 ise occ_state in
   fun env concl h ~k ->
-  try
-    while true do
-      ignore (find env concl h ~k)
-    done; raise NoMatch
-  with NoMatch -> ()
+  let rec loop () = match find env concl h ~k with
+  | () -> loop ()
+  | exception NoMatch -> ()
+  in
+  loop ()
 
 let find_tpattern ~disable_FO ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : EConstr.t find_P =
   fun env c h ~k ->
   let upat_that_matched_ref = upat_that_matched in
   let upat_that_matched = match !upat_that_matched_ref with
   | None ->
+    let on_instance x = raise (FoundUnif x) in
     let ans =
       try
         let () = if not disable_FO then match_upats_FO upats env sigma0 ise c in
-        let on_instance x = raise (FoundUnif x) in
         if match_upats_HO ~on_instance upats env sigma0 ise c then raise NoMatchTC else raise NoMatch
       with
       | FoundUnif sigma_u -> sigma_u
@@ -986,25 +983,25 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~upat_that_matched ~upats_origin ~u
         if raise_NoMatch then raise NoMatch
         else ssrfail env ise upats_origin upats SsrProgressFail
     in
-    env, 0, [ans]
+    env, ans
   | Some r -> r
   in
-  let expl, sigma, uc, u = List.hd (pi3 upat_that_matched) in
+  let expl, sigma, uc, u = snd upat_that_matched in
 (*   pp(lazy(str"sigma@tmatch=" ++ pr_evar_map None sigma)); *)
   if !(occ_state.skip_occ) then ((*ignore(k env u.up_t 0);*) c)
   else
     let uc, c = subst_tpattern env sigma ise uc u occ_state c h k in
     (* Fixup upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
     let () =
-      let (env, n, xs) = upat_that_matched in
-      upat_that_matched_ref := Some (env, n, (expl, sigma, uc, u) :: List.tl xs)
+      let (env, xs) = upat_that_matched in
+      upat_that_matched_ref := Some (env, (expl, sigma, uc, u))
     in
     c
 
 let conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats { max_occ; nocc } : conclude = fun () ->
   let env, (c, sigma, uc, ({up_f = pf; up_a = pa} as u)) =
     match !upat_that_matched with
-    | Some (env,_,x) -> env,List.hd x | None when raise_NoMatch -> raise NoMatch
+    | Some (env, x) -> env, x | None when raise_NoMatch -> raise NoMatch
     | None -> CErrors.anomaly (str"companion function never called.") in
   let p' = EConstr.mkApp (pf, pa) in
   if max_occ <= !nocc then p', u.up_dir, (c, sigma, uc, u.up_t)
