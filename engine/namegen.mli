@@ -42,7 +42,6 @@ val sort_hdchar : Sorts.t -> string
 val hdchar : env -> evar_map -> types -> string
 val id_of_name_using_hdchar : env -> evar_map -> types -> Name.t -> Id.t
 val named_hd : env -> evar_map -> types -> Name.t -> Name.t
-val head_name : env -> evar_map -> types -> Id.t option
 
 val mkProd_name : env -> evar_map -> Name.t EConstr.binder_annot * types * types -> types
 val mkLambda_name : env -> evar_map -> Name.t EConstr.binder_annot * types * constr -> constr
