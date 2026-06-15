@@ -212,9 +212,9 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
         (* flambda_args @ *)
       ("-o"::link_filename
        ::"-rectypes"
+       ::"-I"::(Filename.dirname mlf_filename)
        (* ::"-w"::"a" *)
        ::include_dirs) in
-  (* let ocamlfind = Boot.Env.ocamlfind () in *)
   let malfunction = "malfunction" in
   let ocamlfind = Boot.Env.ocamlfind () in
   debug_native_compiler (fun () -> Pp.str (malfunction ^ " " ^ (String.concat " " args)));
@@ -226,11 +226,11 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
     | Unix.WEXITED 0 -> ()
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
       error_native_compiler_failed (Inl res1) in
-    let _ = match res1 with
+    let _ = match res2 with
     | Unix.WEXITED 0 -> ()
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
       error_native_compiler_failed (Inl res2) in
-    match res1 with
+    match res3 with
     | Unix.WEXITED 0 -> link_filename
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
       error_native_compiler_failed (Inl res3)
