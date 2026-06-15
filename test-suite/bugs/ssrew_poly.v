@@ -1,12 +1,22 @@
 From Corelib Require Import ssreflect.
-
-Axiom foo@{i} : unit.
 Set Printing Universes.
+
+Definition foo@{i} (A : Type@{i}): nat := let x := Type@{i} in 0.
 About foo.
 
-Axiom lemma@{i} : foo@{i} = tt.
+Definition lemma@{i} : foo@{i} nat = 0 := eq_refl.
 
-Lemma test : foo@{0} = foo@{1}.
+Lemma test : foo@{0} nat = foo@{1} nat.
 Proof.
   rw !lemma. reflexivity.
+Qed.
+
+Axiom cheat : forall {A},A.
+Lemma test2 : foo@{0} nat = 0 + foo@{1} nat.
+Proof.
+  rw [X in _ = _ + X]lemma.
+  Show Universes.
+  cbn.
+  apply cheat.
+
 Qed.

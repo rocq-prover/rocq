@@ -1,4 +1,4 @@
-(************************************************************************)
+ (************************************************************************)
 (*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
@@ -85,7 +85,7 @@ type occ = (bool * int list) option
 
 (** [subst e p t i]. [i] is the number of binders
     traversed so far, [p] the term from the pattern, [t] the matched one *)
-type subst = Environ.env -> EConstr.t -> EConstr.t -> int -> EConstr.t
+type subst = Environ.env -> UState.t -> EConstr.t -> EConstr.t -> int -> EConstr.t
 
 (** [eval_pattern b env sigma t pat occ subst] maps [t] calling [subst] on every
     [occ] occurrence of [pat]. The [int] argument is the number of
@@ -99,7 +99,7 @@ val eval_pattern :
   ?raise_NoMatch:bool ->
   env -> evar_map -> EConstr.t ->
   pattern option -> occ -> subst ->
-    EConstr.t
+  EConstr.t * UState.t
 
 (** [fill_occ_pattern b env sigma t pat occ h] is a simplified version of
     [eval_pattern].
