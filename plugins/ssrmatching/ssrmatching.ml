@@ -926,6 +926,7 @@ let subst_tpattern env sigma ise uc u occ_state c h k =
   Evd.ustate !evd, c
 
 let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state : find_P =
+  let () = if Option.has_some instances then assert (raise_NoMatch && not !(occ_state.skip_occ)) in
   fun env c h ~k ->
   let upat_that_matched_ref = upat_that_matched in
   let upat_that_matched = match !upat_that_matched_ref with
@@ -962,12 +963,9 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~instances ~upat_that_matched ~upat
   | None -> List.hd (pi3 upat_that_matched)
   | Some _ ->
     let (e, n, xs) = upat_that_matched in
-    begin match List.nth_opt xs n with
-    | None ->
-      let () = upat_that_matched_ref := Some (e, n + 1, xs) in
-      raise NoMatch
+    match List.nth_opt xs n with
+    | None -> raise NoMatch
     | Some r -> r
-    end
   in
 (*   pp(lazy(str"sigma@tmatch=" ++ pr_evar_map None sigma)); *)
   if !(occ_state.skip_occ) then ((*ignore(k env u.up_t 0);*) c)
