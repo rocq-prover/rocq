@@ -43,7 +43,11 @@ let compile f =
 
 (* Compiles a float to malfunction code *)
 let compile_mlf f = (* malfunction does not support writing -1.1, so we have to be careful *)
-  if f < 0. then Printf.sprintf "(apply (global $Float64 $of_float) (neg.f64 %.17e))" (-. f) (* malfunction supports scientific notation *)
+  if Float.is_nan f then "(apply (global $Float64 $of_float) nan)"
+  else if Float.is_infinite f then begin
+    if f < 0. then Printf.sprintf "(apply (global $Float64 $of_float) neg_infinity)"
+    else Printf.sprintf "(apply (global $Float64 $of_float) infinity)"
+  end else if f < 0. then Printf.sprintf "(apply (global $Float64 $of_float) (neg.f64 %.17e))" (-. f) (* malfunction supports scientific notation *)
   else Printf.sprintf "(apply (global $Float64 $of_float) %.17e)" f
 
 let of_float f = f
