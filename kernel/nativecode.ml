@@ -1858,7 +1858,7 @@ let pp_mllam fmt l =
           pp_ldecls ids pp_mllam body
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam l1 pp_mllam l2
-    | MLprimitive (MLland, args) -> (* malfunction has a special operator for logical and *)
+    | MLprimitive (MLland, args) -> (* malfunction has a special operator for bitwise and *)
       Format.fprintf fmt "(& %a)" pp_args args
     | MLprimitive (MLnot, args) ->
       Format.fprintf fmt "(== 0 %a)" pp_args args
