@@ -1821,7 +1821,7 @@ let string_of_gname g =
   if String.contains ret '.' then (* the global name comes from a module *)
     let ret = String.split_on_char '.' ret in
     let ret = String.concat " $" ret in 
-    Format.sprintf "(global%s)" ret
+    Format.sprintf "(global %s)" ret
   else ret
 
 let pp_gname fmt g =
