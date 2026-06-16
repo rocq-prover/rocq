@@ -64,8 +64,5 @@ val hash : t -> int
     code, via [compile]. *)
 val unsafe_of_string : string -> t
 
-(** [compile s] outputs an OCaml expression producing primitive string [s]. *)
+(** [compile s] outputs a malfunction expression producing primitive string [s]. *)
 val compile : t -> string
-
-(** [compile_mlf s] outputs a malfunction expression producing primitive string [s]. *)
-val compile_mlf : t -> string

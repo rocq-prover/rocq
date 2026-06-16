@@ -40,11 +40,8 @@ let hash i = i
     (* conversion of an uint63 to a string *)
 let to_string i = Int64.to_string (to_uint64 i)
 
-(* Compiles an unsigned int to OCaml code *)
-let compile i = Printf.sprintf "Uint63.of_int (%i)" i
-
 (* Compiles an unsigned int to malfunction code *)
-let compile_mlf i =
+let compile i =
   if i >= 0 then Printf.sprintf "(apply (global $Uint63 $of_int) %i)" i
   else Printf.sprintf "(apply (global $Uint63 $of_int) (neg %i))" (-i)
 

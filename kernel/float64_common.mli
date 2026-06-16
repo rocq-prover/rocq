@@ -34,8 +34,6 @@ val to_string : t -> string
 
 val compile : t -> string
 
-val compile_mlf : t -> string
-
 val of_float : float -> t
 
 (** All NaNs are normalized to [Stdlib.nan].
