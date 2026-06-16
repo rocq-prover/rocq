@@ -109,21 +109,6 @@ let global_of_constr = let open GlobRef in function
 | Var id -> VarRef id
 | _ -> assert false
 
-let head_name env sigma c = (* Find the head constant of a constr if any *)
-  let rec hdrec c =
-    match EConstr.kind sigma c with
-    | Prod (_,_,c) | Lambda (_,_,c) | LetIn (_,_,_,c)
-    | Cast (c,_,_) | App (c,_) -> hdrec c
-    | Proj (p,_,_) -> Some (Environ.projection_repr_label env (Projection.repr p))
-    | Const _ | Ind _ | Construct _ | Var _ as c ->
-        Some (Nametab.basename_of_global (global_of_constr c))
-    | Fix ((_,i),(lna,_,_)) | CoFix (i,(lna,_,_)) ->
-        Some (match lna.(i).binder_name with Name id -> id | _ -> assert false)
-    | Sort _ | Rel _ | Meta _ | Evar _ | Case _
-    | Int _ | Float _ | String _ | Array _ -> None
-  in
-  hdrec c
-
 let lowercase_first_char id = (* First character of a constr *)
   let s = Id.to_string id in
   match Unicode.split_at_first_letter s with
