@@ -275,7 +275,6 @@ type primitive =
   | MLand
   | MLnot
   | MLland
-  | MLmagic
   | MLsubst_instance_instance
   | MLsubst_instance_sort
   | MLparray_of_array
@@ -319,7 +318,6 @@ let eq_primitive p1 p2 =
   | MLand, MLand
   | MLnot, MLnot
   | MLland, MLland
-  | MLmagic, MLmagic
   | MLsubst_instance_instance, MLsubst_instance_instance
   | MLsubst_instance_sort, MLsubst_instance_sort
   | MLparray_of_array, MLparray_of_array
@@ -372,7 +370,6 @@ let eq_primitive p1 p2 =
     | MLand
     | MLnot
     | MLland
-    | MLmagic
     | MLsubst_instance_instance
     | MLsubst_instance_sort
     | MLparray_of_array
@@ -418,32 +415,31 @@ let primitive_hash = function
   | Mk_evar -> 18
   | MLand -> 19
   | MLland -> 20
-  | MLmagic -> 21
-  | Coq_primitive (prim, b) -> combinesmall 22 (combine (CPrimitives.hash prim) (Hashtbl.hash b))
-  | Mk_proj -> 23
-  | MLsubst_instance_instance -> 24
-  | MLsubst_instance_sort -> 25
-  | Mk_float -> 26
-  | Is_float -> 27
-  | Is_string -> 28
-  | Is_parray -> 29
-  | MLnot -> 30
-  | MLparray_of_array -> 31
-  | Get_value -> 32
-  | Get_sort -> 33
-  | Get_name -> 34
-  | Get_const -> 35
-  | Get_match -> 36
-  | Get_ind -> 37
-  | Get_evar -> 38
-  | Get_instance -> 39
-  | Get_proj -> 40
-  | Get_symbols -> 41
-  | Lazy -> 42
-  | Force -> 43
-  | Mk_empty_instance -> 44
-  | Mk_string -> 45
-  | Str_decode -> 46
+  | Coq_primitive (prim, b) -> combinesmall 21 (combine (CPrimitives.hash prim) (Hashtbl.hash b))
+  | Mk_proj -> 22
+  | MLsubst_instance_instance -> 23
+  | MLsubst_instance_sort -> 24
+  | Mk_float -> 25
+  | Is_float -> 26
+  | Is_string -> 27
+  | Is_parray -> 28
+  | MLnot -> 29
+  | MLparray_of_array -> 30
+  | Get_value -> 31
+  | Get_sort -> 32
+  | Get_name -> 33
+  | Get_const -> 34
+  | Get_match -> 35
+  | Get_ind -> 36
+  | Get_evar -> 37
+  | Get_instance -> 38
+  | Get_proj -> 39
+  | Get_symbols -> 40
+  | Lazy -> 41
+  | Force -> 42
+  | Mk_empty_instance -> 43
+  | Mk_string -> 44
+  | Str_decode -> 45
 
 type mllambda =
   | MLlocal        of lname
@@ -1222,13 +1218,13 @@ let ml_of_instance env u =
       let u_code =
         if has_variable then
           (* if there are variables then [instance] guaranteed non-None *)
-          let univ = MLprimitive (MLmagic, [|MLlocal (Option.get instance)|]) in
+          let univ = MLlocal (Option.get instance) in
           MLprimitive (MLsubst_instance_instance, [|univ; u_code|])
         else u_code
       in
     u_code
     in
-    [|MLprimitive (MLmagic, [|u_code|])|]
+    [|u_code|]
 
 let ml_of_sort env s =
   let i = push_symbol env.env_cenv (SymbSort s) in
@@ -1237,7 +1233,7 @@ let ml_of_sort env s =
   | UGlobal | ULocal None -> s_code
   | ULocal (Some u) ->
     (* FIXME: use a dedicated cast function *)
-    let u = MLprimitive (MLmagic, [|MLlocal u|]) in
+    let u = MLlocal u in
     MLprimitive (MLsubst_instance_sort, [|u; s_code|])
   in
   MLprimitive (Mk_sort, [|s_code|])
@@ -1277,7 +1273,7 @@ let compile_prim env decl cond paux =
           List.fold_left
             (fun ml (_, c) -> app_prim MLland [| ml; cast_to_int c|])
             (MLint 0) ci in
-        app_prim MLmagic [|cond|] in
+        cond in
       let condo = match co with
         | [] -> MLint 0
         | (CPrimitives.PTE ty, c1) :: condo ->
@@ -1537,7 +1533,7 @@ let rec ml_of_lam env l t =
         in
         let self = Array.map (fun id -> MLlocal id) lf in
         let body = mkMLapp (MLglobal g) (Array.concat [fv_args'; self; args]) in
-        let body = MLprimitive (MLmagic, [|MLlam ([|unit|], Array.fold_right_i mk_let lf body)|]) in
+        let body = MLlam ([|unit|], Array.fold_right_i mk_let lf body) in
         let typs = mk_type in
         let self = mk_norm in
         mkMLlam t_params.(i) (MLprimitive ((Mk_cofix i), [| typs; self; body; MLarray args |]))
@@ -1866,8 +1862,6 @@ let pp_mllam fmt l =
       Format.fprintf fmt "(& %a)" pp_args args
     | MLprimitive (MLnot, args) ->
       Format.fprintf fmt "(== 0 %a)" pp_args args
-    | MLprimitive (MLmagic, args) -> (* Obj.magic is unneeded in malfunction *)
-      pp_args fmt args
     | MLprimitive (Lazy, args) -> (* lazy values must be treated separately *)
       Format.fprintf fmt "@[<2>(lazy%a)@]" pp_args args
     | MLprimitive (Force, args) ->
@@ -1994,7 +1988,6 @@ let pp_mllam fmt l =
     | Array_get
     | MLnot
     | MLland
-    | MLmagic
     | Force
     | Lazy -> assert false (* theses cases has been treated separately in pp_mllam *)
   in
