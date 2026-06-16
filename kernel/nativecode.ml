@@ -1533,7 +1533,7 @@ let rec ml_of_lam env l t =
         let unit = fresh_lname env.env_cenv Anonymous in
         let args = Array.map (fun id -> MLlocal id) t_params.(i) in
         let mk_let i lname cont =
-          MLlet (lname, MLprimitive (Array_get, [|MLglobal knot; MLint i|]), cont)
+          MLlet (lname, MLprimitive (Array_get, [|MLint i; MLglobal knot|]), cont) (* in malfunction, the index is first *)
         in
         let self = Array.map (fun id -> MLlocal id) lf in
         let body = mkMLapp (MLglobal g) (Array.concat [fv_args'; self; args]) in
@@ -1544,7 +1544,7 @@ let rec ml_of_lam env l t =
       in
       (* Tie the knot *)
       let knot = push_global_cofix env.env_cenv knot fv_params (Array.mapi map t_norm_f) in
-      MLprimitive (Array_get, [|MLapp (MLglobal knot, fv_args); MLint start|])
+      MLprimitive (Array_get, [|MLint start; MLapp (MLglobal knot, fv_args)|]) (* in malfunction, the index is first *)
 
   | Lint tag -> MLprimitive (Mk_int, [|MLint tag|])
 
@@ -1873,7 +1873,7 @@ let pp_mllam fmt l =
     | MLprimitive (Force, args) ->
       Format.fprintf fmt "@[<2>(force%a)@]" pp_args args
     | MLprimitive (Array_get, args) ->
-      Format.fprintf fmt "@[<2>(load%a)@]" pp_args args
+      Format.fprintf fmt "@[<2>(field%a)@]" pp_args args (* we compile arrays as classical blocks, so array_get is just a field access (we do not mutate arrays) *)
     | MLprimitive (p, [||]) -> (* not a function and just a value *)
       Format.fprintf fmt "%a" pp_primitive p
     | MLprimitive (p, args) ->
@@ -1913,14 +1913,13 @@ let pp_mllam fmt l =
         Format.fprintf fmt
           "@[(switch %a@\n  ((tag 0) 1)@\n  (_ (tag _) 0))@]"
         pp_mllam c
-  and pp_cparam fmt param =
-    match param with
-    | Some l -> pp_mllam fmt (MLlocal l)
-    | None -> Format.fprintf fmt "_"
   and pp_cparams fmt params =
     let len = Array.length params in
     for i = 0 to len - 1 do
-      Format.fprintf fmt " (%a (field %i $matched_value))" pp_cparam params.(i) i
+      match params.(i) with
+      | None -> ()
+      | Some param ->
+        Format.fprintf fmt " (%a (field %i $matched_value))" pp_mllam (MLlocal param) i
     done
   and pp_branches fmt bs =
     let rec pp_branch fmt (cargs,body) =
