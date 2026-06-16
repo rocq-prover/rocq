@@ -41,7 +41,7 @@ stdenv.mkDerivation rec {
 
   buildInputs = [
     hostname
-    python311
+    python312
     ocamlPackages.yojson
     ocamlPackages.camlzip
     # coq-makefile timing tools
@@ -51,13 +51,13 @@ stdenv.mkDerivation rec {
   ++ optionals buildIde [
     ocamlPackages.lablgtk3-sourceview3
     glib
-    gnome.adwaita-icon-theme
-    wrapGAppsHook
+    (pkgs.adwaita-icon-theme or gnome.adwaita-icon-theme)
+    (pkgs.wrapGAppsHook3 or wrapGAppsHook)
   ]
   ++ optionals buildDoc [
     # Sphinx doc dependencies
-    pkg-config (python311.withPackages
-      (ps: [ ps.sphinx ps.sphinx_rtd_theme ps.pexpect ps.beautifulsoup4
+    pkg-config (python312.withPackages
+      (ps: [ ps.sphinx (ps."sphinx-rtd-theme" or ps.sphinx_rtd_theme) ps.pexpect ps.beautifulsoup4
              (ps.antlr4-python3-runtime.override {antlr4 = pkgs.antlr4_9;}) ps.sphinxcontrib-bibtex ]))
     antlr4_9
     ocamlPackages.odoc
@@ -133,7 +133,15 @@ stdenv.mkDerivation rec {
 
   createFindlibDestdir = !shell;
 
-  postInstall = "ln -s $out/lib/rocq-runtime $OCAMLFIND_DESTDIR/rocq-runtime && ln -s $out/lib/coq-core $OCAMLFIND_DESTDIR/coq-core";
+  postInstall = ''
+    for pkg in rocq-runtime coq-core; do
+      if [ -e "$out/lib/$pkg" ] && [ ! -e "$OCAMLFIND_DESTDIR/$pkg" ]; then
+        ln -s "$out/lib/$pkg" "$OCAMLFIND_DESTDIR/$pkg"
+      elif [ -e "$OCAMLFIND_DESTDIR/$pkg" ] && [ ! -e "$out/lib/$pkg" ]; then
+        ln -s "$OCAMLFIND_DESTDIR/$pkg" "$out/lib/$pkg"
+      fi
+    done
+  '';
 
   inherit doInstallCheck;
 
