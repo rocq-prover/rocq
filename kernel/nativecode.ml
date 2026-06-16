@@ -1836,20 +1836,11 @@ let string_of_gname_mlf g =
   | "_" -> "_"
   | _ -> Format.sprintf "$%s" name
 
-let pp_gname fmt g =
-  Format.fprintf fmt "%s" (string_of_gname g)
-
 let pp_gname_mlf fmt g =
   Format.fprintf fmt "%s" (string_of_gname_mlf g)
 
 let pp_lname fmt ln =
   Format.fprintf fmt "x_%s_%i" (string_of_name ln.lname) ln.luid
-
-let pp_ldecls fmt ids =
-  let len = Array.length ids in
-  for i = 0 to len - 1 do
-    Format.fprintf fmt " (%a : Nativevalues.t)" pp_lname ids.(i)
-  done
 
 let pp_ldecls_mlf fmt ids =
     let len = Array.length ids in
@@ -1867,204 +1858,6 @@ let string_of_accu_construct prefix ind =
 
 let pp_int fmt i =
   if i < 0 then Format.fprintf fmt "(%i)" i else Format.fprintf fmt "%i" i
-
-let pp_mllam fmt l =
-
-  let rec pp_mllam fmt l =
-    match l with
-    | MLlocal ln -> Format.fprintf fmt "@[%a@]" pp_lname ln
-    | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
-    | MLprimitive (p, args) ->
-      Format.fprintf fmt "@[<2>%a@ %a@]" pp_primitive p (pp_args true) args
-    | MLlam(ids,body) ->
-        Format.fprintf fmt "@[(fun%a ->@ %a)@]"
-          pp_ldecls ids pp_mllam body
-    | MLletrec(defs, body) ->
-        Format.fprintf fmt "@[(%a@ in@\n%a)@]" pp_letrec defs
-          pp_mllam body
-    | MLlet(id,def,body) ->
-        Format.fprintf fmt "@[(@[let@ %a@ =@ %a@ in@]@\n%a)@]"
-          pp_lname id pp_mllam def pp_mllam body
-    | MLapp(f, args) ->
-        Format.fprintf fmt "@[<2>%a@ %a@]" pp_mllam f (pp_args true) args
-    | MLif(t,l1,l2) ->
-        Format.fprintf fmt "@[(if %a then@\n  %a@\nelse@\n  %a)@]"
-          pp_mllam t pp_mllam l1 pp_mllam l2
-    | MLmatch (annot, c, accu_br, br) ->
-      let ind = annot.asw_ind in
-      let prefix = annot.asw_prefix in
-      let accu = string_of_accu_construct prefix ind in
-      Format.fprintf fmt
-        "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  %a@\n%aend@]"
-        pp_mllam c accu pp_mllam accu_br (pp_branches prefix ind) br
-
-    | MLconstruct(prefix,ind,tag,args) ->
-        Format.fprintf fmt "@[<2>(Obj.magic@ @[<2>(%s%a)@] : Nativevalues.t)@]"
-          (string_of_construct prefix ~constant:false ind tag) pp_cargs args
-    | MLint i -> pp_int fmt i
-    | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile i)
-    | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile f)
-    | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile s)
-    | MLsetref (s, body) ->
-        Format.fprintf fmt "@[%s@ :=@\n Some (%a)@]" s pp_mllam body
-    | MLsequence(l1,l2) ->
-        Format.fprintf fmt "@[%a;@\n%a@]" pp_mllam l1 pp_mllam l2
-    | MLarray arr ->
-      (* We need to ensure that the array does not use the flat representation
-          if ever the first argument is a float *)
-      let len = Array.length arr in
-      if Int.equal len 0 then begin
-        Format.fprintf fmt "@[(Obj.magic [||])@]"
-      end else if Int.equal len 1 then begin
-        (* We have to emulate a 1-uplet *)
-        Format.fprintf fmt "@[(Obj.magic (ref (%a)))@]" pp_mllam arr.(0)
-      end else begin
-        Format.fprintf fmt "@[(Obj.magic (";
-        for i = 0 to len - 2 do
-          Format.fprintf fmt "%a,@ " pp_mllam arr.(i)
-        done;
-        pp_mllam fmt arr.(len-1);
-        Format.fprintf fmt "))@]"
-      end;
-    | MLisaccu (prefix, ind, c) ->
-        let accu = string_of_accu_construct prefix ind in
-        Format.fprintf fmt
-          "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  true@\n| _ ->@\n  false@\nend@]"
-        pp_mllam c accu
-
-  and pp_letrec fmt defs =
-    let len = Array.length defs in
-    let pp_one_rec (fn, argsn, body) =
-      Format.fprintf fmt "%a%a =@\n  %a"
-        pp_lname fn
-        pp_ldecls argsn pp_mllam body in
-    Format.fprintf fmt "@[let rec ";
-    pp_one_rec defs.(0);
-    for i = 1 to len - 1 do
-      Format.fprintf fmt "@\nand ";
-      pp_one_rec defs.(i)
-    done
-
-  and pp_blam fmt l =
-    match l with
-    | MLprimitive (_, _) | MLlam _ | MLletrec _ | MLlet _ | MLapp _ | MLif _ ->
-        Format.fprintf fmt "(%a)" pp_mllam l
-    | MLconstruct(_,_,_,args) when Array.length args > 0 ->
-        Format.fprintf fmt "(%a)" pp_mllam l
-    | _ -> pp_mllam fmt l
-
-  and pp_args sep fmt args =
-    let sep = if sep then "" else "," in
-    let len = Array.length args in
-    if len > 0 then begin
-      Format.fprintf fmt "%a" pp_blam args.(0);
-      for i = 1 to len - 1 do
-        Format.fprintf fmt "%s@ %a" sep pp_blam args.(i)
-      done
-    end
-
-  and pp_cargs fmt args =
-    let len = Array.length args in
-    match len with
-    | 0 -> ()
-    | 1 -> Format.fprintf fmt "@ %a" pp_blam args.(0)
-    | _ -> Format.fprintf fmt "@ @[<2>(%a)@]" (pp_args false) args
-
-  and pp_cparam fmt param =
-    match param with
-    | Some l -> pp_mllam fmt (MLlocal l)
-    | None -> Format.fprintf fmt "_"
-
-  and pp_cparams fmt params =
-    let len = Array.length params in
-    match len with
-    | 0 -> ()
-    | 1 -> Format.fprintf fmt " %a" pp_cparam params.(0)
-    | _ ->
-        let aux fmt params =
-          Format.fprintf fmt "%a" pp_cparam params.(0);
-          for i = 1 to len - 1 do
-            Format.fprintf fmt ",%a" pp_cparam params.(i)
-          done in
-        Format.fprintf fmt "(%a)" aux params
-
-  and pp_branches prefix ind fmt bs =
-    let pp_branch (cargs,body) =
-      let pp_pat fmt = function
-        | ConstPattern i ->
-          Format.fprintf fmt "| %s "
-            (string_of_construct prefix ~constant:true ind i)
-        | NonConstPattern (tag,args) ->
-          Format.fprintf fmt "| %s%a "
-            (string_of_construct prefix ~constant:false ind tag) pp_cparams args in
-      let rec pp_pats fmt pats =
-        match pats with
-        | [] -> ()
-        | pat::pats ->
-          Format.fprintf fmt "%a%a" pp_pat pat pp_pats pats
-      in
-      Format.fprintf fmt "%a ->@\n  %a@\n" pp_pats cargs pp_mllam body
-    in
-    Array.iter pp_branch bs
-
-  and pp_primitive fmt = function
-    | Mk_prod -> Format.fprintf fmt "mk_prod"
-    | Mk_sort -> Format.fprintf fmt "mk_sort_accu"
-    | Mk_ind -> Format.fprintf fmt "mk_ind_accu"
-    | Mk_const -> Format.fprintf fmt "mk_constant_accu"
-    | Mk_sw -> Format.fprintf fmt "mk_sw_accu"
-    | Mk_fix(rec_pos,start) ->
-        let pp_rec_pos fmt rec_pos =
-          Format.fprintf fmt "@[[| %i" rec_pos.(0);
-          for i = 1 to Array.length rec_pos - 1 do
-            Format.fprintf fmt ";@ %i" rec_pos.(i)
-          done;
-          Format.fprintf fmt " |]@]" in
-        Format.fprintf fmt "mk_fix_accu %a %i" pp_rec_pos rec_pos start
-    | Mk_cofix(start) -> Format.fprintf fmt "mk_cofix_accu %i" start
-    | Mk_rel i -> Format.fprintf fmt "mk_rel_accu %i" i
-    | Mk_var id ->
-        Format.fprintf fmt "mk_var_accu (Names.Id.of_string \"%s\")" (string_of_id id)
-    | Mk_proj -> Format.fprintf fmt "mk_proj_accu"
-    | Mk_empty_instance -> Format.fprintf fmt "UVars.Instance.empty"
-    | Is_int -> Format.fprintf fmt "is_int"
-    | Is_float -> Format.fprintf fmt "is_float"
-    | Is_string -> Format.fprintf fmt "is_string"
-    | Is_parray -> Format.fprintf fmt "is_parray"
-    | Cast_accu -> Format.fprintf fmt "cast_accu"
-    | Array_get -> Format.fprintf fmt "Array.get"
-    | Force_cofix -> Format.fprintf fmt "force_cofix"
-    | Mk_uint -> Format.fprintf fmt "mk_uint"
-    | Mk_float -> Format.fprintf fmt "mk_float"
-    | Mk_string -> Format.fprintf fmt "mk_string"
-    | Mk_int -> Format.fprintf fmt "mk_int"
-    | Val_to_int -> Format.fprintf fmt "val_to_int"
-    | Mk_evar -> Format.fprintf fmt "mk_evar_accu"
-    | MLand -> Format.fprintf fmt "(&&)"
-    | MLnot -> Format.fprintf fmt "not"
-    | MLland -> Format.fprintf fmt "(land)"
-    | MLmagic -> Format.fprintf fmt "Obj.magic"
-    | MLsubst_instance_instance -> Format.fprintf fmt "UVars.subst_instance_instance"
-    | MLsubst_instance_sort -> Format.fprintf fmt "UVars.subst_instance_sort"
-    | MLparray_of_array -> Format.fprintf fmt "parray_of_array"
-    | Coq_primitive (op, false) ->
-       Format.fprintf fmt "no_check_%s" (CPrimitives.to_string op)
-    | Coq_primitive (op, true) -> Format.fprintf fmt "%s" (CPrimitives.to_string op)
-    | Get_value -> Format.fprintf fmt "get_value"
-    | Get_sort -> Format.fprintf fmt "get_sort"
-    | Get_name -> Format.fprintf fmt "get_name"
-    | Get_const -> Format.fprintf fmt "get_const"
-    | Get_match -> Format.fprintf fmt "get_match"
-    | Get_ind -> Format.fprintf fmt "get_ind"
-    | Get_evar -> Format.fprintf fmt "get_evar"
-    | Get_instance -> Format.fprintf fmt "get_instance"
-    | Get_proj -> Format.fprintf fmt "get_proj"
-    | Get_symbols -> Format.fprintf fmt "get_symbols"
-    | Lazy -> Format.fprintf fmt "lazy"
-    | Str_decode -> Format.fprintf fmt "str_decode"
-  in
-  Format.fprintf fmt "@[%a@]" pp_mllam l
-
 
 let pp_mllam_mlf fmt l =
 
@@ -2222,34 +2015,10 @@ let pp_mllam_mlf fmt l =
   in
   Format.fprintf fmt "@[%a@]" pp_mllam_mlf l
 
-
-let pp_array fmt t =
-  let len = Array.length t in
-  Format.fprintf fmt "@[<2>[|";
-  for i = 0 to len - 2 do
-    Format.fprintf fmt "%a;@ " pp_mllam t.(i)
-  done;
-  if len > 0 then
-    Format.fprintf fmt "%a" pp_mllam t.(len - 1);
-  Format.fprintf fmt "|]@]"
-
 let pp_array_mlf fmt t =
   Format.fprintf fmt "(block (tag 0)";
   Array.iter (Format.fprintf fmt "@ %a" pp_mllam_mlf) t;
   Format.fprintf fmt ")"
-
-let pp_cofix fmt (gn, s) =
-  let pp_dummy fmt len =
-    let dummy = String.concat "; " (List.make len "0") in
-    Format.fprintf fmt "@[(Obj.magic [|%s|] : Nativevalues.t array)@]" dummy
-  in
-  let pp_knot fmt n =
-    for i = 0 to n - 1 do
-      Format.fprintf fmt "@[<2>let () = (%a).(%i) <-@ Obj.magic @[<2>(%a)@] in@]@\n" pp_gname gn i pp_mllam s.(i)
-    done
-  in
-  let len = Array.length s in
-  Format.fprintf fmt "@[let %a = %a in@\n%a%a@]" pp_gname gn pp_dummy len pp_knot len pp_gname gn
 
 let pp_cofix_mlf fmt (gn, s) =
   let subst_gname gn v l =
@@ -2278,56 +2047,24 @@ let pp_cofix_mlf fmt (gn, s) =
   in let s = Array.map (subst_gname gn (MLapp(MLglobal (Ginternal "Lazy.force"), [|MLglobal gn|])) ) s in
   Format.fprintf fmt "@[(let (rec (%a (lazy %a))) (force %a))@]" pp_gname_mlf gn pp_array_mlf s pp_gname_mlf gn
 
-let type_of_global gn c = match gn with
-  | Ginternal "symbols_tbl" -> ""
-  | _ -> match c with
-    | MLprimitive (Lazy, _) -> " : Nativevalues.t Lazy.t"
-    | MLlam ([|_|], MLprimitive (Lazy, _)) -> " : Nativevalues.t -> Nativevalues.t Lazy.t"
-    | MLprimitive ((Mk_ind | Mk_const), [|_|]) -> " : UVars.Instance.t -> Nativevalues.t"
-    | MLsetref (_,_) -> " : unit"
-    | _ -> " : Nativevalues.t"
-
-let pp_global fmt g =
-  match g with
-  | Glet (gn, c) ->
-      Format.fprintf fmt "@[let %a%s = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname gn
-        (type_of_global gn c)
-        pp_mllam c
-  | Gopen s ->
-      Format.fprintf fmt "@[open %s@]@." s
-  | Gtype (ind, lar) ->
-    let rec aux s arity =
-      if Int.equal arity 0 then s else aux (s^" * Nativevalues.t") (arity-1) in
-    let pp_const_sig fmt (tag,arity) =
-      if arity > 0 then
-        let sig_str = aux "of Nativevalues.t" (arity-1) in
-        let cstr = string_of_construct "" ~constant:false ind tag in
-        Format.fprintf fmt "  | %s %s@\n" cstr sig_str
-      else
-        let cstr = string_of_construct "" ~constant:true ind tag in
-        Format.fprintf fmt "  | %s@\n" cstr
-    in
-    let pp_const_sigs fmt lar =
-      Format.fprintf fmt "  | %s of Nativevalues.t@\n" (string_of_accu_construct "" ind);
-      Array.iter (pp_const_sig fmt) lar
-    in
-    Format.fprintf fmt "@[type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
-  | Gtblfixtype (g, params, t) ->
-      Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_array t
-  | Gtblnorm (g, params, t) ->
-      Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_array t
-  | Gtblcofix (g, params, s) ->
-      Format.fprintf fmt "@[let %a%a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_cofix (g, s);
-  | Gletcase(gn,params,annot,a,accu,bs) ->
-      Format.fprintf fmt "@[(* Hash = %i *)@\nlet rec %a %a : Nativevalues.t = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@."
-      (hash_global g)
-        pp_gname gn pp_ldecls params
-        pp_mllam (MLmatch(annot,a,accu,bs))
-  | Gcomment s ->
-      Format.fprintf fmt "@[(* %s *)@]@." s
+let pp_type_decl fmt ind lar =
+  let rec aux s arity =
+    if Int.equal arity 0 then s else aux (s^" * Nativevalues.t") (arity-1) in
+  let pp_const_sig fmt (tag,arity) =
+    if arity > 0 then
+      let sig_str = aux "of Nativevalues.t" (arity-1) in
+      let cstr = string_of_construct "" ~constant:false ind tag in
+      Format.fprintf fmt "  | %s %s@\n" cstr sig_str
+    else
+      let sig_str = if arity > 0 then aux "of Nativevalues.t" (arity-1) else "" in
+      let cstr = string_of_construct "" ~constant:true ind tag in
+      Format.fprintf fmt "  | %s %s@\n" cstr sig_str
+  in
+  let pp_const_sigs fmt lar =
+    Format.fprintf fmt "  | %s of Nativevalues.t@\n" (string_of_accu_construct "" ind);
+    Array.iter (pp_const_sig fmt) lar
+  in
+  Format.fprintf fmt "@[type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
 
 let pp_global_mlf fmt g =
   match g with
@@ -2408,7 +2145,7 @@ let pp_global_interface fmt g =
       Format.fprintf fmt "val %s : t@." ident
   | Gcomment _
   | Gopen _ -> ()
-  | Gtype _ -> pp_global fmt g
+  | Gtype (ind, lar) -> pp_type_decl fmt ind lar
 
 (** Compilation of elements in environment **)
 let rec compile_with_fv ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
