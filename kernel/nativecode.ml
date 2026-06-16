@@ -1835,11 +1835,11 @@ let pp_lname fmt ln =
   Format.fprintf fmt "x_%s_%i" (string_of_name ln.lname) ln.luid
 
 let pp_ldecls fmt ids =
-    let len = Array.length ids in
-    if len = 0 then Format.fprintf fmt "$_" else (* argument list cannot be empty in malfunction *)
-    for i = 0 to len - 1 do
-      Format.fprintf fmt " $%a" pp_lname ids.(i)
-    done
+  let len = Array.length ids in
+  if len = 0 then Format.fprintf fmt "$_" else (* argument list cannot be empty in malfunction *)
+  for i = 0 to len - 1 do
+    Format.fprintf fmt " $%a" pp_lname ids.(i)
+  done
 
 let string_of_construct prefix ~constant ind tag =
   let base = if constant then "Int" else "Construct" in
