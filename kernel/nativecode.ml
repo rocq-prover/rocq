@@ -1969,7 +1969,6 @@ let pp_mllam fmt l =
     | Mk_int -> Format.fprintf fmt "(global $Nativevalues $mk_int)"
     | Val_to_int -> Format.fprintf fmt "(global $Nativevalues $val_to_int)"
     | Mk_evar -> Format.fprintf fmt "(global $Nativevalues $mk_evar_accu)"
-    | MLand -> Format.fprintf fmt "(lambda ($a $b) (if $a $b 0))" (* we keep this version to correctly compute clotures *)
     | MLsubst_instance_instance -> Format.fprintf fmt "(global $UVars $subst_instance_instance)"
     | MLsubst_instance_sort -> Format.fprintf fmt "(global $UVars $subst_instance_sort)"
     | MLparray_of_array -> Format.fprintf fmt "(global $Nativevalues $parray_of_array)"
@@ -1987,6 +1986,7 @@ let pp_mllam fmt l =
     | Get_proj -> Format.fprintf fmt "(global $Nativecode $get_proj)"
     | Get_symbols -> Format.fprintf fmt "(global $Nativelib $get_symbols)"
     | Str_decode -> Format.fprintf fmt "(global $Nativevalues $str_decode)"
+    | MLand
     | Array_get
     | MLnot
     | MLland
