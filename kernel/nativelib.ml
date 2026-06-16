@@ -92,18 +92,11 @@ let rt2 = ref None
 
 let get_symbols () = !rsymbols
 
-let get_ml_filename () =
+let get_mlf_filename () =
   let temp_dir = force_temp_dir() in
   let filename = Filename.temp_file ~temp_dir "Coq_native" source_ext in
   let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
   filename, prefix
-
-let write_ml_code fn ?(header=[]) code =
-  let header = open_header@header in
-  let ch_out = open_out fn in
-  let fmt = Format.formatter_of_out_channel ch_out in
-  List.iter (pp_global fmt) (header@code);
-  close_out ch_out
 
 let write_mlf_code fn ?(header=[]) code =
   let header = open_header@header in
@@ -133,56 +126,7 @@ let error_native_compiler_failed e =
   in
   CErrors.user_err msg
 
-let call_compiler ?profile:(profile=false) ml_filename =
-  (* The below path is computed from Require statements, by uniquizing
-     the paths, see [Library.get_used_load_paths] This is in general
-     hacky and we should do a bit better once we move loadpath to its
-     own library *)
-  let require_load_path = !get_load_paths () in
-  (* We assume that installed files always go in .coq-native for now *)
-  (* To ease the build we also consider the current dir, but at some point the build system should manage both *)
-  let install_load_path = List.map (fun dn -> dn / dft_output_dir) require_load_path @ require_load_path in
-  let include_dirs = List.flatten (List.map (fun x -> ["-I"; x]) (get_include_dirs () @ install_load_path)) in
-  let f = Filename.chop_extension ml_filename in
-  let link_filename = f ^ ".cmo" in
-  let link_filename = Dynlink.adapt_filename link_filename in
-  let remove f = if Sys.file_exists f then Sys.remove f in
-  remove link_filename;
-  remove (f ^ ".cmi");
-  let initial_args =
-    if Dynlink.is_native then
-      ["opt"; "-shared"]
-     else
-      ["ocamlc"; "-c"]
-  in
-  let profile_args =
-    if profile then
-      ["-g"]
-    else
-      []
-  in
-  let flambda_args = if Sys.(backend_type = Native) then ["-Oclassic"] else [] in
-  let args =
-    initial_args @
-      profile_args @
-        flambda_args @
-      ("-o"::link_filename
-       ::"-rectypes"
-       ::"-w"::"a"
-       ::include_dirs) @
-    ["-impl"; ml_filename] in
-  let ocamlfind = Boot.Env.ocamlfind () in
-  debug_native_compiler (fun () -> Pp.str (ocamlfind ^ " " ^ (String.concat " " args)));
-  try
-    let res = CUnix.sys_command ocamlfind args in
-    match res with
-    | Unix.WEXITED 0 -> link_filename
-    | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
-      error_native_compiler_failed (Inl res)
-  with Unix.Unix_error (e,_,_) ->
-    error_native_compiler_failed (Inr e)
-
-let call_mlf_compiler ?profile:(profile=false) mlf_filename =
+let call_compiler ?profile:(profile=false) mlf_filename =
   (* The below path is computed from Require statements, by uniquizing
      the paths, see [Library.get_used_load_paths] This is in general
      hacky and we should do a bit better once we move loadpath to its
@@ -226,29 +170,28 @@ let call_mlf_compiler ?profile:(profile=false) mlf_filename =
     let _ = match res1 with
     | Unix.WEXITED 0 -> ()
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
+      Format.printf "1@.";
       error_native_compiler_failed (Inl res1) in
     let _ = match res2 with
     | Unix.WEXITED 0 -> ()
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
+      Format.printf "2@.";
       error_native_compiler_failed (Inl res2) in
     match res3 with
     | Unix.WEXITED 0 -> link_filename
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
+      Format.printf "3@.";
       error_native_compiler_failed (Inl res3)
   with Unix.Unix_error (e,_,_) ->
     error_native_compiler_failed (Inr e)
 
 let compile fn code ~profile:profile =
-  (* let fn_mlf = (Filename.chop_extension fn) ^ "_mlf.nativemlf" in *)
-  (* write_ml_code fn code; *)
   write_mlf_code fn code;
-  (* let r = call_compiler ~profile fn in *)
-  let r_mlf = call_mlf_compiler ~profile fn in
+  let r = call_compiler ~profile fn in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
-  (* delay_cleanup_file fn; *)
   delay_cleanup_file fn;
-  r_mlf
+  r
 
 type native_library = Nativecode.global list * Nativevalues.symbols
 
@@ -263,7 +206,7 @@ let compile_library (code, symb) fn =
     with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
   in
   let fn = dirname / basename in
-  write_ml_code fn ~header code;
+  write_mlf_code fn ~header code;
   let _ = call_compiler fn in
   delay_cleanup_file fn
 
