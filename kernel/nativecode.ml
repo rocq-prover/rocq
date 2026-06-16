@@ -1868,6 +1868,8 @@ let pp_mllam fmt l =
       Format.fprintf fmt "@[<2>(force%a)@]" pp_args args
     | MLprimitive (Array_get, args) ->
       Format.fprintf fmt "@[<2>(field%a)@]" pp_args args (* we compile arrays as classical blocks, so array_get is just a field access (we do not mutate arrays) *)
+    | MLprimitive (MLand, [|a; b|]) -> (* a and b are booleans *)
+      Format.fprintf fmt "(if %a %a 0)" pp_mllam a pp_mllam b
     | MLprimitive (p, [||]) -> (* not a function and just a value *)
       Format.fprintf fmt "%a" pp_primitive p
     | MLprimitive (p, args) ->
@@ -1967,7 +1969,7 @@ let pp_mllam fmt l =
     | Mk_int -> Format.fprintf fmt "(global $Nativevalues $mk_int)"
     | Val_to_int -> Format.fprintf fmt "(global $Nativevalues $val_to_int)"
     | Mk_evar -> Format.fprintf fmt "(global $Nativevalues $mk_evar_accu)"
-    | MLand -> Format.fprintf fmt "(lambda ($a $b) (if $a $b 0))"
+    | MLand -> Format.fprintf fmt "(lambda ($a $b) (if $a $b 0))" (* we keep this version to correctly compute clotures *)
     | MLsubst_instance_instance -> Format.fprintf fmt "(global $UVars $subst_instance_instance)"
     | MLsubst_instance_sort -> Format.fprintf fmt "(global $UVars $subst_instance_sort)"
     | MLparray_of_array -> Format.fprintf fmt "(global $Nativevalues $parray_of_array)"
