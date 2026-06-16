@@ -75,7 +75,7 @@ project mathcomp "https://github.com/math-comp/math-comp" "master"
 # Contact @CohenCyril, @proux01 on github
 
 project fourcolor "https://github.com/math-comp/fourcolor" "master"
-# Contact @ybertot, @proux01 on github
+# Contact @proux01 on github
 
 project oddorder "https://github.com/math-comp/odd-order" "master"
 # Contact @gares, @proux01 on github
@@ -102,10 +102,10 @@ project unimath "https://github.com/UniMath/UniMath" "master"
 # Unicoq + Mtac2
 ########################################################################
 project unicoq "https://github.com/unicoq/unicoq" "master"
-# Contact @beta-ziliani, @Janno, @mattam82 on github
+# Contact @Janno, @mattam82 on github
 
 project mtac2 "https://github.com/Mtac2/Mtac2" "master"
-# Contact @beta-ziliani, @Janno, @mattam82 on github
+# Contact @Janno on github
 
 ########################################################################
 # Mathclasses + Corn
@@ -132,7 +132,7 @@ project iris "https://gitlab.mpi-sws.org/iris/iris" ""
 # Contact @RalfJung, @robbertkrebbers on github
 
 project autosubst "https://github.com/coq-community/autosubst" "master"
-# Contact @RalfJung, @co-dan on github
+# Contact @RalfJung on github
 
 project iris_examples "https://gitlab.mpi-sws.org/iris/examples" "master"
 # Contact @RalfJung, @robbertkrebbers on github
@@ -186,12 +186,6 @@ project vst "https://github.com/PrincetonUniversity/VST" "master"
 # Contact @andrew-appel on github
 
 ########################################################################
-# cross-crypto
-########################################################################
-project cross_crypto "https://github.com/mit-plv/cross-crypto" "master"
-# Contact @andres-erbsen on github
-
-########################################################################
 # rewriter
 ########################################################################
 project rewriter "https://github.com/mit-plv/rewriter" "master"
@@ -215,15 +209,13 @@ project fiat_crypto_legacy "https://github.com/mit-plv/fiat-crypto" "sp2019lates
 project fiat_crypto "https://github.com/mit-plv/fiat-crypto" "master"
 # Contact @andres-erbsen, @JasonGross on github
 
-# bedrock2, coqutil, rupicola, kami, riscv_coq
+# bedrock2, coqutil, rupicola
 # fiat-crypto is not guaranteed to build with the latest version of
 # bedrock2, so we use the pinned version of bedrock2 for fiat-crypto
 # overlays do not have to follow suite
 subproject rupicola fiat_crypto "rupicola" "https://github.com/mit-plv/rupicola" "master"
 subproject bedrock2 rupicola "bedrock2" "https://github.com/mit-plv/bedrock2" "master"
 subproject coqutil bedrock2 "deps/coqutil" "https://github.com/mit-plv/coqutil" "master"
-subproject kami bedrock2 "deps/kami" "https://github.com/mit-plv/kami" "rv32i"
-subproject riscv_coq bedrock2 "deps/riscv-coq" "https://github.com/mit-plv/riscv-coq" "master"
 # Contact @samuelgruetter, @andres-erbsen on github
 
 ########################################################################
@@ -239,12 +231,6 @@ project color "https://github.com/fblanqui/color" "master"
 # Contact @fblanqui on github
 
 ########################################################################
-# TLC
-########################################################################
-project tlc "https://github.com/charguer/tlc" "master-for-coq-ci"
-# Contact @charguer on github
-
-########################################################################
 # Bignums
 ########################################################################
 project bignums "https://github.com/coq/bignums" "master"
@@ -255,12 +241,6 @@ project bignums "https://github.com/coq/bignums" "master"
 ########################################################################
 project coqprime "https://github.com/thery/coqprime" "master"
 # Contact @thery on github
-
-########################################################################
-# bbv
-########################################################################
-project bbv "https://github.com/mit-plv/bbv" "master"
-# Contact @JasonGross, @samuelgruetter on github
 
 ########################################################################
 # Coinduction
@@ -305,7 +285,7 @@ project fcsl_pcm "https://github.com/imdea-software/fcsl-pcm" "master"
 # ext-lib
 ########################################################################
 project ext_lib "https://github.com/coq-community/coq-ext-lib" "master"
-# Contact @gmalecha, @liyishuai on github
+# Contact @liyishuai on github
 
 ########################################################################
 # simple-io
@@ -348,7 +328,7 @@ project aac_tactics "https://github.com/coq-community/aac-tactics" "master"
 # paco
 ########################################################################
 project paco "https://github.com/snu-sf/paco" "master"
-# Contact @minkiminki on github
+# currently orphaned, we need a maintainer
 
 ########################################################################
 # coq-itree
@@ -405,24 +385,6 @@ project relation_algebra "https://github.com/damien-pous/relation-algebra" "mast
 # Contact @damien-pous on github
 
 ########################################################################
-# StructTact + InfSeqExt + Cheerios + Verdi + Verdi Raft
-########################################################################
-project struct_tact "https://github.com/uwplse/StructTact" "master"
-# Contact @palmskog on github
-
-project inf_seq_ext "https://github.com/DistributedComponents/InfSeqExt" "master"
-# Contact @palmskog on github
-
-project cheerios "https://github.com/uwplse/cheerios" "master"
-# Contact @palmskog on github
-
-project verdi "https://github.com/uwplse/verdi" "master"
-# Contact @palmskog on github
-
-project verdi_raft "https://github.com/uwplse/verdi-raft" "master"
-# Contact @palmskog on github
-
-########################################################################
 # Stdlib
 ########################################################################
 project stdlib "https://github.com/coq/stdlib" "master"
@@ -433,12 +395,6 @@ project stdlib "https://github.com/coq/stdlib" "master"
 ########################################################################
 project argosy "https://github.com/mit-pdos/argosy" "master"
 # Contact @tchajed on github
-
-########################################################################
-# ATBR
-########################################################################
-project atbr "https://github.com/coq-community/atbr" "master"
-# Contact @palmskog, @tchajed on github
 
 ########################################################################
 # perennial
@@ -518,12 +474,6 @@ project smtcoq "https://github.com/smtcoq/smtcoq" "coq-master"
 
 project smtcoq_trakt "https://github.com/smtcoq/smtcoq" "with-trakt-coq-master"
 # Contact @ckeller on github
-
-########################################################################
-# Stalmarck
-########################################################################
-project stalmarck "https://github.com/coq-community/stalmarck" "master"
-# Contact @palmskog on github
 
 ########################################################################
 # Tactician

@@ -11,6 +11,6 @@ make_args=(EXTERNAL_COQUTIL=1 EXTERNAL_RISCV_COQ=1 EXTERNAL_KAMI=1)
 
 export COQEXTRAFLAGS='-native-compiler no'
 ( cd "${CI_BUILD_DIR}/bedrock2"
-  COQMF_ARGS='-arg "-async-proofs-tac-j 1"' make "${make_args[@]}"
-  make "${make_args[@]}"
+  COQMF_ARGS='-arg "-async-proofs-tac-j 1"' make "${make_args[@]}" bedrock2_ex LiveVerif_ex LiveVerifEx64
+  make "${make_args[@]}" bedrock2_ex LiveVerif_ex LiveVerifEx64
 )

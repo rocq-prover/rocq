@@ -64,16 +64,6 @@ let StructTact = coqPackages.StructTact.overrideAttrs (o: {
     src = fetchTarball "https://github.com/uwplse/StructTact/tarball/master";
   }); in
 
-let Cheerios = (coqPackages.Cheerios.override { inherit StructTact; })
-  .overrideAttrs (o: {
-    src = fetchTarball "https://github.com/uwplse/cheerios/tarball/master";
-  }); in
-
-let Verdi = (coqPackages.Verdi.override { inherit Cheerios ssreflect; })
-  .overrideAttrs (o: {
-    src = fetchTarball "https://github.com/uwplse/verdi/tarball/master";
-  }); in
-
 let flocq = coqPackages.flocq.overrideAttrs (o: {
     src = fetchTarball "https://gitlab.inria.fr/flocq/flocq/-/archive/master/flocq-master.tar.gz";
     configurePhase = ''
@@ -87,7 +77,7 @@ let flocq = coqPackages.flocq.overrideAttrs (o: {
 
 let callPackage = newScope { inherit coq
   bignums coq-ext-lib coqprime corn iris math-classes
-  mathcomp simple-io ssreflect stdpp unicoq Verdi flocq;
+  mathcomp simple-io ssreflect stdpp unicoq flocq;
 }; in
 
 # Environments for building CI libraries with this Rocq
@@ -99,7 +89,6 @@ let projects = {
   coq_dpdgraph = callPackage ./coq_dpdgraph.nix {};
   coquelicot = callPackage ./coquelicot.nix {};
   Corn = callPackage ./Corn.nix {};
-  cross_crypto = callPackage ./cross_crypto.nix {};
   Elpi = callPackage ./Elpi.nix {};
   fiat_crypto = callPackage ./fiat_crypto.nix {};
   flocq = callPackage ./flocq.nix {};
@@ -113,7 +102,6 @@ let projects = {
   oddorder = callPackage ./oddorder.nix {};
   quickchick = callPackage ./quickchick.nix {};
   simple-io = callPackage ./simple-io.nix {};
-  verdi-raft = callPackage ./verdi-raft.nix {};
   VST = callPackage ./VST.nix {};
 }; in
 

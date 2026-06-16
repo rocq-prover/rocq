@@ -630,12 +630,6 @@ library:ci-autosubst:
   - build:edge+flambda
   - library:ci-stdlib+flambda
 
-library:ci-bbv:
-  extends: .ci-template
-  needs:
-  - build:base
-  - library:ci-stdlib
-
 library:ci-bedrock2:
   extends: .ci-template-flambda
   variables:
@@ -645,8 +639,6 @@ library:ci-bedrock2:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - library:ci-coqutil
-  - library:ci-kami
-  - library:ci-riscv_coq
   stage: build-3+
 
 library:ci-bedrock2_examples:
@@ -657,8 +649,6 @@ library:ci-bedrock2_examples:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - library:ci-coqutil
-  - library:ci-kami
-  - library:ci-riscv_coq
   - library:ci-bedrock2
   stage: build-3+
   timeout: 2h
@@ -727,14 +717,6 @@ library:ci-coqutil:
   - build:edge+flambda
   - library:ci-stdlib+flambda
 
-library:ci-cross_crypto:
-  extends: .ci-template
-  needs:
-  - build:base
-  - library:ci-stdlib
-  variables:
-    SAVE_BUILD_CI: "1" # for the minimizer (no install target available)
-
 library:ci-engine_bench:
   extends: .ci-template
   needs:
@@ -766,8 +748,6 @@ library:ci-fiat_crypto:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - library:ci-coqutil
-  - library:ci-kami
-  - library:ci-riscv_coq
   - library:ci-bedrock2
   - library:ci-coqprime
   - library:ci-rupicola
@@ -793,8 +773,6 @@ library:ci-fiat_crypto_ocaml:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - library:ci-coqutil
-  - library:ci-kami
-  - library:ci-riscv_coq
   - library:ci-bedrock2
   - library:ci-coqprime
   - library:ci-rupicola
@@ -805,12 +783,6 @@ library:ci-fiat_crypto_ocaml:
     paths: [] # These artifacts would go over the size limit
 
 library:ci-flocq:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-
-library:ci-kami:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
@@ -1015,20 +987,8 @@ library:ci-stdlib_doc:
   variables:
     SAVE_BUILD_CI: "1" # for doc:refman:deploy
 
-library:ci-tlc:
-  extends: .ci-template
-  needs:
-  - build:base
-  - library:ci-stdlib
-
 library:ci-unimath:
   extends: .ci-template-flambda
-
-library:ci-verdi_raft:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
 
 library:ci-vst:
   extends: .ci-template-flambda
@@ -1100,12 +1060,6 @@ library:ci-http:
 # Plugins are by definition the projects that depend on Rocq's ML API
 
 plugin:ci-aac_tactics:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-
-plugin:ci-atbr:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
@@ -1290,22 +1244,12 @@ plugin:ci-rewriter:
   - build:edge+flambda
   - library:ci-stdlib+flambda
 
-library:ci-riscv_coq:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-  - library:ci-coqutil
-  stage: build-2
-
 library:ci-rupicola:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - library:ci-coqutil
-  - library:ci-kami
-  - library:ci-riscv_coq
   - library:ci-bedrock2
   stage: build-3+
 
@@ -1319,12 +1263,6 @@ plugin:ci-vsrocq:
   extends: .ci-template-flambda
 
 plugin:ci-smtcoq:
-  extends: .ci-template
-  needs:
-  - build:base
-  - library:ci-stdlib
-
-plugin:ci-stalmarck:
   extends: .ci-template
   needs:
   - build:base

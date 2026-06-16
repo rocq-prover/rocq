@@ -103,8 +103,7 @@ Some important points:
   argument to `project` in `ci-basic-overlay.sh`. Usually this is the
   same as `$job` in the above bullet. It must also be a valid
   shell variable name. In some cases a script will handle multiple
-  source repositories and so will need multiple `$project`, see for
-  instance script `verdi_raft`.
+  source repositories and so will need multiple `$project`.
 
 - If you wish to run a test suite for your project which takes
   non-negligible time, it may be useful to run the test suite in a
