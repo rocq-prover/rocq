@@ -98,12 +98,12 @@ let get_mlf_filename () =
   let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
   filename, prefix
 
-let write_mlf_code fn ?(header=[]) code =
+let write_code fn ?(header=[]) code =
   let header = open_header@header in
   let ch_out = open_out fn in
   let fmt = Format.formatter_of_out_channel ch_out in
   Format.fprintf fmt "@[(module@]@\n";
-  List.iter (pp_global_mlf fmt) (header@code);
+  List.iter (pp_global fmt) (header@code);
   Format.fprintf fmt "@[(export";
   List.iter (Format.fprintf fmt " %s") (List.map_filter global_to_mlf_name code);
   Format.fprintf fmt "))@]@.";
@@ -192,7 +192,7 @@ let call_compiler ?profile:(profile=false) mlf_filename =
   end
 
 let compile fn code ~profile:profile =
-  write_mlf_code fn code;
+  write_code fn code;
   let r = call_compiler ~profile fn in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
@@ -212,7 +212,7 @@ let compile_library (code, symb) fn =
     with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
   in
   let fn = dirname / basename in
-  write_mlf_code fn ~header code;
+  write_code fn ~header code;
   let _ = call_compiler fn in
   delay_cleanup_file fn
 
