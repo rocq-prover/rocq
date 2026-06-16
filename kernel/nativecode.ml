@@ -1832,13 +1832,13 @@ let pp_gname fmt g =
   Format.fprintf fmt "%s" (string_of_gname g)
 
 let pp_lname fmt ln =
-  Format.fprintf fmt "x_%s_%i" (string_of_name ln.lname) ln.luid
+  Format.fprintf fmt "$x_%s_%i" (string_of_name ln.lname) ln.luid
 
 let pp_ldecls fmt ids =
   let len = Array.length ids in
   if len = 0 then Format.fprintf fmt "$_" else (* argument list cannot be empty in malfunction *)
   for i = 0 to len - 1 do
-    Format.fprintf fmt " $%a" pp_lname ids.(i)
+    Format.fprintf fmt " %a" pp_lname ids.(i)
   done
 
 let string_of_construct prefix ~constant ind tag =
@@ -1878,14 +1878,14 @@ let pp_mllam fmt l =
       Format.fprintf fmt "%a" pp_primitive p
     | MLprimitive (p, args) ->
       Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_primitive p pp_args args
-    | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
+    | MLlocal ln -> Format.fprintf fmt "@[%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
     | MLapp(f, [||]) -> (* not an application and instead simply a function *)
         Format.fprintf fmt "%a" pp_mllam f
     | MLapp(f, args) ->
         Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_mllam f pp_args args
     | MLlet(id,def,body) ->
-        Format.fprintf fmt "@[(let@ ($%a@ %a)@\n@[<2>%a@])@]"
+        Format.fprintf fmt "@[(let@ (%a@ %a)@\n@[<2>%a@])@]"
           pp_lname id pp_mllam def pp_mllam body
     | MLif(t,l1,l2) ->
         Format.fprintf fmt "@[(if %a@\n  %a@\n  %a)@]"
@@ -1938,7 +1938,7 @@ let pp_mllam fmt l =
     Array.iter (pp_branch fmt) bs
   and pp_letrec fmt defs =
     let pp_one_rec (fn, argsn, body) =
-      Format.fprintf fmt "($%a@ %a)@\n"
+      Format.fprintf fmt "(%a@ %a)@\n"
         pp_lname fn
         pp_mllam (MLlam(argsn, body)) in
     Array.iter pp_one_rec defs
