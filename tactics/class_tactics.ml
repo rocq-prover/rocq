@@ -1285,6 +1285,15 @@ let resolve_all_evars depth unique env p oevd fail =
           docomp evd' comps
   in docomp oevd split
 
+let resolve_all_evars depth unique env p oevd fail =
+  let evd = resolve_all_evars depth unique env p oevd fail in
+  let evd =
+    if evd != oevd && List.is_empty (Evd.conv_pbs evd) then
+      Evd.drop_new_defined ~original:oevd evd
+    else evd
+  in
+  evd
+
 let initial_select_evars env filter =
   fun evd ev evi ->
     filter ev (Lazy.from_val (snd (Evd.evar_source evi))) &&

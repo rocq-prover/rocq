@@ -1919,8 +1919,9 @@ let drop_new_defined ~original sigma =
       Evar.Map.mem ev original.defn_evars || Evar.Map.mem ev original.undf_evars)
       sigma.defn_evars
   in
+  if Evar.Map.is_empty to_drop then sigma else
   let dummy = { empty with defn_evars = to_drop } in
-  let nfc c = snd @@ MiniEConstr.to_constr_gen ~expand:true ~ignore_missing:false dummy c in (* FIXME: do we really need to expand? *)
+  let nfc c = snd @@ MiniEConstr.to_constr_gen ~expand:true ~ignore_missing:true dummy c in (* FIXME: do we really need to expand? *)
   assert (List.is_empty sigma.conv_pbs);
   let normalize_changed _ev orig evi =
     match orig, evi with

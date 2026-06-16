@@ -1,2 +1,2 @@
--R .. Coq
+-R .. Corelib
 -arg -noinit
