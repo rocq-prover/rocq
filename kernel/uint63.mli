@@ -36,8 +36,6 @@ val to_string : t -> string
 
 val compile : t -> string
 
-val compile_mlf : t -> string
-
 (* constants *)
 val zero    : t
 val one : t

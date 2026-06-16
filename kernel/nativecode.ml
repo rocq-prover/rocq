@@ -1854,36 +1854,36 @@ let pp_mllam fmt l =
     match l with
     | MLint i when i >= 0 -> Format.fprintf fmt "%i" i
     | MLint i -> Format.fprintf fmt "(neg %i)" (-i) (* i < 0 *)
-    | MLuint i -> Format.fprintf fmt "%s" (Uint63.compile_mlf i)
-    | MLfloat f -> Format.fprintf fmt "%s" (Float64.compile_mlf f)
-    | MLstring s -> Format.fprintf fmt "%s" (Pstring.compile_mlf s)
+    | MLuint i -> Format.fprintf fmt "%s" (Uint63.compile i)
+    | MLfloat f -> Format.fprintf fmt "%s" (Float64.compile f)
+    | MLstring s -> Format.fprintf fmt "%s" (Pstring.compile s)
     | MLlam(ids,body) ->
         Format.fprintf fmt "@[<2>(lambda (%a) @ %a)@]"
           pp_ldecls ids pp_mllam body
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam l1 pp_mllam l2
     | MLprimitive (MLland, args) -> (* malfunction has a special operator for logical and *)
-      Format.fprintf fmt "(& %a)" pp_args_mlf args
+      Format.fprintf fmt "(& %a)" pp_args args
     | MLprimitive (MLnot, args) ->
-      Format.fprintf fmt "(== 0 %a)" pp_args_mlf args
+      Format.fprintf fmt "(== 0 %a)" pp_args args
     | MLprimitive (MLmagic, args) -> (* Obj.magic is unneeded in malfunction *)
-      pp_args_mlf fmt args
+      pp_args fmt args
     | MLprimitive (Lazy, args) -> (* lazy values must be treated separately *)
-      Format.fprintf fmt "@[<2>(lazy%a)@]" pp_args_mlf args
+      Format.fprintf fmt "@[<2>(lazy%a)@]" pp_args args
     | MLprimitive (Force, args) ->
-      Format.fprintf fmt "@[<2>(force%a)@]" pp_args_mlf args
+      Format.fprintf fmt "@[<2>(force%a)@]" pp_args args
     | MLprimitive (Array_get, args) ->
-      Format.fprintf fmt "@[<2>(load%a)@]" pp_args_mlf args
+      Format.fprintf fmt "@[<2>(load%a)@]" pp_args args
     | MLprimitive (p, [||]) -> (* not a function and just a value *)
-      Format.fprintf fmt "%a" pp_primitive_mlf p
+      Format.fprintf fmt "%a" pp_primitive p
     | MLprimitive (p, args) ->
-      Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_primitive_mlf p pp_args_mlf args
+      Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_primitive p pp_args args
     | MLlocal ln -> Format.fprintf fmt "@[$%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
     | MLapp(f, [||]) -> (* not an application and instead simply a function *)
         Format.fprintf fmt "%a" pp_mllam f
     | MLapp(f, args) ->
-        Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_mllam f pp_args_mlf args
+        Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_mllam f pp_args args
     | MLlet(id,def,body) ->
         Format.fprintf fmt "@[(let@ ($%a@ %a)@\n@[<2>%a@])@]"
           pp_lname id pp_mllam def pp_mllam body
@@ -1891,7 +1891,7 @@ let pp_mllam fmt l =
         Format.fprintf fmt "@[(if %a@\n  %a@\n  %a)@]"
           pp_mllam t pp_mllam l1 pp_mllam l2
     | MLletrec(defs, body) ->
-        Format.fprintf fmt "@[<2>(let (rec @[<2>%a@])@\n%a)@]" pp_letrec_mlf defs
+        Format.fprintf fmt "@[<2>(let (rec @[<2>%a@])@\n%a)@]" pp_letrec defs
           pp_mllam body
     | MLarray arr ->
       Format.fprintf fmt "@[(block (tag 0)";
@@ -1902,51 +1902,51 @@ let pp_mllam fmt l =
     | MLmatch (_, c, accu_br, br) ->
       Format.fprintf fmt (* accumulator is always tag 0 *)
         "@[(let ($matched_value %a) (switch $matched_value @\n@ @ ((tag 0)@\n    %a)@\n  @[%a@]))@]"
-        pp_mllam c pp_mllam accu_br pp_branches_mlf br
+        pp_mllam c pp_mllam accu_br pp_branches br
     | MLconstruct(_,_,tag,[||]) -> (* not a construct but a constant *)
         Format.fprintf fmt "%i"
           tag
     | MLconstruct(_,_,tag,args) ->
         Format.fprintf fmt "@[<2>(block (tag %i)%a)@]"
-          tag pp_args_mlf args
+          tag pp_args args
     | MLisaccu (_, _, c) ->
         Format.fprintf fmt
           "@[(switch %a@\n  ((tag 0) 1)@\n  (_ (tag _) 0))@]"
         pp_mllam c
-  and pp_cparam_mlf fmt param =
+  and pp_cparam fmt param =
     match param with
     | Some l -> pp_mllam fmt (MLlocal l)
     | None -> Format.fprintf fmt "_"
-  and pp_cparams_mlf fmt params =
+  and pp_cparams fmt params =
     let len = Array.length params in
     for i = 0 to len - 1 do
-      Format.fprintf fmt " (%a (field %i $matched_value))" pp_cparam_mlf params.(i) i
+      Format.fprintf fmt " (%a (field %i $matched_value))" pp_cparam params.(i) i
     done
-  and pp_branches_mlf fmt bs =
+  and pp_branches fmt bs =
     let rec pp_branch fmt (cargs,body) =
       let pp_pat_and_block fmt = function
         | ConstPattern i, body ->
           Format.fprintf fmt "%i %a" i pp_mllam body
         | NonConstPattern (tag,args), body ->
           Format.fprintf fmt "@[<2>(tag %i) (let%a@\n%a)@]"
-            tag pp_cparams_mlf args pp_mllam body in
+            tag pp_cparams args pp_mllam body in
       match cargs with
       | [] -> ()
       | pat::pats -> (* we duplicate the branches because there is no simpler alternative to due to match bindings *)
         Format.fprintf fmt "(%a)@\n%a" pp_pat_and_block (pat, body) pp_branch (pats, body)
     in
     Array.iter (pp_branch fmt) bs
-  and pp_letrec_mlf fmt defs =
+  and pp_letrec fmt defs =
     let pp_one_rec (fn, argsn, body) =
       Format.fprintf fmt "($%a@ %a)@\n"
         pp_lname fn
         pp_mllam (MLlam(argsn, body)) in
     Array.iter pp_one_rec defs
-  and pp_args_mlf fmt args =
+  and pp_args fmt args =
     if args <> [||] then
       Array.iter (Format.fprintf fmt "@ %a" pp_mllam) args
     else Format.fprintf fmt "@ 0" (* 0 is () in malfunction *)
-  and pp_primitive_mlf fmt = function
+  and pp_primitive fmt = function
     | Mk_prod -> Format.fprintf fmt "(global $Nativevalues $mk_prod)"
     | Mk_sort -> Format.fprintf fmt "(global $Nativevalues $mk_sort_accu)"
     | Mk_ind -> Format.fprintf fmt "(global $Nativevalues $mk_ind_accu)"
