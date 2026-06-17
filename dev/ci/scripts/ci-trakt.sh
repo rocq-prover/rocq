@@ -10,6 +10,6 @@ git_download trakt
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 ( cd "${CI_BUILD_DIR}/trakt"
-  make
-  make install
+  dune build --root . --only-packages=rocq-trakt @install
+  dune install --root . rocq-trakt --prefix="$CI_INSTALL_DIR"
 )
