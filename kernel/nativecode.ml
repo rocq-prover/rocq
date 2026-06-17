@@ -748,7 +748,7 @@ type global =
   | Gtblfixtype of gname * lname array * mllambda array
   | Glet of gname * mllambda
   | Gletcase of
-      gname * lname array * annot_sw * mllambda * mllambda * mllam_branches
+      gname * lname array * mllambda * mllambda * mllam_branches
   | Gopen of string
   | Gtype of inductive * (tag * int) array
     (* ind name, tag and arities of constructors *)
@@ -767,8 +767,8 @@ let eq_global g1 g2 =
       Array.for_all2 (eq_mllambda gn1 gn2 (Array.length lns1) env1 env2) mls1 mls2
   | Glet (gn1, def1), Glet (gn2, def2) ->
       eq_mllambda gn1 gn2 0 LNmap.empty LNmap.empty def1 def2
-  | Gletcase (gn1,lns1,_,c1,accu1,br1),
-      Gletcase (gn2,lns2,_,c2,accu2,br2) ->
+  | Gletcase (gn1,lns1,c1,accu1,br1),
+      Gletcase (gn2,lns2,c2,accu2,br2) ->
       Int.equal (Array.length lns1) (Array.length lns2) &&
       let env1 = push_lnames 0 LNmap.empty lns1 in
       let env2 = push_lnames 0 LNmap.empty lns2 in
@@ -804,7 +804,7 @@ let hash_global g =
       combinesmall 3 hmls
   | Glet (gn, def) ->
       combinesmall 4 (hash_mllambda gn 0 LNmap.empty def)
-  | Gletcase (gn,lns,_,c,accu,br) ->
+  | Gletcase (gn,lns,c,accu,br) ->
       let nlns = Array.length lns in
       let env = push_lnames 0 LNmap.empty lns in
       let t = MLmatch (c,accu,br) in
@@ -900,8 +900,8 @@ let push_global_norm cenv gn params body =
 let push_global_cofix cenv gn params self =
   push_global cenv gn (Gtblcofix (gn, params, self))
 
-let push_global_case cenv gn params annot a accu bs =
-  push_global cenv gn (Gletcase (gn, params, annot, a, accu, bs))
+let push_global_case cenv gn params a accu bs =
+  push_global cenv gn (Gletcase (gn, params, a, accu, bs))
 
 let push_symbol cenv x =
   try HashtblSymbol.find cenv.symb_tbl x
@@ -1396,7 +1396,7 @@ let rec ml_of_lam env l t =
 (*      let body = MLlam([|a_uid|], MLmatch(annot, la_uid, accu, bs)) in
       let case = generalize_fv env_c body in *)
       let cn = push_global_case env.env_cenv cn (Array.append (fv_params env_c) [|a_uid|])
-        annot la_uid accu (merge_branches br)
+        la_uid accu (merge_branches br)
       in
       (* Final result *)
       let arg = ml_of_lam env l a in
@@ -1733,7 +1733,7 @@ let optimize_stk stk =
     | Glet (Gnorm (_,i), body) ->
         let (gnorm, gcase) = gdef in
         (Int.Map.add i (decompose_MLlam body) gnorm, gcase)
-    | Gletcase(Gcase (_,i), params, _,a,accu,bs) ->
+    | Gletcase(Gcase (_,i), params,a,accu,bs) ->
         let (gnorm,gcase) = gdef in
         (gnorm, Int.Map.add i (params,MLmatch(a,accu,bs)) gcase)
     | Gletcase _ -> assert false
@@ -2066,12 +2066,12 @@ let pp_global fmt g =
     Format.fprintf fmt "@[;type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
   | Gopen _ ->
       () (* open do not exist in malfunction, and there is no interest in leaving them as comments *)
-  | Gletcase(gn,[||],_,a,accu,bs) -> (* simple biding and not a function *)
+  | Gletcase(gn,[||],a,accu,bs) -> (* simple biding and not a function *)
       Format.fprintf fmt "@[; Hash = %i@\n(%a %a)@]@\n@." (* no need to be recursive as we are sane and do not create recursive values other than functions *)
       (hash_global g)
         pp_gname gn
         pp_mllam (MLmatch(a,accu,bs))
-  | Gletcase(gn,params,_,a,accu,bs) -> (* a function *)
+  | Gletcase(gn,params,a,accu,bs) -> (* a function *)
       Format.fprintf fmt "@[; Hash = %i@\n(rec (%a (lambda (%a)@\n  %a)))@]@\n@."
       (hash_global g)
         pp_gname gn pp_ldecls params
@@ -2103,7 +2103,7 @@ let global_to_mlf_name g =
   | Gtblfixtype (gn,_,_)
   | Gtblnorm (gn,_,_)
   | Gtblcofix (gn,_,_)
-  | Gletcase(gn,_,_,_,_,_)
+  | Gletcase(gn,_,_,_,_)
   | Glet (gn,_) ->
     let gn = string_of_gname gn in
     if gn = "_" || gn = "" then None else Some gn
@@ -2116,7 +2116,7 @@ let pp_global_interface fmt g =
   | Gtblnorm (_,_,_)
   | Gtblcofix (_,_,_)
   | Gtblfixtype (_,_,_)
-  | Gletcase (_,_,_,_,_,_)
+  | Gletcase (_,_,_,_,_)
   | Glet (_,_) ->
     begin match global_to_mlf_name g with
     | None -> ()
