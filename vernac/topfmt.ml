@@ -72,9 +72,6 @@ let _ = set_dflt_gp !std_ft
 let err_ft = ref Format.err_formatter
 let _ = set_gp !err_ft deep_gp
 
-let deep_ft = ref (with_output_to stdout)
-let _ = set_gp !deep_ft deep_gp
-
 (* For parametrization through vernacular *)
 let default = Format.pp_get_max_boxes !std_ft ()
 let default_margin = Format.pp_get_margin !std_ft ()
@@ -94,14 +91,12 @@ let set_margin v =
   let v = match v with None -> default_margin | Some v -> v in
   Format.pp_set_margin Format.str_formatter v;
   Format.pp_set_margin !std_ft v;
-  Format.pp_set_margin !deep_ft v;
   Format.pp_set_margin !err_ft v;
   (* Heuristic, based on usage: the column on the right of max_indent
      column is 20% of width, capped to 30 characters *)
   let m = max (64 * v / 100) (v-30) in
   Format.pp_set_max_indent Format.str_formatter m;
   Format.pp_set_max_indent !std_ft m;
-  Format.pp_set_max_indent !deep_ft m;
   Format.pp_set_max_indent !err_ft m
 
 (** Console display of feedback *)
@@ -418,25 +413,22 @@ let with_output_to_file ~truncate fname func input =
     let flags = if truncate then Open_trunc :: flags else flags in
     open_out_gen flags 0o666 fullfname
   in
-  let old_fmt = !std_ft, !err_ft, !deep_ft in
+  let old_fmt = !std_ft, !err_ft in
   let new_ft = Format.formatter_of_out_channel channel in
   set_gp new_ft (get_gp !std_ft);
   std_ft := new_ft;
   err_ft := new_ft;
-  deep_ft := new_ft;
   try
     let output = func input in
-    std_ft := Util.pi1 old_fmt;
-    err_ft := Util.pi2 old_fmt;
-    deep_ft := Util.pi3 old_fmt;
+    std_ft := fst old_fmt;
+    err_ft := snd old_fmt;
     Format.pp_print_flush new_ft ();
     close_out channel;
     output
   with reraise ->
     let reraise = Exninfo.capture reraise in
-    std_ft := Util.pi1 old_fmt;
-    err_ft := Util.pi2 old_fmt;
-    deep_ft := Util.pi3 old_fmt;
+    std_ft := fst old_fmt;
+    err_ft := snd old_fmt;
     Format.pp_print_flush new_ft ();
     close_out channel;
     Exninfo.iraise reraise
