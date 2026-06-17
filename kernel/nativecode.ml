@@ -450,7 +450,7 @@ type mllambda =
   | MLlet          of lname * mllambda * mllambda
   | MLapp          of mllambda * mllambda array
   | MLif           of mllambda * mllambda * mllambda
-  | MLmatch        of annot_sw * mllambda * mllambda * mllam_branches
+  | MLmatch        of mllambda * mllambda * mllam_branches
                               (* argument, prefix, accu branch, branches *)
   | MLconstruct    of string * inductive * int * mllambda array
                    (* prefix, inductive name, tag, arguments *)
@@ -517,8 +517,7 @@ let rec eq_mllambda gn1 gn2 n env1 env2 t1 t2 =
       eq_mllambda gn1 gn2 n env1 env2 cond1 cond2 &&
       eq_mllambda gn1 gn2 n env1 env2 br1 br2 &&
       eq_mllambda gn1 gn2 n env1 env2 br'1 br'2
-  | MLmatch (annot1, c1, accu1, br1), MLmatch (annot2, c2, accu2, br2) ->
-      eq_annot_sw annot1 annot2 &&
+  | MLmatch (c1, accu1, br1), MLmatch (c2, accu2, br2) ->
       eq_mllambda gn1 gn2 n env1 env2 c1 c2 &&
       eq_mllambda gn1 gn2 n env1 env2 accu1 accu2 &&
       eq_mllam_branches gn1 gn2 n env1 env2 br1 br2
@@ -611,11 +610,10 @@ let rec hash_mllambda gn n env t =
       let hbr = hash_mllambda gn n env br in
       let hbr' = hash_mllambda gn n env br' in
       combinesmall 8 (combine3 hcond hbr hbr')
-  | MLmatch (annot, c, accu, br) ->
-      let hannot = hash_annot_sw annot in
+  | MLmatch (c, accu, br) ->
       let hc = hash_mllambda gn n env c in
       let haccu = hash_mllambda gn n env accu in
-      combinesmall 9 (hash_mllam_branches gn n env (combine3 hannot hc haccu) br)
+      combinesmall 9 (hash_mllam_branches gn n env (combine hc haccu) br)
   | MLconstruct (pf, ind, tag, args) ->
       let hpf = String.hash pf in
       let hcs = Ind.UserOrd.hash ind in
@@ -695,7 +693,7 @@ let fv_lam l =
         Array.fold_right fv_arg args (aux f bind fv)
     | MLif(t,b1,b2) ->
         aux t bind (aux b1 bind (aux b2 bind fv))
-    | MLmatch(_,a,p,bs) ->
+    | MLmatch(a,p,bs) ->
       let fv = aux a bind (aux p bind fv) in
       let fv_bs (cargs, body) fv =
         let bind =
@@ -769,13 +767,13 @@ let eq_global g1 g2 =
       Array.for_all2 (eq_mllambda gn1 gn2 (Array.length lns1) env1 env2) mls1 mls2
   | Glet (gn1, def1), Glet (gn2, def2) ->
       eq_mllambda gn1 gn2 0 LNmap.empty LNmap.empty def1 def2
-  | Gletcase (gn1,lns1,annot1,c1,accu1,br1),
-      Gletcase (gn2,lns2,annot2,c2,accu2,br2) ->
+  | Gletcase (gn1,lns1,_,c1,accu1,br1),
+      Gletcase (gn2,lns2,_,c2,accu2,br2) ->
       Int.equal (Array.length lns1) (Array.length lns2) &&
       let env1 = push_lnames 0 LNmap.empty lns1 in
       let env2 = push_lnames 0 LNmap.empty lns2 in
-      let t1 = MLmatch (annot1,c1,accu1,br1) in
-      let t2 = MLmatch (annot2,c2,accu2,br2) in
+      let t1 = MLmatch (c1,accu1,br1) in
+      let t2 = MLmatch (c2,accu2,br2) in
       eq_mllambda gn1 gn2 (Array.length lns1) env1 env2 t1 t2
   | Gopen s1, Gopen s2 -> String.equal s1 s2
   | Gtype (ind1, arr1), Gtype (ind2, arr2) ->
@@ -806,10 +804,10 @@ let hash_global g =
       combinesmall 3 hmls
   | Glet (gn, def) ->
       combinesmall 4 (hash_mllambda gn 0 LNmap.empty def)
-  | Gletcase (gn,lns,annot,c,accu,br) ->
+  | Gletcase (gn,lns,_,c,accu,br) ->
       let nlns = Array.length lns in
       let env = push_lnames 0 LNmap.empty lns in
-      let t = MLmatch (annot,c,accu,br) in
+      let t = MLmatch (c,accu,br) in
       combinesmall 5 (combine nlns (hash_mllambda gn nlns env t))
   | Gopen s -> combinesmall 5 (String.hash s)
   | Gtype (ind, arr) ->
@@ -1606,9 +1604,9 @@ let subst s l =
       | MLlet(id,def,body) -> MLlet(id,aux def, aux body)
       | MLapp(f,args) -> MLapp(aux f, Array.map aux args)
       | MLif(t,b1,b2) -> MLif(aux t, aux b1, aux b2)
-      | MLmatch(annot,a,accu,bs) ->
+      | MLmatch(a,accu,bs) ->
           let auxb (cargs,body) = (cargs,aux body) in
-          MLmatch(annot,a,aux accu, Array.map auxb bs)
+          MLmatch(a,aux accu, Array.map auxb bs)
       | MLconstruct(prefix,c,tag,args) -> MLconstruct(prefix,c,tag,Array.map aux args)
       | MLsetref(s,l1) -> MLsetref(s,aux l1)
       | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
@@ -1656,13 +1654,13 @@ let all_lam n bs =
     | _ -> false in
   Array.for_all f bs
 
-let commutative_cut annot a accu bs args =
+let commutative_cut a accu bs args =
   let mkb (c,b) =
      match b with
      | MLlam(params, body) ->
          (c, Array.fold_left2 (fun body x v -> MLlet(x,v,body)) body params args)
      | _ -> assert false in
-  MLmatch(annot, a, mkMLapp accu args, Array.map mkb bs)
+  MLmatch( a, mkMLapp accu args, Array.map mkb bs)
 
 let optimize gdef l =
   let rec optimize s l =
@@ -1699,9 +1697,9 @@ let optimize gdef l =
         | _ ->
             let f = optimize s f in
             match f with
-            | MLmatch (annot,a,accu,bs) ->
+            | MLmatch (a,accu,bs) ->
               if all_lam (Array.length args) bs then
-                commutative_cut annot a accu bs args
+                commutative_cut a accu bs args
               else MLapp(f, args)
             | _ -> MLapp(f, args)
 
@@ -1713,13 +1711,13 @@ let optimize gdef l =
         let b1 = optimize s b1 in
         let b2 = optimize s b2 in
         begin match t, b2 with
-        | MLisaccu (_, _, l1), MLmatch(annot, l2, _, bs)
-            when eq_mllambda l1 l2 -> MLmatch(annot, l1, b1, bs)
+        | MLisaccu (_, _, l1), MLmatch(l2, _, bs)
+            when eq_mllambda l1 l2 -> MLmatch(l1, b1, bs)
         | _, _ -> MLif(t, b1, b2)
         end
-    | MLmatch(annot,a,accu,bs) ->
+    | MLmatch(a,accu,bs) ->
         let opt_b (cargs,body) = (cargs,optimize s body) in
-        MLmatch(annot, optimize s a, subst s accu, Array.map opt_b bs)
+        MLmatch(optimize s a, subst s accu, Array.map opt_b bs)
     | MLconstruct(prefix,c,tag,args) ->
         MLconstruct(prefix,c,tag,Array.map (optimize s) args)
     | MLsetref(r,l) -> MLsetref(r, optimize s l)
@@ -1735,9 +1733,9 @@ let optimize_stk stk =
     | Glet (Gnorm (_,i), body) ->
         let (gnorm, gcase) = gdef in
         (Int.Map.add i (decompose_MLlam body) gnorm, gcase)
-    | Gletcase(Gcase (_,i), params, annot,a,accu,bs) ->
+    | Gletcase(Gcase (_,i), params, _,a,accu,bs) ->
         let (gnorm,gcase) = gdef in
-        (gnorm, Int.Map.add i (params,MLmatch(annot,a,accu,bs)) gcase)
+        (gnorm, Int.Map.add i (params,MLmatch(a,accu,bs)) gcase)
     | Gletcase _ -> assert false
     | _ -> gdef in
   let gdef = List.fold_left add_global empty_gdef stk in
@@ -1895,7 +1893,7 @@ let pp_mllam fmt l =
       Format.fprintf fmt ")@]"
     | MLsetref (s, body) ->
         Format.fprintf fmt "@[(store %s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam body
-    | MLmatch (_, c, accu_br, br) ->
+    | MLmatch (c, accu_br, br) ->
       Format.fprintf fmt (* accumulator is always tag 0 *)
         "@[(let ($matched_value %a) (switch $matched_value @\n@ @ ((tag 0)@\n    %a)@\n  @[%a@]))@]"
         pp_mllam c pp_mllam accu_br pp_branches br
@@ -2014,9 +2012,9 @@ let pp_cofix fmt (gn, s) =
       | MLlet(id,def,body) -> MLlet(id,aux def, aux body)
       | MLapp(f,args) -> MLapp(aux f, Array.map aux args)
       | MLif(t,b1,b2) -> MLif(aux t, aux b1, aux b2)
-      | MLmatch(annot,a,accu,bs) ->
+      | MLmatch(a,accu,bs) ->
           let auxb (cargs,body) = (cargs,aux body) in
-          MLmatch(annot,a,aux accu, Array.map auxb bs)
+          MLmatch(a,aux accu, Array.map auxb bs)
       | MLconstruct(prefix,c,tag,args) -> MLconstruct(prefix,c,tag,Array.map aux args)
       | MLsetref(s,l1) -> MLsetref(s,aux l1)
       | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
@@ -2068,16 +2066,16 @@ let pp_global fmt g =
     Format.fprintf fmt "@[;type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
   | Gopen _ ->
       () (* open do not exist in malfunction, and there is no interest in leaving them as comments *)
-  | Gletcase(gn,[||],annot,a,accu,bs) -> (* simple biding and not a function *)
+  | Gletcase(gn,[||],_,a,accu,bs) -> (* simple biding and not a function *)
       Format.fprintf fmt "@[; Hash = %i@\n(%a %a)@]@\n@." (* no need to be recursive as we are sane and do not create recursive values other than functions *)
       (hash_global g)
         pp_gname gn
-        pp_mllam (MLmatch(annot,a,accu,bs))
-  | Gletcase(gn,params,annot,a,accu,bs) -> (* a function *)
+        pp_mllam (MLmatch(a,accu,bs))
+  | Gletcase(gn,params,_,a,accu,bs) -> (* a function *)
       Format.fprintf fmt "@[; Hash = %i@\n(rec (%a (lambda (%a)@\n  %a)))@]@\n@."
       (hash_global g)
         pp_gname gn pp_ldecls params
-        pp_mllam (MLmatch(annot,a,accu,bs))
+        pp_mllam (MLmatch(a,accu,bs))
   | Gtblfixtype (g, [||], t) -> (* not a function but a definition *)
       Format.fprintf fmt "@[<2>(%a %a)@]@\n@." pp_gname g
         pp_array t
@@ -2259,8 +2257,6 @@ let compile_mind cenv mb mind stack =
     let add_proj proj_arg acc _pb =
       let tbl = ob.mind_reloc_tbl in
       (* Building info *)
-      let asw = { asw_ind = ind; asw_prefix = "";
-                  asw_reloc = tbl } in
       let c_uid = fresh_lname cenv Anonymous in
       let cf_uid = fresh_lname cenv Anonymous in
       let tag, arity = tbl.(0) in
@@ -2272,7 +2268,7 @@ let compile_mind cenv mb mind stack =
       let i = push_symbol cenv (SymbProj (ind, proj_arg)) in
       let accu = MLprimitive (Cast_accu, [|MLlocal cf_uid|]) in
       let accu_br = MLprimitive (Mk_proj, [|get_proj_code i;accu|]) in
-      let code = MLmatch(asw,MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
+      let code = MLmatch(MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
       let force_c =
         if mb.mind_finite <> CoFinite
         then MLlocal c_uid
