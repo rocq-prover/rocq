@@ -58,10 +58,6 @@ ci-all: $(CI_TARGETS)
 
 ci-argosy: ci-stdlib
 
-ci-atbr: ci-stdlib
-
-ci-bbv: ci-stdlib
-
 ci-bignums: ci-stdlib
 
 ci-category_theory: ci-equations
@@ -89,15 +85,11 @@ ci-coq_tools: ci-stdlib
 
 ci-corn: ci-math_classes ci-elpi
 
-ci-cross_crypto: ci-stdlib
-
 ci-mtac2: ci-unicoq ci-stdlib
 
 ci-coqutil: ci-stdlib
-ci-kami: ci-stdlib
 ci-rewriter: ci-stdlib
-ci-riscv_coq: ci-coqutil
-ci-bedrock2: ci-coqutil ci-riscv_coq ci-kami
+ci-bedrock2: ci-coqutil
 ci-bedrock2_examples: ci-bedrock2
 ci-rupicola: ci-bedrock2 ci-coqutil
 ci-fiat_crypto: ci-coqprime ci-rewriter ci-bedrock2 ci-coqutil ci-rupicola
@@ -176,14 +168,8 @@ ci-sf: ci-stdlib
 ci-smtcoq: ci-stdlib
 ci-smtcoq_trakt: ci-stdlib ci-trakt
 
-ci-stalmarck: ci-stdlib
-
 ci-stdlib_test: ci-stdlib
 ci-stdlib_doc: ci-stdlib
-
-ci-tlc: ci-stdlib
-
-ci-verdi_raft: ci-stdlib
 
 ci-waterproof: ci-stdlib
 
