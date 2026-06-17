@@ -1,0 +1,27 @@
+(test
+  (let
+    ($a (makevec 1 0))
+    ($f (lambda ($x $y) (load $a 0)))
+    (- (apply $f (store $a 0 10) (store $a 0 20)) (apply $f (store $a 0 1) (store $a 0 2))))
+  18)
+
+(test
+  (let
+    ($fn (lambda ($arg)
+      (let
+        ($a (makevec 1 0))
+        ($f (lambda ($x $y) (load $a 0)))
+        (- (apply $f (store $a 0 10) (store $a 0 20)) (apply $f (store $a 0 1) (store $a 0 2))))))
+    (apply $fn 1))
+  18)
+
+
+(test
+  (let
+    ($th (lazy
+      (let
+        ($a (makevec 1 0))
+        ($f (lambda ($x $y) (load $a 0)))
+        (- (apply $f (store $a 0 10) (store $a 0 20)) (apply $f (store $a 0 1) (store $a 0 2))))))
+    (force $th))
+  18)

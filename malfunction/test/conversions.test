@@ -1,0 +1,25 @@
+(test-undefined
+  (convert.i32.ibig 420))
+
+(test
+  (convert.i32.i64 49832.i32)
+  49832.i64)
+
+(test
+  (convert.i64.i32 9223372036854775807.i64)
+  -1.i32)
+
+(test
+  (convert.ibig.i32 -1.ibig)
+  -1.i32)
+
+
+(test
+  (convert.ibig.i64 9223372036854775807.ibig)
+  9223372036854775807.i64)
+
+(test
+  (convert.ibig.i64 9223372036854775808.ibig)
+  -9223372036854775808.i64)
+
+

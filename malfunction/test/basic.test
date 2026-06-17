@@ -1,0 +1,20 @@
+(test-undefined
+  (field 0 0))
+
+; a comment
+
+(test-differ ; another comment
+  1 2)
+
+(test
+  4983259873495873495734895.ibig 4983259873495873495734895.ibig)
+
+(test
+  0 0)
+
+(test-differ
+  0 (block (tag 0) 42))
+
+(test
+  (block (tag 0) 42)
+  (block (tag 0) 42))

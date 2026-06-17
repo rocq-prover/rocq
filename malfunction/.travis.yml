@@ -1,0 +1,10 @@
+language: c
+sudo: required
+install: wget https://raw.githubusercontent.com/ocaml/ocaml-travisci-skeleton/master/.travis-opam.sh
+script: bash -ex .travis-ci.sh
+env:
+  global:
+  - PACKAGE=malfunction
+  matrix:
+  - OCAML_VERSION=4.03.0+flambda
+  - OCAML_VERSION=4.04.0+flambda

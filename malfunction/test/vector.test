@@ -1,0 +1,15 @@
+(test
+  (let
+    ($arr (makevec 10 42))
+    ($a (load $arr 0))
+    ($b (load $arr 8))
+    (_ (store $arr 8 (block (tag 0) 1 2 3)))
+    ($c (load $arr 8))
+    (block (tag 0) $a $b $c))
+  (block (tag 0) 42 42 (block (tag 0) 1 2 3)))
+    
+(test-undefined
+  (load (makevec 10 10) 10))
+
+(test-undefined
+  (load (makevec 10 10) (- 0 1)))

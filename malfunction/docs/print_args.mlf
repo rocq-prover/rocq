@@ -1,0 +1,24 @@
+; This program prints its command-line arguments to stdout
+(module
+
+  ($argv (global $Sys $argv))
+
+  ; $argv is a vector, turn it into a list
+  ; lists are either the integer 0 (nil) or a block of tag 0 (cons)
+  ($argc (length $argv))
+  (rec
+    ($argv_to_list (lambda ($i)
+      (if (== $i $argc)
+        0
+        (block (tag 0) (load $argv $i)
+          (apply $argv_to_list (+ $i 1)))))))
+  ($argv_list (apply $argv_to_list 1)) ; Start at 1 to skip argv[0]
+
+  ; Since this is the standard OCaml list representation, we may
+  ; use standard library functions
+
+  ($print (lambda ($s)
+    (apply (global $Stdlib $print_endline) $s)))
+  (_ (apply (global $List $iter) $print $argv_list))
+
+  (export))

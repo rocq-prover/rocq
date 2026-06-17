@@ -1,0 +1,32 @@
+(test 
+  (block (tag 0) 
+    (+.f64 10. 2.)
+    (-.f64 10. 2.)
+    (*.f64 10. 2.)
+    (/.f64 10. 2.)
+    (%.f64 10. 2.))
+  (block (tag 0) 12. 8. 20. 5. 0.))
+
+(test (%.f64 96.5 5.) 1.5)
+
+(test (/.f64 1. 0.) infinity)
+(test (/.f64 -1. 0.) neg_infinity)
+(test (*.f64 0. infinity) nan)
+(test (==.f64 nan nan) 0)
+
+(test
+  (block (tag 0)
+    (convert.int.f64 100)
+    (convert.i32.f64 100.i32)
+    (convert.i64.f64 100.i64)
+    (convert.ibig.f64 100.ibig))
+  (block (tag 0) 100. 100. 100. 100.))
+
+(test
+  (block (tag 0)
+    (convert.f64.int 100.)
+    (convert.f64.i32 100.)
+    (convert.f64.i64 100.)
+    (convert.f64.ibig 100.))
+  (block (tag 0) 100 100.i32 100.i64 100.ibig))
+

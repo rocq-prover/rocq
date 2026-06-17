@@ -1,0 +1,20 @@
+(module
+  ($def_MetaCoq_Utils_bytestring_String_compare
+    (lambda ($xs $ys)
+      (apply
+        (let
+          (rec
+            ($compare
+              (lambda ($xs0 $ys)
+                  (switch $xs0
+                    (0
+                      (switch $ys
+                        (0 0)
+                        ((tag _) _ 1)))
+                    ((tag _) _
+                      (apply $compare $xs $ys)
+                        )))))
+          $compare)
+        $xs $ys)))
+
+  (export $def_MetaCoq_Utils_bytestring_String_compare))

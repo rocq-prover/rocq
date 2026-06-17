@@ -1,0 +1,13 @@
+(test
+  (let
+    ($pow (global $Stdlib $**))
+    ($pow2 (apply (global $Stdlib $**) 2.))
+    ($magic (global $Obj $magic))
+    ($magic2 (apply (global $Obj $magic) (global $Obj $magic)))
+    (block (tag 0)
+      (apply $pow 2. 5.)
+      (apply $pow2 5.)
+      (apply (global $Stdlib $**) 2. 5.)
+      (apply $magic 42)
+      (apply $magic2 42)))
+  (block (tag 0) 32. 32. 32. 42 42))

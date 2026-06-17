@@ -1,0 +1,14 @@
+(module
+  (rec
+    ($even (lambda ($n) (if (<= $n 1) (== $n 0) (apply $odd (- $n 1)))))
+    ($odd (lambda ($n) (if (<= $n 1) (== $n 1) (apply $even (- $n 1))))))
+  ($foo 100)
+  ($bar 10)
+  ($baz 1)
+  ($y (block (tag 0) 10 0))
+  (export
+    $odd
+    (block (tag 0) 42 0)
+    $y
+    $even
+    (+ $foo (+ $bar $baz))))

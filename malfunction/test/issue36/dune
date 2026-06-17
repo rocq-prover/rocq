@@ -1,0 +1,10 @@
+(rule
+  (target output.txt)
+  (deps run.sh main.ml test_bytestring.mlf test_bytestring.mli %{bin:malfunction})
+  (action (with-stdout-to output.txt (run ./run.sh))))
+
+(alias
+ (name runtest)
+ (deps output.txt)
+ (action (diff expected.txt output.txt)))
+

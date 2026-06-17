@@ -1,0 +1,8 @@
+(rule
+ (targets test.log test.expect)
+ (deps test.sh (source_tree .) (package malfunction))
+ (action (run ./test.sh)))
+
+(alias
+ (name runtest)
+ (action (diff test.expect test.log)))
