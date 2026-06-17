@@ -1,8 +1,0 @@
-(executable
- (name primrec)
- (modes native)
- (libraries malfunction))
-
-(alias
- (name runtest)
- (action (run ./primrec.exe)))

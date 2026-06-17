@@ -1,3 +1,0 @@
-(module
-  (_ (apply (global $Stdlib $print_string) "Hello, world!\n"))
-  (export))

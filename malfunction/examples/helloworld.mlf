@@ -1,7 +1,0 @@
-(module
-  (_ (apply (global $Stdlib $print_string) "Hello, world!\n"))
-  ($prt (global $Stdlib $print_int))
-  ($p2 
-    (lambda ($arg1) (lambda ($arg2) (+ $arg1 $arg2))))
-  (_ (apply $prt (apply $p2 2 40)))
-  (export))

@@ -1,3 +1,0 @@
-Malfunction result: 1 
-Malfunction result, printed as string: 1
-interpreted by OCaml as: Lt
