@@ -405,33 +405,32 @@ let print_err_exn any =
   std_logger ?pre_hdr Feedback.Error msg
 
 let with_output_to_file ~truncate fname func input =
-  let fname = String.concat "." [fname; "out"] in
-  let fullfname = System.get_output_path fname in
-  System.mkdir (Filename.dirname fullfname);
-  let channel =
-    let flags = [Open_wronly; Open_creat; Open_text] in
-    let flags = if truncate then Open_trunc :: flags else flags in
-    open_out_gen flags 0o666 fullfname
+  let acquire () =
+    let fname = String.concat "." [fname; "out"] in
+    let fullfname = System.get_output_path fname in
+    System.mkdir (Filename.dirname fullfname);
+    let channel =
+      let flags = [Open_wronly; Open_creat; Open_text] in
+      let flags = if truncate then Open_trunc :: flags else flags in
+      open_out_gen flags 0o666 fullfname
+    in
+    let old_fmt = !std_ft, !err_ft in
+    let new_ft = Format.formatter_of_out_channel channel in
+    set_gp new_ft (get_gp !std_ft);
+    old_fmt, new_ft, channel
   in
-  let old_fmt = !std_ft, !err_ft in
-  let new_ft = Format.formatter_of_out_channel channel in
-  set_gp new_ft (get_gp !std_ft);
-  std_ft := new_ft;
-  err_ft := new_ft;
-  try
-    let output = func input in
+  let scope (_, new_ft, channel) =
+    std_ft := new_ft;
+    err_ft := new_ft;
+    func input
+  in
+  let release (old_fmt, new_ft, channel) =
     std_ft := fst old_fmt;
     err_ft := snd old_fmt;
     Format.pp_print_flush new_ft ();
     close_out channel;
-    output
-  with reraise ->
-    let reraise = Exninfo.capture reraise in
-    std_ft := fst old_fmt;
-    err_ft := snd old_fmt;
-    Format.pp_print_flush new_ft ();
-    close_out channel;
-    Exninfo.iraise reraise
+  in
+  Memprof_coq.Masking.with_resource ~acquire () ~scope ~release
 
 (* For coqtop -time, we display the position in the file,
    and a glimpse of the executed command *)
