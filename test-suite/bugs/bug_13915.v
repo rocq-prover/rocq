@@ -15,6 +15,11 @@ Qed.
 Tactic Notation "use" open_constr(H) := apply: H.
 Tactic Notation "use_apply" open_constr(H) := apply H.
 Tactic Notation "use_eapply" open_constr(H) := eapply H.
+Tactic Notation "use_pose_ann" open_constr(H) :=
+  pose H; apply: H (_ : list _).
+
+Lemma const2 {A : Type} (x : A) : True.
+Proof. exact I. Qed.
 
 (* Going through [Tactic Notation] with [open_constr] should behave like the
    direct ssreflect tactic: the implicit argument evar created while reading
@@ -33,6 +38,15 @@ Qed.
 Goal True -> True.
 Proof.
   use_eapply foo.
+Qed.
+
+(* The old implicit [A] is defined as [list ?T], where [?T] is fresh while
+   reading the ssreflect term; [?T] must become a real destination goal. *)
+Goal True.
+Proof.
+  use_pose_ann const2.
+  Fail Qed.
+  exact (@nil nat).
 Qed.
 
 Lemma needs {P : Prop} : P -> True.
