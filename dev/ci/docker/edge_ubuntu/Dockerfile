@@ -68,6 +68,7 @@ RUN opam init -a --disable-sandboxing --bare && eval $(opam env) && \
     opam repo add archive git+https://github.com/ocaml/opam-repository-archive && \
     opam update && \
     opam install $BASE_OPAM $BASE_OPAM_EDGE $COQIDE_OPAM_EDGE $CI_OPAM $CI_OPAM_EDGE && \
+    opam pin add git+https://github.com/IBBXEF/malfunction#recusive_types && \
     opam clean -a -c
 
 # set the locale for the benefit of Python
