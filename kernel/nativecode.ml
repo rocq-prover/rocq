@@ -28,6 +28,8 @@ let debug_native_flag, debug_native_compiler = CDebug.create_full ~name:"native-
 let keep_debug_files () =
   CDebug.get_flag debug_native_flag
 
+exception NeedsAccumulators
+
 (** Local names **)
 
 (* The first component is there for debugging purposes only *)
@@ -768,6 +770,8 @@ type global =
   | Glet of gname * mllambda
   | Gletcase of
       gname * lname array * mllambda * mllambda * mllam_branches
+  | Gletcase_noaccu of
+      gname * lname array * mllambda * mllam_branches
   | Gopen of string
   | Gtype of inductive * (tag * int) array
     (* ind name, tag and arities of constructors *)
@@ -827,6 +831,11 @@ let hash_global g =
       let nlns = Array.length lns in
       let env = push_lnames 0 LNmap.empty lns in
       let t = MLmatch (c,accu,br) in
+      combinesmall 5 (combine nlns (hash_mllambda gn nlns env t))
+  | Gletcase_noaccu (gn,lns,c,br) ->
+      let nlns = Array.length lns in
+      let env = push_lnames 0 LNmap.empty lns in
+      let t = MLmatch_noaccu (c,br) in
       combinesmall 5 (combine nlns (hash_mllambda gn nlns env t))
   | Gopen s -> combinesmall 5 (String.hash s)
   | Gtype (ind, arr) ->
@@ -892,13 +901,17 @@ let fresh_gnormtbl cenv l =
   let () = cenv.normtbl_ctr <- cenv.normtbl_ctr + 1 in
   Gnormtbl (l, cenv.normtbl_ctr)
 
-let mkForceCofix cenv prefix ind arg =
+let mkForceCofix consider_accs cenv prefix ind arg =
   let name = fresh_lname cenv Anonymous in
-  MLlet (name, arg,
-    MLif (
-      MLisaccu (prefix, ind, MLlocal name),
-      MLprimitive (Force_cofix, [|MLlocal name|]),
-      MLlocal name))
+  let v =
+    if consider_accs then
+      MLif (
+        MLisaccu (prefix, ind, MLlocal name),
+        MLprimitive (Force_cofix, [|MLlocal name|]),
+        MLlocal name)
+    else MLlocal name
+  in
+  MLlet (name, arg, v)
 
 let push_global cenv gn t =
   try HashtblGlobal.find cenv.global_tbl t
@@ -919,8 +932,13 @@ let push_global_norm cenv gn params body =
 let push_global_cofix cenv gn params self =
   push_global cenv gn (Gtblcofix (gn, params, self))
 
-let push_global_case cenv gn params a accu bs =
-  push_global cenv gn (Gletcase (gn, params, a, accu, bs))
+let push_global_case consider_accs cenv gn params a accu bs =
+  if consider_accs then
+    push_global cenv gn (Gletcase (gn, params, a, accu, bs))
+  else
+    match bs with
+    | [||] -> push_global cenv gn (Glet (gn, MLlam (params, MLint 0))) (* our switch has no valid branches, so no need to match, the branch cannot be explored *)
+    | _ -> push_global cenv gn (Gletcase_noaccu (gn, params, a, bs))
 
 let push_symbol cenv x =
   try HashtblSymbol.find cenv.symb_tbl x
@@ -1171,7 +1189,7 @@ let merge_branches t =
 
 let app_prim p args = MLprimitive (p, args)
 
-let ml_empty_instance = MLprimitive (Mk_empty_instance, [||])
+let ml_empty_instance = MLprimitive (Mk_empty_instance, [||]) (* TODOME: check *)
 
 type prim_aux =
   | PAprim of string * pconstant * CPrimitives.t * prim_aux array
@@ -1323,31 +1341,32 @@ let compile_prim env decl cond paux =
   else
     add_decl decl (compile_cond cond paux)
 
-let rec ml_of_lam env l t =
+let rec ml_of_lam consider_accs env l t =
   match node t with
   | Lrel(id ,i) -> get_rel env id i
   | Lvar id -> get_var env id
   | Levar(evk, args) ->
-     let i = push_symbol env.env_cenv (SymbEvar evk) in
-     (** Arguments are *not* reversed in evar instances in native compilation *)
-     let args = MLarray(Array.map (ml_of_lam env l) args) in
-     MLprimitive (Mk_evar, [|get_evar_code i; args|])
+    if not consider_accs then raise NeedsAccumulators else (* Mk_evar generates an accumulator *)
+    let i = push_symbol env.env_cenv (SymbEvar evk) in
+    (** Arguments are *not* reversed in evar instances in native compilation *)
+    let args = MLarray(Array.map (ml_of_lam consider_accs env l) args) in
+    MLprimitive (Mk_evar, [|get_evar_code i; args|])
   | Lprod(dom,codom) ->
-      let dom = ml_of_lam env l dom in
-      let codom = ml_of_lam env l codom in
-      let n = get_prod_name codom in
-      let i = push_symbol env.env_cenv (SymbName n) in
-      MLprimitive (Mk_prod, [|get_name_code i;dom;codom|])
+    let dom = ml_of_lam consider_accs env l dom in
+    let codom = ml_of_lam consider_accs env l codom in
+    let n = get_prod_name codom in
+    let i = push_symbol env.env_cenv (SymbName n) in
+    MLprimitive (Mk_prod, [|get_name_code i;dom;codom|])
   | Llam(ids,body) ->
     let lnames,env = push_rels env ids in
-    MLlam(lnames, ml_of_lam env l body)
+    MLlam(lnames, ml_of_lam consider_accs env l body)
   | Llet(id,def,body) ->
-      let def = ml_of_lam env l def in
+      let def = ml_of_lam consider_accs env l def in
       let lname, env = push_rel env id in
-      let body = ml_of_lam env l body in
+      let body = ml_of_lam consider_accs env l body in
       MLlet(lname,def,body)
   | Lapp(f,args) ->
-      MLapp(ml_of_lam env l f, Array.map (ml_of_lam env l) args)
+      MLapp(ml_of_lam consider_accs env l f, Array.map (ml_of_lam consider_accs env l) args)
   | Lconst (c, u) ->
      let prefix = env.env_const_prefix c in
      let args = ml_of_instance env u in
@@ -1358,9 +1377,9 @@ let rec ml_of_lam env l t =
     let ind = Projection.Repr.inductive p in
     let i = Projection.Repr.arg p in
     let prefix = env.env_mind_prefix (fst ind) in
-    MLapp (MLglobal(Gproj (prefix, ind, i)), [| ml_of_lam env l c |])
+    MLapp (MLglobal(Gproj (prefix, ind, i)), [| ml_of_lam consider_accs env l c |])
   | Lprim _ ->
-    let decl,cond,paux = extract_prim env (ml_of_lam env l) t in
+    let decl,cond,paux = extract_prim env (ml_of_lam consider_accs env l) t in
     compile_prim env decl cond paux
   | Lcase (annot,p,a,bs) ->
       (* let predicate_uid fv_pred = compilation of p
@@ -1381,7 +1400,7 @@ let rec ml_of_lam env l t =
       }, finite in
       let env_p = restart_env env in
       let pn = fresh_gpred env.env_cenv l in
-      let mlp = ml_of_lam env_p l p in
+      let mlp = ml_of_lam consider_accs env_p l p in
       let mlp = generalize_fv env_p mlp in
       let (pfvn,pfvr) = !(env_p.env_named), !(env_p.env_urel) in
       let pn = push_global_let env.env_cenv pn mlp in
@@ -1393,11 +1412,11 @@ let rec ml_of_lam env l t =
       let nbconst = Array.length bs.constant_branches in
       let nbtotal = nbconst + Array.length bs.nonconstant_branches in
       let br = Array.init nbtotal (fun i -> if i < Array.length bs.constant_branches then
-                                  (ConstPattern i, ml_of_lam env_c l bs.constant_branches.(i))
+                                  (ConstPattern i, ml_of_lam consider_accs env_c l bs.constant_branches.(i))
                                 else
                                   let (params, body) = bs.nonconstant_branches.(i-nbconst) in
                                   let lnames, env_c = push_rels env_c params in
-                                  (NonConstPattern (i-nbconst+1,lnames), ml_of_lam env_c l body)
+                                  (NonConstPattern (i-nbconst+1,lnames), ml_of_lam consider_accs env_c l body)
                               )
       in
       let cn = fresh_gcase env.env_cenv l in
@@ -1414,14 +1433,14 @@ let rec ml_of_lam env l t =
                  cn_fv |]) in
 (*      let body = MLlam([|a_uid|], MLmatch(annot, la_uid, accu, bs)) in
       let case = generalize_fv env_c body in *)
-      let cn = push_global_case env.env_cenv cn (Array.append (fv_params env_c) [|a_uid|])
+      let cn = push_global_case consider_accs env.env_cenv cn (Array.append (fv_params env_c) [|a_uid|])
         la_uid accu (merge_branches br)
       in
       (* Final result *)
-      let arg = ml_of_lam env l a in
+      let arg = ml_of_lam consider_accs env l a in
       let force =
         if finite <> CoFinite then arg
-        else mkForceCofix env.env_cenv annot.asw_prefix annot.asw_ind arg in
+        else mkForceCofix consider_accs env.env_cenv annot.asw_prefix annot.asw_ind arg in
       mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|force|]
   | Lfix ((rec_pos, inds, start), (ids, tt, tb)) ->
       (* let type_f fvt = [| type fix |]
@@ -1441,7 +1460,7 @@ let rec ml_of_lam env l t =
       *)
       (* Compilation of type *)
       let env_t = restart_env env in
-      let ml_t = Array.map (ml_of_lam env_t l) tt in
+      let ml_t = Array.map (ml_of_lam consider_accs env_t l) tt in
       let params_t = fv_params env_t in
       let args_t = fv_args env !(env_t.env_named) !(env_t.env_urel) in
       let gft = fresh_gfixtype env.env_cenv l in
@@ -1457,7 +1476,7 @@ let rec ml_of_lam env l t =
         let ln,env' = push_rel env id in
         match def with
         | None -> (ln::params,lets,env')
-        | Some lam -> (params, (ln,ml_of_lam env l lam)::lets,env')
+        | Some lam -> (params, (ln,ml_of_lam consider_accs env l lam)::lets,env')
       in
       let ml_of_fix i body =
         let varsi, bodyi = decompose_Llam_Llet body in
@@ -1468,7 +1487,7 @@ let rec ml_of_lam env l t =
           Array.of_list (List.rev paramsi), Array.of_list (List.rev letsi)
         in
         t_norm_f.(i) <- fresh_gnorm env.env_cenv l;
-        let bodyi = ml_of_lam envi l bodyi in
+        let bodyi = ml_of_lam consider_accs envi l bodyi in
         t_params.(i) <- paramsi;
         let bodyi = Array.fold_right (mk_let envi) letsi bodyi in
         mkMLlam paramsi bodyi
@@ -1508,7 +1527,7 @@ let rec ml_of_lam env l t =
   | Lcofix (start, (ids, tt, tb)) ->
       (* Compilation of type *)
       let env_t = restart_env env in
-      let ml_t = Array.map (ml_of_lam env_t l) tt in
+      let ml_t = Array.map (ml_of_lam consider_accs env_t l) tt in
       let params_t = fv_params env_t in
       let args_t = Array.map (fun id -> MLlocal id) params_t in
       let gft = fresh_gfixtype env.env_cenv l in
@@ -1522,7 +1541,7 @@ let rec ml_of_lam env l t =
       let ml_of_fix i body =
         let idsi,bodyi = decompose_Llam body in
         let paramsi, envi = push_rels env_n idsi in
-        let bodyi = ml_of_lam envi l bodyi in
+        let bodyi = ml_of_lam consider_accs envi l bodyi in
         t_params.(i) <- paramsi;
         mkMLlam paramsi bodyi
       in
@@ -1563,27 +1582,28 @@ let rec ml_of_lam env l t =
 
   | Lmakeblock (cn,tag,args) ->
      let prefix = env.env_mind_prefix (fst cn) in
-     let args = Array.map (ml_of_lam env l) args in
+     let args = Array.map (ml_of_lam consider_accs env l) args in
      MLconstruct(prefix,cn,tag,args)
   | Luint i -> MLprimitive (Mk_uint, [|MLuint i|])
   | Lfloat f -> MLprimitive (Mk_float, [|MLfloat f|])
   | Lstring s -> MLprimitive (Mk_string, [|MLstring s|])
   | Lparray (t,def) ->
-    let def = ml_of_lam env l def in
-    MLprimitive (MLparray_of_array, [| MLarray (Array.map (ml_of_lam env l) t); def |])
+    let def = ml_of_lam consider_accs env l def in
+    MLprimitive (MLparray_of_array, [| MLarray (Array.map (ml_of_lam consider_accs env l) t); def |])
   | Lval v ->
       let i = push_symbol env.env_cenv (SymbValue v) in get_value_code i
   | Lsort s ->
+    if not consider_accs then raise NeedsAccumulators else (* ml_of_sort generates an accumulator *)
     ml_of_sort env s
   | Lind (ind, u) ->
      let prefix = env.env_mind_prefix (fst ind) in
      let uargs = ml_of_instance env u in
      mkMLapp (MLglobal (Gind (prefix, ind))) uargs
 
-let mllambda_of_lambda cenv univ constpref constlazy mindpref auxdefs l t =
+let mllambda_of_lambda consider_accs cenv univ constpref constlazy mindpref auxdefs l t =
   let env = empty_env cenv univ constpref constlazy mindpref in
   let () = cenv.global_stack <- auxdefs in
-  let ml = ml_of_lam env l t in
+  let ml = ml_of_lam consider_accs env l t in
   let fv_rel = !(env.env_urel) in
   let fv_named = !(env.env_named) in
   (* build the free variables *)
@@ -1684,7 +1704,15 @@ let commutative_cut a accu bs args =
      | _ -> assert false in
   MLmatch( a, mkMLapp accu args, Array.map mkb bs)
 
-let optimize gdef l =
+let commutative_cut_noaccu a bs args =
+  let mkb (c,b) =
+     match b with
+     | MLlam(params, body) ->
+         (c, Array.fold_left2 (fun body x v -> MLlet(x,v,body)) body params args)
+     | _ -> assert false in
+  MLmatch_noaccu( a, Array.map mkb bs)
+
+let optimize  gdef l =
   let rec optimize s l =
     match l with
     | MLlocal id -> (try LNmap.find id s with Not_found -> l)
@@ -1722,6 +1750,10 @@ let optimize gdef l =
             | MLmatch (a,accu,bs) ->
               if all_lam (Array.length args) bs then
                 commutative_cut a accu bs args
+              else MLapp(f, args)
+            | MLmatch_noaccu (a,bs) ->
+              if all_lam (Array.length args) bs then
+                commutative_cut_noaccu a bs args
               else MLapp(f, args)
             | _ -> MLapp(f, args)
 
@@ -2107,6 +2139,16 @@ let pp_global fmt g =
       (hash_global g)
         pp_gname gn pp_ldecls params
         pp_mllam (MLmatch(a,accu,bs))
+  | Gletcase_noaccu(gn,[||],a,bs) -> (* simple biding and not a function *)
+      Format.fprintf fmt "@[; Hash = %i@\n(%a %a)@]@\n@." (* no need to be recursive as we are sane and do not create recursive values other than functions *)
+      (hash_global g)
+        pp_gname gn
+        pp_mllam (MLmatch_noaccu(a,bs))
+  | Gletcase_noaccu(gn,params,a,bs) -> (* a function *)
+      Format.fprintf fmt "@[; Hash = %i@\n(rec (%a (lambda (%a)@\n  %a)))@]@\n@."
+      (hash_global g)
+        pp_gname gn pp_ldecls params
+        pp_mllam (MLmatch_noaccu(a,bs))
   | Gtblfixtype (g, [||], t) -> (* not a function but a definition *)
       Format.fprintf fmt "@[<2>(%a %a)@]@\n@." pp_gname g
         pp_array t
@@ -2135,6 +2177,7 @@ let global_to_mlf_name g =
   | Gtblnorm (gn,_,_)
   | Gtblcofix (gn,_,_)
   | Gletcase(gn,_,_,_,_)
+  | Gletcase_noaccu(gn,_,_,_)
   | Glet (gn,_) ->
     let gn = string_of_gname gn in
     if gn = "_" || gn = "" then None else Some gn
@@ -2148,6 +2191,7 @@ let pp_global_interface fmt g =
   | Gtblcofix (_,_,_)
   | Gtblfixtype (_,_,_)
   | Gletcase (_,_,_,_,_)
+  | Gletcase_noaccu (_,_,_,_)
   | Glet (_,_) ->
     begin match global_to_mlf_name g with
     | None -> ()
@@ -2160,22 +2204,22 @@ let pp_global_interface fmt g =
   | Gtype (ind, lar) -> pp_type_decl fmt ind lar
 
 (** Compilation of elements in environment **)
-let rec compile_with_fv ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
+let rec compile_with_fv consider_accs ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
   let const_prefix c = get_const_prefix env c in
   let const_lazy = get_const_lazy env in
   let mind_prefix c = get_mind_prefix env c in
-  let (auxdefs,(fv_named,fv_rel),ml) = mllambda_of_lambda cenv univ const_prefix const_lazy mind_prefix auxdefs l t in
+  let (auxdefs,(fv_named,fv_rel),ml) = mllambda_of_lambda consider_accs cenv univ const_prefix const_lazy mind_prefix auxdefs l t in
   let ml = wrap ml in
   if List.is_empty fv_named && List.is_empty fv_rel then (auxdefs,ml)
-  else apply_fv cenv env sigma univ (fv_named,fv_rel) auxdefs ml
+  else apply_fv consider_accs cenv env sigma univ (fv_named,fv_rel) auxdefs ml
 
-and apply_fv cenv env sigma univ (fv_named,fv_rel) auxdefs ml =
+and apply_fv consider_accs cenv env sigma univ (fv_named,fv_rel) auxdefs ml =
   let get_rel_val (n,_) auxdefs =
     (*
     match !(lookup_rel_native_val n env) with
     | NVKnone ->
     *)
-        compile_rel cenv env sigma univ auxdefs n
+        compile_rel consider_accs cenv env sigma univ auxdefs n
 (*    | NVKvalue (v,d) -> assert false *)
   in
   let get_named_val (id,_) auxdefs =
@@ -2183,7 +2227,7 @@ and apply_fv cenv env sigma univ (fv_named,fv_rel) auxdefs ml =
     match !(lookup_named_native_val id env) with
     | NVKnone ->
         *)
-        compile_named cenv env sigma univ auxdefs id
+        compile_named consider_accs cenv env sigma univ auxdefs id
 (*    | NVKvalue (v,d) -> assert false *)
   in
   let auxdefs = List.fold_right get_rel_val fv_rel auxdefs in
@@ -2194,24 +2238,24 @@ and apply_fv cenv env sigma univ (fv_named,fv_rel) auxdefs ml =
   let aux_name = fresh_lname cenv Anonymous in
   auxdefs, MLlet(aux_name, ml, mkMLapp (MLlocal aux_name) (Array.of_list (fv_rel@fv_named)))
 
-and compile_rel cenv env sigma univ auxdefs n =
+and compile_rel consider_accs cenv env sigma univ auxdefs n =
   let open Context.Rel.Declaration in
   let decl = lookup_rel n env in
   let n = List.length (rel_context env) - n in
   match decl with
   | LocalDef (_,t,_) ->
       let code = lambda_of_constr env sigma t in
-      let auxdefs,code = compile_with_fv cenv env sigma univ auxdefs None code in
+      let auxdefs,code = compile_with_fv consider_accs cenv env sigma univ auxdefs None code in
       Glet(Grel n, code)::auxdefs
   | LocalAssum _ ->
       Glet(Grel n, MLprimitive (Mk_rel n, [||]))::auxdefs
 
-and compile_named cenv env sigma univ auxdefs id =
+and compile_named consider_accs cenv env sigma univ auxdefs id =
   let open Context.Named.Declaration in
   match lookup_named id env with
   | LocalDef (_,t,_) ->
       let code = lambda_of_constr env sigma t in
-      let auxdefs,code = compile_with_fv cenv env sigma univ auxdefs None code in
+      let auxdefs,code = compile_with_fv consider_accs cenv env sigma univ auxdefs None code in
       Glet(Gnamed id, code)::auxdefs
   | LocalAssum _ ->
       Glet(Gnamed id, MLprimitive (Mk_var id, [||]))::auxdefs
@@ -2225,12 +2269,13 @@ let compile_constant cenv env sigma con cb =
       let is_lazy = is_lazy_constant env cb in
       let wrap t = if is_lazy then MLprimitive (Lazy, [|t|]) else t in
       let l = Constant.label con in
+      (* we assume accumulators as this function is used to compile libraries *)
       let auxdefs,code =
         if no_univs then
-          compile_with_fv ~wrap cenv env sigma (ULocal None) [] (Some l) code
+          compile_with_fv true ~wrap cenv env sigma (ULocal None) [] (Some l) code
         else
           let univ = fresh_univ cenv in
-          let (auxdefs,code) = compile_with_fv ~wrap cenv env sigma (ULocal (Some univ)) [] (Some l) code in
+          let (auxdefs,code) = compile_with_fv true ~wrap cenv env sigma (ULocal (Some univ)) [] (Some l) code in
           (auxdefs,mkMLlam [|univ|] code)
       in
       debug_native_compiler (fun () -> Pp.str "Generated mllambda code");
@@ -2283,7 +2328,7 @@ let compile_mind cenv mb mind stack =
         else [|get_ind_code j|]
       in
       (* FIXME: pass universes here *)
-      Glet(name, MLprimitive (Mk_ind, args))
+      Glet(name, MLprimitive (Mk_ind, args)) (* TODOME: check if this accu is used *)
     in
     let add_proj proj_arg acc _pb =
       let tbl = ob.mind_reloc_tbl in
@@ -2303,7 +2348,7 @@ let compile_mind cenv mb mind stack =
       let force_c =
         if mb.mind_finite <> CoFinite
         then MLlocal c_uid
-        else mkForceCofix cenv "" ind (MLlocal c_uid)
+        else mkForceCofix true cenv "" ind (MLlocal c_uid) (* we need accumulators anyways *)
       in
       let code = MLlet(cf_uid, force_c, code) in
       let gn = Gproj ("", ind, proj_arg) in
@@ -2369,7 +2414,7 @@ let compile_deps cenv env sigma prefix init t =
            aux env lvl init t
         | _ -> init
       in
-      let code = compile_constant cenv env sigma c cb in
+      let code = compile_constant cenv env sigma c cb in (* compile_mind_deps uses accumulators anyways *)
       let upd = {
         upd_info = nameref;
         upd_prefix = prefix;
@@ -2406,8 +2451,8 @@ let compile_deps cenv env sigma prefix init t =
   aux env 0 init t
 
 let compile_constant_field cenv env con acc cb =
-    let gl = compile_constant cenv env (empty_evars env) con cb in
-    gl@acc
+  let gl = compile_constant cenv env (empty_evars env) con cb in
+  gl@acc
 
 let compile_mind_field cenv mp l acc mb =
   let mind = MutInd.make2 mp l in
@@ -2440,8 +2485,8 @@ let mk_conv_code env sigma prefix t1 t2 =
   in
   let code1 = lambda_of_constr env sigma t1 in
   let code2 = lambda_of_constr env sigma t2 in
-  let (gl,code1) = compile_with_fv cenv env sigma UGlobal gl None code1 in
-  let (gl,code2) = compile_with_fv cenv env sigma UGlobal gl None code2 in
+  let (gl,code1) = compile_with_fv true cenv env sigma UGlobal gl None code1 in (* we assume accumulators for conversion code *)
+  let (gl,code2) = compile_with_fv true cenv env sigma UGlobal gl None code2 in
   let t1 = mk_internal_let "$t1" code1 in
   let t2 = mk_internal_let "$t2" code2 in
   let g1 = MLglobal (Ginternal "$t1") in
@@ -2455,23 +2500,31 @@ let mk_conv_code env sigma prefix t1 t2 =
   let symbols = get_cenv_symbols cenv in
   header::gl, symbols, (mind_updates, const_updates)
 
-let mk_norm_code env sigma prefix t =
+let mk_norm_code consider_accs env sigma prefix t =
   let cenv = make_cenv () in
   let gl, (mind_updates, const_updates) =
     let init = ([], empty_updates) in
     compile_deps cenv env sigma prefix init t
   in
   let code = lambda_of_constr env sigma t in
-  let (gl,code) = compile_with_fv cenv env sigma UGlobal gl None code in
+  let (gl,code) = compile_with_fv true cenv env sigma UGlobal gl None code in (* compile_deps uses accumulators anyways *)
   let t1 = mk_internal_let "$t1" code in
   let g1 = MLglobal (Ginternal "$t1") in
   let setref = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt1)",g1)) in
   let gl = List.rev (setref :: t1 :: gl) in
+  let gl =
+    Gcomment (if consider_accs then "code generated with accumulators" else "code generated without accumulators")
+    :: gl in
   let header = Glet(Ginternal "$symbols_tbl",
     MLprimitive (Get_symbols,
       [|MLglobal (Ginternal "0")|])) in
   let symbols = get_cenv_symbols cenv in
   header::gl, symbols, (mind_updates, const_updates)
+
+(* wrapper for the function above *)
+let mk_norm_code env sigma prefix t =
+  try mk_norm_code false env sigma prefix t with
+  | NeedsAccumulators -> mk_norm_code true env sigma prefix t
 
 let mk_library_header (symbols : Nativevalues.symbols) =
   [Glet(Ginternal "$symbols_tbl", MLprimitive (Str_decode, [|MLglobal (Ginternal ("\"" ^ (str_encode symbols) ^ "\""))|]))]
