@@ -1322,6 +1322,7 @@ let pr_synpure_vernac_expr v =
         (keyword "Attributes" ++ spc () ++
          pr_vernac_attributes attrs)
     )
+  | VernacDropCapturedOutput -> return (keyword "Drop Captured Output")
   | VernacProof (None, None) ->
     return (keyword "Proof")
   | VernacProof (None, Some e) ->
