@@ -736,6 +736,7 @@ let pr_printable = function
     keyword "Print Notation" ++ spc() ++ str ntn_key
   | PrintNotation (Constrexpr.InCustomEntry ent, ntn_key) ->
     keyword "Print Notation" ++ spc() ++ pr_qualid ent ++ str ntn_key
+  | PrintCapturedOutput -> keyword "Print Captured Output"
 
 let pr_using e =
   let rec aux = function
