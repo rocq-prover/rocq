@@ -532,6 +532,7 @@ type control_flag_r =
   | ControlAllocLimit of Control.kilowords
   | ControlFail
   | ControlSucceed
+  | ControlCaptureOutput
 
 type control_flag = control_flag_r CAst.t
 
