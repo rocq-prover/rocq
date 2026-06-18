@@ -1912,7 +1912,7 @@ let pp_mllam fmt l =
     for i = 1 to len - 1 do
       Format.fprintf fmt "@\nand ";
       pp_one_rec defs.(i)
-    done;
+    done
 
   and pp_blam fmt l =
     match l with
@@ -2082,9 +2082,8 @@ let pp_global fmt g =
         let cstr = string_of_construct "" ~constant:false ind tag in
         Format.fprintf fmt "  | %s %s@\n" cstr sig_str
       else
-        let sig_str = if arity > 0 then aux "of Nativevalues.t" (arity-1) else "" in
         let cstr = string_of_construct "" ~constant:true ind tag in
-        Format.fprintf fmt "  | %s %s@\n" cstr sig_str
+        Format.fprintf fmt "  | %s@\n" cstr
     in
     let pp_const_sigs fmt lar =
       Format.fprintf fmt "  | %s of Nativevalues.t@\n" (string_of_accu_construct "" ind);
