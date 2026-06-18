@@ -40,6 +40,20 @@ Proof.
   use_eapply foo.
 Qed.
 
+Section OldAliasOrientation.
+Variable P : nat -> nat -> Prop.
+
+Goal (forall a b, P a b -> True) ->
+     (forall k, k <= 0 -> True -> P k k) -> True.
+Proof.
+  move=> H HP.
+  eapply H.
+  apply: HP.
+  - exact: le_n.
+  - exact I.
+Qed.
+End OldAliasOrientation.
+
 (* The old implicit [A] is defined as [list ?T], where [?T] is fresh while
    reading the ssreflect term; [?T] must become a real destination goal. *)
 Goal True.

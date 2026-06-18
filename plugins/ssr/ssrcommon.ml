@@ -922,12 +922,14 @@ let applyn ?(beta=false) ~with_evars ?(first_goes_last=false)
       let _, ty = EConstr.decompose_prod_n_decls sigma n (Retyping.get_type_of env sigma t) in
       let args_for_rels, sigma = saturate t [] sigma n in
       let ty = EConstr.Vars.substl args_for_rels ty in
+      (* The installer wants the unreversed list, i.e. Rel 1, Rel 2, ... .
+         Install before unification so old evar aliases keep the orientation
+         found while interpreting the ssreflect term. *)
+      let sigma = install_old_evars args_for_rels sigma in
       let args_for_app = Array.rev_of_list args_for_rels in
       let t = EConstr.mkApp (t, args_for_app) in
       let t = if beta then Reductionops.whd_beta env sigma t else t in
       let sigma = unify_HO env sigma ty concl in
-      (* The installer wants the unreversed list, i.e. Rel 1, Rel 2, ... . *)
-      let sigma = install_old_evars args_for_rels sigma in
       (* Set our own set of goals. In theory saturate generates them in the
          right order, so we could just return sigma directly, but explicit is
          better than implicit. *)
