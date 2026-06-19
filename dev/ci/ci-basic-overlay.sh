@@ -472,9 +472,6 @@ project lean_importer "https://github.com/coq-community/rocq-lean-import" "maste
 project smtcoq "https://github.com/smtcoq/smtcoq" "coq-master"
 # Contact @ckeller on github
 
-project smtcoq_trakt "https://github.com/smtcoq/smtcoq" "with-trakt-coq-master"
-# Contact @ckeller on github
-
 ########################################################################
 # Tactician
 ########################################################################
@@ -502,5 +499,5 @@ project autosubst_ocaml "https://github.com/uds-psl/autosubst-ocaml" "master"
 ########################################################################
 # Trakt
 ########################################################################
-project trakt "https://github.com/rocq-trakt/trakt" "coq-master"
-# Contact @ckeller on github
+project trakt "https://github.com/rocq-trakt/trakt" "master"
+# Contact @ckeller, @lafeychine on github
