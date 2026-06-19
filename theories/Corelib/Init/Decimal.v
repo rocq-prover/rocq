@@ -76,6 +76,20 @@ Register uint as num.uint.type.
 Register int as num.int.type.
 Register decimal as num.decimal.type.
 
+(** Little-endian wrappers: same digit representation, reversed order
+    (least significant digit first). Used as target types for
+    [Number Notation] to trigger little-endian parsing/printing. *)
+
+#[projections(primitive)]
+Record luint := { luint_IsLittleEndian : uint }.
+#[projections(primitive)]
+Record lint := { lint_IsLittleEndian : int }.
+
+Register luint as num.luint.type.
+Register lint as num.lint.type.
+Register luint_IsLittleEndian as num.luint.IsLittleEndian.
+Register lint_IsLittleEndian as num.lint.IsLittleEndian.
+
 Fixpoint nb_digits d :=
   match d with
   | Nil => O

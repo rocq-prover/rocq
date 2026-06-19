@@ -137,6 +137,19 @@ type number_ty =
 type pos_neg_int63_ty =
   { pos_neg_int63_ty : Names.inductive }
 
+type little_int_ty =
+  { big : int_ty;
+    dec_luint : Names.inductive;
+    dec_lint : Names.inductive;
+    hex_luint : Names.inductive;
+    hex_lint : Names.inductive;
+    luint : Names.inductive;
+    lint : Names.inductive }
+
+type little_number_ty =
+  { little_int : little_int_ty;
+    lnumber : Names.inductive }
+
 type target_kind =
   | Int of int_ty (* Corelib.Init.Number.int + uint *)
   | UInt of int_ty (* Corelib.Init.Number.uint *)
@@ -144,6 +157,9 @@ type target_kind =
   | Int63 of pos_neg_int63_ty (* Corelib.Numbers.Cyclic.Int63.PrimInt63.pos_neg_int63 *)
   | Float64 (* Corelib.Floats.PrimFloat.float *)
   | Number of number_ty (* Corelib.Init.Number.number + uint + int *)
+  | LInt of little_int_ty (* Corelib.Init.Number.lint (little-endian) *)
+  | LUInt of little_int_ty (* Corelib.Init.Number.luint (little-endian) *)
+  | LNumber of little_number_ty (* not yet implemented *)
 
 type string_target_kind =
   | ListByte
@@ -688,6 +704,103 @@ let rawnum_of_rocqint c =
 
 (***********************************************************************)
 
+(** ** Little-endian digit construction/destruction.
+    Same digit types, but built/read in reversed order. *)
+
+let rocquint_of_rawnum_little esig inds c n =
+  let uint = match c with CDec -> inds.big.dec_uint | CHex -> inds.big.hex_uint in
+  let nil = mkConstruct esig (uint,1) in
+  match n with None -> nil | Some n ->
+  let str = NumTok.UnsignedNat.to_string n in
+  let str = match c with
+    | CDec -> str
+    | CHex -> String.sub str 2 (String.length str - 2) in
+  let len = String.length str in
+  let rec do_chars i acc =
+    if i >= len then acc
+    else
+      let dg = mkConstruct esig (uint, digit_of_char str.[i]) in
+      do_chars (i+1) (mkApp(dg,[|acc|]))
+  in
+  do_chars 0 nil
+
+let rocqint_of_rawnum_little esig inds c (sign,n) =
+  let ind = match c with CDec -> inds.big.dec_int | CHex -> inds.big.hex_int in
+  let uint = rocquint_of_rawnum_little esig inds c (Some n) in
+  let pos_neg = match sign with SPlus -> 1 | SMinus -> 2 in
+  mkApp (mkConstruct esig (ind, pos_neg), [|uint|])
+
+let mkLittleDecHex esig inds c n =
+  let wrap ind n = mkApp (mkConstruct esig (ind, 1), [|n|]) in
+  match c with
+  | CDec ->
+    let n = wrap inds.dec_luint n in
+    mkApp (mkConstruct esig (inds.luint, 1), [|n|])
+  | CHex ->
+    let n = wrap inds.hex_luint n in
+    mkApp (mkConstruct esig (inds.luint, 2), [|n|])
+
+let mkLittleIntDecHex esig inds c n =
+  let wrap ind n = mkApp (mkConstruct esig (ind, 1), [|n|]) in
+  match c with
+  | CDec ->
+    let n = wrap inds.dec_lint n in
+    mkApp (mkConstruct esig (inds.lint, 1), [|n|])
+  | CHex ->
+    let n = wrap inds.hex_lint n in
+    mkApp (mkConstruct esig (inds.lint, 2), [|n|])
+
+let rocquint_of_rawnum_little esig inds n =
+  let c = NumTok.UnsignedNat.classify n in
+  let n = rocquint_of_rawnum_little esig inds c (Some n) in
+  mkLittleDecHex esig inds c n
+
+let rocqint_of_rawnum_little esig inds n =
+  let c = NumTok.SignedNat.classify n in
+  let n = rocqint_of_rawnum_little esig inds c n in
+  mkLittleIntDecHex esig inds c n
+
+let rawnum_of_rocquint_little cl c =
+  let rec of_uint_loop c acc =
+    match TokenValue.kind c with
+    | TConstruct ((_, 1), _) (* Nil *) -> acc
+    | TConstruct ((_, n), [a]) (* D0 to Df *) ->
+      of_uint_loop a (char_of_digit n :: acc)
+    | _ -> raise NotAValidPrimToken
+  in
+  let chars = of_uint_loop c [] in
+  if chars = [] then raise NotAValidPrimToken
+  else
+    let buf = Buffer.create 64 in
+    if cl = CHex then (Buffer.add_char buf '0'; Buffer.add_char buf 'x');
+    List.iter (Buffer.add_char buf) chars;
+    NumTok.UnsignedNat.of_string (Buffer.contents buf)
+
+let rawnum_of_rocqint_little cl c =
+  match TokenValue.kind c with
+  | TConstruct ((_, 1), [c']) -> (SPlus, rawnum_of_rocquint_little cl c')
+  | TConstruct ((_, 2), [c']) -> (SMinus, rawnum_of_rocquint_little cl c')
+  | _ -> raise NotAValidPrimToken
+
+let destLittleDecHex c = match TokenValue.kind c with
+  | TConstruct ((_, 1), [c']) -> CDec, c'
+  | TConstruct ((_, 2), [c']) -> CHex, c'
+  | _ -> raise NotAValidPrimToken
+
+let unwrap_record c = match TokenValue.kind c with
+  | TConstruct ((_, 1), [c']) -> c'
+  | _ -> raise NotAValidPrimToken
+
+let rawnum_of_rocquint_little c =
+  let cl, c = destLittleDecHex c in
+  rawnum_of_rocquint_little cl (unwrap_record c)
+
+let rawnum_of_rocqint_little c =
+  let cl, c = destLittleDecHex c in
+  rawnum_of_rocqint_little cl (unwrap_record c)
+
+(***********************************************************************)
+
 (** ** Conversion between Rocq [Z] and internal bigint *)
 
 (** First, [positive] from/to bigint *)
@@ -835,10 +948,15 @@ let interp o ?loc n =
        z_of_bigint esig z_pos_ty (NumTok.SignedNat.to_bigint n)
     | Int63 pos_neg_int63_ty, Some n ->
        interp_int63 ?loc esig pos_neg_int63_ty.pos_neg_int63_ty (NumTok.SignedNat.to_bigint n)
-    | (Int _ | UInt _ | Z _ | Int63 _), _ ->
+    | LInt little_int_ty, Some n ->
+       rocqint_of_rawnum_little esig little_int_ty n
+    | LUInt little_int_ty, Some (SPlus, n) ->
+       rocquint_of_rawnum_little esig little_int_ty n
+    | (Int _ | UInt _ | Z _ | Int63 _ | LInt _ | LUInt _), _ ->
        no_such_prim_token "number" ?loc o.ty_name
     | Float64, _ -> interp_float64 ?loc n
     | Number number_ty, _ -> rocqnumber_of_rawnum esig number_ty n
+    | LNumber _, _ -> assert false (* not yet implemented *)
   in
   let sigma = !sigma in
   let sigma,to_ty = Evd.fresh_global env sigma o.to_ty in
@@ -864,6 +982,9 @@ let uninterp ~print_float o n =
       | (Int63 _, c) -> NumTok.Signed.of_bigint CDec (bigint_of_rocqpos_neg_int63 c)
       | (Float64, c) -> uninterp_float64 ~print_float c
       | (Number _, c) -> rawnum_of_rocqnumber c
+      | (LInt _, c) -> NumTok.Signed.of_int (rawnum_of_rocqint_little c)
+      | (LUInt _, c) -> NumTok.Signed.of_nat (rawnum_of_rocquint_little c)
+      | (LNumber _, _) -> assert false
     end o n
 end
 
