@@ -782,14 +782,13 @@ let rec uniquize = function
 
 type occ_state = {
   max_occ : int;
-  nocc : int ref;
-  occ_set : bool array;
+  nocc : int;
+  occ_set : bool array; (* immutable after creation *)
   use_occ : bool;
-  skip_occ : bool ref;
+  skip_occ : bool;
 }
 
 let create_occ_state occ =
-  let nocc = ref 0 and skip_occ = ref false in
   let use_occ, occ_list = match occ with
   | Some (true, ol) -> ol = [], ol
   | Some (false, ol) -> ol <> [], ol
@@ -797,13 +796,16 @@ let create_occ_state occ =
   let max_occ = List.fold_right max occ_list 0 in
   let occ_set = Array.make max_occ (not use_occ) in
   let _ = List.iter (fun i -> occ_set.(i - 1) <- use_occ) occ_list in
-  let _ = if max_occ = 0 then skip_occ := use_occ in
-  { max_occ; nocc; occ_set; skip_occ; use_occ }
+  let skip_occ = if max_occ = 0 then use_occ else false in
+  { max_occ; nocc = 0; occ_set; skip_occ; use_occ }
 
-let subst_occ { nocc; max_occ; occ_set; use_occ; skip_occ } =
-  incr nocc;
-  if !nocc = max_occ then skip_occ := use_occ;
-  if !nocc <= max_occ then occ_set.(!nocc - 1) else not use_occ
+let subst_occ occ_ref =
+  let occ = !occ_ref in
+  let { nocc; max_occ; occ_set; use_occ } = occ in
+  let nocc = nocc + 1 in
+  let () = occ_ref := { !occ_ref with nocc } in
+  let () = if Int.equal nocc max_occ then occ_ref := { !occ_ref with skip_occ = use_occ } in
+  if nocc <= max_occ then occ_set.(nocc - 1) else not use_occ
 
 let match_constr_universes env sigma x y =
   match EConstr.eq_constr_universes env sigma x y with
@@ -890,7 +892,7 @@ let subst_tpattern env sigma ise uc u occ_state c h k =
   let match_EQ f = match_EQ env !evd (ise, u) f in
   let pn = Array.length pa in
   let rec subst_loop (env,h as acc) c' =
-    if !(occ_state.skip_occ) then c' else
+    if !occ_state.skip_occ then c' else
     let f, a = splay_app sigma c' in
     let test () = match match_EQ f with
       | Some sigma ->
@@ -922,7 +924,7 @@ let subst_tpattern env sigma ise uc u occ_state c h k =
   Evd.ustate !evd, c
 
 let find_all_instances sigma0 { tpat_sigma = ise; tpat_pats = upats } : unit find_P =
-  let occ_state = create_occ_state None in
+  let occ_state = ref (create_occ_state None) in
   fun env c h ~k ->
   let instances = ref [] in
   let on_instance x = instances := !instances @ [x] in
@@ -964,7 +966,7 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~upat_that_matched ~upats_origin ~u
   in
   let expl, sigma, uc, u = snd upat_that_matched in
 (*   pp(lazy(str"sigma@tmatch=" ++ pr_evar_map None sigma)); *)
-  if !(occ_state.skip_occ) then ((*ignore(k env u.up_t 0);*) c)
+  if !occ_state.skip_occ then ((*ignore(k env u.up_t 0);*) c)
   else
     let uc, c = subst_tpattern env sigma ise uc u occ_state c h k in
     (* Fixup upat_that_matched to record universe unifications for followup EQ matches in later occurrences of a pattern *)
@@ -974,20 +976,21 @@ let find_tpattern ~disable_FO ~raise_NoMatch ~upat_that_matched ~upats_origin ~u
     in
     c
 
-let conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats { max_occ; nocc } : conclude = fun () ->
+let conclude_tpattern ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats occ : conclude = fun () ->
+  let { max_occ; nocc } = !occ in
   let env, (c, sigma, uc, ({up_f = pf; up_a = pa} as u)) =
     match !upat_that_matched with
     | Some (env, x) -> env, x | None when raise_NoMatch -> raise NoMatch
     | None -> CErrors.anomaly (str"companion function never called.") in
   let p' = EConstr.mkApp (pf, pa) in
-  if max_occ <= !nocc then p', u.up_dir, (c, sigma, uc, u.up_t)
-  else ssrfail env sigma upats_origin upats (SsrOccMissing (!nocc, max_occ, p'))
+  if max_occ <= nocc then p', u.up_dir, (c, sigma, uc, u.up_t)
+  else ssrfail env sigma upats_origin upats (SsrOccMissing (nocc, max_occ, p'))
 
 (* upats_origin makes a better error message only            *)
 let mk_tpattern_matcher
   ?(raise_NoMatch=false) ?upats_origin sigma0 occ { tpat_sigma = ise; tpat_pats = upats }
 =
-  let occ_state = create_occ_state occ in
+  let occ_state = ref (create_occ_state occ) in
   let upat_that_matched = ref None in
   let disable_FO = occ = Some(true,[1]) in
   find_tpattern ~disable_FO ~raise_NoMatch ~upat_that_matched ~upats_origin ~upats sigma0 ise occ_state,
