@@ -688,22 +688,20 @@ let ssrinstancesofrule ist dir arg =
   let rigid ev = Evd.mem sigma0 ev in
   let rule = interp_term env0 sigma0 ist arg in
   let r_sigma, rules = rwprocess_rule env0 dir rule in
-  let find, conclude =
-    let upats_origin = dir, (snd rule) in
+  let find =
     let rpat pats (d, r, lhs, rhs) =
       let r = Reductionops.nf_evar r_sigma r in
       let lhs = Reductionops.nf_evar r_sigma lhs in
       mk_tpattern ~ok:(rw_progress rhs) ~rigid env0 r d lhs pats
     in
     let rpats = List.fold_left rpat (empty_tpatterns r_sigma) rules in
-    mk_tpattern_matcher ~all_instances:true ~raise_NoMatch:true sigma0 None ~upats_origin rpats in
+    find_all_instances sigma0 rpats
+  in
   let print env p c _ = Feedback.msg_info Pp.(hov 1 (str"instance:" ++ spc() ++ pr_econstr_env env r_sigma p ++ spc() ++ str "matches:" ++ spc() ++ pr_econstr_env env r_sigma c)); c in
-  Feedback.msg_info Pp.(str"BEGIN INSTANCES");
-  try
-    while true do
-      ignore(find env0 (Reductionops.nf_evar sigma0 concl0) 1 ~k:print)
-    done; raise NoMatch
-  with NoMatch -> Feedback.msg_info Pp.(str"END INSTANCES"); Tacticals.tclIDTAC
+  let () = Feedback.msg_info Pp.(str"BEGIN INSTANCES") in
+  let () = find env0 (Reductionops.nf_evar sigma0 concl0) 1 ~k:print in
+  let () = Feedback.msg_info Pp.(str"END INSTANCES") in
+  Tacticals.tclIDTAC
   end
 
 let ipat_rewrite occ dir c = Proofview.Goal.enter begin fun gl ->

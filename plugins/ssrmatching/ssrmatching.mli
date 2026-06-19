@@ -159,8 +159,8 @@ val mk_tpattern :
     [true] and if the pattern did not match
   @raise UserEerror if the raise_NoMatch flag given to [mk_tpattern_matcher] is
     [false] and if the pattern did not match *)
-type find_P =
-  Environ.env -> EConstr.t -> int -> k:subst -> EConstr.t
+type 'a find_P =
+  Environ.env -> EConstr.t -> int -> k:subst -> 'a
 
 (** [conclude ()] asserts that all mentioned occurrences have been visited.
   @return the instance of the pattern, the evarmap after the pattern
@@ -176,10 +176,9 @@ type conclude =
     be passed to tune the [UserError] eventually raised (useful if the
     pattern is coming from the LHS/RHS of an equation) *)
 val mk_tpattern_matcher :
-  ?all_instances:bool ->
   ?raise_NoMatch:bool ->
   ?upats_origin:ssrdir * EConstr.t ->
-  evar_map -> occ -> tpatterns -> find_P * conclude
+  evar_map -> occ -> tpatterns -> EConstr.t find_P * conclude
 
 (** Example of [mk_tpattern_matcher] to implement
     [rewrite \{occ\}\[in t\]rules].
@@ -205,6 +204,8 @@ val mk_tpattern_matcher :
   let concl = eval_pattern env0 sigma0 concl0 pat occ find_R in
   let (d, r), rdx = conclude concl in
 ]} *)
+
+val find_all_instances : Evd.evar_map -> tpatterns -> unit find_P
 
 (* convenience shortcut: [fill_occ_term env concl sigma occ (sigma,t)] returns
  * [concl] where [occ] occurrences of [t] have been replaced
