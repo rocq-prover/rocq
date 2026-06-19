@@ -70,6 +70,19 @@ type number_ty =
 type pos_neg_int63_ty =
   { pos_neg_int63_ty : Names.inductive }
 
+type little_int_ty =
+  { big : int_ty;
+    dec_luint : Names.inductive;
+    dec_lint : Names.inductive;
+    hex_luint : Names.inductive;
+    hex_lint : Names.inductive;
+    luint : Names.inductive;
+    lint : Names.inductive }
+
+type little_number_ty =
+  { little_int : little_int_ty;
+    lnumber : Names.inductive }
+
 type target_kind =
   | Int of int_ty (* Corelib.Init.Number.int + uint *)
   | UInt of int_ty (* Corelib.Init.Number.uint *)
@@ -77,6 +90,9 @@ type target_kind =
   | Int63 of pos_neg_int63_ty (* Corelib.Numbers.Cyclic.Int63.PrimInt63.pos_neg_int63 *)
   | Float64 (* Corelib.Floats.PrimFloat.float *)
   | Number of number_ty (* Corelib.Init.Number.number + uint + int *)
+  | LInt of little_int_ty (* Corelib.Init.Number.lint (little-endian) *)
+  | LUInt of little_int_ty (* Corelib.Init.Number.luint (little-endian) *)
+  | LNumber of little_number_ty (* not yet implemented *)
 
 type string_target_kind =
   | ListByte

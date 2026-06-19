@@ -240,6 +240,64 @@ Definition to_num_uint n := Number.UIntDecimal (to_uint n).
 
 Definition to_num_hex_uint n := Number.UIntHexadecimal (to_hex_uint n).
 
+(** ** Little-endian conversion functions *)
+
+Fixpoint of_luint_acc (d:Decimal.uint)(acc weight:nat) :=
+  match d with
+  | Decimal.Nil => acc
+  | Decimal.D0 d => of_luint_acc d acc (tail_mul ten weight)
+  | Decimal.D1 d => of_luint_acc d (tail_add weight acc) (tail_mul ten weight)
+  | Decimal.D2 d => of_luint_acc d (tail_addmul acc (S (S O)) weight) (tail_mul ten weight)
+  | Decimal.D3 d => of_luint_acc d (tail_addmul acc (S (S (S O))) weight) (tail_mul ten weight)
+  | Decimal.D4 d => of_luint_acc d (tail_addmul acc (S (S (S (S O)))) weight) (tail_mul ten weight)
+  | Decimal.D5 d => of_luint_acc d (tail_addmul acc (S (S (S (S (S O))))) weight) (tail_mul ten weight)
+  | Decimal.D6 d => of_luint_acc d (tail_addmul acc (S (S (S (S (S (S O)))))) weight) (tail_mul ten weight)
+  | Decimal.D7 d => of_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S O))))))) weight) (tail_mul ten weight)
+  | Decimal.D8 d => of_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S O)))))))) weight) (tail_mul ten weight)
+  | Decimal.D9 d => of_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S (S O))))))))) weight) (tail_mul ten weight)
+  end.
+
+Definition of_luint (d:Decimal.luint) :=
+  of_luint_acc (Decimal.luint_IsLittleEndian d) O (S O).
+
+Definition to_luint n :=
+  {| Decimal.luint_IsLittleEndian := to_little_uint n Decimal.zero |}.
+
+Fixpoint of_hex_luint_acc (d:Hexadecimal.uint)(acc weight:nat) :=
+  match d with
+  | Hexadecimal.Nil => acc
+  | Hexadecimal.D0 d => of_hex_luint_acc d acc (tail_mul sixteen weight)
+  | Hexadecimal.D1 d => of_hex_luint_acc d (tail_add weight acc) (tail_mul sixteen weight)
+  | Hexadecimal.D2 d => of_hex_luint_acc d (tail_addmul acc (S (S O)) weight) (tail_mul sixteen weight)
+  | Hexadecimal.D3 d => of_hex_luint_acc d (tail_addmul acc (S (S (S O))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.D4 d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S O)))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.D5 d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S O))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.D6 d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S O)))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.D7 d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S O))))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.D8 d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S O)))))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.D9 d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S (S O))))))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.Da d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S (S (S O)))))))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.Db d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S (S (S (S O))))))))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.Dc d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S (S (S (S (S O)))))))))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.Dd d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S (S (S (S (S (S O))))))))))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.De d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S (S (S (S (S (S (S O)))))))))))))) weight) (tail_mul sixteen weight)
+  | Hexadecimal.Df d => of_hex_luint_acc d (tail_addmul acc (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S O))))))))))))))) weight) (tail_mul sixteen weight)
+  end.
+
+Definition of_hex_luint (d:Hexadecimal.luint) :=
+  of_hex_luint_acc (Hexadecimal.luint_IsLittleEndian d) O (S O).
+
+Definition to_hex_luint n :=
+  {| Hexadecimal.luint_IsLittleEndian := to_little_hex_uint n Hexadecimal.zero |}.
+
+Definition of_num_luint (d:Number.luint) :=
+  match d with
+  | Number.LUIntDecimal d => of_luint d
+  | Number.LUIntHexadecimal d => of_hex_luint d
+  end.
+
+Definition to_num_luint n := Number.LUIntDecimal (to_luint n).
+
 Definition of_int (d:Decimal.int) : option nat :=
   match Decimal.norm d with
     | Decimal.Pos u => Some (of_uint u)

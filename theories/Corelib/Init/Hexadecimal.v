@@ -80,6 +80,16 @@ Register uint as num.hexadecimal_uint.type.
 Register int as num.hexadecimal_int.type.
 Register hexadecimal as num.hexadecimal.type.
 
+#[projections(primitive)]
+Record luint := { luint_IsLittleEndian : uint }.
+#[projections(primitive)]
+Record lint := { lint_IsLittleEndian : int }.
+
+Register luint as num.hexadecimal_luint.type.
+Register lint as num.hexadecimal_lint.type.
+Register luint_IsLittleEndian as num.hexadecimal_luint.IsLittleEndian.
+Register lint_IsLittleEndian as num.hexadecimal_lint.IsLittleEndian.
+
 Fixpoint nb_digits d :=
   match d with
   | Nil => O
