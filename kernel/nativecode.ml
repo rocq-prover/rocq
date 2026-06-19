@@ -1848,9 +1848,9 @@ let pp_mllam fmt l =
     match l with
     | MLint i when i >= 0 -> Format.fprintf fmt "%i" i
     | MLint i -> Format.fprintf fmt "(neg %i)" (-i) (* i < 0 *)
-    | MLuint i -> Format.fprintf fmt "%s" (Uint63.compile i)
-    | MLfloat f -> Format.fprintf fmt "%s" (Float64.compile f)
-    | MLstring s -> Format.fprintf fmt "%s" (Pstring.compile s)
+    | MLuint i -> Format.fprintf fmt "%s" (Uint63.compile_mlf i)
+    | MLfloat f -> Format.fprintf fmt "%s" (Float64.compile_mlf f)
+    | MLstring s -> Format.fprintf fmt "%s" (Pstring.compile_mlf s)
     | MLlam(ids,body) ->
         Format.fprintf fmt "@[<2>(lambda (%a) @ %a)@]"
           pp_ldecls ids pp_mllam body

@@ -42,8 +42,11 @@ let hash i =
     (* conversion of an uint63 to a string *)
 let to_string i = Int64.to_string i
 
+(* Compiles an unsigned int to OCaml code *)
+let compile i = Printf.sprintf "Uint63.of_int64 (%LiL)" i
+
 (* Compiles an unsigned int to malfunction code *)
-let compile i =
+let compile_mlf i =
   if Int64.compare i 0L >= 0 then Printf.sprintf "(apply (global &Uint63 &of_int64) %Li.i64)" i (* the internal value (a signed integer) is positive *)
   else Printf.sprintf "(apply (global &Uint63 &of_int64) (neg.i64 %Li.i64))" (Int64.neg i) (* the internal value is negative and we must take it into account *)
 
