@@ -598,21 +598,34 @@ let char_of_digit n =
   if n <= 11 then Char.chr (n-2 + Char.code '0')
   else Char.chr (n-12 + Char.code 'a')
 
-let rocquint_of_rawnum esig inds c n =
-  let uint = match c with CDec -> inds.dec_uint | CHex -> inds.hex_uint in
+let rocquint_of_rawnum_gen ~reverse esig uint c n =
   let nil = mkConstruct esig (uint,1) in
   match n with None -> nil | Some n ->
   let str = NumTok.UnsignedNat.to_string n in
   let str = match c with
     | CDec -> str
     | CHex -> String.sub str 2 (String.length str - 2) in  (* cut "0x" *)
-  let rec do_chars s i acc =
-    if i < 0 then acc
-    else
-      let dg = mkConstruct esig (uint, digit_of_char s.[i]) in
-      do_chars s (i-1) (mkApp(dg,[|acc|]))
-  in
-  do_chars str (String.length str - 1) nil
+  let len = String.length str in
+  if reverse then
+    let rec do_chars i acc =
+      if i >= len then acc
+      else
+        let dg = mkConstruct esig (uint, digit_of_char str.[i]) in
+        do_chars (i+1) (mkApp(dg,[|acc|]))
+    in
+    do_chars 0 nil
+  else
+    let rec do_chars i acc =
+      if i < 0 then acc
+      else
+        let dg = mkConstruct esig (uint, digit_of_char str.[i]) in
+        do_chars (i-1) (mkApp(dg,[|acc|]))
+    in
+    do_chars (len - 1) nil
+
+let rocquint_of_rawnum esig inds c n =
+  let uint = match c with CDec -> inds.dec_uint | CHex -> inds.hex_uint in
+  rocquint_of_rawnum_gen ~reverse:false esig uint c n
 
 let rocqint_of_rawnum esig inds c (sign,n) =
   let ind = match c with CDec -> inds.dec_int | CHex -> inds.hex_int in
@@ -650,23 +663,30 @@ let rocqint_of_rawnum esig inds n =
   let n = rocqint_of_rawnum esig inds c n in
   mkDecHex esig inds.int c n
 
-let rawnum_of_rocquint cl c =
-  let rec of_uint_loop c buf =
+let collect_digits c =
+  let rec loop c acc =
     match TokenValue.kind c with
-    | TConstruct ((_, 1), _) (* Nil *) -> ()
+    | TConstruct ((_, 1), _) (* Nil *) -> acc
     | TConstruct ((_, n), [a]) (* D0 to Df *) ->
-      let () = Buffer.add_char buf (char_of_digit n) in
-      of_uint_loop a buf
+      loop a (char_of_digit n :: acc)
     | _ -> raise NotAValidPrimToken
   in
-  let buf = Buffer.create 64 in
-  if cl = CHex then (Buffer.add_char buf '0'; Buffer.add_char buf 'x');
-  let () = of_uint_loop c buf in
-  if Int.equal (Buffer.length buf) (match cl with CDec -> 0 | CHex -> 2) then
+  loop c []
+
+let rawnum_of_digits ~reverse cl chars =
+  if chars = [] then
     (* To avoid ambiguities between Nil and (D0 Nil), we choose
        to not display Nil alone as "0" *)
     raise NotAValidPrimToken
-  else NumTok.UnsignedNat.of_string (Buffer.contents buf)
+  else
+    let chars = if reverse then List.rev chars else chars in
+    let buf = Buffer.create 64 in
+    if cl = CHex then (Buffer.add_char buf '0'; Buffer.add_char buf 'x');
+    List.iter (Buffer.add_char buf) chars;
+    NumTok.UnsignedNat.of_string (Buffer.contents buf)
+
+let rawnum_of_rocquint cl c =
+  rawnum_of_digits ~reverse:true cl (collect_digits c)
 
 let rawnum_of_rocqint cl c =
   match TokenValue.kind c with
@@ -709,20 +729,7 @@ let rawnum_of_rocqint c =
 
 let rocquint_of_rawnum_little esig inds c n =
   let uint = match c with CDec -> inds.big.dec_uint | CHex -> inds.big.hex_uint in
-  let nil = mkConstruct esig (uint,1) in
-  match n with None -> nil | Some n ->
-  let str = NumTok.UnsignedNat.to_string n in
-  let str = match c with
-    | CDec -> str
-    | CHex -> String.sub str 2 (String.length str - 2) in
-  let len = String.length str in
-  let rec do_chars i acc =
-    if i >= len then acc
-    else
-      let dg = mkConstruct esig (uint, digit_of_char str.[i]) in
-      do_chars (i+1) (mkApp(dg,[|acc|]))
-  in
-  do_chars 0 nil
+  rocquint_of_rawnum_gen ~reverse:true esig uint c n
 
 let rocqint_of_rawnum_little esig inds c (sign,n) =
   let ind = match c with CDec -> inds.big.dec_int | CHex -> inds.big.hex_int in
@@ -730,74 +737,38 @@ let rocqint_of_rawnum_little esig inds c (sign,n) =
   let pos_neg = match sign with SPlus -> 1 | SMinus -> 2 in
   mkApp (mkConstruct esig (ind, pos_neg), [|uint|])
 
-let mkLittleDecHex esig inds c n =
-  let wrap ind n = mkApp (mkConstruct esig (ind, 1), [|n|]) in
-  match c with
-  | CDec ->
-    let n = wrap inds.dec_luint n in
-    mkApp (mkConstruct esig (inds.luint, 1), [|n|])
-  | CHex ->
-    let n = wrap inds.hex_luint n in
-    mkApp (mkConstruct esig (inds.luint, 2), [|n|])
-
-let mkLittleIntDecHex esig inds c n =
-  let wrap ind n = mkApp (mkConstruct esig (ind, 1), [|n|]) in
-  match c with
-  | CDec ->
-    let n = wrap inds.dec_lint n in
-    mkApp (mkConstruct esig (inds.lint, 1), [|n|])
-  | CHex ->
-    let n = wrap inds.hex_lint n in
-    mkApp (mkConstruct esig (inds.lint, 2), [|n|])
+let mkLittleDecHex esig wrap_ind outer_ind c n =
+  let wrap n = mkApp (mkConstruct esig (wrap_ind, 1), [|n|]) in
+  mkDecHex esig outer_ind c (wrap n)
 
 let rocquint_of_rawnum_little esig inds n =
   let c = NumTok.UnsignedNat.classify n in
   let n = rocquint_of_rawnum_little esig inds c (Some n) in
-  mkLittleDecHex esig inds c n
+  let wrap_ind = match c with CDec -> inds.dec_luint | CHex -> inds.hex_luint in
+  mkLittleDecHex esig wrap_ind inds.luint c n
 
 let rocqint_of_rawnum_little esig inds n =
   let c = NumTok.SignedNat.classify n in
   let n = rocqint_of_rawnum_little esig inds c n in
-  mkLittleIntDecHex esig inds c n
-
-let rawnum_of_rocquint_little cl c =
-  let rec of_uint_loop c acc =
-    match TokenValue.kind c with
-    | TConstruct ((_, 1), _) (* Nil *) -> acc
-    | TConstruct ((_, n), [a]) (* D0 to Df *) ->
-      of_uint_loop a (char_of_digit n :: acc)
-    | _ -> raise NotAValidPrimToken
-  in
-  let chars = of_uint_loop c [] in
-  if chars = [] then raise NotAValidPrimToken
-  else
-    let buf = Buffer.create 64 in
-    if cl = CHex then (Buffer.add_char buf '0'; Buffer.add_char buf 'x');
-    List.iter (Buffer.add_char buf) chars;
-    NumTok.UnsignedNat.of_string (Buffer.contents buf)
-
-let rawnum_of_rocqint_little cl c =
-  match TokenValue.kind c with
-  | TConstruct ((_, 1), [c']) -> (SPlus, rawnum_of_rocquint_little cl c')
-  | TConstruct ((_, 2), [c']) -> (SMinus, rawnum_of_rocquint_little cl c')
-  | _ -> raise NotAValidPrimToken
-
-let destLittleDecHex c = match TokenValue.kind c with
-  | TConstruct ((_, 1), [c']) -> CDec, c'
-  | TConstruct ((_, 2), [c']) -> CHex, c'
-  | _ -> raise NotAValidPrimToken
+  let wrap_ind = match c with CDec -> inds.dec_lint | CHex -> inds.hex_lint in
+  mkLittleDecHex esig wrap_ind inds.lint c n
 
 let unwrap_record c = match TokenValue.kind c with
   | TConstruct ((_, 1), [c']) -> c'
   | _ -> raise NotAValidPrimToken
 
 let rawnum_of_rocquint_little c =
-  let cl, c = destLittleDecHex c in
-  rawnum_of_rocquint_little cl (unwrap_record c)
+  let cl, c = destDecHex c in
+  rawnum_of_digits ~reverse:false cl (collect_digits (unwrap_record c))
 
 let rawnum_of_rocqint_little c =
-  let cl, c = destLittleDecHex c in
-  rawnum_of_rocqint_little cl (unwrap_record c)
+  let cl, c = destDecHex c in
+  let sign, c = match TokenValue.kind (unwrap_record c) with
+    | TConstruct ((_, 1), [c']) -> SPlus, c'
+    | TConstruct ((_, 2), [c']) -> SMinus, c'
+    | _ -> raise NotAValidPrimToken
+  in
+  (sign, rawnum_of_digits ~reverse:false cl (collect_digits c))
 
 (***********************************************************************)
 
