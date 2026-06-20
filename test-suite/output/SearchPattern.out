@@ -23,42 +23,45 @@ Decimal.decimal_beq: Decimal.decimal -> Decimal.decimal -> bool
 Decimal.signed_int_beq: Decimal.signed_int -> Decimal.signed_int -> bool
 Decimal.uint_beq: Decimal.uint -> Decimal.uint -> bool
 Nat.two: nat
-Nat.zero: nat
 Nat.one: nat
+Nat.zero: nat
 O: nat
-Nat.double: nat -> nat
-Nat.sqrt: nat -> nat
 Nat.div2: nat -> nat
+Nat.square: nat -> nat
+Nat.succ: nat -> nat
+Nat.sqrt: nat -> nat
 Nat.log2: nat -> nat
 Nat.pred: nat -> nat
-Nat.square: nat -> nat
 S: nat -> nat
-Nat.succ: nat -> nat
-Nat.ldiff: nat -> nat -> nat
-Nat.add: nat -> nat -> nat
-Nat.land: nat -> nat -> nat
-Nat.lxor: nat -> nat -> nat
-Nat.sub: nat -> nat -> nat
-Nat.mul: nat -> nat -> nat
-Nat.tail_mul: nat -> nat -> nat
-Nat.max: nat -> nat -> nat
-Nat.tail_add: nat -> nat -> nat
-Nat.pow: nat -> nat -> nat
-Nat.min: nat -> nat -> nat
-Nat.modulo: nat -> nat -> nat
+Nat.double: nat -> nat
 Nat.div: nat -> nat -> nat
 Nat.lor: nat -> nat -> nat
+Nat.land: nat -> nat -> nat
+Nat.tail_add: nat -> nat -> nat
+Nat.mul: nat -> nat -> nat
+Nat.min: nat -> nat -> nat
 Nat.gcd: nat -> nat -> nat
-Hexadecimal.nb_digits: Hexadecimal.uint -> nat
+Nat.modulo: nat -> nat -> nat
+Nat.ldiff: nat -> nat -> nat
+Nat.tail_mul: nat -> nat -> nat
+Nat.add: nat -> nat -> nat
+Nat.lxor: nat -> nat -> nat
+Nat.pow: nat -> nat -> nat
+Nat.sub: nat -> nat -> nat
+Nat.max: nat -> nat -> nat
 Nat.of_hex_uint: Hexadecimal.uint -> nat
 Nat.of_num_uint: Number.uint -> nat
-Nat.of_uint: Decimal.uint -> nat
 Decimal.nb_digits: Decimal.uint -> nat
+Nat.of_hex_luint: Hexadecimal.luint -> nat
+Nat.of_uint: Decimal.uint -> nat
+Hexadecimal.nb_digits: Hexadecimal.uint -> nat
+Nat.of_luint: Decimal.luint -> nat
+Nat.of_num_luint: Number.luint -> nat
 Nat.tail_addmul: nat -> nat -> nat -> nat
-Nat.of_hex_uint_acc: Hexadecimal.uint -> nat -> nat
 Nat.of_uint_acc: Decimal.uint -> nat -> nat
-Nat.sqrt_iter: nat -> nat -> nat -> nat -> nat
+Nat.of_hex_uint_acc: Hexadecimal.uint -> nat -> nat
 Nat.log2_iter: nat -> nat -> nat -> nat -> nat
+Nat.sqrt_iter: nat -> nat -> nat -> nat -> nat
 length: forall [A : Type], list A -> nat
 Nat.bitwise: (bool -> bool -> bool) -> nat -> nat -> nat -> nat
 Nat.div2: nat -> nat

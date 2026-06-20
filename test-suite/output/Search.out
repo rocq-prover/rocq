@@ -437,25 +437,28 @@ bool_choice:
   (forall x : S, {R1 x} + {R2 x}) ->
   {f : S -> bool | forall x : S, f x = true /\ R1 x \/ f x = false /\ R2 x}
 Nat.two: nat
-Nat.one: nat
 Nat.zero: nat
+Nat.one: nat
 newdef: nat -> nat
-Nat.succ: nat -> nat
-Nat.log2: nat -> nat
 Nat.sqrt: nat -> nat
+Nat.log2: nat -> nat
+Nat.pred: nat -> nat
 Nat.square: nat -> nat
 Nat.double: nat -> nat
-Nat.pred: nat -> nat
-Nat.ldiff: nat -> nat -> nat
-Nat.tail_mul: nat -> nat -> nat
+Nat.succ: nat -> nat
 Nat.land: nat -> nat -> nat
+Nat.lor: nat -> nat -> nat
+Nat.tail_mul: nat -> nat -> nat
+Nat.lxor: nat -> nat -> nat
+Nat.ldiff: nat -> nat -> nat
 Nat.div: nat -> nat -> nat
 Nat.modulo: nat -> nat -> nat
-Nat.lor: nat -> nat -> nat
-Nat.lxor: nat -> nat -> nat
-Nat.of_hex_uint: Hexadecimal.uint -> nat
-Nat.of_uint: Decimal.uint -> nat
 Nat.of_num_uint: Number.uint -> nat
+Nat.of_hex_uint: Hexadecimal.uint -> nat
+Nat.of_hex_luint: Hexadecimal.luint -> nat
+Nat.of_luint: Decimal.luint -> nat
+Nat.of_uint: Decimal.uint -> nat
+Nat.of_num_luint: Number.luint -> nat
 length: forall [A : Type], list A -> nat
 plus_n_O: forall n : nat, n = n + 0
 plus_O_n: forall n : nat, 0 + n = n
