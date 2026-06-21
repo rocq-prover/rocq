@@ -100,6 +100,7 @@ value rocq_tcode_array(value tcodes) {
   /* Assumes that the vector of types is small. This was implicit in the
     previous code which was building the type array using Alloc_small. */
   res = caml_alloc_small(Wosize_val(tcodes), Default_tag);
+  for (i = 0; i < Wosize_val(tcodes); i++) Field(res, i) = Val_unit;
   for (i = 0; i < Wosize_val(tcodes); i++) {
     tmp = caml_alloc_small(1, Abstract_tag);
     Code_val(tmp) = (code_t) Field(tcodes, i);
