@@ -28,7 +28,6 @@ val with_output_to : out_channel -> Format.formatter
 
 val std_ft  : Format.formatter ref
 val err_ft  : Format.formatter ref
-val deep_ft : Format.formatter ref
 
 (** {6 For parametrization through vernacular. } *)
 
