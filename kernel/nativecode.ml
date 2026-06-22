@@ -1357,6 +1357,7 @@ let rec ml_of_lam consider_accs env l t =
     let args = MLarray(Array.map (ml_of_lam consider_accs env l) args) in
     MLprimitive (Mk_evar, [|get_evar_code i; args|])
   | Lprod(dom,codom) ->
+    if not consider_accs then raise NeedsAccumulators else (* production need an accumulator to be evaluated TODOME: check this *)
     let dom = ml_of_lam consider_accs env l dom in
     let codom = ml_of_lam consider_accs env l codom in
     let n = get_prod_name codom in
