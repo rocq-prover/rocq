@@ -1496,12 +1496,6 @@ let rec ml_of_lam consider_accs env l t =
       *)
       (* Compilation of type *)
       let env_t = restart_env env in
-      let ml_t = Array.map (ml_of_lam consider_accs env_t l) tt in
-      let params_t = fv_params env_t in
-      let args_t = fv_args env !(env_t.env_named) !(env_t.env_urel) in
-      let gft = fresh_gfixtype env.env_cenv l in
-      let gft = push_global_fixtype env.env_cenv gft params_t ml_t in
-      let mk_type = MLapp(MLglobal gft, args_t) in
       (* Compilation of norm_i *)
       let ndef = Array.length ids in
       let lf,env_n = push_rels (restart_env env) ids in
@@ -1530,35 +1524,58 @@ let rec ml_of_lam consider_accs env l t =
       in
       let tnorm = Array.mapi ml_of_fix tb in
       let fvn,fvr = !(env_n.env_named), !(env_n.env_urel) in
-      let fv_params = fv_params env_n in
-      let fv_args' = Array.map (fun id -> MLlocal id) fv_params in
-      let norm_params = Array.append fv_params lf in
+      let fv_params_n = fv_params env_n in
+      let norm_params = Array.append fv_params_n lf in
       let t_norm_f = Array.mapi (fun i body ->
         push_global_let env.env_cenv (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
-      let norm = fresh_gnormtbl env.env_cenv l in
-      let norm = push_global_norm env.env_cenv norm fv_params
-         (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
-      (* Compilation of fix *)
-      let fv_args = fv_args env fvn fvr in
+      let fv_args_n = fv_args env fvn fvr in
       let lf, _env = push_rels env ids in
       let lf_args = Array.map (fun id -> MLlocal id) lf in
-      let mk_norm = MLapp(MLglobal norm, fv_args) in
-      let mkrec i lname =
-        let paramsi = t_params.(i) in
-        let reci = MLlocal (paramsi.(rec_pos.(i))) in
-        let pargsi = Array.map (fun id -> MLlocal id) paramsi in
-        let ind = inds.(i) in
-        let prefix = env.env_mind_prefix (fst ind) in
-        let body =
-          MLif(MLisaccu (prefix, ind, reci),
-               mkMLapp
-                 (MLprimitive ((Mk_fix(rec_pos,i)),
-                        [|mk_type; mk_norm|]))
-                 pargsi,
-               MLapp(MLglobal t_norm_f.(i),
-                     Array.concat [fv_args;lf_args;pargsi]))
-        in
-        (lname, paramsi, body) in
+      
+      let mkrec, lf, lf_args, start =
+      if consider_accs then begin
+        let ml_t = Array.map (ml_of_lam consider_accs env_t l) tt in
+        let params_t = fv_params env_t in
+        let args_t = fv_args env !(env_t.env_named) !(env_t.env_urel) in
+        let gft = fresh_gfixtype env.env_cenv l in
+        let gft = push_global_fixtype env.env_cenv gft params_t ml_t in
+        let mk_type = MLapp(MLglobal gft, args_t) in
+        (* Compilation of norm_i *)
+        let fv_args' = Array.map (fun id -> MLlocal id) fv_params_n in
+        let norm = fresh_gnormtbl env.env_cenv l in
+        let norm = push_global_norm env.env_cenv norm fv_params_n
+          (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
+        (* Compilation of fix *)
+        let mk_norm = MLapp(MLglobal norm, fv_args_n) in
+        let mkrec i lname =
+          let paramsi = t_params.(i) in
+          let reci = MLlocal (paramsi.(rec_pos.(i))) in
+          let pargsi = Array.map (fun id -> MLlocal id) paramsi in
+          let ind = inds.(i) in
+          let prefix = env.env_mind_prefix (fst ind) in
+          let body =
+            MLif(MLisaccu (prefix, ind, reci),
+                mkMLapp
+                  (MLprimitive ((Mk_fix(rec_pos,i)),
+                          [|mk_type; mk_norm|]))
+                  pargsi,
+                MLapp(MLglobal t_norm_f.(i),
+                      Array.concat [fv_args_n;lf_args;pargsi]))
+          in
+          (lname, paramsi, body) in
+        mkrec, lf, lf_args, start
+      end else begin (* consider_accs is false *)
+        (* Compilation of fix *)
+        let mkrec i lname =
+          let paramsi = t_params.(i) in
+          let pargsi = Array.map (fun id -> MLlocal id) paramsi in
+          let body =
+            MLapp(MLglobal t_norm_f.(i),
+              Array.concat [fv_args_n;lf_args;pargsi])
+          in
+          (lname, paramsi, body) in
+        mkrec, lf, lf_args, start
+      end in
       MLletrec(Array.mapi mkrec lf, lf_args.(start))
   | Lcofix (start, (ids, tt, tb)) ->
       (* Compilation of type *)
