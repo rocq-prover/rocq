@@ -33,9 +33,8 @@ Definition transport_refl_id {A} (P : A -> Type) {x : A} (u : P x)
   : P (transport (fun _ => A) (srefl _ : seq (id_unit tt) tt) x)
   := u.
 
-(** We don't ALWAYS reduce (this uses a constant transport so that the
-    equation is well-typed) *)
-Fail Definition transport_block A B (x y:A) (e:seq x y) v
+(** In particular, we do always reduce when the predicate is constant *)
+Definition transport_constant A B (x y:A) (e:seq x y) v
   : transport (fun _ => B) e v = v
   := @eq_refl B v.
 
