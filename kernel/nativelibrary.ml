@@ -38,13 +38,13 @@ and translate_field mp cenv env acc (l,x) =
      (debug_native_compiler (fun () ->
         let msg = Printf.sprintf "Compiling constant %s..." (Constant.to_string con) in
         Pp.str msg));
-     compile_constant_field cenv env con acc cb
+     compile_constant_field true cenv env con acc cb (* we consider accumulators when compiling general-purpose libraries *)
   | SFBmind mb ->
      (debug_native_compiler (fun () ->
         let id = mb.mind_packets.(0).mind_typename in
         let msg = Printf.sprintf "Compiling inductive %s..." (Id.to_string id) in
         Pp.str msg));
-     compile_mind_field cenv mp l acc mb
+     compile_mind_field true cenv mp l acc mb
   | SFBrules rrb ->
      (debug_native_compiler (fun () ->
         let msg = Printf.sprintf "Not Compiling rules %s..." (Id.to_string l) in

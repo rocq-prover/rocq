@@ -2313,7 +2313,7 @@ and compile_named consider_accs cenv env sigma univ auxdefs id =
   | LocalAssum _ ->
       Glet(Gnamed id, MLprimitive (Mk_var id, [||]))::auxdefs
 
-let compile_constant cenv env sigma con cb =
+let compile_constant consider_accs cenv env sigma con cb =
     let no_univs = UVars.AbstractContext.is_constant (Declareops.constant_polymorphic_context cb) in
     begin match cb.const_body with
     | Def t ->
@@ -2322,13 +2322,12 @@ let compile_constant cenv env sigma con cb =
       let is_lazy = is_lazy_constant env cb in
       let wrap t = if is_lazy then MLprimitive (Lazy, [|t|]) else t in
       let l = Constant.label con in
-      (* we assume accumulators as this function is used to compile libraries *)
       let auxdefs,code =
         if no_univs then
-          compile_with_fv true ~wrap cenv env sigma (ULocal None) [] (Some l) code
+          compile_with_fv  consider_accs ~wrap cenv env sigma (ULocal None) [] (Some l) code
         else
           let univ = fresh_univ cenv in
-          let (auxdefs,code) = compile_with_fv true ~wrap cenv env sigma (ULocal (Some univ)) [] (Some l) code in
+          let (auxdefs,code) = compile_with_fv  consider_accs ~wrap cenv env sigma (ULocal (Some univ)) [] (Some l) code in
           (auxdefs,mkMLlam [|univ|] code)
       in
       debug_native_compiler (fun () -> Pp.str "Generated mllambda code");
@@ -2366,7 +2365,7 @@ let is_code_loaded name =
       if is_loaded_native_file s then true
       else (name := NotLinked; false)
 
-let compile_mind cenv mb mind stack =
+let compile_mind consider_accs cenv mb mind stack =
   let u = Declareops.inductive_polymorphic_context mb in
   (** Generate data for every block *)
   let f i stack ob =
@@ -2394,14 +2393,25 @@ let compile_mind cenv mb mind stack =
       let cargs = Array.init arity
         (fun i -> if Int.equal i proj_arg then Some ci_uid else None)
       in
-      let i = push_symbol cenv (SymbProj (ind, proj_arg)) in
-      let accu = MLprimitive (Cast_accu, [|MLlocal cf_uid|]) in
-      let accu_br = MLprimitive (Mk_proj, [|get_proj_code i;accu|]) in
-      let code = MLmatch(MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
-      let force_c =
-        if mb.mind_finite <> CoFinite
-        then MLlocal c_uid
-        else mkForceCofix cenv "" ind (MLlocal c_uid)
+      let code, force_c = if consider_accs then
+        let i = push_symbol cenv (SymbProj (ind, proj_arg)) in
+        let accu = MLprimitive (Cast_accu, [|MLlocal cf_uid|]) in
+        let accu_br = MLprimitive (Mk_proj, [|get_proj_code i;accu|]) in
+        let code = MLmatch(MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
+        let force_c =
+          if mb.mind_finite <> CoFinite
+          then MLlocal c_uid
+          else mkForceCofix cenv "" ind (MLlocal c_uid)
+        in
+        code, force_c
+      else (* consider_accs = false *)
+        let code = MLmatch_noaccu(MLlocal cf_uid,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
+        let force_c =
+          if mb.mind_finite <> CoFinite
+          then MLlocal c_uid
+          else mkForceCofix_noaccu cenv (MLlocal c_uid)
+        in
+        code, force_c
       in
       let code = MLlet(cf_uid, force_c, code) in
       let gn = Gproj ("", ind, proj_arg) in
@@ -2428,7 +2438,7 @@ type linkable_code = global list * symbols * code_location_updates
 
 let empty_updates = Mindmap_env.empty, Cmap_env.empty
 
-let compile_mind_deps cenv env prefix
+let compile_mind_deps consider_accs cenv env prefix
     (comp_stack, (mind_updates, const_updates) as init) mind =
   let mib = lookup_mind mind env in
   let nameref = lookup_mind_key mind env in
@@ -2437,7 +2447,7 @@ let compile_mind_deps cenv env prefix
   then init
   else
     let comp_stack =
-      compile_mind cenv mib mind comp_stack
+      compile_mind consider_accs cenv mib mind comp_stack
     in
     let upd = {
       upd_info = nameref;
@@ -2448,10 +2458,10 @@ let compile_mind_deps cenv env prefix
 
 (* This function compiles all necessary dependencies of t, and generates code in
    reverse order, as well as linking information updates *)
-let compile_deps cenv env sigma prefix init t =
+let compile_deps consider_accs cenv env sigma prefix init t =
   let rec aux env lvl init t =
   match kind t with
-  | Ind ((mind,_),_u) -> compile_mind_deps cenv env prefix init mind
+  | Ind ((mind,_),_u) -> compile_mind_deps consider_accs cenv env prefix init mind
   | Const (c, _u) ->
     let c, _ = get_alias env sigma c in
     let cb = lookup_constant c env in
@@ -2467,7 +2477,7 @@ let compile_deps cenv env sigma prefix init t =
            aux env lvl init t
         | _ -> init
       in
-      let code = compile_constant cenv env sigma c cb in (* compile_mind_deps uses accumulators anyways *)
+      let code = compile_constant consider_accs cenv env sigma c cb in
       let upd = {
         upd_info = nameref;
         upd_prefix = prefix;
@@ -2475,13 +2485,13 @@ let compile_deps cenv env sigma prefix init t =
       let comp_stack = code@comp_stack in
       let const_updates = Cmap_env.add c upd const_updates in
       comp_stack, (mind_updates, const_updates)
-  | Construct (((mind,_),_),_u) -> compile_mind_deps cenv env prefix init mind
+  | Construct (((mind,_),_),_u) -> compile_mind_deps consider_accs cenv env prefix init mind
   | Proj (p,_,c) ->
-    let init = compile_mind_deps cenv env prefix init (Projection.mind p) in
+    let init = compile_mind_deps consider_accs cenv env prefix init (Projection.mind p) in
     aux env lvl init c
   | Case (ci, _u, _pms, _p, _iv, _c, _ac) ->
       let mind = fst ci.ci_ind in
-      let init = compile_mind_deps cenv env prefix init mind in
+      let init = compile_mind_deps consider_accs cenv env prefix init mind in
       fold_constr_with_binders succ (aux env) lvl init t
   | Var id ->
     let open Context.Named.Declaration in
@@ -2503,13 +2513,13 @@ let compile_deps cenv env sigma prefix init t =
   in
   aux env 0 init t
 
-let compile_constant_field cenv env con acc cb =
-  let gl = compile_constant cenv env (empty_evars env) con cb in
+let compile_constant_field consider_accs cenv env con acc cb =
+  let gl = compile_constant consider_accs cenv env (empty_evars env) con cb in
   gl@acc
 
-let compile_mind_field cenv mp l acc mb =
+let compile_mind_field consider_accs cenv mp l acc mb =
   let mind = MutInd.make2 mp l in
-  compile_mind cenv mb mind acc
+  compile_mind consider_accs cenv mb mind acc
 
 let warn_native_rules =
   CWarnings.create ~name:"native-rewrite-rules"
@@ -2530,15 +2540,15 @@ let mk_conv_code env sigma prefix t1 t2 =
   let cenv = make_cenv () in
   let gl, (mind_updates, const_updates) =
     let init = ([], empty_updates) in
-    compile_deps cenv env sigma prefix init t1
+    compile_deps true cenv env sigma prefix init t1 (* we assume accumulators for the conversion code for the sake of simplicity *)
   in
   let gl, (mind_updates, const_updates) =
     let init = (gl, (mind_updates, const_updates)) in
-    compile_deps cenv env sigma prefix init t2
+    compile_deps true cenv env sigma prefix init t2
   in
   let code1 = lambda_of_constr env sigma t1 in
   let code2 = lambda_of_constr env sigma t2 in
-  let (gl,code1) = compile_with_fv true cenv env sigma UGlobal gl None code1 in (* we assume accumulators for conversion code *)
+  let (gl,code1) = compile_with_fv true cenv env sigma UGlobal gl None code1 in
   let (gl,code2) = compile_with_fv true cenv env sigma UGlobal gl None code2 in
   let t1 = mk_internal_let "$t1" code1 in
   let t2 = mk_internal_let "$t2" code2 in
@@ -2557,10 +2567,10 @@ let mk_norm_code consider_accs env sigma prefix t =
   let cenv = make_cenv () in
   let gl, (mind_updates, const_updates) =
     let init = ([], empty_updates) in
-    compile_deps cenv env sigma prefix init t
+    compile_deps consider_accs cenv env sigma prefix init t
   in
   let code = lambda_of_constr env sigma t in
-  let (gl,code) = compile_with_fv true cenv env sigma UGlobal gl None code in (* compile_deps uses accumulators anyways *)
+  let (gl,code) = compile_with_fv consider_accs cenv env sigma UGlobal gl None code in (* compile_deps uses accumulators anyways *)
   let t1 = mk_internal_let "$t1" code in
   let g1 = MLglobal (Ginternal "$t1") in
   let setref = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt1)",g1)) in
