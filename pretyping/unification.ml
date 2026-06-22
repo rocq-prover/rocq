@@ -2079,7 +2079,22 @@ let default_matching_flags sigma =
 
 exception PatternNotFound
 
+(* true if cannot be found as a prefix of an application, i.e.
+   c args is only well-typed whenever args is empty *)
+let get_head_kind env sigma c =
+  let ty = get_type_of env sigma c in
+  let hd, _ = decompose_app sigma ty in
+  match EConstr.kind sigma hd with
+  | Sort _ | Ind _ -> true
+  | _ ->
+    let ty = whd_all env sigma ty in
+    let hd, _ = decompose_app sigma ty in
+    match EConstr.kind sigma hd with
+    | Sort _ | Ind _ -> true
+    | _ -> false
+
 let make_pattern_test from_prefix_of_ind is_correct_type env sigma (pending,c) =
+  let not_app_prefix = get_head_kind env sigma c in
   let flags =
     if from_prefix_of_ind then
       let flags = default_matching_flags (Option.default Evd.empty pending) in
@@ -2131,7 +2146,8 @@ let make_pattern_test from_prefix_of_ind is_correct_type env sigma (pending,c) =
     end
   | None -> Result.Ok (Some c1)
   in
-  { match_fun = matching_fun; merge_fun = merge_fun; with_partial_apps = true;
+  let with_partial_apps = not (not_app_prefix || from_prefix_of_ind) in
+  { match_fun = matching_fun; merge_fun = merge_fun; with_partial_apps;
     testing_state = None; last_found = None },
   (fun test -> match test.testing_state with
   | None -> None
