@@ -901,15 +901,20 @@ let fresh_gnormtbl cenv l =
   let () = cenv.normtbl_ctr <- cenv.normtbl_ctr + 1 in
   Gnormtbl (l, cenv.normtbl_ctr)
 
-let mkForceCofix consider_accs cenv prefix ind arg =
+let mkForceCofix cenv prefix ind arg =
   let name = fresh_lname cenv Anonymous in
   let v =
-    if consider_accs then
-      MLif (
-        MLisaccu (prefix, ind, MLlocal name),
-        MLprimitive (Force_cofix, [|MLlocal name|]),
-        MLlocal name)
-    else MLlocal name
+    MLif (
+      MLisaccu (prefix, ind, MLlocal name),
+      MLprimitive (Force_cofix, [|MLlocal name|]),
+      MLlocal name)
+  in
+  MLlet (name, arg, v)
+
+let mkForceCofix_noaccu cenv arg =
+  let name = fresh_lname cenv Anonymous in
+  let v =
+    MLlocal name
   in
   MLlet (name, arg, v)
 
@@ -932,13 +937,13 @@ let push_global_norm cenv gn params body =
 let push_global_cofix cenv gn params self =
   push_global cenv gn (Gtblcofix (gn, params, self))
 
-let push_global_case consider_accs cenv gn params a accu bs =
-  if consider_accs then
-    push_global cenv gn (Gletcase (gn, params, a, accu, bs))
-  else
-    match bs with
-    | [||] -> push_global cenv gn (Glet (gn, MLlam (params, MLint 0))) (* our switch has no valid branches, so no need to match, the branch cannot be explored *)
-    | _ -> push_global cenv gn (Gletcase_noaccu (gn, params, a, bs))
+let push_global_case cenv gn params a accu bs =
+  push_global cenv gn (Gletcase (gn, params, a, accu, bs))
+
+let push_global_case_noaccu cenv gn params a bs =
+  match bs with
+  | [||] -> push_global cenv gn (Glet (gn, MLlam (params, MLint 0))) (* our switch has no valid branches, so no need to match, the branch cannot be explored *)
+  | _ -> push_global cenv gn (Gletcase_noaccu (gn, params, a, bs))
 
 let push_symbol cenv x =
   try HashtblSymbol.find cenv.symb_tbl x
@@ -1382,22 +1387,23 @@ let rec ml_of_lam consider_accs env l t =
     let decl,cond,paux = extract_prim env (ml_of_lam consider_accs env l) t in
     compile_prim env decl cond paux
   | Lcase (annot,p,a,bs) ->
-      (* let predicate_uid fv_pred = compilation of p
-         let rec case_uid fv a_uid =
-           match a_uid with
-           | Accu _ => mk_sw (predicate_uid fv_pred) (case_uid fv) a_uid
-           | Ci argsi => compilation of branches
-         compile case = case_uid fv (compilation of a) *)
-      (* Compilation of the predicate *)
-         (* Remark: if we do not want to compile the predicate we
-            should a least compute the fv, then store the lambda representation
-            of the predicate (not the mllambda) *)
-      let annot, finite =
-        let (ci, tbl, finite) = annot in {
-          asw_ind = ci.ci_ind;
-          asw_reloc = tbl;
-          asw_prefix = env.env_mind_prefix (fst ci.ci_ind);
-      }, finite in
+    (* let predicate_uid fv_pred = compilation of p
+        let rec case_uid fv a_uid =
+          match a_uid with
+          | Accu _ => mk_sw (predicate_uid fv_pred) (case_uid fv) a_uid
+          | Ci argsi => compilation of branches
+        compile case = case_uid fv (compilation of a) *)
+    (* Compilation of the predicate *)
+        (* Remark: if we do not want to compile the predicate we
+          should a least compute the fv, then store the lambda representation
+          of the predicate (not the mllambda) *)
+    let annot, finite =
+      let (ci, tbl, finite) = annot in {
+        asw_ind = ci.ci_ind;
+        asw_reloc = tbl;
+        asw_prefix = env.env_mind_prefix (fst ci.ci_ind);
+    }, finite in
+    if consider_accs then begin
       let env_p = restart_env env in
       let pn = fresh_gpred env.env_cenv l in
       let mlp = ml_of_lam consider_accs env_p l p in
@@ -1424,24 +1430,54 @@ let rec ml_of_lam consider_accs env l t =
       let pred = MLapp(MLglobal pn, fv_args env_c pfvn pfvr) in
       let (fvn, fvr) = !(env_c.env_named), !(env_c.env_urel) in
       let cn_fv = mkMLapp (MLglobal cn) (fv_args env_c fvn fvr) in
-         (* remark : the call to fv_args does not add free variables in env_c *)
+          (* remark : the call to fv_args does not add free variables in env_c *)
       let i = push_symbol env.env_cenv (SymbMatch annot) in
       let accu =
         MLprimitive (Mk_sw,
               [| get_match_code i; MLprimitive (Cast_accu, [|la_uid|]);
-                 pred;
-                 cn_fv |]) in
-(*      let body = MLlam([|a_uid|], MLmatch(annot, la_uid, accu, bs)) in
+                  pred;
+                  cn_fv |]) in
+  (*      let body = MLlam([|a_uid|], MLmatch(annot, la_uid, accu, bs)) in
       let case = generalize_fv env_c body in *)
-      let cn = push_global_case consider_accs env.env_cenv cn (Array.append (fv_params env_c) [|a_uid|])
+      let cn = push_global_case env.env_cenv cn (Array.append (fv_params env_c) [|a_uid|])
         la_uid accu (merge_branches br)
       in
       (* Final result *)
       let arg = ml_of_lam consider_accs env l a in
       let force =
         if finite <> CoFinite then arg
-        else mkForceCofix consider_accs env.env_cenv annot.asw_prefix annot.asw_ind arg in
+        else mkForceCofix env.env_cenv annot.asw_prefix annot.asw_ind arg in
       mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|force|]
+    end else begin (* consider_accs is false *)
+      (* Compilation of the case *)
+      let env_c = restart_env env in
+      let a_uid = fresh_lname env.env_cenv Anonymous in
+      let la_uid = MLlocal a_uid in
+      (* compilation of branches *)
+      let nbconst = Array.length bs.constant_branches in
+      let nbtotal = nbconst + Array.length bs.nonconstant_branches in
+      let br = Array.init nbtotal (fun i -> if i < Array.length bs.constant_branches then
+                                  (ConstPattern i, ml_of_lam consider_accs env_c l bs.constant_branches.(i))
+                                else
+                                  let (params, body) = bs.nonconstant_branches.(i-nbconst) in
+                                  let lnames, env_c = push_rels env_c params in
+                                  (NonConstPattern (i-nbconst+1,lnames), ml_of_lam consider_accs env_c l body)
+                              )
+      in
+      let cn = fresh_gcase env.env_cenv l in
+      let (fvn, fvr) = !(env_c.env_named), !(env_c.env_urel) in
+  (*      let body = MLlam([|a_uid|], MLmatch(annot, la_uid, accu, bs)) in
+      let case = generalize_fv env_c body in *)
+      let cn = push_global_case_noaccu env.env_cenv cn (Array.append (fv_params env_c) [|a_uid|])
+        la_uid (merge_branches br)
+      in
+      (* Final result *)
+      let arg = ml_of_lam consider_accs env l a in
+      let force =
+        if finite <> CoFinite then arg
+        else mkForceCofix_noaccu env.env_cenv arg in
+      mkMLapp (MLapp (MLglobal cn, fv_args env fvn fvr)) [|force|]
+    end
   | Lfix ((rec_pos, inds, start), (ids, tt, tb)) ->
       (* let type_f fvt = [| type fix |]
          let norm_f1 fv f1 .. fn params1 = body1
@@ -2328,7 +2364,7 @@ let compile_mind cenv mb mind stack =
         else [|get_ind_code j|]
       in
       (* FIXME: pass universes here *)
-      Glet(name, MLprimitive (Mk_ind, args)) (* TODOME: check if this accu is used *)
+      Glet(name, MLprimitive (Mk_ind, args))
     in
     let add_proj proj_arg acc _pb =
       let tbl = ob.mind_reloc_tbl in
@@ -2348,7 +2384,7 @@ let compile_mind cenv mb mind stack =
       let force_c =
         if mb.mind_finite <> CoFinite
         then MLlocal c_uid
-        else mkForceCofix true cenv "" ind (MLlocal c_uid) (* we need accumulators anyways *)
+        else mkForceCofix cenv "" ind (MLlocal c_uid)
       in
       let code = MLlet(cf_uid, force_c, code) in
       let gn = Gproj ("", ind, proj_arg) in
