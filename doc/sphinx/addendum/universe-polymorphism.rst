@@ -596,6 +596,14 @@ Printing universes
    terms apparently identical but internally different in the Calculus of Inductive
    Constructions.
 
+.. flag:: Printing Sorts
+
+   Turn this :term:`flag` on to activate the display of sort annotations like
+   :flag:`Printing Universes`, but with all universe level variables replaced
+   by ``_``.  This makes the sort structure visible (distinguishing :g:`Type`,
+   :g:`SProp`, :g:`Prop`, :g:`Set`, and sort-variable sorts such as
+   ``Type@{s;_}``) without exposing internal universe level names.
+
 .. cmd:: Print {? Sorted } Universes {? Subgraph ( {* @debug_univ_name } ) } {? {| With | Without } Constraint Sources } {? @string }
    :name: Print Universes
 
