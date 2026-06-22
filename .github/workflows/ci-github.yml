@@ -55,6 +55,9 @@ jobs:
           ocaml-compiler: ${{ matrix.ocaml }}
           dune-cache: true
 
+      - name: Test
+        run: cat _opam/lib/ocaml/ld.conf
+
       - name: 🐫🐪🐫 Get Rocq dependencies
         run: opam install --deps-only ${{ matrix.packages }}
 
