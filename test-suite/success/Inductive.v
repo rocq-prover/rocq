@@ -92,7 +92,7 @@ Inductive I_F:Set := c : (F (Build_P nat I_F)) -> I_F.
 Set Implicit Arguments.
 Inductive bool_comp2 (b: bool): bool -> Prop :=
 | Opp2: forall q, (match b return Prop with
-                  | true => match q return Prop with 
+                  | true => match q return Prop with
                               true => False |
                               false => True end
                   | false => match q return Prop with
@@ -161,13 +161,21 @@ Inductive L (A:Type) (T:=A) : Type := C : L nat -> L A.
 
 Inductive IND6 (A:Type) (T:=A) := CONS6 : IND6 T -> IND6 A.
 
+(* Was raising an anomaly when generating eliminators due to the combination
+   of having non-uniform parameters an no recursivity.
+*)
+Inductive i1 (B : Prop) : Type :=
+| K1 : True -> i1 B
+with i2 (B : Prop) : Type :=
+| K2 : i2 (prod B B) -> i2 B.
+
 
 Module TemplateProp.
 
   (** Check lowering of a template universe polymorphic inductive to Prop *)
-  
+
   Inductive Foo (A : Type) : Type := foo : A -> Foo A.
-  
+
   Check Foo True : Prop.
 
 End TemplateProp.
@@ -175,9 +183,9 @@ End TemplateProp.
 Module PolyNoLowerProp.
 
   (** Check lowering of a general universe polymorphic inductive to Prop is _failing_ *)
-  
+
   Polymorphic Inductive Foo (A : Type) : Type := foo : A -> Foo A.
-  
+
   Fail Check Foo True : Prop.
 
 End PolyNoLowerProp.
