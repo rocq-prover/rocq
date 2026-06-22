@@ -33,6 +33,8 @@ val do_mutually_recursive
      (* Hide body if in sections *)
   -> kind:Decls.logical_kind
      (* Logical kind: Theorem, Definition, Fixpoint, etc.*)
+  -> ?hook:Declare.Hook.t
+     (* Declaration hook run when the constants are completed *)
   -> poly:PolyFlags.t
      (* Use universe /sort polymorphism and cumulativity *)
   -> ?typing_flags:Declarations.typing_flags

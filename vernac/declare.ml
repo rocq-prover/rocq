@@ -44,6 +44,9 @@ module Hook = struct
   let call_g ?hook x s = Option.cata (fun hook -> hcall hook x s) s hook
   let call ?hook x = Option.iter (fun hook -> hcall hook x ()) hook
 
+  let seq h1 h2 = make (fun st -> call ~hook:h1 st; call ~hook:h2 st)
+  let seqs hs = make (fun st -> List.iter (fun hook -> call ~hook st) hs)
+
 end
 
 let warn_using_fallback_loc = CWarnings.create ~name:"using-fallback-loc" ~category:CWarnings.CoreCategories.internal ~default:Disabled

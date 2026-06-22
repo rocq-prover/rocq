@@ -20,3 +20,7 @@ if ! [ -e theories/attr.vo ]; then
   >&2 echo Missing attr.vo after successful compilation
   exit 1
 fi
+
+# Check the messages emitted by the #[print] and #[error] attribute hooks.
+rocq c -q -Q theories Attributes -I src theories/attr.v > attr.out.real 2>&1
+diff -u --strip-trailing-cr ../attr.out attr.out.real
