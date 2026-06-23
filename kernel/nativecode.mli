@@ -62,6 +62,7 @@ type linkable_code = global list * symbols * code_location_updates
 val empty_updates : code_location_updates
 
 val register_native_file : string -> unit
+val indicate_native_file_has_accus : string -> unit
 
 val is_loaded_native_file : string -> bool
 

@@ -516,7 +516,7 @@ let native_norm env sigma c ty =
     if print_timing then Feedback.msg_info (Pp.str time_info);
     let profiler_pid = if profile then start_profiler () else None in
     let t0 = Unix.gettimeofday () in
-    let (rt1, _) = Nativelib.execute_library ~prefix fn symbols upd in
+    let (rt1, _) = Nativelib.execute_library consider_accs ~prefix fn symbols upd in
     let rt1 = Option.get rt1 in
     let t1 = Unix.gettimeofday () in
     if profile then stop_profiler profiler_pid;

@@ -2355,17 +2355,30 @@ module StringOrd = struct type t = string let compare = String.compare end
 module StringSet = Set.Make(StringOrd)
 
 let loaded_native_files = ref StringSet.empty
+let uses_accumulators_native_file = ref StringSet.empty
 
 let is_loaded_native_file s = StringSet.mem s !loaded_native_files
+let has_accus_native_file s = StringSet.mem s !loaded_native_files
 
 let register_native_file s =
   loaded_native_files := StringSet.add s !loaded_native_files
 
-let is_code_loaded name =
+let indicate_native_file_has_accus s =
+  uses_accumulators_native_file := StringSet.add s !uses_accumulators_native_file
+
+let is_code_loaded consider_accs name =
   match !name with
   | NotLinked -> false
   | Linked s ->
-      if is_loaded_native_file s then true
+      if is_loaded_native_file s then
+        (* the dependency needs accumulators to work, so we need them too.
+        We could also try to recompile them and hope that their accumulators were needed due to a parent file needing them, but this is costly and unlikely *)
+        let has_accs = has_accus_native_file s in
+        if not consider_accs && has_accs then raise NeedsAccumulators else
+        if consider_accs && not has_accs then
+          failwith ("library "^s^" does not support accumulators but we need them, help!")
+        else
+        true
       else (name := NotLinked; false)
 
 let compile_mind consider_accs cenv mb mind stack =
@@ -2445,7 +2458,7 @@ let compile_mind_deps consider_accs cenv env prefix
     (comp_stack, (mind_updates, const_updates) as init) mind =
   let mib = lookup_mind mind env in
   let nameref = lookup_mind_key mind env in
-  if is_code_loaded nameref
+  if is_code_loaded consider_accs nameref
     || Mindmap_env.mem mind mind_updates
   then init
   else
@@ -2470,7 +2483,7 @@ let compile_deps consider_accs cenv env sigma prefix init t =
     let cb = lookup_constant c env in
     let (nameref, _) = lookup_constant_key c env in
     let (_, (_, const_updates)) = init in
-    if is_code_loaded nameref
+    if is_code_loaded consider_accs nameref
     || (Cmap_env.mem c const_updates)
     then init
     else

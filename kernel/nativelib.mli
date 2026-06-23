@@ -39,7 +39,7 @@ val compile_library : native_library -> string -> unit
     updates the library locations [upds], and returns the values stored
     in [rt1] and [rt2] *)
 val execute_library :
-  prefix:string -> string -> Nativevalues.symbols -> Nativecode.code_location_updates ->
+  bool -> prefix:string -> string -> Nativevalues.symbols -> Nativecode.code_location_updates ->
   Nativevalues.t option * Nativevalues.t option
 
 (** [enable_library] marks the given library for dynamic loading

@@ -217,7 +217,7 @@ let compile_library (code, symb) fn =
   let _ = call_compiler fn in
   delay_cleanup_file fn
 
-let execute_library ~prefix f symbols upds =
+let execute_library consider_accs ~prefix f symbols upds =
   let () = rt1 := None in
   let () = rt2 := None in
   let () = rsymbols := symbols in
@@ -225,6 +225,8 @@ let execute_library ~prefix f symbols upds =
     CErrors.user_err Pp.(str "Cannot find native compiler file " ++ str f);
   if Dynlink.is_native then Dynlink.loadfile f else !load_obj f;
   register_native_file prefix;
+  if consider_accs then indicate_native_file_has_accus prefix;
+  (* the file cannot be marked and then recompiled with another setting because we only mark it when using accumulators, which is already our fallback *)
   update_locations upds;
   (!rt1, !rt2)
 
