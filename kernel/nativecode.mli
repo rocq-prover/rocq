@@ -17,6 +17,8 @@ open Nativevalues
 compiler. mllambda represents a fragment of ML, and can easily be printed
 to OCaml code. *)
 
+exception NeedsAccumulators (* raise by functions that compile without accumulators when they are needed for correctness *)
+
 type cenv
 
 val make_cenv : unit -> cenv
@@ -72,8 +74,8 @@ val compile_mind_field : bool -> cenv -> ModPath.t -> Id.t ->
 val compile_rewrite_rules : env -> Id.t ->
   global list -> rewrite_rules_body -> global list
 
-val mk_conv_code : env -> Genlambda.evars -> string -> constr -> constr -> linkable_code
-val mk_norm_code : env -> Genlambda.evars -> string -> constr -> linkable_code
+val mk_conv_code : bool -> env -> Genlambda.evars -> string -> constr -> constr -> linkable_code
+val mk_norm_code : bool -> env -> Genlambda.evars -> string -> constr -> linkable_code
 
 val mk_library_header : Nativevalues.symbols -> global list
 

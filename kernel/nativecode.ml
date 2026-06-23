@@ -1194,7 +1194,7 @@ let merge_branches t =
 
 let app_prim p args = MLprimitive (p, args)
 
-let ml_empty_instance = MLprimitive (Mk_empty_instance, [||]) (* TODOME: check *)
+let ml_empty_instance = MLprimitive (Mk_empty_instance, [||])
 
 type prim_aux =
   | PAprim of string * pconstant * CPrimitives.t * prim_aux array
@@ -1357,7 +1357,7 @@ let rec ml_of_lam consider_accs env l t =
     let args = MLarray(Array.map (ml_of_lam consider_accs env l) args) in
     MLprimitive (Mk_evar, [|get_evar_code i; args|])
   | Lprod(dom,codom) ->
-    if not consider_accs then raise NeedsAccumulators else (* production need an accumulator to be evaluated TODOME: check this *)
+    if not consider_accs then raise NeedsAccumulators else (* productions needs an accumulator to be evaluated TODOME: maybe remove ? (checked at runtime)*)
     let dom = ml_of_lam consider_accs env l dom in
     let codom = ml_of_lam consider_accs env l codom in
     let n = get_prod_name codom in
@@ -2537,20 +2537,20 @@ let mk_internal_let s code =
   Glet(Ginternal s, code)
 
 (* ML Code for conversion function *)
-let mk_conv_code env sigma prefix t1 t2 =
+let mk_conv_code consider_accs env sigma prefix t1 t2 =
   let cenv = make_cenv () in
   let gl, (mind_updates, const_updates) =
     let init = ([], empty_updates) in
-    compile_deps true cenv env sigma prefix init t1 (* we assume accumulators for the conversion code for the sake of simplicity *)
+    compile_deps consider_accs cenv env sigma prefix init t1
   in
   let gl, (mind_updates, const_updates) =
     let init = (gl, (mind_updates, const_updates)) in
-    compile_deps true cenv env sigma prefix init t2
+    compile_deps consider_accs cenv env sigma prefix init t2
   in
   let code1 = lambda_of_constr env sigma t1 in
   let code2 = lambda_of_constr env sigma t2 in
-  let (gl,code1) = compile_with_fv true cenv env sigma UGlobal gl None code1 in
-  let (gl,code2) = compile_with_fv true cenv env sigma UGlobal gl None code2 in
+  let (gl,code1) = compile_with_fv consider_accs cenv env sigma UGlobal gl None code1 in
+  let (gl,code2) = compile_with_fv consider_accs cenv env sigma UGlobal gl None code2 in
   let t1 = mk_internal_let "$t1" code1 in
   let t2 = mk_internal_let "$t2" code2 in
   let g1 = MLglobal (Ginternal "$t1") in
@@ -2571,7 +2571,7 @@ let mk_norm_code consider_accs env sigma prefix t =
     compile_deps consider_accs cenv env sigma prefix init t
   in
   let code = lambda_of_constr env sigma t in
-  let (gl,code) = compile_with_fv consider_accs cenv env sigma UGlobal gl None code in (* compile_deps uses accumulators anyways *)
+  let (gl,code) = compile_with_fv consider_accs cenv env sigma UGlobal gl None code in
   let t1 = mk_internal_let "$t1" code in
   let g1 = MLglobal (Ginternal "$t1") in
   let setref = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt1)",g1)) in
@@ -2584,11 +2584,6 @@ let mk_norm_code consider_accs env sigma prefix t =
       [|MLglobal (Ginternal "0")|])) in
   let symbols = get_cenv_symbols cenv in
   header::gl, symbols, (mind_updates, const_updates)
-
-(* wrapper for the function above *)
-let mk_norm_code env sigma prefix t =
-  try mk_norm_code false env sigma prefix t with
-  | NeedsAccumulators -> mk_norm_code true env sigma prefix t
 
 let mk_library_header (symbols : Nativevalues.symbols) =
   [Glet(Ginternal "$symbols_tbl", MLprimitive (Str_decode, [|MLglobal (Ginternal ("\"" ^ (str_encode symbols) ^ "\""))|]))]

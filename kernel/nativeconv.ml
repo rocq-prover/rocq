@@ -42,23 +42,26 @@ let sort_cmp_universes pb s1 s2 (state, check, box) =
   let state, check = Conversion.sort_cmp_universes pb s1 s2 (state, check) in
   fail_check state check box
 
-let rec conv_val env pb lvl v1 v2 cu =
+let rec conv_val consider_accs env pb lvl v1 v2 cu =
   if v1 == v2 then cu
   else
     match kind_of_value v1, kind_of_value v2 with
     | Vfun f1, Vfun f2 ->
-        let v = mk_rel_accu lvl in
-        conv_val env CONV (lvl+1) (f1 v) (f2 v) cu
+      if not consider_accs then raise NeedsAccumulators else
+      let v = mk_rel_accu lvl in
+      conv_val consider_accs env CONV (lvl+1) (f1 v) (f2 v) cu
     | Vfun _f1, _ ->
-      conv_val env CONV lvl v1 (eta_expand v2) cu
+      conv_val consider_accs env CONV lvl v1 (eta_expand v2) cu
     | _, Vfun _f2 ->
-        conv_val env CONV lvl (eta_expand v1) v2 cu
+      conv_val consider_accs env CONV lvl (eta_expand v1) v2 cu
     | Vaccu k1, Vaccu k2 ->
-        conv_accu env pb lvl k1 k2 cu
+      (* if not consider_accs then failwith "accumulator mysteriously appeared in a accumulator-less execution" else *)
+      conv_accu env pb lvl k1 k2 cu
     | Vprod(_,d1,c1), Vprod(_,d2,c2) ->
-       let cu = conv_val env CONV lvl d1 d2 cu in
-       let v = mk_rel_accu lvl in
-       conv_val env pb (lvl + 1) (apply c1 v) (apply c2 v) cu
+      if not consider_accs then raise NeedsAccumulators else
+      let cu = conv_val consider_accs env CONV lvl d1 d2 cu in
+      let v = mk_rel_accu lvl in
+      conv_val consider_accs env pb (lvl + 1) (apply c1 v) (apply c2 v) cu
     | Vconst i1, Vconst i2 ->
         if Int.equal i1 i2 then cu else raise NotConvertible
     | Vint64 i1, Vint64 i2 ->
@@ -72,7 +75,7 @@ let rec conv_val env pb lvl v1 v2 cu =
     | Varray t1, Varray t2 ->
       let len = Parray.length_int t1 in
       if not (Int.equal len (Parray.length_int t2)) then raise NotConvertible;
-      Parray.fold_left2 (fun cu v1 v2 -> conv_val env CONV lvl v1 v2 cu) cu t1 t2
+      Parray.fold_left2 (fun cu v1 v2 -> conv_val consider_accs env CONV lvl v1 v2 cu) cu t1 t2
     | Vblock b1, Vblock b2 ->
         let n1 = block_size b1 in
         let n2 = block_size b2 in
@@ -80,9 +83,9 @@ let rec conv_val env pb lvl v1 v2 cu =
           raise NotConvertible;
         let rec aux lvl max b1 b2 i cu =
           if Int.equal i max then
-            conv_val env CONV lvl (block_field b1 i) (block_field b2 i) cu
+            conv_val consider_accs env CONV lvl (block_field b1 i) (block_field b2 i) cu
           else
-            let cu = conv_val env CONV lvl (block_field b1 i) (block_field b2 i) cu in
+            let cu = conv_val consider_accs env CONV lvl (block_field b1 i) (block_field b2 i) cu in
             aux lvl max b1 b2 (i+1) cu
         in
         aux lvl (n1-1) b1 b2 0 cu
@@ -97,7 +100,7 @@ and conv_accu env pb lvl k1 k2 cu =
     conv_atom env pb lvl (atom_of_accu k1) (atom_of_accu k2) cu
   else
     let cu = conv_atom env pb lvl (atom_of_accu k1) (atom_of_accu k2) cu in
-    List.fold_right2 (conv_val env CONV lvl) (args_of_accu k1) (args_of_accu k2) cu
+    List.fold_right2 (conv_val true env CONV lvl) (args_of_accu k1) (args_of_accu k2) cu
 
 and conv_atom env pb lvl a1 a2 cu =
   if a1 == a2 then cu
@@ -105,7 +108,7 @@ and conv_atom env pb lvl a1 a2 cu =
     match a1, a2 with
     | Aevar (ev1, args1), Aevar (ev2, args2) ->
       if Evar.equal ev1 ev2 then
-        Array.fold_right2 (conv_val env CONV lvl) args1 args2 cu
+        Array.fold_right2 (conv_val true env CONV lvl) args1 args2 cu
       else raise NotConvertible
     | Arel i1, Arel i2 ->
         if Int.equal i1 i2 then cu else raise NotConvertible
@@ -131,9 +134,9 @@ and conv_atom env pb lvl a1 a2 cu =
         let cu = conv_accu env CONV lvl ac1 ac2 cu in
         let tbl = a1.asw_reloc in
         let len = Array.length tbl in
-        if Int.equal len 0 then conv_val env CONV lvl p1 p2 cu
+        if Int.equal len 0 then conv_val true env CONV lvl p1 p2 cu
         else begin
-            let cu = conv_val env CONV lvl p1 p2 cu in
+            let cu = conv_val true env CONV lvl p1 p2 cu in
             let max = len - 1 in
             let rec aux i cu =
               let tag,arity = tbl.(i) in
@@ -141,8 +144,8 @@ and conv_atom env pb lvl a1 a2 cu =
                 if Int.equal arity 0 then mk_const tag
                 else mk_block tag (mk_rels_accu lvl arity) in
               let bi1 = apply bs1 ci and bi2 = apply bs2 ci in
-              if Int.equal i max then conv_val env CONV (lvl + arity) bi1 bi2 cu
-              else aux (i+1) (conv_val env CONV (lvl + arity) bi1 bi2 cu) in
+              if Int.equal i max then conv_val true env CONV (lvl + arity) bi1 bi2 cu
+              else aux (i+1) (conv_val true env CONV (lvl + arity) bi1 bi2 cu) in
             aux 0 cu
           end
     | Afix(t1,f1,rp1,s1), Afix(t2,f2,rp2,s2) ->
@@ -155,7 +158,7 @@ and conv_atom env pb lvl a1 a2 cu =
         else if not (Int.equal (Array.length f1) (Array.length f2) && Int.equal (Array.length args1) (Array.length args2)) then
           raise NotConvertible
         else
-          Array.fold_left2 (fun cu v1 v2 -> conv_val env CONV lvl v1 v2 cu) (conv_fix env lvl t1 f1 t2 f2 cu) args1 args2
+          Array.fold_left2 (fun cu v1 v2 -> conv_val true env CONV lvl v1 v2 cu) (conv_fix env lvl t1 f1 t2 f2 cu) args1 args2
     | Aproj((ind1, i1), ac1), Aproj((ind2, i2), ac2) ->
        if not (QInd.equal env ind1 ind2 && Int.equal i1 i2) then raise NotConvertible
        else conv_accu env CONV lvl ac1 ac2 cu
@@ -170,11 +173,11 @@ and conv_fix env lvl t1 f1 t2 f2 cu =
   let fargs = mk_rels_accu lvl len in
   let flvl = lvl + len in
   let rec aux i cu =
-    let cu = conv_val env CONV lvl t1.(i) t2.(i) cu in
+    let cu = conv_val true env CONV lvl t1.(i) t2.(i) cu in
     let fi1 = napply f1.(i) fargs in
     let fi2 = napply f2.(i) fargs in
-    if Int.equal i max then conv_val env CONV flvl fi1 fi2 cu
-    else aux (i+1) (conv_val env CONV flvl fi1 fi2 cu) in
+    if Int.equal i max then conv_val true env CONV flvl fi1 fi2 cu
+    else aux (i+1) (conv_val true env CONV flvl fi1 fi2 cu) in
   aux 0 cu
 
 let w_native_disabled = CWarnings.create_warning
@@ -190,22 +193,31 @@ let warn_no_native_compiler =
 let native_conv_gen (type err) pb sigma env (state, check) t1 t2 =
   Nativelib.link_libraries ();
   let ml_filename, prefix = Nativelib.get_mlf_filename () in
-  let code, symbols, upds = mk_conv_code env sigma prefix t1 t2 in
-  let fn = Nativelib.compile ml_filename code ~profile:false in
-  debug_native_compiler (fun () -> Pp.str "Running test...");
-  let t0 = Sys.time () in
-  let (rt1, rt2) = Nativelib.execute_library ~prefix fn symbols upds in
-  let rt1 = Option.get rt1 and rt2 = Option.get rt2 in
-  let t1 = Sys.time () in
-  let time_info = Format.sprintf "Evaluation done in %.5f@." (t1 -. t0) in
-  debug_native_compiler (fun () -> Pp.str time_info);
-  (* TODO change 0 when we can have de Bruijn *)
-  let exception Error of err in
-  let box = { fail = fun e -> raise (Error e) } in
-  try Result.Ok (pi1 (conv_val env pb 0 rt1 rt2 (state, check, box)))
-  with
-  | NotConvertible -> Result.Error None
-  | Error e -> Result.Error (Some e)
+  let aux consider_accs =
+    let code, symbols, upds = mk_conv_code consider_accs env sigma prefix t1 t2 in
+    let fn = Nativelib.compile ml_filename code ~profile:false in
+    if consider_accs then
+      debug_native_compiler (fun () -> Pp.str "Running test with accumulators...")
+    else
+      debug_native_compiler (fun () -> Pp.str "Running test without accumulators...");
+    let t0 = Sys.time () in
+    let (rt1, rt2) = Nativelib.execute_library ~prefix fn symbols upds in
+    let rt1 = Option.get rt1 and rt2 = Option.get rt2 in
+    let t1 = Sys.time () in
+    let time_info = Format.sprintf "Evaluation done in %.5f@." (t1 -. t0) in
+    debug_native_compiler (fun () -> Pp.str time_info);
+    (* TODO change 0 when we can have de Bruijn *)
+    let exception Error of err in
+    let box = { fail = fun e -> raise (Error e) } in
+    try Result.Ok (pi1 (conv_val consider_accs env pb 0 rt1 rt2 (state, check, box)))
+    with
+    | NotConvertible -> Result.Error None
+    | Error e -> Result.Error (Some e)
+  in
+  try aux false with
+  | NeedsAccumulators ->
+    debug_native_compiler (fun () -> Pp.str "Native-compute without accumulators failed, falling back to normal mode.");
+    aux true
 
 let native_conv_gen pb sigma env univs t1 t2 =
   if not (typing_flags env).Declarations.enable_native_compiler then

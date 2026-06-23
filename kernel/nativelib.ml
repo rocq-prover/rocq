@@ -96,6 +96,7 @@ let get_mlf_filename () =
   let temp_dir = force_temp_dir() in
   let filename = Filename.temp_file ~temp_dir "Coq_native" source_ext in
   let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
+  delay_cleanup_file filename;
   filename, prefix
 
 let write_code fn ?(header=[]) code =
