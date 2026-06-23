@@ -435,6 +435,8 @@ create_opam() {
     opam install -qy -j "$number_of_processors" $initial_opam_packages
     if [ ! -z "$BENCH_DEBUG" ]; then opam repo list; fi
 
+    opam pin add -qy -j "$number_of_processors" git+https://github.com/IBBXEF/malfunction#recusive_types
+
     cd "$coq_dir"
     echo "$1_coq_commit = $COQ_HASH"
 
