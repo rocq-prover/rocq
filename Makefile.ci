@@ -156,8 +156,6 @@ ci-compcert: ci-menhir ci-flocq
 
 ci-paramcoq: ci-stdlib
 
-ci-perennial: ci-stdlib
-
 ci-aac_tactics: ci-stdlib
 ci-relation_algebra: ci-aac_tactics ci-mathcomp
 
