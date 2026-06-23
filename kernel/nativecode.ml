@@ -2308,11 +2308,12 @@ and compile_named consider_accs cenv env sigma univ auxdefs id =
   let open Context.Named.Declaration in
   match lookup_named id env with
   | LocalDef (_,t,_) ->
-      let code = lambda_of_constr env sigma t in
-      let auxdefs,code = compile_with_fv consider_accs cenv env sigma univ auxdefs None code in
-      Glet(Gnamed id, code)::auxdefs
+    let code = lambda_of_constr env sigma t in
+    let auxdefs,code = compile_with_fv consider_accs cenv env sigma univ auxdefs None code in
+    Glet(Gnamed id, code)::auxdefs
   | LocalAssum _ ->
-      Glet(Gnamed id, MLprimitive (Mk_var id, [||]))::auxdefs
+    if not consider_accs then raise NeedsAccumulators else
+    Glet(Gnamed id, MLprimitive (Mk_var id, [||]))::auxdefs
 
 let compile_constant consider_accs cenv env sigma con cb =
     let no_univs = UVars.AbstractContext.is_constant (Declareops.constant_polymorphic_context cb) in
@@ -2558,11 +2559,13 @@ let mk_conv_code consider_accs env sigma prefix t1 t2 =
   let setref1 = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt1)",g1)) in
   let setref2 = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt2)",g2)) in
   let gl = List.rev (setref2 :: setref1 :: t2 :: t1 :: gl) in
+  let compile_mode_comment =
+    Gcomment (if consider_accs then "code generated with accumulators" else "code generated without accumulators") in
   let header = Glet(Ginternal "$symbols_tbl",
     MLprimitive (Get_symbols,
       [|MLglobal (Ginternal "0")|])) in
   let symbols = get_cenv_symbols cenv in
-  header::gl, symbols, (mind_updates, const_updates)
+  compile_mode_comment::header::gl, symbols, (mind_updates, const_updates)
 
 let mk_norm_code consider_accs env sigma prefix t =
   let cenv = make_cenv () in
@@ -2576,14 +2579,13 @@ let mk_norm_code consider_accs env sigma prefix t =
   let g1 = MLglobal (Ginternal "$t1") in
   let setref = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt1)",g1)) in
   let gl = List.rev (setref :: t1 :: gl) in
-  let gl =
-    Gcomment (if consider_accs then "code generated with accumulators" else "code generated without accumulators")
-    :: gl in
+  let compile_mode_comment =
+    Gcomment (if consider_accs then "code generated with accumulators" else "code generated without accumulators") in
   let header = Glet(Ginternal "$symbols_tbl",
     MLprimitive (Get_symbols,
       [|MLglobal (Ginternal "0")|])) in
   let symbols = get_cenv_symbols cenv in
-  header::gl, symbols, (mind_updates, const_updates)
+  compile_mode_comment::header::gl, symbols, (mind_updates, const_updates)
 
 let mk_library_header (symbols : Nativevalues.symbols) =
   [Glet(Ginternal "$symbols_tbl", MLprimitive (Str_decode, [|MLglobal (Ginternal ("\"" ^ (str_encode symbols) ^ "\""))|]))]

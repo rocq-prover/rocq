@@ -51,8 +51,10 @@ let rec conv_val consider_accs env pb lvl v1 v2 cu =
       let v = mk_rel_accu lvl in
       conv_val consider_accs env CONV (lvl+1) (f1 v) (f2 v) cu
     | Vfun _f1, _ ->
+      if not consider_accs then raise NeedsAccumulators else
       conv_val consider_accs env CONV lvl v1 (eta_expand v2) cu
     | _, Vfun _f2 ->
+      if not consider_accs then raise NeedsAccumulators else
       conv_val consider_accs env CONV lvl (eta_expand v1) v2 cu
     | Vaccu k1, Vaccu k2 ->
       (* if not consider_accs then failwith "accumulator mysteriously appeared in a accumulator-less execution" else *)
