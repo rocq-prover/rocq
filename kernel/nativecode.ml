@@ -1579,58 +1579,59 @@ let rec ml_of_lam consider_accs env l t =
       end in
       MLletrec(Array.mapi mkrec lf, lf_args.(start))
   | Lcofix (start, (ids, tt, tb)) ->
-      (* Compilation of type *)
-      let env_t = restart_env env in
-      let ml_t = Array.map (ml_of_lam consider_accs env_t l) tt in
-      let params_t = fv_params env_t in
-      let args_t = Array.map (fun id -> MLlocal id) params_t in
-      let gft = fresh_gfixtype env.env_cenv l in
-      let gft = push_global_fixtype env.env_cenv gft params_t ml_t in
-      let mk_type = MLapp(MLglobal gft, args_t) in
-      (* Compilation of norm_i *)
-      let ndef = Array.length ids in
-      let lf,env_n = push_rels env_t ids in
-      let t_params = Array.make ndef [||] in
-      let t_norm_f = Array.init ndef (fun _i -> fresh_gnorm env.env_cenv l) in
-      let ml_of_fix i body =
-        let idsi,bodyi = decompose_Llam body in
-        let paramsi, envi = push_rels env_n idsi in
-        let bodyi = ml_of_lam consider_accs envi l bodyi in
-        t_params.(i) <- paramsi;
-        mkMLlam paramsi bodyi
-      in
-      let tnorm = Array.mapi ml_of_fix tb in
-      let fvn,fvr = !(env_n.env_named), !(env_n.env_urel) in
-      let fv_params = fv_params env_n in
-      let fv_args' = Array.map (fun id -> MLlocal id) fv_params in
-      let norm_params = Array.append fv_params lf in
-      let t_norm_f = Array.mapi (fun i body ->
-        push_global_let env.env_cenv (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
-      let norm = fresh_gnormtbl env.env_cenv l in
-      let norm = push_global_norm env.env_cenv norm fv_params
-        (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
-      (* Compilation of cofix *)
-      let fv_args = fv_args env fvn fvr in
-      let mk_norm = MLapp(MLglobal norm, fv_args') in
+    if not consider_accs then raise NeedsAccumulators else (* cofixpoint compilation uses an accumulator *)
+    (* Compilation of type *)
+    let env_t = restart_env env in
+    let ml_t = Array.map (ml_of_lam consider_accs env_t l) tt in
+    let params_t = fv_params env_t in
+    let args_t = Array.map (fun id -> MLlocal id) params_t in
+    let gft = fresh_gfixtype env.env_cenv l in
+    let gft = push_global_fixtype env.env_cenv gft params_t ml_t in
+    let mk_type = MLapp(MLglobal gft, args_t) in
+    (* Compilation of norm_i *)
+    let ndef = Array.length ids in
+    let lf,env_n = push_rels env_t ids in
+    let t_params = Array.make ndef [||] in
+    let t_norm_f = Array.init ndef (fun _i -> fresh_gnorm env.env_cenv l) in
+    let ml_of_fix i body =
+      let idsi,bodyi = decompose_Llam body in
+      let paramsi, envi = push_rels env_n idsi in
+      let bodyi = ml_of_lam consider_accs envi l bodyi in
+      t_params.(i) <- paramsi;
+      mkMLlam paramsi bodyi
+    in
+    let tnorm = Array.mapi ml_of_fix tb in
+    let fvn,fvr = !(env_n.env_named), !(env_n.env_urel) in
+    let fv_params = fv_params env_n in
+    let fv_args' = Array.map (fun id -> MLlocal id) fv_params in
+    let norm_params = Array.append fv_params lf in
+    let t_norm_f = Array.mapi (fun i body ->
+      push_global_let env.env_cenv (t_norm_f.(i)) (mkMLlam norm_params body)) tnorm in
+    let norm = fresh_gnormtbl env.env_cenv l in
+    let norm = push_global_norm env.env_cenv norm fv_params
+      (Array.map (fun g -> mkMLapp (MLglobal g) fv_args') t_norm_f) in
+    (* Compilation of cofix *)
+    let fv_args = fv_args env fvn fvr in
+    let mk_norm = MLapp(MLglobal norm, fv_args') in
 
-      let knot = fresh_gnormtbl env.env_cenv l in
-      let map i g =
-        (* fun args -> cofix (fun () -> tb_i fv tbl args) *)
-        let unit = fresh_lname env.env_cenv Anonymous in
-        let args = Array.map (fun id -> MLlocal id) t_params.(i) in
-        let mk_let i lname cont =
-          MLlet (lname, MLprimitive (Array_get, [|MLint i; MLglobal knot|]), cont) (* in malfunction, the index is first *)
-        in
-        let self = Array.map (fun id -> MLlocal id) lf in
-        let body = mkMLapp (MLglobal g) (Array.concat [fv_args'; self; args]) in
-        let body = MLlam ([|unit|], Array.fold_right_i mk_let lf body) in
-        let typs = mk_type in
-        let self = mk_norm in
-        mkMLlam t_params.(i) (MLprimitive ((Mk_cofix i), [| typs; self; body; MLarray args |]))
+    let knot = fresh_gnormtbl env.env_cenv l in
+    let map i g =
+      (* fun args -> cofix (fun () -> tb_i fv tbl args) *)
+      let unit = fresh_lname env.env_cenv Anonymous in
+      let args = Array.map (fun id -> MLlocal id) t_params.(i) in
+      let mk_let i lname cont =
+        MLlet (lname, MLprimitive (Array_get, [|MLint i; MLglobal knot|]), cont) (* in malfunction, the index is first *)
       in
-      (* Tie the knot *)
-      let knot = push_global_cofix env.env_cenv knot fv_params (Array.mapi map t_norm_f) in
-      MLprimitive (Array_get, [|MLint start; MLapp (MLglobal knot, fv_args)|]) (* in malfunction, the index is first *)
+      let self = Array.map (fun id -> MLlocal id) lf in
+      let body = mkMLapp (MLglobal g) (Array.concat [fv_args'; self; args]) in
+      let body = MLlam ([|unit|], Array.fold_right_i mk_let lf body) in
+      let typs = mk_type in
+      let self = mk_norm in
+      mkMLlam t_params.(i) (MLprimitive ((Mk_cofix i), [| typs; self; body; MLarray args |]))
+    in
+    (* Tie the knot *)
+    let knot = push_global_cofix env.env_cenv knot fv_params (Array.mapi map t_norm_f) in
+    MLprimitive (Array_get, [|MLint start; MLapp (MLglobal knot, fv_args)|]) (* in malfunction, the index is first *)
 
   | Lint tag -> MLint tag
 
