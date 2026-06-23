@@ -58,6 +58,8 @@ ci-all: $(CI_TARGETS)
 
 ci-argosy: ci-stdlib
 
+ci-atbr: ci-stdlib
+
 ci-bignums: ci-stdlib
 
 ci-category_theory: ci-equations
@@ -164,6 +166,8 @@ ci-rocq_lsp: ci-stdlib
 ci-sf: ci-stdlib
 
 ci-smtcoq: ci-stdlib
+
+ci-stalmarck: ci-stdlib
 
 ci-stdlib_test: ci-stdlib
 ci-stdlib_doc: ci-stdlib

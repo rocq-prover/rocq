@@ -1073,6 +1073,12 @@ plugin:ci-aac_tactics:
   - build:edge+flambda
   - library:ci-stdlib+flambda
 
+plugin:ci-atbr:
+  extends: .ci-template-flambda
+  needs:
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
+
 plugin:ci-autosubst_ocaml:
   extends: .ci-template-flambda
 
@@ -1265,6 +1271,12 @@ plugin:ci-vsrocq:
   extends: .ci-template-flambda
 
 plugin:ci-smtcoq:
+  extends: .ci-template
+  needs:
+  - build:base
+  - library:ci-stdlib
+
+plugin:ci-stalmarck:
   extends: .ci-template
   needs:
   - build:base

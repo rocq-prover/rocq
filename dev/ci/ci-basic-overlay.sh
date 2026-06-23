@@ -396,6 +396,12 @@ project argosy "https://github.com/mit-pdos/argosy" "master"
 # Contact @tchajed on github
 
 ########################################################################
+# ATBR
+########################################################################
+project atbr "https://github.com/coq-community/atbr" "master"
+# Contact @palmskog, @tchajed on github
+
+########################################################################
 # metarocq
 ########################################################################
 project metarocq "https://github.com/MetaRocq/metarocq" "main"
@@ -460,6 +466,12 @@ project lean_importer "https://github.com/coq-community/rocq-lean-import" "maste
 ########################################################################
 project smtcoq "https://github.com/smtcoq/smtcoq" "coq-master"
 # Contact @ckeller on github
+
+########################################################################
+# Stalmarck
+########################################################################
+project stalmarck "https://github.com/coq-community/stalmarck" "master"
+# Contact @palmskog on github
 
 ########################################################################
 # Tactician
