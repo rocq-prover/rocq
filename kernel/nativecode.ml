@@ -449,9 +449,9 @@ type mllambda =
   | MLapp          of mllambda * mllambda array
   | MLif           of mllambda * mllambda * mllambda
   | MLmatch        of mllambda * mllambda * mllam_branches
-                              (* argument, prefix, accu branch, branches *)
+                              (* argument, accu branch, branches *)
   | MLmatch_noaccu        of mllambda * mllam_branches
-                              (* argument, prefix, branches *)
+                              (* argument, branches *)
   | MLconstruct    of string * inductive * int * mllambda array
                    (* prefix, inductive name, tag, arguments *)
   | MLint          of int
