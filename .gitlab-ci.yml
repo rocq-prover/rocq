@@ -935,17 +935,6 @@ library:ci-itree:
   - library:ci-paco
   stage: build-2
 
-library:ci-itree_io:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-  - library:ci-ext_lib
-  - library:ci-paco
-  - library:ci-simple_io
-  - library:ci-itree
-  stage: build-3+
-
 library:ci-simple_io:
   extends: .ci-template-flambda
   needs:
@@ -1037,25 +1026,6 @@ library:ci-jasmin:
   - library:ci-paco
   - library:ci-itree
   stage: build-3+
-
-library:ci-http:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-  - plugin:ci-elpi_hb
-  - plugin:ci-micromega
-  - library:ci-mathcomp
-  - library:ci-menhir
-  - library:ci-ext_lib
-  - library:ci-simple_io
-  - library:ci-paco
-  - library:ci-itree
-  - library:ci-itree_io
-  - plugin:ci-quickchick
-  stage: build-3+
-  variables:
-    CI_TARGETS: "ceres parsec json async_test http"
 
 library:ci-trakt:
   extends: .ci-template-flambda

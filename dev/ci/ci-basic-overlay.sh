@@ -336,42 +336,6 @@ project itree "https://github.com/DeepSpec/InteractionTrees" "master"
 # Contact @Lysxia on github
 
 ########################################################################
-# coq-itree_io
-########################################################################
-project itree_io "https://github.com/Lysxia/coq-itree-io" "master"
-# Contact @Lysxia, @liyishuai on github
-
-########################################################################
-# coq-ceres
-########################################################################
-project ceres "https://github.com/Lysxia/coq-ceres" "master"
-# Contact @Lysxia on github
-
-########################################################################
-# coq-parsec
-########################################################################
-project parsec "https://github.com/liyishuai/coq-parsec" "master"
-# Contact @liyishuai on github
-
-########################################################################
-# coq-json
-########################################################################
-project json "https://github.com/liyishuai/coq-json" "master"
-# Contact @liyishuai on github
-
-########################################################################
-# coq-async-test
-########################################################################
-project async_test "https://github.com/liyishuai/coq-async-test" "master"
-# Contact @liyishuai on github
-
-########################################################################
-# coq-http
-########################################################################
-project http "https://github.com/liyishuai/coq-http" "master"
-# Contact @liyishuai on github
-
-########################################################################
 # paramcoq
 ########################################################################
 project paramcoq "https://github.com/coq-community/paramcoq" "master"
