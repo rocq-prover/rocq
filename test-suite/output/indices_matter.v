@@ -10,3 +10,11 @@ Module SetIndicesMatter.
   Unset Indices Matter.
   Print Assumptions M.X.
 End SetIndicesMatter.
+
+(* Test Set Printing All Assumptions *)
+Module PrintingAllAssumptions.
+  Unset Indices Matter.
+  Print Assumptions M.X.
+  Set Printing All Assumptions.
+  Print Assumptions M.X.
+End PrintingAllAssumptions.
