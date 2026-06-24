@@ -12,9 +12,23 @@
 
 let string_equal (s1 : string) s2 = s1 = s2
 
+type (_,_) exact =
+  | Any : ('a,'a) exact
+  | Exact : 'a -> ('a,unit) exact
+
+let is_exact (type a b) : (a,b) exact -> bool = function
+  | Any -> false
+  | Exact _ -> true
+
+let exact_eq (type a b b') (eq:a -> a -> bool) (a:(a,b) exact) (b:(a,b') exact) : (b,b') Util.eq option =
+  match a, b with
+  | Any, Any -> Some Refl
+  | Exact a, Exact b -> if eq a b then Some Refl else None
+  | (Any | Exact _), _ -> None
+
 type 'c p =
-  | PKEYWORD : string -> string p
-  | PIDENT : string option -> string p
+  | PKEYWORD : string -> unit p
+  | PIDENT : (string,'v) exact -> 'v p
   | PFIELD : string option -> string p
   | PNUMBER : NumTok.Unsigned.t option -> NumTok.Unsigned.t p
   | PSTRING : string option -> string p
@@ -25,7 +39,7 @@ type 'c p =
 
 let pattern_exact : type c. c p -> bool = function
   | PKEYWORD _ -> true
-  | PIDENT id -> Option.has_some id
+  | PIDENT id -> is_exact id
   | PFIELD s -> Option.has_some s
   | PNUMBER n -> Option.has_some n
   | PSTRING s -> Option.has_some s
@@ -49,10 +63,11 @@ let equal_p (type a b) (t1 : a p) (t2 : b p) : (a, b) Util.eq option =
   let streq s1 s2 = match s1, s2 with None, None -> true
     | Some s1, Some s2 -> string_equal s1 s2 | _ -> false in
   match t1, t2 with
-  | PIDENT s1, PIDENT s2 when streq s1 s2 -> Some Util.Refl
+  | PIDENT s1, PIDENT s2 ->
+    begin match exact_eq string_equal s1 s2 with Some Refl -> Some Util.Refl | None -> None end
   | PKEYWORD s1, PKEYWORD s2 when string_equal s1 s2 -> Some Util.Refl
-  | PIDENT (Some s1), PKEYWORD s2 when string_equal s1 s2 -> Some Util.Refl
-  | PKEYWORD s1, PIDENT (Some s2) when string_equal s1 s2 -> Some Util.Refl
+  | PIDENT (Exact s1), PKEYWORD s2 when string_equal s1 s2 -> Some Util.Refl
+  | PKEYWORD s1, PIDENT (Exact s2) when string_equal s1 s2 -> Some Util.Refl
   | PFIELD s1, PFIELD s2 when streq s1 s2 -> Some Util.Refl
   | PNUMBER None, PNUMBER None -> Some Util.Refl
   | PNUMBER (Some n1), PNUMBER (Some n2) when NumTok.Unsigned.equal n1 n2 -> Some Util.Refl
@@ -65,12 +80,12 @@ let equal_p (type a b) (t1 : a p) (t2 : b p) : (a, b) Util.eq option =
 
 let compare_p (type a b) (t1 : a p) (t2 : b p) : int =
   match t1, t2 with
-  | PIDENT None, PIDENT None -> 0
-  | PIDENT None, _ -> -1
-  | _, PIDENT None -> 1
-  | (PIDENT (Some s1) | PKEYWORD s1), (PIDENT (Some s2) | PKEYWORD s2) -> String.compare s1 s2
-  | (PIDENT (Some _) | PKEYWORD _), _ -> -1
-  | _, (PIDENT (Some _) | PKEYWORD _) -> 1
+  | PIDENT Any, PIDENT Any -> 0
+  | PIDENT Any, _ -> -1
+  | _, PIDENT Any -> 1
+  | (PIDENT (Exact s1) | PKEYWORD s1), (PIDENT (Exact s2) | PKEYWORD s2) -> String.compare s1 s2
+  | (PIDENT (Exact _) | PKEYWORD _), _ -> -1
+  | _, (PIDENT (Exact _) | PKEYWORD _) -> 1
   | PFIELD s1, PFIELD s2 -> Option.compare String.compare s1 s2
   | PFIELD _, _ -> -1
   | _, PFIELD _ -> 1
@@ -93,8 +108,8 @@ let compare_p (type a b) (t1 : a p) (t2 : b p) : int =
 
 let token_text : type c. c p -> string = function
   | PKEYWORD t -> "'" ^ t ^ "'"
-  | PIDENT None -> "identifier"
-  | PIDENT (Some t) -> "'" ^ t ^ "'"
+  | PIDENT Any -> "identifier"
+  | PIDENT (Exact t) -> "'" ^ t ^ "'"
   | PNUMBER None -> "number"
   | PNUMBER (Some n) -> "'" ^ NumTok.Unsigned.sprint n ^ "'"
   | PSTRING None -> "string"
@@ -149,12 +164,12 @@ let match_pattern (type c) (p : c p) : t -> c option =
   let seq = string_equal in
   match p with
   | PKEYWORD s ->
-    (function KEYWORD s' when seq s s' -> Some s'
-            | NUMBER n when seq s (NumTok.Unsigned.sprint n) -> Some s
-            | STRING s' when seq s (CString.quote_coq_string s') -> Some s
+    (function KEYWORD s' when seq s s' -> Some ()
+            | NUMBER n when seq s (NumTok.Unsigned.sprint n) -> Some ()
+            | STRING s' when seq s (CString.quote_coq_string s') -> Some ()
             | _ -> None)
-  | PIDENT None -> (function IDENT s' -> Some s' | _ -> None)
-  | PIDENT (Some s) -> (function (IDENT s' | KEYWORD s') when seq s s' -> Some s' | _ -> None)
+  | PIDENT Any -> (function IDENT s' -> Some s' | _ -> None)
+  | PIDENT (Exact s) -> (function (IDENT s' | KEYWORD s') when seq s s' -> Some () | _ -> None)
   | PFIELD None -> (function FIELD s -> Some s| _ -> None)
   | PFIELD (Some s) -> (function FIELD s' when seq s s' -> Some s' | _ -> None)
   | PNUMBER None -> (function NUMBER s -> Some s| _ -> None)
