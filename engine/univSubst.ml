@@ -151,7 +151,10 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
     let rel' = frel rel in
     let pms' = Array.Fun1.Smart.map aux k pms in
     let p' = aux_ctx p in
-    let iv' = map_invert (aux k) iv in
+    let iv' =
+      if Sorts.relevance_equal rel' Irrelevant then NoInvert
+      else map_invert (aux k) iv
+    in
     let t' = aux k t in
     let br' = Array.Smart.map aux_ctx br in
     if rel' == rel && u' == u && pms' == pms && p' == p && iv' == iv && t' == t && br' == br then c
