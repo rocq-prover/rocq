@@ -3,3 +3,9 @@ Axioms:
 impred_def was typed with Set being impredicative.
 Theory:
 Set is impredicative
+Axioms:
+mk_impred was typed with Set being impredicative.
+impred_ind was typed with Set being impredicative.
+Theory:
+Set is impredicative
+Closed under the global context

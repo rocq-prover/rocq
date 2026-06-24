@@ -257,6 +257,10 @@ type one_inductive_body = {
     (** true if this inductive relies on indices not mattering,
         i.e. its behavior would change under -indices-matter. *)
 
+    mind_uses_impredicative_set : bool;
+    (** true if this inductive relies on [Set] being impredicative,
+        i.e. its elimination constraints would change without [-impredicative-set]. *)
+
 (** {8 Datas for bytecode compilation } *)
 
     mind_nb_constant : int; (** number of constant constructor *)

@@ -377,9 +377,15 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
   let has_impredicative_set = ref false in
   let has_rewrite_rules = ref false in
   let has_type_in_type = ref false in
-  let collect_theory_flags (tf : Declarations.typing_flags) =
-    if tf.impredicative_set then has_impredicative_set := true;
-    if not tf.check_universes then has_type_in_type := true
+  let collect_const_theory_flags (cb : Declarations.constant_body) =
+    if cb.const_typing_flags.impredicative_set then has_impredicative_set := true;
+    if not cb.const_typing_flags.check_universes then has_type_in_type := true;
+    match cb.const_body with Symbol _ -> has_rewrite_rules := true | _ -> ()
+  in
+  let collect_mind_theory_flags (mind : Declarations.mutual_inductive_body) =
+    if Array.exists (fun mip -> mip.Declarations.mind_uses_impredicative_set) mind.mind_packets then
+      has_impredicative_set := true;
+    if not mind.mind_typing_flags.check_universes then has_type_in_type := true
   in
   let fold obj contents accu = match obj with
   | VarRef id ->
@@ -390,11 +396,7 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
     else accu
   | ConstRef kn ->
       let cb = lookup_constant kn in
-      collect_theory_flags cb.const_typing_flags;
-      begin match cb.const_body with
-        | Symbol _ -> has_rewrite_rules := true
-        | _ -> ()
-      end;
+      collect_const_theory_flags cb;
       let accu =
         if cb.const_typing_flags.check_guarded then accu
         else
@@ -434,7 +436,7 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
       accu
   | IndRef (m,_) | ConstructRef ((m,_),_) ->
       let mind = lookup_mind m in
-      collect_theory_flags mind.mind_typing_flags;
+      collect_mind_theory_flags mind;
       let accu =
         if mind.mind_typing_flags.check_positive then accu
         else
@@ -466,7 +468,7 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
           ContextObjectMap.add (Axiom (IndicesNotMattering m, l)) Constr.mkProp accu
       in
       let accu =
-        if not mind.mind_typing_flags.impredicative_set then accu
+        if not (Array.exists (fun mip -> mip.mind_uses_impredicative_set) mind.mind_packets) then accu
         else
           let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (ImpredicativeSet obj, l)) Constr.mkProp accu
