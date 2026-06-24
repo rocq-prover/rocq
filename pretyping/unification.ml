@@ -345,7 +345,7 @@ let { Goptions.get = is_keyed_unification } =
 let debug_tactic_unification = CDebug.create ~name:"tactic-unification" ()
 
 let debug_canonical_tactic_unification pp =
-  Structures.debug_canonical_structures (fun () -> str "tactic-unification: " ++ pp ())
+  Structures.debug_canonical_structures (fun () -> v 0 (str "tactic-unification:" ++ fnl () ++ pp ()))
 
 let pr_cs_constr env sigma c = hov 1 (Termops.Internal.print_constr_env env sigma c)
 

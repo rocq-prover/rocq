@@ -307,7 +307,7 @@ let pr_cs_stack env sigma sk = Pp.hov 1 (Stack.pr (pr_cs_constr env sigma) sk)
 let pr_cs_field label pp = Pp.(hov 2 (str label ++ str ":" ++ spc () ++ pp))
 
 let debug_canonical_unification pp =
-  Structures.debug_canonical_structures (fun () -> Pp.(str "unification: " ++ pp ()))
+  Structures.debug_canonical_structures (fun () -> Pp.(v 0 (str "unification:" ++ fnl () ++ pp ())))
 
 let decompose_proj ?metas env sigma (t1, sk1) =
    (* I only recognize ConstRef projections since these are the only ones for which
