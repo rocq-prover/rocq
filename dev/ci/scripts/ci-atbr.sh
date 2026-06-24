@@ -5,11 +5,11 @@ set -e
 ci_dir="$(dirname "$0")"
 . "${ci_dir}/ci-common.sh"
 
-git_download http
+git_download atbr
 
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
-( cd "${CI_BUILD_DIR}/http"
+( cd "${CI_BUILD_DIR}/atbr"
   make
-  make INSTALLDIR="$CI_INSTALL_DIR" install
+  make install
 )

@@ -935,17 +935,6 @@ library:ci-itree:
   - library:ci-paco
   stage: build-2
 
-library:ci-itree_io:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-  - library:ci-ext_lib
-  - library:ci-paco
-  - library:ci-simple_io
-  - library:ci-itree
-  stage: build-3+
-
 library:ci-simple_io:
   extends: .ci-template-flambda
   needs:
@@ -1038,25 +1027,6 @@ library:ci-jasmin:
   - library:ci-itree
   stage: build-3+
 
-library:ci-http:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-  - plugin:ci-elpi_hb
-  - plugin:ci-micromega
-  - library:ci-mathcomp
-  - library:ci-menhir
-  - library:ci-ext_lib
-  - library:ci-simple_io
-  - library:ci-paco
-  - library:ci-itree
-  - library:ci-itree_io
-  - plugin:ci-quickchick
-  stage: build-3+
-  variables:
-    CI_TARGETS: "ceres parsec json async_test http"
-
 library:ci-trakt:
   extends: .ci-template-flambda
   needs:
@@ -1068,6 +1038,12 @@ library:ci-trakt:
 # Plugins are by definition the projects that depend on Rocq's ML API
 
 plugin:ci-aac_tactics:
+  extends: .ci-template-flambda
+  needs:
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
+
+plugin:ci-atbr:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
@@ -1265,6 +1241,12 @@ plugin:ci-vsrocq:
   extends: .ci-template-flambda
 
 plugin:ci-smtcoq:
+  extends: .ci-template
+  needs:
+  - build:base
+  - library:ci-stdlib
+
+plugin:ci-stalmarck:
   extends: .ci-template
   needs:
   - build:base

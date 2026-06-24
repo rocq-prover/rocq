@@ -336,42 +336,6 @@ project itree "https://github.com/DeepSpec/InteractionTrees" "master"
 # Contact @Lysxia on github
 
 ########################################################################
-# coq-itree_io
-########################################################################
-project itree_io "https://github.com/Lysxia/coq-itree-io" "master"
-# Contact @Lysxia, @liyishuai on github
-
-########################################################################
-# coq-ceres
-########################################################################
-project ceres "https://github.com/Lysxia/coq-ceres" "master"
-# Contact @Lysxia on github
-
-########################################################################
-# coq-parsec
-########################################################################
-project parsec "https://github.com/liyishuai/coq-parsec" "master"
-# Contact @liyishuai on github
-
-########################################################################
-# coq-json
-########################################################################
-project json "https://github.com/liyishuai/coq-json" "master"
-# Contact @liyishuai on github
-
-########################################################################
-# coq-async-test
-########################################################################
-project async_test "https://github.com/liyishuai/coq-async-test" "master"
-# Contact @liyishuai on github
-
-########################################################################
-# coq-http
-########################################################################
-project http "https://github.com/liyishuai/coq-http" "master"
-# Contact @liyishuai on github
-
-########################################################################
 # paramcoq
 ########################################################################
 project paramcoq "https://github.com/coq-community/paramcoq" "master"
@@ -394,6 +358,12 @@ project stdlib "https://github.com/coq/stdlib" "master"
 ########################################################################
 project argosy "https://github.com/mit-pdos/argosy" "master"
 # Contact @tchajed on github
+
+########################################################################
+# ATBR
+########################################################################
+project atbr "https://github.com/coq-community/atbr" "master"
+# Contact @palmskog, @tchajed on github
 
 ########################################################################
 # metarocq
@@ -460,6 +430,12 @@ project lean_importer "https://github.com/coq-community/rocq-lean-import" "maste
 ########################################################################
 project smtcoq "https://github.com/smtcoq/smtcoq" "coq-master"
 # Contact @ckeller on github
+
+########################################################################
+# Stalmarck
+########################################################################
+project stalmarck "https://github.com/coq-community/stalmarck" "master"
+# Contact @palmskog on github
 
 ########################################################################
 # Tactician
