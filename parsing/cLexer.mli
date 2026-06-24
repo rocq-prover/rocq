@@ -51,7 +51,7 @@ val add_keyword_tok : keyword_state -> 'c Tok.p -> keyword_state
     (returns [PIDENT (Some _)] for idents which have been declared as keywords,
     as the keyword state is not checked)
 *)
-val terminal : string -> string Tok.p
+val terminal : string -> unit Tok.p
 
 (** Precondition: the input is a number (c.f. [NumTok.t]) *)
 val terminal_number : string -> NumTok.Unsigned.t Tok.p

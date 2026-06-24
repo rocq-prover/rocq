@@ -971,7 +971,7 @@ let rules = [
 
   Procq.(
     Production.make
-      (Rule.stop ++ Symbol.token (PIDENT (Some "ltac2")) ++ Symbol.token (PKEYWORD ":") ++
+      (Rule.stop ++ Symbol.token (PIDENT (Exact "ltac2")) ++ Symbol.token (PKEYWORD ":") ++
        Symbol.token (PKEYWORD "(") ++ Symbol.nterm ltac2_expr ++ Symbol.token (PKEYWORD ")"))
     begin fun _ tac _ _ _ loc ->
       CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_constr, tac)))

@@ -783,7 +783,7 @@ let prod_entry_type = function
 let terminal need_keyword s : Procq.ty_pattern =
   (* Ensure that IDENT articulation terminal symbols are keywords *)
   match CLexer.terminal s with
-  | Tok.PIDENT (Some k) as p ->
+  | Tok.PIDENT (Exact k) as p ->
     if need_keyword then begin
       Flags.if_verbose Feedback.msg_info (str "Identifier '" ++ str k ++ str "' now a keyword");
       TPattern (PKEYWORD s)
