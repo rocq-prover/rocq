@@ -752,7 +752,7 @@ let pr_assumptionset ?(flags=current_combined()) env sigma theory_info s =
       | IndicesNotMattering mind ->
           hov 2 (safe_pr_inductive env mind ++ spc () ++ strbrk"relies on indices not mattering.")
       | ImpredicativeSet gr ->
-          hov 2 (safe_pr_global env gr ++ spc () ++ strbrk"was typed with Set being impredicative.")
+          hov 2 (safe_pr_global env gr ++ spc () ++ strbrk"relies on Set being impredicative.")
       | RewriteRules kn ->
           hov 2 (safe_pr_constant env kn ++ spc () ++ strbrk"is a symbol for rewrite rules.")
     in
