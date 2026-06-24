@@ -2379,10 +2379,20 @@ let uses_accumulators_native_file = ref StringSet.empty
 let is_loaded_native_file s = StringSet.mem s !loaded_native_files
 let has_accus_native_file s = StringSet.mem s !uses_accumulators_native_file
 
+let warn_no_interface_found =
+  CWarnings.create ~name:"native-no-interface-found"
+    (fun path -> Pp.(str "unable to find the mli interface: " ++ str path ++ str " when trying to find if it uses accumulators or not."))
+
 let register_native_file libpath ~prefix =
   let uses_accumulators  =
+    let lib_mli_path = Filename.chop_extension libpath in
+    let libdir, libfile = Filename.dirname lib_mli_path, Filename.basename lib_mli_path in
+    let libdir = if String.ends_with ~suffix:".coq-native" libdir then (* this is an awful fix to correct some library files being in a different place than their .mli interface *)
+      let libdir = String.sub libdir 0 (String.length libdir - String.length ".coq-native") in
+      Str.replace_first (Str.regexp_string "install/default/lib/coq/theories/") "default/theories/Corelib/" libdir
+      else libdir in
+    let lib_mli_path = Filename.concat libdir (libfile^".mli") in
     try
-      let lib_mli_path = (Filename.chop_extension libpath)^".mli" in
       let lib_mli = open_in lib_mli_path in
       let rec aux lib_mli =
         let line =
@@ -2396,7 +2406,7 @@ let register_native_file libpath ~prefix =
       close_in lib_mli;
       uses_accs
     with
-    | Sys_error _ -> true in (* TODOME: This should not happen but we'll let it slide for now *)
+    | Sys_error _ -> warn_no_interface_found lib_mli_path; false in
   if uses_accumulators then
     uses_accumulators_native_file := StringSet.add prefix !uses_accumulators_native_file;
   loaded_native_files := StringSet.add prefix !loaded_native_files
