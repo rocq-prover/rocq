@@ -226,6 +226,9 @@ val pr_ne_evar_set : ?flags:PrintingFlags.t ->
   Evar.Set.t -> Pp.t
 
 (** Declarations for the "Print Assumption" command *)
+
+val print_all_assumptions : unit -> bool
+
 type axiom =
   | Constant of Constant.t (* An axiom or a constant. *)
   | Positive of MutInd.t (* A mutually inductive definition which has been assumed positive. *)
@@ -244,8 +247,14 @@ module ContextObjectSet : CSet.ExtS with type elt = context_object
 module ContextObjectMap : CMap.ExtS
   with type key = context_object and module Set := ContextObjectSet
 
+type theory_assumptions = {
+  has_impredicative_set : bool;
+  has_rewrite_rules : bool;
+  has_type_in_type : bool;
+}
+
 val pr_assumptionset : ?flags:PrintingFlags.t ->
-  env -> evar_map -> types ContextObjectMap.t -> Pp.t
+  env -> evar_map -> theory_assumptions -> types ContextObjectMap.t -> Pp.t
 
 val pr_typing_flags : Declarations.typing_flags -> Pp.t
 

@@ -374,6 +374,13 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
   (* Only keep the transitive dependencies *)
   let (_, graph, ax2ty) = traverse access grs in
   let open GlobRef in
+  let has_impredicative_set = ref false in
+  let has_rewrite_rules = ref false in
+  let has_type_in_type = ref false in
+  let collect_theory_flags (tf : Declarations.typing_flags) =
+    if tf.impredicative_set then has_impredicative_set := true;
+    if not tf.check_universes then has_type_in_type := true
+  in
   let fold obj contents accu = match obj with
   | VarRef id ->
     let decl = Global.lookup_named id in
@@ -383,6 +390,11 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
     else accu
   | ConstRef kn ->
       let cb = lookup_constant kn in
+      collect_theory_flags cb.const_typing_flags;
+      begin match cb.const_body with
+        | Symbol _ -> has_rewrite_rules := true
+        | _ -> ()
+      end;
       let accu =
         if cb.const_typing_flags.check_guarded then accu
         else
@@ -409,6 +421,7 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
       accu
   | IndRef (m,_) | ConstructRef ((m,_),_) ->
       let mind = lookup_mind m in
+      collect_theory_flags mind.mind_typing_flags;
       let accu =
         if mind.mind_typing_flags.check_positive then accu
         else
@@ -434,11 +447,17 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
           ContextObjectMap.add (Axiom (UIP m, l)) Constr.mkProp accu
       in
       let accu =
-        if not (Environ.indices_matter (Global.env ())) then accu
-        else if not (Array.exists (fun mip -> mip.mind_relies_on_indices_not_mattering) mind.mind_packets) then accu
+        if not (Array.exists (fun mip -> mip.mind_relies_on_indices_not_mattering) mind.mind_packets) then accu
         else
           let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (IndicesNotMattering m, l)) Constr.mkProp accu
       in
       accu
-  in GlobRef.Map_env.fold fold graph ContextObjectMap.empty
+  in
+  let map = GlobRef.Map_env.fold fold graph ContextObjectMap.empty in
+  let theory = {
+    has_impredicative_set = !has_impredicative_set;
+    has_rewrite_rules = !has_rewrite_rules;
+    has_type_in_type = !has_type_in_type;
+  } in
+  (theory, map)
