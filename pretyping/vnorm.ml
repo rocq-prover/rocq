@@ -28,7 +28,19 @@ module NamedDecl = Context.Named.Declaration
 (* Calcul de la forme normal d'un terme    *)
 (*******************************************)
 
-let e_whd_all = Reductionops.clos_whd_flags RedFlags.all
+let e_whd_all env sigma t = match EConstr.kind sigma t with
+| Sort _ | Meta _ | Ind _ | Construct _ | Prod _| Lambda _ | Fix _
+| CoFix _ | Int _ | Float _ | String _ | Array _ as kind ->
+  EConstr.of_kind kind (* ensure head evar normalization *)
+| App (c, _) as kind ->
+  begin match EConstr.kind sigma c with
+  | Ind _ | Construct _ | Meta _ | Int _ | Float _ | String _ | Array _ -> EConstr.of_kind kind
+  | Sort _ | Rel _ | Var _ | Evar _ | Cast _ | Prod _ | Lambda _ | LetIn _ | App _
+  | Const _ | Case _ | Fix _ | CoFix _ | Proj _ ->
+    Reductionops.clos_whd_flags RedFlags.all env sigma t
+  end
+| Rel _ | Evar _ | Cast _ | LetIn _ | Case _ | Proj _ | Const _ | Var _ ->
+  Reductionops.clos_whd_flags RedFlags.all env sigma t
 
 let crazy_type =  mkSet
 
