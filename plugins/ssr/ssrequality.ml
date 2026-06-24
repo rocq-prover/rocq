@@ -746,7 +746,13 @@ let rwargtac ?under ?map_redex ist ((dir, mult), (((oclr, occ), grx), (kind, gt)
     | Some { pat_sigma = s } -> Evd.set_ustate sigma (Evd.ustate s)
     in
     let t = interp env sigma gt in
-    let sigma = Evd.set_ustate sigma  (Evd.ustate (fst t)) in
+    let us = Evd.ustate (fst t) in
+    let sigma = Evd.set_ustate sigma us in
+    (* Record the term's ustate unifications in the rx_pat *)
+    let rx = match rx with
+      | None -> None
+      | Some p -> Some { p with pat_sigma = Evd.set_ustate p.pat_sigma us }
+    in
     Proofview.Unsafe.tclEVARS sigma <*>
     (match kind with
     | RWred sim -> simplintac occ rx sim
