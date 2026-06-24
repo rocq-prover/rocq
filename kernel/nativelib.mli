@@ -27,19 +27,19 @@ val get_mlf_filename : unit -> string * string
 (** [compile file code ~profile] will compile native [code] to [file],
    and return the name of the object file; this name depends on
    whether are in byte mode or not; file is expected to be .ml file *)
-val compile : string -> Nativecode.global list -> profile:bool -> string
+val compile : bool -> string -> Nativecode.global list -> profile:bool -> string
 
 type native_library = Nativecode.global list * Nativevalues.symbols
 
 (** [compile_library (code, _) file] is similar to [compile file code]
    but will perform some extra tweaks to handle [code] as a Rocq lib. *)
-val compile_library : native_library -> string -> unit
+val compile_library : bool -> native_library -> string -> unit
 
 (** [execute_library file upds] dynamically loads library [file],
     updates the library locations [upds], and returns the values stored
     in [rt1] and [rt2] *)
 val execute_library :
-  bool -> prefix:string -> string -> Nativevalues.symbols -> Nativecode.code_location_updates ->
+  prefix:string -> string -> Nativevalues.symbols -> Nativecode.code_location_updates ->
   Nativevalues.t option * Nativevalues.t option
 
 (** [enable_library] marks the given library for dynamic loading

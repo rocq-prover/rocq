@@ -36,6 +36,13 @@ val global_to_mlf_name : global -> string option
 
 val pp_global_interface : Format.formatter -> global -> unit
 
+type compiled_library_flag =
+  | Uses_accumulators
+
+val pp_custom_flag : Format.formatter -> compiled_library_flag -> bool -> unit
+
+val get_custom_flag_value : string -> compiled_library_flag -> bool option
+
 val mk_open : string -> global
 
 val get_value : symbols -> int -> Nativevalues.t
@@ -61,8 +68,7 @@ type linkable_code = global list * symbols * code_location_updates
 
 val empty_updates : code_location_updates
 
-val register_native_file : string -> unit
-val indicate_native_file_has_accus : string -> unit
+val register_native_file : string -> prefix:string -> unit
 
 val is_loaded_native_file : string -> bool
 

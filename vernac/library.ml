@@ -549,7 +549,7 @@ let save_library_to todo_proofs ~output_native_objects dir f =
   (* Writing native code files *)
   if output_native_objects then
     let fn = Filename.dirname f ^"/"^ Nativecode.mod_uid_of_dirpath dir in
-    Nativelib.compile_library ast fn
+    Nativelib.compile_library true ast fn (* we consider accumulators when compiling general-purpose libraries TODOME: indicate which libraries generate accumulators *)
 
 let get_used_load_paths () =
   String.Set.elements

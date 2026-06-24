@@ -2258,6 +2258,25 @@ let pp_global_interface fmt g =
   | Gopen _ -> ()
   | Gtype (ind, lar) -> pp_type_decl fmt ind lar
 
+type compiled_library_flag =
+  | Uses_accumulators
+
+let compiled_library_flag_to_string flag =
+  match flag with
+  | Uses_accumulators -> "flag_uses_accumulators"
+
+let pp_custom_flag fmt name value =
+  Format.fprintf fmt "(*%s:%b*) (* this comment is used internally and should not be moved or modified *)@\n" (compiled_library_flag_to_string name) value
+
+let get_custom_flag_value line name =
+  let prefix = Format.sprintf "(*%s:" (compiled_library_flag_to_string name) in
+  if String.starts_with ~prefix line then
+    let end_pos = String.index_from line 2 '*' in (* if this fail, someone tampered our comment and it's their fault *)
+    let start_pos = String.length prefix in
+    let value = String.sub line start_pos (end_pos-start_pos) in
+    Some (bool_of_string value)
+  else None
+
 (** Compilation of elements in environment **)
 let rec compile_with_fv consider_accs ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
   let const_prefix c = get_const_prefix env c in
@@ -2360,11 +2379,27 @@ let uses_accumulators_native_file = ref StringSet.empty
 let is_loaded_native_file s = StringSet.mem s !loaded_native_files
 let has_accus_native_file s = StringSet.mem s !uses_accumulators_native_file
 
-let register_native_file s =
-  loaded_native_files := StringSet.add s !loaded_native_files
-
-let indicate_native_file_has_accus s =
-  uses_accumulators_native_file := StringSet.add s !uses_accumulators_native_file
+let register_native_file libpath ~prefix =
+  let uses_accumulators  =
+    try
+      let lib_mli_path = (Filename.chop_extension libpath)^".mli" in
+      let lib_mli = open_in lib_mli_path in
+      let rec aux lib_mli =
+        let line =
+          try input_line lib_mli
+          with | End_of_file -> failwith ("impossible to find the "^(compiled_library_flag_to_string Uses_accumulators)^" flag in "^lib_mli_path)
+        in
+        match get_custom_flag_value line Uses_accumulators with
+        | None -> aux lib_mli
+        | Some v -> v in
+      let uses_accs = aux lib_mli in
+      close_in lib_mli;
+      uses_accs
+    with
+    | Sys_error _ -> true in (* TODOME: This should not happen but we'll let it slide for now *)
+  if uses_accumulators then
+    uses_accumulators_native_file := StringSet.add prefix !uses_accumulators_native_file;
+  loaded_native_files := StringSet.add prefix !loaded_native_files
 
 let is_code_loaded consider_accs name =
   match !name with

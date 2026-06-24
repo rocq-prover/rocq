@@ -99,7 +99,7 @@ let get_mlf_filename () =
   delay_cleanup_file filename;
   filename, prefix
 
-let write_code fn ?(header=[]) code =
+let write_code consider_accs fn ?(header=[]) code =
   let header = open_header@header in
   let ch_out = open_out fn in
   let fmt = Format.formatter_of_out_channel ch_out in
@@ -111,6 +111,7 @@ let write_code fn ?(header=[]) code =
   close_out ch_out;
   let ch_mli_out = open_out ((Filename.chop_extension fn)^".mli") in
   let fmt = Format.formatter_of_out_channel ch_mli_out in
+  pp_custom_flag fmt Uses_accumulators consider_accs;
   Format.fprintf fmt "type t\n";
   List.iter (pp_global_interface fmt) code;
   close_out ch_mli_out
@@ -192,8 +193,8 @@ let call_compiler ?profile:(profile=false) mlf_filename =
     error_native_compiler_failed (Inr e) "During .cmxs generation"
   end
 
-let compile fn code ~profile:profile =
-  write_code fn code;
+let compile consider_accs fn code ~profile:profile =
+  write_code consider_accs fn code;
   let r = call_compiler ~profile fn in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
@@ -202,7 +203,7 @@ let compile fn code ~profile:profile =
 
 type native_library = Nativecode.global list * Nativevalues.symbols
 
-let compile_library (code, symb) fn =
+let compile_library consider_accs (code, symb) fn =
   let header = mk_library_header symb in
   let fn = fn ^ source_ext in
   let basename = Filename.basename fn in
@@ -213,20 +214,18 @@ let compile_library (code, symb) fn =
     with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
   in
   let fn = dirname / basename in
-  write_code fn ~header code;
+  write_code consider_accs fn ~header code;
   let _ = call_compiler fn in
   delay_cleanup_file fn
 
-let execute_library consider_accs ~prefix f symbols upds =
+let execute_library ~prefix f symbols upds =
   let () = rt1 := None in
   let () = rt2 := None in
   let () = rsymbols := symbols in
   if not (Sys.file_exists f) then
     CErrors.user_err Pp.(str "Cannot find native compiler file " ++ str f);
   if Dynlink.is_native then Dynlink.loadfile f else !load_obj f;
-  register_native_file prefix;
-  if consider_accs then indicate_native_file_has_accus prefix;
-  (* the file cannot be marked and then recompiled with another setting because we only mark it when using accumulators, which is already our fallback *)
+  register_native_file f ~prefix;
   update_locations upds;
   (!rt1, !rt2)
 
@@ -240,7 +239,7 @@ let link_library dirname prefix =
   let f = if Sys.file_exists build_location then build_location else install_location in
   try
     if Dynlink.is_native then Dynlink.loadfile f else !load_obj f;
-    register_native_file prefix
+    register_native_file f ~prefix
   with
   | Dynlink.Error _ as exn ->
       debug_native_compiler (fun () -> CErrors.iprint (Exninfo.capture exn))
