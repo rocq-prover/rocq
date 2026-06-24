@@ -2358,7 +2358,7 @@ let loaded_native_files = ref StringSet.empty
 let uses_accumulators_native_file = ref StringSet.empty
 
 let is_loaded_native_file s = StringSet.mem s !loaded_native_files
-let has_accus_native_file s = StringSet.mem s !loaded_native_files
+let has_accus_native_file s = StringSet.mem s !uses_accumulators_native_file
 
 let register_native_file s =
   loaded_native_files := StringSet.add s !loaded_native_files
@@ -2370,16 +2370,16 @@ let is_code_loaded consider_accs name =
   match !name with
   | NotLinked -> false
   | Linked s ->
-      if is_loaded_native_file s then
-        (* the dependency needs accumulators to work, so we need them too.
-        We could also try to recompile them and hope that their accumulators were needed due to a parent file needing them, but this is costly and unlikely *)
-        let has_accs = has_accus_native_file s in
-        if not consider_accs && has_accs then raise NeedsAccumulators else
-        if consider_accs && not has_accs then
-          failwith ("library "^s^" does not support accumulators but we need them, help!")
-        else
-        true
-      else (name := NotLinked; false)
+    if is_loaded_native_file s then
+      (* the dependency needs accumulators to work, so we need them too.
+      We could also try to recompile them and hope that their accumulators were needed due to a parent file needing them, but this is costly and unlikely *)
+      let has_accs = has_accus_native_file s in
+      if not consider_accs && has_accs then raise NeedsAccumulators else
+      if consider_accs && not has_accs then
+        failwith ("library "^s^" does not support accumulators but we need them, help!")
+      else
+      true
+    else (name := NotLinked; false)
 
 let compile_mind consider_accs cenv mb mind stack =
   let u = Declareops.inductive_polymorphic_context mb in
