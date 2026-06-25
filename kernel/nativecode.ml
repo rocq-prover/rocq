@@ -2268,7 +2268,7 @@ let compiled_library_flag_to_string flag =
   | Generates_accumulators -> "flag_generates_accumulators"
 
 let pp_custom_flag fmt name value =
-  Format.fprintf fmt "type %s'%b@\n" (compiled_library_flag_to_string name) value (* we write custom flags as abstract types so that they will appear in the compile interface *)
+  Format.fprintf fmt "type %s'%b@\n" (compiled_library_flag_to_string name) value (* we write custom flags as abstract types so that they will appear in the compiled interface *)
 
 let get_custom_flag_value cmi_file_path flag =
   let piperead, pipewrite = Unix.pipe () in

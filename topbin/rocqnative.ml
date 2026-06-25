@@ -116,7 +116,8 @@ let register_loaded_library senv libname file =
   let () = assert (not @@ DirPath.Map.mem libname !libraries_table) in
   let () = libraries_table := DirPath.Map.add libname file !libraries_table in
   let prefix = Nativecode.mod_uid_of_dirpath libname ^ "." in
-  let () = Nativecode.register_native_file (DirPath.to_string libname) ~prefix in
+  let fn = (Filename.dirname file) ^"/.coq-native/"^ Nativecode.mod_uid_of_dirpath libname in (* TODOME: this is a bit ugly and could maybe be cleaned ? *)
+  let () = Nativecode.register_native_file fn ~prefix in
   senv
 
 let mk_library sd f md digests vm =
