@@ -227,17 +227,17 @@ let to_inversion_kind v = match Value.to_int v with
 
 let inversion_kind = make_to_repr to_inversion_kind
 
-let to_rewrite_success v : Rewrite.rewrite_result_info = match Value.to_tuple v with
+let to_rewrite_success v : Rewrite.Result.rewrite_result_info = match Value.to_tuple v with
 | [| rel; rhs; prf |] ->
    { rew_rel = Value.to_constr rel;
      rew_to = Value.to_constr rhs;
      rew_prf = Value.to_constr prf }
 | _ -> assert false
 
-let to_rewrite_result v : Rewrite.rewrite_result = match v with
-| ValBlk (0, [| s |]) ->  Success (to_rewrite_success s)
-| ValInt 0 -> Identity
-| ValInt 1 -> Fail
+let to_rewrite_result v : Rewrite.Result.t = match v with
+| ValBlk (0, [| s |]) -> Rewrite.Result.success (to_rewrite_success s)
+| ValInt 0 -> Rewrite.Result.identity
+| ValInt 1 -> Rewrite.Result.fail
 | _ -> assert false
 
 let rewrite_result = make_to_repr to_rewrite_result

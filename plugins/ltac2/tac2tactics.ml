@@ -463,6 +463,6 @@ let wrap_tactic_call f =
         Tacticals.tclZEROMSG Pp.(str"The tactic called by Ltac2.Rewrite.Strategy.tactic should not solve the goal, it is provided as read-only information.")
       else
         let rev_subst = ext_rev_subst ectx in
-        let res = Rewrite.subst_rewrite_result sigma rev_subst res in
+        let res = Rewrite.Result.subst sigma rev_subst res in
         Unsafe.tclEVARS (Evd.define goalev unitval sigma) <*> tclUNIT res
   in Rewrite.Strategies.tactic_call wrapf

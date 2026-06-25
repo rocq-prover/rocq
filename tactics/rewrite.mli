@@ -20,15 +20,21 @@ exception RewriteFailure of Environ.env * Evd.evar_map * Pretype_errors.pretype_
 
 type evars = evar_map * Evar.Set.t (* goal evars, constraint evars *)
 
+module Result :
+sig
+
+type t
+
 type rewrite_result_info =
   { rew_rel: constr; rew_to : constr; rew_prf : constr }
 
-type rewrite_result =
-| Fail
-| Identity
-| Success of rewrite_result_info
+val fail : t
+val identity : t
+val success : rewrite_result_info -> t
 
-val subst_rewrite_result : Evd.evar_map -> (Id.t -> constr) -> rewrite_result -> rewrite_result
+val subst : Evd.evar_map -> (Id.t -> constr) -> t -> t
+
+end
 
 type strategy
 
@@ -97,7 +103,7 @@ sig
 
   val ltac1_tactic_call : unit Proofview.tactic -> strategy
 
-  val tactic_call : (env:Environ.env -> carrier:constr -> lhs:constr -> rel:constr option -> rewrite_result Proofview.tactic) -> strategy
+  val tactic_call : (env:Environ.env -> carrier:constr -> lhs:constr -> rel:constr option -> Result.t Proofview.tactic) -> strategy
 end
 
 module Internal :
