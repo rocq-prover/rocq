@@ -646,7 +646,6 @@ type guard_flags = {
   reduce_betas : bool;
   beta_iota : bool;
   extrude_uniform_args : bool;
-  check_evars : bool;
 }
 
 
@@ -1740,13 +1739,7 @@ let check_one_fix flags ?evars renv recpos trees def =
             rs
 
         (* stack is not checked because it will depend on evar definition *)
-        | Evar (_, l) ->
-          if flags.check_evars then
-            let rs =
-              List.fold_left (Option.fold_left (fun rs c -> check_inert_subterm_rec_call renv rs c)) rs (SList.to_list l)
-            in
-            check_rec_call_state renv NoNeedReduce stack rs (fun () -> None)
-          else
+        | Evar _ ->
           rs (* TODO: check if evar has a definition in ?evars *)
 
         | Meta _ -> assert false
@@ -1967,7 +1960,6 @@ let check_one_fix_minimal ~strict renv recpos def =
     | _ -> iter_with_full_binders env push check_rec_call acc t
   in
   check_rec_call renv def
-[@@ocaml.warning "-32"]
 
 
 
@@ -2049,7 +2041,7 @@ let sorts_of_mutfix env minds names =
         (ind_sort, out_sort) :: sorts
       ) [] minds)
 
-let current_flags = { non_rel_subterms=true; strict_rtree_inter=false; with_needreduce=true; reduce_betas=true; beta_iota=true; extrude_uniform_args=true; check_evars = false }
+let current_flags = { non_rel_subterms=true; strict_rtree_inter=false; with_needreduce=true; reduce_betas=true; beta_iota=true; extrude_uniform_args=true }
 
 let nb_fix = [|0; 0; 0; 0; 0; 0; 0; 0; 0; 0|]
 let incr i = nb_fix.(i) <- nb_fix.(i) + 1
@@ -2087,10 +2079,6 @@ let check_one_fix ?evars renv renv_minimal nvect trees body =
   | () -> flags := { !flags with reduce_betas = false }
   | exception FixGuardError _ -> change := true; incr 7
   end;
-  begin match check_one_fix { !flags with check_evars = true } ?evars renv nvect trees body with
-  | () -> flags := { !flags with check_evars = true }
-  | exception FixGuardError _ -> change := true; incr 8
-  end;
   if not !change then incr 9
 
 let do_tests = ref true
@@ -2116,7 +2104,8 @@ let check_fix_pre_sorts ?evars env ((nvect, _), (names, _, bodies as recdef) as 
           if !do_tests then
             check_one_fix ?evars renv renv_minimal nvect trees body
           else
-            check_one_fix_minimal ~strict:false renv_minimal nvect body
+            try check_one_fix_minimal ~strict:false renv_minimal nvect body
+            with FixGuardError _ -> check_one_fix ?evars renv renv_minimal nvect trees body
         with FixGuardError (err_env, err) -> raise_err err_env i err
       done
   in
