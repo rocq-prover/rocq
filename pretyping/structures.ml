@@ -151,10 +151,7 @@ type obj_typ = {
   o_TCOMPS : constr list } (* ordered *)
 
 let debug_canonical_structures =
-  let flag, _ = CDebug.create_full ~name:"canonical" () in
-  fun pp ->
-    if CDebug.get_flag flag then
-      Feedback.msg_debug Pp.(hov 2 (str "[canonical]" ++ fnl () ++ pp ()))
+  CDebug.create ~name:"canonical" ()
 
 module ValuePattern = struct
 
