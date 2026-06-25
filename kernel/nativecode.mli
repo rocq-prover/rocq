@@ -37,12 +37,12 @@ val global_to_mlf_name : global -> string option
 val pp_global_interface : Format.formatter -> global -> unit
 
 type compiled_library_flag =
-  | Uses_accumulators
+  | Supports_accumulators
   | Generates_accumulators
 
 val pp_custom_flag : Format.formatter -> compiled_library_flag -> bool -> unit
 
-val get_custom_flag_value : string -> compiled_library_flag -> bool option
+val get_custom_flag_value : string -> compiled_library_flag -> bool
 
 val mk_open : string -> global
 

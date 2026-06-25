@@ -73,11 +73,12 @@ let dump_library mp env mod_expr =
   match mod_expr with
   | NoFunctor struc ->
       let t0 = Sys.time () in
-      let cenv = Nativecode.make_cenv () in
       let generates_accs =
          try (* we compile with accumulators anyway, but if the code does not generate any we mark it compatible with accumulator-less programs *)
+            let cenv = Nativecode.make_cenv () in (* we need to create a temporary cenv as it is a mutable data structure *)
             let _ = List.fold_left (translate_field false mp cenv env) [] struc in false
          with NeedsAccumulators -> true in
+      let cenv = Nativecode.make_cenv () in
       let mlcode =
         List.fold_left (translate_field true mp cenv env) [] struc
       in

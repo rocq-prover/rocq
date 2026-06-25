@@ -2259,25 +2259,42 @@ let pp_global_interface fmt g =
   | Gtype (ind, lar) -> pp_type_decl fmt ind lar
 
 type compiled_library_flag =
-  | Uses_accumulators
+  | Supports_accumulators
   | Generates_accumulators
 
 let compiled_library_flag_to_string flag =
   match flag with
-  | Uses_accumulators -> "flag_uses_accumulators"
+  | Supports_accumulators -> "flag_supports_accumulators"
   | Generates_accumulators -> "flag_generates_accumulators"
 
 let pp_custom_flag fmt name value =
-  Format.fprintf fmt "(*%s:%b*) (* this comment is used internally and should not be moved or modified *)@\n" (compiled_library_flag_to_string name) value
+  Format.fprintf fmt "type %s'%b@\n" (compiled_library_flag_to_string name) value (* we write custom flags as abstract types so that they will appear in the compile interface *)
 
-let get_custom_flag_value line name =
-  let prefix = Format.sprintf "(*%s:" (compiled_library_flag_to_string name) in
-  if String.starts_with ~prefix line then
-    let end_pos = String.index_from line 2 '*' in (* if this fail, someone tampered our comment and it's their fault *)
-    let start_pos = String.length prefix in
-    let value = String.sub line start_pos (end_pos-start_pos) in
-    Some (bool_of_string value)
-  else None
+let get_custom_flag_value cmi_file_path flag =
+  let piperead, pipewrite = Unix.pipe () in
+  let _ = let res = CUnix.sys_command ~out_file_descr:pipewrite "ocaml-print-intf" [cmi_file_path] in
+    match res with
+    | Unix.WEXITED 0 -> ()
+    | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n -> assert false
+  in
+  let piperead = Unix.in_channel_of_descr piperead in
+  let search_line line =
+    let prefix = Format.sprintf "type %s'" (compiled_library_flag_to_string flag) in
+    if String.starts_with ~prefix line then
+      let end_pos = String.length line in
+      let start_pos = String.length prefix in
+      let value = String.sub line start_pos (end_pos-start_pos) in
+      Some (bool_of_string value)
+    else None in
+  let rec aux () =
+    let line =
+      try input_line piperead
+      with | End_of_file -> failwith ("impossible to find the "^(compiled_library_flag_to_string flag)^" flag in "^cmi_file_path)
+    in
+    match search_line line with
+    | None -> aux ()
+    | Some v -> v
+  in aux ()
 
 (** Compilation of elements in environment **)
 let rec compile_with_fv consider_accs ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
@@ -2376,41 +2393,23 @@ module StringOrd = struct type t = string let compare = String.compare end
 module StringSet = Set.Make(StringOrd)
 
 let loaded_native_files = ref StringSet.empty
-let uses_accumulators_native_file = ref StringSet.empty
+let supports_accus_native_file = ref StringSet.empty
+let generate_accus_native_file = ref StringSet.empty
 
 let is_loaded_native_file s = StringSet.mem s !loaded_native_files
-let has_accus_native_file s = StringSet.mem s !uses_accumulators_native_file
-
-let warn_no_interface_found =
-  CWarnings.create ~name:"native-no-interface-found"
-    (fun path -> Pp.(str "unable to find the mli interface: " ++ str path ++ str " when trying to find if it uses accumulators or not."))
+let does_supports_accus_native_file s = StringSet.mem s !supports_accus_native_file
+let does_generate_accus_native_file s = StringSet.mem s !generate_accus_native_file
 
 let register_native_file libpath ~prefix =
-  let uses_accumulators  =
-    let lib_mli_path = Filename.chop_extension libpath in
-    let libdir, libfile = Filename.dirname lib_mli_path, Filename.basename lib_mli_path in
-    let libdir = if String.ends_with ~suffix:".coq-native" libdir then (* this is an awful fix to correct some library files being in a different place than their .mli interface *)
-      let libdir = String.sub libdir 0 (String.length libdir - String.length ".coq-native") in
-      Str.replace_first (Str.regexp_string "install/default/lib/coq/theories/") "default/theories/Corelib/" libdir
-      else libdir in
-    let lib_mli_path = Filename.concat libdir (libfile^".mli") in
-    try
-      let lib_mli = open_in lib_mli_path in
-      let rec aux lib_mli =
-        let line =
-          try input_line lib_mli
-          with | End_of_file -> failwith ("impossible to find the "^(compiled_library_flag_to_string Uses_accumulators)^" flag in "^lib_mli_path)
-        in
-        match get_custom_flag_value line Uses_accumulators with
-        | None -> aux lib_mli
-        | Some v -> v in
-      let uses_accs = aux lib_mli in
-      close_in lib_mli;
-      uses_accs
-    with
-    | Sys_error _ -> warn_no_interface_found lib_mli_path; false in
-  if uses_accumulators then
-    uses_accumulators_native_file := StringSet.add prefix !uses_accumulators_native_file;
+  let supports_accs, gen_accs =
+    let libpath = Filename.remove_extension libpath in
+    let lib_cmi_path = libpath^".cmi" in
+    (get_custom_flag_value lib_cmi_path Supports_accumulators),
+    (get_custom_flag_value lib_cmi_path Generates_accumulators) in
+  if supports_accs then
+    supports_accus_native_file := StringSet.add prefix !supports_accus_native_file;
+  if gen_accs then
+    generate_accus_native_file := StringSet.add prefix !generate_accus_native_file;
   loaded_native_files := StringSet.add prefix !loaded_native_files
 
 let is_code_loaded consider_accs name =
@@ -2420,12 +2419,12 @@ let is_code_loaded consider_accs name =
     if is_loaded_native_file s then
       (* the dependency needs accumulators to work, so we need them too.
       We could also try to recompile them and hope that their accumulators were needed due to a parent file needing them, but this is costly and unlikely *)
-      let has_accs = has_accus_native_file s in
-      if not consider_accs && has_accs then raise NeedsAccumulators else
-      if consider_accs && not has_accs then
+      let supp_accs = does_supports_accus_native_file s in
+      let gen_accs = does_generate_accus_native_file s in
+      if not consider_accs && gen_accs then raise NeedsAccumulators else
+      if consider_accs && not supp_accs then
         (name := NotLinked; false) (* we need to recompile the library code to support accumulators *)
-      else
-      true
+      else true
     else (name := NotLinked; false)
 
 let compile_mind consider_accs cenv mb mind stack =

@@ -111,7 +111,7 @@ let write_code (consider_accs, generates_accs) fn ?(header=[]) code =
   close_out ch_out;
   let ch_mli_out = open_out ((Filename.chop_extension fn)^".mli") in
   let fmt = Format.formatter_of_out_channel ch_mli_out in
-  pp_custom_flag fmt Uses_accumulators consider_accs;
+  pp_custom_flag fmt Supports_accumulators consider_accs;
   pp_custom_flag fmt Generates_accumulators generates_accs;
   Format.fprintf fmt "type t\n";
   List.iter (pp_global_interface fmt) code;
