@@ -137,6 +137,10 @@ val add_constraints : ?src:constraint_source -> t -> UnivProblem.Set.t -> t
   @raise UniversesDiffer when universes differ
 *)
 
+type above_prop = AboveProp | BelowType
+
+val set_above_prop : QVar.t -> above_prop -> t -> t
+
 val check_elim_constraints : t -> ElimConstraints.t -> bool
 
 val check_constraints : t -> UnivProblem.Set.t -> bool
@@ -210,7 +214,8 @@ val demote_global_univ_entry : universes_entry -> t -> t
 val emit_side_effects : Safe_typing.private_constants -> t -> t
 (** Calls [demote_global_univs] for the private constant universes. *)
 
-val new_quality_variable : ?loc:Loc.t -> ?sort_rigid:bool -> ?name:Id.t -> t -> t * QVar.t
+val new_quality_variable : ?loc:Loc.t -> ?sort_rigid:bool -> ?name:Id.t ->
+  t -> t * QVar.t
 (** Declare a new local sort. *)
 
 val new_univ_level_variable : ?loc:Loc.t -> rigid -> Id.t option -> t -> t * Univ.Level.t
@@ -237,8 +242,6 @@ val fix_undefined_variables : t -> t
 
 (** Universe minimization *)
 val minimize : t -> t
-
-val collapse_above_prop_sort_variables : to_prop:bool -> t -> t
 
 val collapse_sort_variables : ?except:QVar.Set.t -> only_above_prop:bool -> t -> t
 

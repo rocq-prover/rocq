@@ -638,7 +638,7 @@ LeftTree_ind :
 forall (A : Type@{LeftTree_ind.u0}) (P : LeftTree A -> Prop),
 (forall a : A, P (Lleaf A a)) ->
 (forall p : prod (LeftTree A) nat,
- prod_all@{Type Type ; LeftTree_ind.u1 Set Set Set} 
+ prod_all@{Prop Type ; LeftTree_ind.u1 Set Set Set} 
    (LeftTree A) P nat (fun _ : nat => unit) p ->
  P (Lnode A p)) ->
 forall l : LeftTree A, P l

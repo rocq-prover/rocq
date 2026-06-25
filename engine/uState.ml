@@ -89,6 +89,8 @@ let univ_inconsistency ?explain cst l r =
 module QSet = QVar.Set
 module QMap = QVar.Map
 
+type above_prop = AboveProp | BelowType
+
 module QState : sig
   type t
   type elt = QVar.t
@@ -98,9 +100,9 @@ module QState : sig
   val repr : elt -> t -> Quality.t
   val is_rigid : t -> QVar.t -> bool
   val is_above_prop : t -> QVar.t -> bool
+  val set_above_prop : QVar.t -> above_prop -> t -> t option
   val unify_quality : fail:(unit -> t) -> Conversion.conv_pb -> Quality.t -> Quality.t -> t -> t
   val undefined : t -> QVar.Set.t
-  val collapse_above_prop : to_prop:bool -> t -> t
   val collapse : ?except:QVar.Set.t -> only_above_prop:bool -> t -> t
   val pr : Sorts.Quality.printer -> (QVar.t -> Id.t option) -> t -> Pp.t
   val of_elims : QGraph.t -> t
@@ -120,7 +122,7 @@ type node =
 type t = {
   qmap : node QMap.t;
   (* TODO: use a persistent union-find structure *)
-  above_prop : QSet.t;
+  above_prop : above_prop QMap.t;
   (** Set for quality variables known to be either in Prop or Type.
       If q ∈ above_prop then it must map to None in qmap. *)
   elims : QGraph.t;
@@ -131,7 +133,7 @@ type t = {
 
 type elt = QVar.t
 
-let empty = { qmap = QMap.empty; above_prop = QSet.empty;
+let empty = { qmap = QMap.empty; above_prop = QMap.empty;
               elims = QGraph.initial_graph; initial_elims = QGraph.initial_graph }
 
 let rec repr q m = match QMap.find q m.qmap with
@@ -155,7 +157,9 @@ and repr_node q m = match q with
 | (QConstant qc) -> ReprConstant qc
 | (QGlobal q) -> ReprGlobal q
 
-let is_above_prop m q = QSet.mem q m.above_prop
+let is_above_prop m q = QMap.mem q m.above_prop
+
+let above_prop m q = QMap.find_opt q m.above_prop
 
 let eliminates_to_prop m q =
   QGraph.eliminates_to_prop m.elims (QVar q)
@@ -182,9 +186,10 @@ let set q qv m =
     else if rigid then None
     else
       let above_prop =
-        if is_above_prop m q
-        then QSet.add qv (QSet.remove q m.above_prop)
-        else m.above_prop in
+        match above_prop m q with
+        | None -> m.above_prop
+        | Some above -> QMap.add qv above (QMap.remove q m.above_prop)
+      in
       Some { m with
              qmap = QMap.add q (Equiv (QVar qv)) m.qmap; above_prop;
              elims = enforce_eq (QVar qv) (QVar q) m.elims; }
@@ -194,7 +199,7 @@ let set q qv m =
     else
       let qv = QConstant qc in
       Some { m with qmap = QMap.add q (Equiv qv) m.qmap;
-                    above_prop = QSet.remove q m.above_prop;
+                    above_prop = QMap.remove q m.above_prop;
                     elims = enforce_eq qv (QVar q) m.elims }
   | ReprGlobal qg ->
     if is_above_prop m q then None
@@ -202,14 +207,22 @@ let set q qv m =
     else
       let qv = QGlobal qg in
       Some { m with qmap = QMap.add q (Equiv qv) m.qmap;
-                    above_prop = QSet.remove q m.above_prop;
+                    above_prop = m.above_prop;
                     elims = enforce_eq qv (QVar q) m.elims }
 
-let set_above_prop q m =
+let set_above_prop q above m =
   let q = repr_node_qvar q m in
   let q, rigid = match q with ReprVar (q, rigid) -> q, rigid | ReprConstant _ | ReprGlobal _ -> assert false in
   if rigid then None
-  else Some { m with above_prop = QSet.add q m.above_prop }
+  else
+    let above_prop =
+      QMap.update q (fun prev ->
+          match above, prev with
+          | _, Some BelowType -> Some BelowType
+          | (AboveProp|BelowType), _ -> Some above)
+        m.above_prop
+    in
+    Some { m with above_prop }
 
 let unify_quality ~fail c q1 q2 local = match q1, q2 with
 | QConstant QType, QConstant QType
@@ -217,7 +230,7 @@ let unify_quality ~fail c q1 q2 local = match q1, q2 with
 | QConstant QSProp, QConstant QSProp -> local
 | QGlobal q1, QGlobal q2 -> if QGlobal.equal q1 q2 then local else fail ()
 | QConstant QProp, QVar q when c == Conversion.CUMUL ->
-  begin match set_above_prop q local with
+  begin match set_above_prop q AboveProp local with
   | Some local -> local
   | None -> fail ()
   end
@@ -227,6 +240,7 @@ let unify_quality ~fail c q1 q2 local = match q1, q2 with
       | Some local -> local
       | None -> fail ()
   end
+(* TODO BelowType *)
 | QVar q, (QConstant (QType | QProp | QSProp) | QGlobal _ as qv)
 | (QConstant (QType | QProp | QSProp) | QGlobal _ as qv), QVar q ->
   begin match set q qv local with
@@ -276,11 +290,15 @@ let union ~fail s1 s2 =
   in
   let extra = !extra in
   let qs = QVar.Set.union (QGraph.qvar_domain s1.elims) (QGraph.qvar_domain s2.elims) in
-  let filter v = match QMap.find_opt v qmap with
+  let filter_above v _ = match QMap.find_opt v qmap with
   | None | Some (Canonical _) -> true
   | Some (Equiv _) -> false
   in
-  let above_prop = QSet.filter filter @@ QSet.union s1.above_prop s2.above_prop in
+  let above_union _ a b = match a, b with
+    | AboveProp, AboveProp -> Some AboveProp
+    | BelowType, _ | _, BelowType -> Some BelowType
+  in
+  let above_prop = QMap.filter filter_above @@ QMap.union above_union s1.above_prop s2.above_prop in
   let elims = add_qvars s2 qmap qs in
   let s = { qmap; above_prop;
             elims; initial_elims = elims } in
@@ -313,17 +331,6 @@ let undefined m =
   let mq = QMap.filter filter m.qmap in
   QMap.domain mq
 
-let collapse_above_prop ~to_prop m =
-  QMap.fold (fun q v m ->
-           match v with
-           | Equiv _ -> m
-           | Canonical _ ->
-              if not @@ is_above_prop m q then m else
-                if to_prop then Option.get (set q qprop m)
-                else Option.get (set q qtype m)
-         )
-         m.qmap m
-
 let collapse ?(except=QSet.empty) ~only_above_prop m =
   let free_qualities = QMap.fold (fun q v fqs ->
       match v with
@@ -332,7 +339,7 @@ let collapse ?(except=QSet.empty) ~only_above_prop m =
       m.qmap QSet.empty
   in
   let dominates_above_prop q q' =
-    not (QVar.equal q q') && QGraph.eliminates_to m.elims (QVar q) (QVar q') && not (QSet.mem q m.above_prop)
+    not (QVar.equal q q') && QGraph.eliminates_to m.elims (QVar q) (QVar q') && not (QMap.mem q m.above_prop)
   in
   QMap.fold (fun q v m ->
       match v with
@@ -351,12 +358,15 @@ let collapse ?(except=QSet.empty) ~only_above_prop m =
 
            This check is therefore simply finding if the sort variable above Prop is dominated by another one.
            If so, the sort variable collapses to Prop, otherwise to Type (if collapsing is enabled), or we keep it.
+           TODO not sure if still needed with BelowType
         *)
-        else if QSet.mem q m.above_prop then
-          if QSet.exists (fun q' -> dominates_above_prop q' q) free_qualities then
-            Option.get (set q qprop m)
-          else Option.get (set q qtype m)
-        else if not only_above_prop then Option.get (set q qtype m) else m)
+        else match QMap.find_opt q m.above_prop with
+          | Some BelowType ->
+            if QSet.exists (fun q' -> dominates_above_prop q' q) free_qualities then
+              Option.get (set q qprop m)
+            else Option.get (set q qtype m)
+          | Some AboveProp -> Option.get (set q qprop m)
+          | None -> if not only_above_prop then Option.get (set q qtype m) else m)
     m.qmap m
 
 let pr prqvar local_name ({ qmap; elims } as m) =
@@ -364,10 +374,14 @@ let pr prqvar local_name ({ qmap; elims } as m) =
   (* Print the "body" of the QVar, e.g. "α1 := Type", "α2 >= Prop" *)
   let prbody u = function
   | Canonical { rigid } ->
-    if is_above_prop m u then str " >= Prop"
-    else if rigid then
-      str " (rigid)"
-    else mt ()
+    begin match above_prop m u with
+    | Some AboveProp -> str " >= Prop"
+    | Some BelowType -> str " <= Type"
+    | None ->
+      if rigid then
+        str " (rigid)"
+      else mt ()
+    end
   | Equiv q ->
     let q = Quality.pr prqvar q in
     str " := " ++ q
@@ -984,6 +998,18 @@ let add_constraints ?src uctx cstrs =
           QState.merge_constraints (merge_elim_constraints ?src uctx (PConstraints.qualities local')) sorts ;
     minim_extra = extra; }
 
+let set_above_prop q above uctx =
+  match above with
+  | AboveProp ->
+    add_constraints uctx (UnivProblem.Set.singleton (QLeq (QConstant QProp, QVar q)))
+  | BelowType ->
+    match QState.set_above_prop q BelowType uctx.sort_variables with
+    | Some sort_variables -> { uctx with sort_variables }
+    | None ->
+      (* TODO handle BelowType in unify_quality and use
+         add_constraints here for more uniform erroring? *)
+      CErrors.user_err Pp.(str "Could not enforce " ++ pr_uctx_qvar uctx q ++ str " <= Type.")
+
 let problem_of_univ_constraints cstrs =
   UnivConstraints.fold (fun (l,d,r) acc ->
       let l = Universe.make l and r = sort_of_univ @@ Universe.make r in
@@ -1556,10 +1582,6 @@ let normalize_variables uctx =
 
 let fix_undefined_variables uctx =
   { uctx with univ_variables = UnivFlex.fix_undefined_variables uctx.univ_variables }
-
-let collapse_above_prop_sort_variables ~to_prop uctx =
-  let sorts = QState.collapse_above_prop ~to_prop uctx.sort_variables in
-  normalize_quality_variables { uctx with sort_variables = sorts }
 
 let collapse_sort_variables ?except ~only_above_prop uctx =
   let sorts = QState.collapse ?except ~only_above_prop uctx.sort_variables in

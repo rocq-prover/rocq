@@ -877,6 +877,17 @@ is valid.
 
       Set Collapse Sorts ToType.
 
+   .. note::
+
+      A constraint `Prop <= q` or `q <= Type` implies that `q = Prop`
+      or `q = Type` (with either assignment satisfying both constraints since `Prop <= Type`).
+      The choice of assignment can be delayed during :term:`type inference`
+      but sort variables with such constraints must still get assigned to Prop or Type
+      before the kernel can operate.
+
+      If there is only a constraint `Prop <= q` then `q` will be set
+      to Prop, otherwise it will be set to Type.
+
 .. _elim-constraints:
 
 Elimination of Sort-Polymorphic Inductives

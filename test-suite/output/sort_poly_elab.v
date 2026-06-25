@@ -185,8 +185,8 @@ Module Inductives.
     : P f
     := match f with Foo5 _ a => H a end.
   (* foo5_Prop_rect@{α ; u} :
-    forall (A : Prop) (P : foo5@{Type ; Set} A -> Type@{α ; u}),
-    (forall a : A, P (Foo5@{Type ; Set} A a)) -> forall f : foo5@{Type ; Set} A, P f *)
+    forall (A : Prop) (P : foo5@{Prop ; Set} A -> Type@{α ; u}),
+    (forall a : A, P (Foo5@{Prop ; Set} A a)) -> forall f : foo5@{Prop ; Set} A, P f *)
   (* α ; u |= Prop -> α *)
   About foo5_Prop_rect.
 

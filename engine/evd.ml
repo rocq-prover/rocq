@@ -1183,9 +1183,8 @@ let set_leq_sort evd s1 s2 =
 let set_eq_qualities evd q1 q2 =
   add_constraints evd @@ UnivProblem.Set.singleton (QEq (q1, q2))
 
-let set_above_prop evd q =
-  add_constraints evd @@
-    UnivProblem.Set.singleton (QLeq (Sorts.Quality.qprop, q))
+let set_above_prop evd q above =
+  { evd with universes = UState.set_above_prop q above evd.universes }
 
 let set_elim_to evd q1 q2 =
   add_constraints evd @@ UnivProblem.Set.singleton (QElimTo (q1, q2))
