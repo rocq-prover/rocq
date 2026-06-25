@@ -2260,10 +2260,12 @@ let pp_global_interface fmt g =
 
 type compiled_library_flag =
   | Uses_accumulators
+  | Generates_accumulators
 
 let compiled_library_flag_to_string flag =
   match flag with
   | Uses_accumulators -> "flag_uses_accumulators"
+  | Generates_accumulators -> "flag_generates_accumulators"
 
 let pp_custom_flag fmt name value =
   Format.fprintf fmt "(*%s:%b*) (* this comment is used internally and should not be moved or modified *)@\n" (compiled_library_flag_to_string name) value

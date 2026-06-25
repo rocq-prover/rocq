@@ -29,11 +29,11 @@ val get_mlf_filename : unit -> string * string
    whether are in byte mode or not; file is expected to be .ml file *)
 val compile : bool -> string -> Nativecode.global list -> profile:bool -> string
 
-type native_library = Nativecode.global list * Nativevalues.symbols
+type native_library = Nativecode.global list * Nativevalues.symbols * bool (* the bool is true if the library generates accumulators *)
 
 (** [compile_library (code, _) file] is similar to [compile file code]
    but will perform some extra tweaks to handle [code] as a Rocq lib. *)
-val compile_library : bool -> native_library -> string -> unit
+val compile_library : native_library -> string -> unit
 
 (** [execute_library file upds] dynamically loads library [file],
     updates the library locations [upds], and returns the values stored

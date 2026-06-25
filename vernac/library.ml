@@ -543,13 +543,13 @@ let save_library_to todo_proofs ~output_native_objects dir f =
   let () = assert (not (Future.UUIDSet.is_empty except) ||
     Safe_typing.is_joined_environment (Global.safe_env ()))
   in
-  let sd, md, vmlib, ast = save_library_struct ~output_native_objects dir in
+  let sd, md, vmlib, nativelib = save_library_struct ~output_native_objects dir in
   (* Writing vo payload *)
   save_library_base f sd md opaque_table vmlib;
   (* Writing native code files *)
   if output_native_objects then
     let fn = Filename.dirname f ^"/"^ Nativecode.mod_uid_of_dirpath dir in
-    Nativelib.compile_library true ast fn (* we consider accumulators when compiling general-purpose libraries TODOME: indicate which libraries generate accumulators *)
+    Nativelib.compile_library nativelib fn
 
 let get_used_load_paths () =
   String.Set.elements

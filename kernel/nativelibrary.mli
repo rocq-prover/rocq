@@ -17,4 +17,4 @@ open Nativecode
 compiler *)
 
 val dump_library : ModPath.t -> env -> module_signature ->
-  global list * Nativevalues.symbols
+  (global list * Nativevalues.symbols * bool)

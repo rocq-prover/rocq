@@ -38,6 +38,7 @@ val pp_global_interface : Format.formatter -> global -> unit
 
 type compiled_library_flag =
   | Uses_accumulators
+  | Generates_accumulators
 
 val pp_custom_flag : Format.formatter -> compiled_library_flag -> bool -> unit
 

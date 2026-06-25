@@ -99,7 +99,7 @@ let get_mlf_filename () =
   delay_cleanup_file filename;
   filename, prefix
 
-let write_code consider_accs fn ?(header=[]) code =
+let write_code (consider_accs, generates_accs) fn ?(header=[]) code =
   let header = open_header@header in
   let ch_out = open_out fn in
   let fmt = Format.formatter_of_out_channel ch_out in
@@ -112,6 +112,7 @@ let write_code consider_accs fn ?(header=[]) code =
   let ch_mli_out = open_out ((Filename.chop_extension fn)^".mli") in
   let fmt = Format.formatter_of_out_channel ch_mli_out in
   pp_custom_flag fmt Uses_accumulators consider_accs;
+  pp_custom_flag fmt Generates_accumulators generates_accs;
   Format.fprintf fmt "type t\n";
   List.iter (pp_global_interface fmt) code;
   close_out ch_mli_out
@@ -194,16 +195,16 @@ let call_compiler ?profile:(profile=false) mlf_filename =
   end
 
 let compile consider_accs fn code ~profile:profile =
-  write_code consider_accs fn code;
+  write_code (consider_accs, consider_accs) fn code; (* we consider as a simplification that if we need accumulators, it is probably because we generate some. TODOME: make more accurate assumptions *)
   let r = call_compiler ~profile fn in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
   delay_cleanup_file fn;
   r
 
-type native_library = Nativecode.global list * Nativevalues.symbols
+type native_library = Nativecode.global list * Nativevalues.symbols * bool
 
-let compile_library consider_accs (code, symb) fn =
+let compile_library (code, symb, generates_accs) fn =
   let header = mk_library_header symb in
   let fn = fn ^ source_ext in
   let basename = Filename.basename fn in
@@ -214,7 +215,7 @@ let compile_library consider_accs (code, symb) fn =
     with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
   in
   let fn = dirname / basename in
-  write_code consider_accs fn ~header code;
+  write_code (true, generates_accs) fn ~header code; (* we always consider accumulators but we indicate if we generate some ourselves or not *)
   let _ = call_compiler fn in
   delay_cleanup_file fn
 
