@@ -2421,7 +2421,7 @@ let is_code_loaded consider_accs name =
       let has_accs = has_accus_native_file s in
       if not consider_accs && has_accs then raise NeedsAccumulators else
       if consider_accs && not has_accs then
-        failwith ("library "^s^" does not support accumulators but we need them, help!")
+        (name := NotLinked; false) (* we need to recompile the library code to support accumulators *)
       else
       true
     else (name := NotLinked; false)
