@@ -365,12 +365,14 @@ let decompose_proj ?metas env sigma (t1, sk1) =
    projection would have been reduced) *)
 
 let check_conv_record env sigma ((proji, u), (params1, c1, extra_args1)) (t2,sk2) =
-  debug_canonical_unification Pp.(fun () ->
-    v 0 (str "try canonical projection" ++
-      fnl () ++ pr_cs_field "projection" (Nametab.pr_global_env Id.Set.empty (Names.GlobRef.ConstRef proji)) ++
-      fnl () ++ pr_cs_field "record argument" (pr_cs_constr env sigma c1) ++
-      fnl () ++ pr_cs_field "rhs head" (pr_cs_constr env sigma t2) ++
-      fnl () ++ pr_cs_field "rhs stack" (pr_cs_stack env sigma sk2)));
+  let () =
+    debug_canonical_unification Pp.(fun () ->
+      v 0 (str "try canonical projection" ++
+        fnl () ++ pr_cs_field "projection" (Nametab.pr_global_env Id.Set.empty (Names.GlobRef.ConstRef proji)) ++
+        fnl () ++ pr_cs_field "record argument" (pr_cs_constr env sigma c1) ++
+        fnl () ++ pr_cs_field "rhs head" (pr_cs_constr env sigma t2) ++
+        fnl () ++ pr_cs_field "rhs stack" (pr_cs_stack env sigma sk2)))
+  in
   let h2, sk2' = decompose_app sigma (shrink_eta sigma t2) in
   let sk2 = Stack.append_app sk2' sk2 in
   let k = Reductionops.Stack.args_size sk2 - Reductionops.Stack.args_size extra_args1 in
@@ -378,64 +380,80 @@ let check_conv_record env sigma ((proji, u), (params1, c1, extra_args1)) (t2,sk2
   let args2, extra_args2 =
     if k = 0 then [], sk2
     else if k < 0 then begin
-      debug_canonical_unification Pp.(fun () ->
-        str "reject canonical projection: rhs has fewer arguments than projection context");
+      let () =
+        debug_canonical_unification Pp.(fun () ->
+          str "reject canonical projection: rhs has fewer arguments than projection context")
+      in
       raise Not_found
     end
     else match Reductionops.Stack.strip_n_app (k-1) sk2 with
     | None ->
-      debug_canonical_unification Pp.(fun () ->
-        str "reject canonical projection: cannot split rhs application stack");
+      let () =
+        debug_canonical_unification Pp.(fun () ->
+          str "reject canonical projection: cannot split rhs application stack")
+      in
       raise Not_found
     | Some (l',el,s') -> ((Option.get @@ Reductionops.Stack.list_of_app_stack l') @ [el], s') in
   let (pat, _, args2') = try ValuePattern.of_constr sigma h2 with | DestKO -> (Default_cs, None, []) in
   let observed = k + List.length args2' in
-  debug_canonical_unification Pp.(fun () ->
-    v 0 (str "canonical projection rhs key" ++
-      fnl () ++ pr_cs_field "key" (ValuePattern.print pat) ++
-      fnl () ++ pr_cs_field "key args" (pr_cs_constr_list env sigma args2') ++
-      fnl () ++ pr_cs_field "available rhs args" (int observed)));
+  let () =
+    debug_canonical_unification Pp.(fun () ->
+      v 0 (str "canonical projection rhs key" ++
+        fnl () ++ pr_cs_field "key" (ValuePattern.print pat) ++
+        fnl () ++ pr_cs_field "key args" (pr_cs_constr_list env sigma args2') ++
+        fnl () ++ pr_cs_field "available rhs args" (int observed)))
+  in
   let find_solution pat =
     match CanonicalSolution.find env sigma (Names.GlobRef.ConstRef proji, pat) with
     | exception Not_found ->
-      debug_canonical_unification Pp.(fun () ->
-        str "no canonical entry for key " ++ ValuePattern.print pat);
+      let () =
+        debug_canonical_unification Pp.(fun () ->
+          str "no canonical entry for key " ++ ValuePattern.print pat)
+      in
       None
     | sigma, solution -> Some (sigma, solution)
   in
   let accept_solution ~default pat ((sigma, (solution : CanonicalSolution.t)) as r) effective_args =
     let expected = List.length solution.cvalue_arguments in
-    if (default && expected = 0) || ((not default) && expected = observed) then begin
-      debug_canonical_unification Pp.(fun () ->
-        v 0 (str "selected canonical entry" ++
-          fnl () ++ pr_cs_field "key" (ValuePattern.print pat) ++
-          fnl () ++ pr_cs_field "instance" (pr_cs_constr env sigma solution.constant) ++
-          fnl () ++ pr_cs_field "registered body" (pr_cs_constr env sigma solution.body) ++
-          fnl () ++ pr_cs_field "stored key args" (pr_cs_constr_list env sigma solution.cvalue_arguments) ++
-          fnl () ++ pr_cs_field "matched rhs args" (pr_cs_constr_list env sigma effective_args)));
+    if (default && expected = 0) || ((not default) && expected = observed) then
+      let () =
+        debug_canonical_unification Pp.(fun () ->
+          v 0 (str "selected canonical entry" ++
+            fnl () ++ pr_cs_field "key" (ValuePattern.print pat) ++
+            fnl () ++ pr_cs_field "instance" (pr_cs_constr env sigma solution.constant) ++
+            fnl () ++ pr_cs_field "registered body" (pr_cs_constr env sigma solution.body) ++
+            fnl () ++ pr_cs_field "stored key args" (pr_cs_constr_list env sigma solution.cvalue_arguments) ++
+            fnl () ++ pr_cs_field "matched rhs args" (pr_cs_constr_list env sigma effective_args)))
+      in
       Some (r, effective_args)
-    end
-    else begin
-      debug_canonical_unification Pp.(fun () ->
-        v 0 (str "reject canonical entry" ++
-          fnl () ++ pr_cs_field "key" (ValuePattern.print pat) ++
-          fnl () ++ pr_cs_field "instance" (pr_cs_constr env sigma solution.constant) ++
-          fnl () ++ pr_cs_field "expected stored key args" (int expected) ++
-          fnl () ++ pr_cs_field "observed rhs args" (int observed)));
+    else
+      let () =
+        debug_canonical_unification Pp.(fun () ->
+          v 0 (str "reject canonical entry" ++
+            fnl () ++ pr_cs_field "key" (ValuePattern.print pat) ++
+            fnl () ++ pr_cs_field "instance" (pr_cs_constr env sigma solution.constant) ++
+            fnl () ++ pr_cs_field "expected stored key args" (int expected) ++
+            fnl () ++ pr_cs_field "observed rhs args" (int observed)))
+      in
       None
-    end
   in
   let try_hooks () =
-    debug_canonical_unification Pp.(fun () ->
-      str "no canonical entry selected; trying hooks");
+    let () =
+      debug_canonical_unification Pp.(fun () ->
+        str "no canonical entry selected; trying hooks")
+    in
     match (apply_hooks env sigma ((proji, u), params1, c1) (t2, args2)) with
     | Some r ->
-      debug_canonical_unification Pp.(fun () ->
-        str "canonical hook selected an entry");
+      let () =
+        debug_canonical_unification Pp.(fun () ->
+          str "canonical hook selected an entry")
+      in
       r, args2' @ args2
     | None ->
-      debug_canonical_unification Pp.(fun () ->
-        str "no canonical hook selected an entry");
+      let () =
+        debug_canonical_unification Pp.(fun () ->
+          str "no canonical hook selected an entry")
+      in
       raise Not_found
   in
   let (sigma, solution), sk2_effective =
@@ -1500,15 +1518,17 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
       end
 
 and conv_record flags env (evd,(h1,h2),c,bs,(params,params1),(us,us2),(sk1,sk2),c1,(n,t2)) =
-  debug_canonical_unification Pp.(fun () ->
-    v 0 (str "solve canonical projection" ++
-      fnl () ++ pr_cs_field "instance" (pr_cs_constr env evd c) ++
-      fnl () ++ pr_cs_field "registered head" (pr_cs_constr env evd h1) ++
-      fnl () ++ pr_cs_field "rhs head" (pr_cs_constr env evd h2) ++
-      fnl () ++ pr_cs_field "stored key args" (pr_cs_constr_list env evd us) ++
-      fnl () ++ pr_cs_field "matched rhs args" (pr_cs_constr_list env evd us2) ++
-      fnl () ++ pr_cs_field "projection stack" (pr_cs_stack env evd sk1) ++
-      fnl () ++ pr_cs_field "rhs stack" (pr_cs_stack env evd sk2)));
+  let () =
+    debug_canonical_unification Pp.(fun () ->
+      v 0 (str "solve canonical projection" ++
+        fnl () ++ pr_cs_field "instance" (pr_cs_constr env evd c) ++
+        fnl () ++ pr_cs_field "registered head" (pr_cs_constr env evd h1) ++
+        fnl () ++ pr_cs_field "rhs head" (pr_cs_constr env evd h2) ++
+        fnl () ++ pr_cs_field "stored key args" (pr_cs_constr_list env evd us) ++
+        fnl () ++ pr_cs_field "matched rhs args" (pr_cs_constr_list env evd us2) ++
+        fnl () ++ pr_cs_field "projection stack" (pr_cs_stack env evd sk1) ++
+        fnl () ++ pr_cs_field "rhs stack" (pr_cs_stack env evd sk2)))
+  in
   let result =
   (* Tries to unify the states
 
@@ -1570,10 +1590,12 @@ and conv_record flags env (evd,(h1,h2),c,bs,(params,params1),(us,us2),(sk1,sk2),
          (fst (decompose_app i (substl ks h1))))])
   else UnifFailure(evd,(*dummy*)NotSameHead)
   in
-  debug_canonical_unification Pp.(fun () ->
-    match result with
-    | Success _ -> str "canonical projection solved"
-    | UnifFailure _ -> str "canonical projection failed");
+  let () =
+    debug_canonical_unification Pp.(fun () ->
+      match result with
+      | Success _ -> str "canonical projection solved"
+      | UnifFailure _ -> str "canonical projection failed")
+  in
   result
 
 and eta_constructor flags env evd ((ind, i), u) sk1 (term2,sk2) =
