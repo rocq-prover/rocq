@@ -2352,17 +2352,20 @@ let register_native_file libpath ~prefix =
     generate_accus_native_file := StringSet.add prefix !generate_accus_native_file;
   loaded_native_files := StringSet.add prefix !loaded_native_files
 
-let is_code_loaded consider_accs name =
+let is_code_loaded consider_accs ?(recompile_if_incompatible=false) name =
   match !name with
   | NotLinked -> false
   | Linked s ->
     if is_loaded_native_file s then
       (* the dependency needs accumulators to work, so we need them too.
-      We could also try to recompile them and hope that their accumulators were needed due to a parent file needing them, but this is costly and unlikely *)
+      We could also try to recompile them and hope that their accumulators were needed due to a parent file needing them, but this is costly and unlikely (TODOME : use a heuristic ?) *)
       let supp_accs = does_supports_accus_native_file s in
       let gen_accs = does_generate_accus_native_file s in
-      if not consider_accs && gen_accs then raise NeedsAccumulators else
-      if consider_accs && not supp_accs then
+      if not consider_accs && gen_accs then
+        if recompile_if_incompatible then
+          (name := NotLinked; false) (* we recompile the dependency we need in the hope that it doesn't generate accumulators *)
+        else raise NeedsAccumulators
+      else if consider_accs && not supp_accs then
         (name := NotLinked; false) (* we need to recompile the library code to support accumulators *)
       else true
     else (name := NotLinked; false)
@@ -2443,7 +2446,7 @@ let compile_mind_deps consider_accs cenv env prefix
     (comp_stack, (mind_updates, const_updates) as init) mind =
   let mib = lookup_mind mind env in
   let nameref = lookup_mind_key mind env in
-  if is_code_loaded consider_accs nameref
+  if is_code_loaded consider_accs ~recompile_if_incompatible:true nameref (* we choose to recompile because the object we need is just an inductive and thus is very unlikely to generate accumulators *)
     || Mindmap_env.mem mind mind_updates
   then init
   else
