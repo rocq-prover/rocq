@@ -1,0 +1,13 @@
+Debug:
+Calling typeclass resolution with flags: depth = ∞,unique = false,fail = false
+Debug: 1: looking for (A ?P ?Q) with backtracking
+Debug: 1.1: simple apply a on (A ?P ?Q), 0 subgoal(s)
+Debug: 2: looking for (B ?P ?Q) with backtracking
+Debug: 3: looking for (B ?P ?Q) with backtracking
+foo a ?b ?b0
+     : True
+where
+?P : [ |- Prop]
+?Q : [ |- Prop]
+?b : [ |- B ?P ?Q]
+?b0 : [ |- B ?P ?Q]
