@@ -19,8 +19,6 @@ open Notation_term
 
 (** These are the entry points for printing terms, context, tac, ... *)
 
-val print_goal_tag_opt_name : string list
-
 (** Terms *)
 
 (** Printers for terms.
@@ -217,17 +215,6 @@ val pr_idpred              : Id.Pred.t -> Pp.t
 val pr_prpred              : PRpred.t -> Pp.t
 val pr_transparent_state   : TransparentState.t -> Pp.t
 
-(** Proofs, these functions obey [Hyps Limit] and [Compact contexts]. *)
-
-(** [pr_open_subgoals ~quiet ?oldp proof] shows the context for [proof] as used by, for example, coqtop.
-    The first active goal is printed with all its antecedents and the conclusion.  The other active goals only show their
-     conclusions.  If [oldp] is [Some oproof], highlight the differences between the old proof [oproof], and [proof].  [quiet]
-     disables printing messages as Feedback.
-*)
-val pr_open_subgoals : ?quiet:bool -> ?oldp:Proof.t option option -> ?flags:PrintingFlags.t ->
-  Proof.t -> Pp.t
-val pr_nth_open_subgoal : ?flags:PrintingFlags.t ->
-  ?oldp:Proof.t option option -> proof:Proof.t -> int -> Pp.t
 val pr_evar : ?flags:PrintingFlags.t ->
   evar_map -> (Evar.t * undefined evar_info) -> Pp.t
 val pr_evars_int : ?flags:PrintingFlags.t ->
@@ -258,16 +245,7 @@ module ContextObjectMap : CMap.ExtS
 val pr_assumptionset : ?flags:PrintingFlags.t ->
   env -> evar_map -> types ContextObjectMap.t -> Pp.t
 
-val pr_goal_by_id : ?flags:PrintingFlags.t ->
-  ?oldp:Proof.t option option -> proof:Proof.t -> Libnames.qualid -> Pp.t
-val pr_goal_emacs : ?flags:PrintingFlags.t ->
-  proof:Proof.t option -> int -> int -> Pp.t
-
 val pr_typing_flags : Declarations.typing_flags -> Pp.t
-
-(** Tells if goal name should be printed, i.e., either "Printing Goal Names" flag is activated,
-    or the evar was given a name. *)
-val print_goal_name : evar_map -> Evar.t -> bool
 
 module Debug :
 sig

@@ -383,15 +383,15 @@ let print_anyway c =
 let print_and_diff oldp proof =
   let output =
     if Proof_diffs.show_diffs () then
-      try Printer.pr_open_subgoals ~oldp proof
+      try Vernacgoal.pr_open_subgoals ~oldp proof
       with Pp_diff.Diff_Failure msg -> begin
         (* todo: print the unparsable string (if we know it) *)
         Feedback.msg_warning Pp.(str ("Diff failure: " ^ msg) ++ cut()
             ++ str "Showing results without diff highlighting" );
-        Printer.pr_open_subgoals proof
+        Vernacgoal.pr_open_subgoals proof
       end
     else
-      Printer.pr_open_subgoals proof
+      Vernacgoal.pr_open_subgoals proof
   in
   Feedback.msg_notice output
 
@@ -486,7 +486,7 @@ let process_toplevel_command ~state stm =
 
   | VernacShowGoalAt { gid; sid } ->
     let proof = Stm.get_proof ~doc:state.doc (Stateid.of_int sid) in
-    let goal = Printer.pr_goal_emacs ~proof gid sid in
+    let goal = Vernacgoal.pr_goal_emacs ~proof gid sid in
     let () = Feedback.msg_notice goal in
     true, state
 

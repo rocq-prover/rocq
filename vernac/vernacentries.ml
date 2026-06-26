@@ -2484,10 +2484,10 @@ let vernac_bullet (bullet : Proof_bullet.t) ~pstate =
 
 let show_goal goalref proof oldp =
   match goalref with
-    | OpenSubgoals -> pr_open_subgoals ~oldp proof
-    | NthGoal n -> pr_nth_open_subgoal ~oldp ~proof n
+    | OpenSubgoals -> Vernacgoal.pr_open_subgoals ~oldp proof
+    | NthGoal n -> Vernacgoal.pr_nth_open_subgoal ~oldp ~proof n
     | GoalId qid ->
-      pr_goal_by_id ~oldp ~proof qid
+      Vernacgoal.pr_goal_by_id ~oldp ~proof qid
 
 (* Stack is needed due to show proof names, should deprecate / remove
    and take pstate *)
