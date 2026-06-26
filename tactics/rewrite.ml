@@ -669,7 +669,7 @@ type rewrite_proof =
   | RewCast of cast_kind
   (** A proof of convertibility (with casts) *)
 
-type internal_rewrite_result_info = {
+type rewrite_result_info = {
   rew_car : constr ;
   (** A type *)
   rew_from : constr ;
@@ -681,18 +681,20 @@ type internal_rewrite_result_info = {
   rew_evars : evars;
 }
 
+module Result =
+struct
+
 type rewrite_result_info =
   { rew_rel: constr; rew_to : constr; rew_prf : constr }
 
-type rewrite_result =
+type t =
 | Fail
 | Identity
 | Success of rewrite_result_info
 
-type internal_rewrite_result =
-| Fail
-| Identity
-| Success of internal_rewrite_result_info
+let fail = Fail
+let identity = Identity
+let success info = Success info
 
 let apply_subst sigma vars x =
   let rec substrec n c = match kind sigma c with
@@ -705,7 +707,7 @@ let apply_subst sigma vars x =
   in
   substrec 0 x
 
-let subst_rewrite_result sigma subst (r : rewrite_result) =
+let subst sigma subst r =
   match r with
   | Fail | Identity -> r
   | Success {rew_rel; rew_to; rew_prf} ->
@@ -713,6 +715,13 @@ let subst_rewrite_result sigma subst (r : rewrite_result) =
      let rew_to = apply_subst sigma subst rew_to in
      let rew_prf = apply_subst sigma subst rew_prf in
      Success {rew_rel; rew_to; rew_prf}
+
+end
+
+type rewrite_result =
+| Fail
+| Identity
+| Success of rewrite_result_info
 
 type 'a strategy_input = { state : 'a ; (* a parameter: for instance, a state *)
                            env : Environ.env ;
@@ -724,7 +733,7 @@ type 'a strategy_input = { state : 'a ; (* a parameter: for instance, a state *)
 
 type 'a pure_strategy = { strategy :
   'a strategy_input ->
-  'a * internal_rewrite_result (* the updated state and the "result" *) }
+  'a * rewrite_result (* the updated state and the "result" *) }
 
 type strategy = unit pure_strategy
 
@@ -889,7 +898,7 @@ let default_flags = { under_lambdas = true; on_morphisms = true; }
 
 let get_opt_rew_rel = function RewPrf (rel, prf) -> Some rel | _ -> None
 
-let get_rew_prf env evars (r : internal_rewrite_result_info) = match r.rew_prf with
+let get_rew_prf env evars r = match r.rew_prf with
   | RewPrf (rel, prf) -> evars, (rel, prf)
   | RewCast c ->
     let evars, eq = make_eq env evars in
@@ -1124,7 +1133,7 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                   if Array.exists
                     (function
                       | None -> false
-                      | Some (r : internal_rewrite_result_info) -> not (is_rew_cast r.rew_prf)) args'
+                      | Some r -> not (is_rew_cast r.rew_prf)) args'
                   then
                     let evars', prf, car, rel, c2 =
                       resolve_morphism env m args args' (prop, cstr') evars'
@@ -1137,7 +1146,7 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                     let args' = Array.map2
                       (fun aorig anew ->
                         match anew with None -> aorig
-                        | Some (r : internal_rewrite_result_info) -> r.rew_to) args args'
+                        | Some r -> r.rew_to) args args'
                     in
                     let res = { rew_car = ty; rew_from = t;
                                 rew_to = mkApp (m, args'); rew_prf = RewCast DEFAULTcast;
@@ -1363,8 +1372,7 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
 (** Requires transitivity of the rewrite step, if not a reduction.
     Not tail-recursive. *)
 
-let transitivity state env unfresh cstr (res : internal_rewrite_result_info) (next : 'a pure_strategy) :
-    'a * internal_rewrite_result =
+let transitivity state env unfresh cstr res next =
   let cstr = match cstr with
     | _, Some _ -> cstr
     | prop, None -> prop, get_opt_rew_rel res.rew_prf
@@ -1562,7 +1570,7 @@ module Strategies =
       in
       { strategy }
 
-    let tactic_call (tac : env:Environ.env -> carrier:constr -> lhs:constr -> rel:constr option -> rewrite_result Proofview.tactic) : 'a pure_strategy =
+    let tactic_call (tac : env:Environ.env -> carrier:constr -> lhs:constr -> rel:constr option -> Result.t Proofview.tactic) : 'a pure_strategy =
       let strategy ({ env = env ; term1 = t ; ty1 = ty ; cstr = (prop, cstr) ; evars = evars } as state) =
         let sigma = goalevars evars in
         let entry, pv = Proofview.init sigma [] in
@@ -1571,9 +1579,9 @@ module Strategies =
           Proofview.apply ~name:(Id.of_string "rewrite")
                 ~poly:PolyFlags.default secenv (tac ~env:env ~carrier:ty ~lhs:t ~rel:cstr) pv in
         match res with
-        | Identity -> state.state, Identity
-        | Fail -> state.state, Fail
-        | Success { rew_to; rew_prf; rew_rel } ->
+        | Result.Identity -> state.state, Identity
+        | Result.Fail -> state.state, Fail
+        | Result.Success { rew_to; rew_prf; rew_rel } ->
            let sigma = Proofview.return pv in
            let rew_prf = extract_proof env sigma rew_rel rew_prf in
            let rinfo = { rew_car = ty; rew_from = t; rew_to; rew_prf;
@@ -1623,7 +1631,7 @@ module Strategies =
                                rew_evars = sigma, cstrevars evars }
                                                            }
 
-    let run_fold_in env evars c term typ : internal_rewrite_result =
+    let run_fold_in env evars c term typ =
       let unfolded = match Tacred.red_product env (goalevars evars) c with
         | None -> user_err Pp.(str "fold: the term is not unfoldable!")
         | Some c -> c
