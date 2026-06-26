@@ -452,8 +452,8 @@ type mllambda =
                               (* argument, accu branch, branches *)
   | MLmatch_noaccu        of mllambda * mllam_branches
                               (* argument, branches *)
-  | MLconstruct    of string * inductive * int * mllambda array
-                   (* prefix, inductive name, tag, arguments *)
+  | MLconstruct    of int * mllambda array
+                   (* tag, arguments *)
   | MLint          of int
   | MLuint         of Uint63.t
   | MLfloat        of Float64.t
@@ -524,9 +524,7 @@ let rec eq_mllambda gn1 gn2 n env1 env2 t1 t2 =
   | MLmatch_noaccu (c1, br1), MLmatch_noaccu (c2, br2) ->
       eq_mllambda gn1 gn2 n env1 env2 c1 c2 &&
       eq_mllam_branches gn1 gn2 n env1 env2 br1 br2
-  | MLconstruct (pf1, ind1, tag1, args1), MLconstruct (pf2, ind2, tag2, args2) ->
-      String.equal pf1 pf2 &&
-      Ind.UserOrd.equal ind1 ind2 &&
+  | MLconstruct (tag1, args1), MLconstruct (tag2, args2) ->
       Int.equal tag1 tag2 &&
       Array.equal (eq_mllambda gn1 gn2 n env1 env2) args1 args2
   | MLint i1, MLint i2 ->
@@ -620,11 +618,9 @@ let rec hash_mllambda gn n env t =
   | MLmatch_noaccu (c, br) ->
       let hc = hash_mllambda gn n env c in
       combinesmall 10 (hash_mllam_branches gn n env hc br)
-  | MLconstruct (pf, ind, tag, args) ->
-      let hpf = String.hash pf in
-      let hcs = Ind.UserOrd.hash ind in
+  | MLconstruct (tag, args) ->
       let htag = Int.hash tag in
-      combinesmall 11 (hash_mllambda_array gn n env (combine3 hpf hcs htag) args)
+      combinesmall 11 (hash_mllambda_array gn n env htag args)
   | MLint i ->
       combinesmall 12 i
   | MLuint i ->
@@ -730,7 +726,7 @@ let fv_lam l =
         aux body bind fv in
       Array.fold_right fv_bs bs fv
     (* argument, accu branch, branches *)
-    | MLconstruct (_,_,_,p) ->
+    | MLconstruct (_,p) ->
         Array.fold_right (fun a fv -> aux a bind fv) p fv
     | MLsetref(_,l) -> aux l bind fv
     | MLsequence(l1,l2) -> aux l1 bind (aux l2 bind fv)
@@ -1625,10 +1621,9 @@ let rec ml_of_lam consider_accs env l t =
 
   | Lint tag -> MLint tag
 
-  | Lmakeblock (cn,tag,args) ->
-     let prefix = env.env_mind_prefix (fst cn) in
+  | Lmakeblock (_,tag,args) ->
      let args = Array.map (ml_of_lam consider_accs env l) args in
-     MLconstruct(prefix,cn,tag,args)
+     MLconstruct(tag,args)
   | Luint i -> MLprimitive (Mk_uint, [|MLuint i|])
   | Lfloat f -> MLprimitive (Mk_float, [|MLfloat f|])
   | Lstring s -> MLprimitive (Mk_string, [|MLstring s|])
@@ -1694,7 +1689,7 @@ let subst s l =
       | MLmatch_noaccu(a,bs) ->
           let auxb (cargs,body) = (cargs,aux body) in
           MLmatch_noaccu(a, Array.map auxb bs)
-      | MLconstruct(prefix,c,tag,args) -> MLconstruct(prefix,c,tag,Array.map aux args)
+      | MLconstruct(tag,args) -> MLconstruct(tag,Array.map aux args)
       | MLsetref(s,l1) -> MLsetref(s,aux l1)
       | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
       | MLarray arr -> MLarray (Array.map aux arr)
@@ -1820,8 +1815,8 @@ let optimize  gdef l =
     | MLmatch_noaccu(a,bs) ->
         let opt_b (cargs,body) = (cargs,optimize s body) in
         MLmatch_noaccu(optimize s a, Array.map opt_b bs)
-    | MLconstruct(prefix,c,tag,args) ->
-        MLconstruct(prefix,c,tag,Array.map (optimize s) args)
+    | MLconstruct(tag,args) ->
+        MLconstruct(tag,Array.map (optimize s) args)
     | MLsetref(r,l) -> MLsetref(r, optimize s l)
     | MLsequence(l1,l2) -> MLsequence(optimize s l1, optimize s l2)
     | MLarray arr -> MLarray (Array.map (optimize s) arr)
@@ -1995,10 +1990,10 @@ let pp_mllam fmt l =
       Format.fprintf fmt
         "@[(let ($matched_value %a) (switch $matched_value @\n@ @ @[%a@]))@]"
         pp_mllam c pp_branches br
-    | MLconstruct(_,_,tag,[||]) -> (* not a construct but a constant *)
+    | MLconstruct(tag,[||]) -> (* not a construct but a constant *)
         Format.fprintf fmt "%i"
           tag
-    | MLconstruct(_,_,tag,args) ->
+    | MLconstruct(tag,args) ->
         Format.fprintf fmt "@[<2>(block (tag %i)%a)@]"
           tag pp_args args
     | MLisaccu (_, _, c) ->
@@ -2115,7 +2110,7 @@ let pp_cofix fmt (gn, s) =
       | MLmatch_noaccu(a,bs) ->
           let auxb (cargs,body) = (cargs,aux body) in
           MLmatch_noaccu(a, Array.map auxb bs)
-      | MLconstruct(prefix,c,tag,args) -> MLconstruct(prefix,c,tag,Array.map aux args)
+      | MLconstruct(tag,args) -> MLconstruct(tag,Array.map aux args)
       | MLsetref(s,l1) -> MLsetref(s,aux l1)
       | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
       | MLarray arr -> MLarray (Array.map aux arr)
@@ -2491,7 +2486,7 @@ let compile_deps consider_accs cenv env sigma prefix init t =
       let comp_stack = code@comp_stack in
       let const_updates = Cmap_env.add c upd const_updates in
       comp_stack, (mind_updates, const_updates)
-  | Construct (((mind,_),_),_u) -> compile_mind_deps consider_accs cenv env prefix init mind
+  | Construct _ -> init (* constructs are directly built using their tag and arguments, no need to import them *)
   | Proj (p,_,c) ->
     let init = compile_mind_deps consider_accs cenv env prefix init (Projection.mind p) in
     aux env lvl init c
