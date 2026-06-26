@@ -327,7 +327,7 @@ project aac_tactics "https://github.com/coq-community/aac-tactics" "master"
 # paco
 ########################################################################
 project paco "https://github.com/snu-sf/paco" "master"
-# currently orphaned, we need a maintainer
+# Contact @damhiya on github
 
 ########################################################################
 # coq-itree
