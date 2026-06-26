@@ -30,6 +30,7 @@
 *)
 
 open Util
+open Names
 
 module FocusKind = Dyn.Make()
 
@@ -112,7 +113,7 @@ type t =
   (** History of the focusings, provides information on how to unfocus
      the proof and the extra information stored while focusing.  The
      list is empty when the proof is fully unfocused. *)
-  ; name : Names.Id.t
+  ; name : Id.t
   (** the name of the theorem whose proof is being constructed *)
   ; poly : PolyFlags.t
   (** Universe polymorphism *)
@@ -362,7 +363,7 @@ type data =
   (** Entry for the proofview *)
   ; stack : (Evar.t list * Evar.t list) list
   (** A representation of the focus stack *)
-  ; name : Names.Id.t
+  ; name : Id.t
   (** The name of the theorem whose proof is being constructed *)
   ; poly : PolyFlags.t
   (** Universe polymorphism *)
@@ -470,3 +471,28 @@ let get_proof_context p =
 let purge_side_effects p =
   let proofview, eff = Proofview.Unsafe.purge_side_effects p.proofview in
   { p with proofview }, eff
+
+exception ProofUsingClearDependency of
+    Environ.env * Evd.evar_map * Id.t * Evarutil.clear_dependency_error * GlobRef.t option
+
+let set_used_variables env ~kept (p:t) =
+  let to_clear = Id.Set.diff Environ.(ids_of_named_context_val @@ named_context_val env) kept in
+  if Id.Set.is_empty to_clear then p
+  else
+    let entry = Proofview.initial_goals p.entry in
+    let err = Evarutil.OccurHypInSimpleClause None in
+    let tac =
+      Proofview.tclBIND Proofview.tclEVARMAP @@ fun sigma ->
+      let sigma =
+        List.fold_left (fun sigma (_, body, _) ->
+            try
+              Evarutil.check_and_clear_in_constr env sigma err to_clear body
+            with Evarutil.ClearDependencyError (id, err, gr) ->
+              raise (ProofUsingClearDependency (env, sigma, id, err, gr)))
+          sigma
+          entry
+      in
+      Proofview.Unsafe.tclEVARSADVANCE sigma
+    in
+    let p, _, () = run_tactic env tac p in
+    p
