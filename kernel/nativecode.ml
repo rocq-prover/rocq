@@ -773,8 +773,6 @@ type global =
   | Gletcase_noaccu of
       gname * lname array * mllambda * mllam_branches
   | Gopen of string
-  | Gtype of inductive * (tag * int) array
-    (* ind name, tag and arities of constructors *)
   | Gcomment of string
 
 (* Alpha-equivalence on globals *)
@@ -799,9 +797,6 @@ let eq_global g1 g2 =
       let t2 = MLmatch (c2,accu2,br2) in
       eq_mllambda gn1 gn2 (Array.length lns1) env1 env2 t1 t2
   | Gopen s1, Gopen s2 -> String.equal s1 s2
-  | Gtype (ind1, arr1), Gtype (ind2, arr2) ->
-    Ind.UserOrd.equal ind1 ind2 &&
-    Array.equal (fun (tag1,ar1) (tag2,ar2) -> Int.equal tag1 tag2 && Int.equal ar1 ar2) arr1 arr2
   | Gcomment s1, Gcomment s2 -> String.equal s1 s2
   | _, _ -> false
 
@@ -836,13 +831,8 @@ let hash_global g =
       let nlns = Array.length lns in
       let env = push_lnames 0 LNmap.empty lns in
       let t = MLmatch_noaccu (c,br) in
-      combinesmall 5 (combine nlns (hash_mllambda gn nlns env t))
-  | Gopen s -> combinesmall 5 (String.hash s)
-  | Gtype (ind, arr) ->
-    let hash_aux acc (tag,ar) =
-      combine3 acc (Int.hash tag) (Int.hash ar)
-    in
-    combinesmall 7 (combine (Ind.UserOrd.hash ind) (Array.fold_left hash_aux 0 arr))
+      combinesmall 6 (combine nlns (hash_mllambda gn nlns env t))
+  | Gopen s -> combinesmall 7 (String.hash s)
   | Gcomment s -> combinesmall 8 (String.hash s)
 
 module HashedTypeGlobal = struct
@@ -1903,7 +1893,6 @@ let string_of_kn kn =
 
 let string_of_con c = string_of_kn (Constant.user c)
 let string_of_mind mind = string_of_kn (MutInd.user mind)
-let string_of_ind (mind,i) = string_of_kn (MutInd.user mind) ^ "_" ^ string_of_int i
 
 let string_of_gname g =
   let ret = match g with
@@ -1946,13 +1935,6 @@ let pp_ldecls fmt ids =
   for i = 0 to len - 1 do
     Format.fprintf fmt " %a" pp_lname ids.(i)
   done
-
-let string_of_construct prefix ~constant ind tag =
-  let base = if constant then "Int" else "Construct" in
-  Format.sprintf "%s%s_%s_%i" prefix base (string_of_ind ind) tag
-
-let string_of_accu_construct prefix ind =
-  Format.sprintf "%sAccu_%s" prefix (string_of_ind ind)
 
 let pp_mllam fmt l =
 
@@ -2143,45 +2125,10 @@ let pp_cofix fmt (gn, s) =
   in let s = Array.map (subst_gname gn (MLprimitive(Force, [|MLglobal gn|])) ) s in
   Format.fprintf fmt "@[(let (rec (%a (lazy %a))) (force %a))@]" pp_gname gn pp_array s pp_gname gn
 
-let pp_type_decl fmt ind lar =
-  let rec aux s arity =
-    if Int.equal arity 0 then s else aux (s^" * t") (arity-1) in
-  let pp_const_sig fmt (tag,arity) =
-    if arity > 0 then
-      let sig_str = aux "of t" (arity-1) in
-      let cstr = string_of_construct "" ~constant:false ind tag in
-      Format.fprintf fmt "  | %s %s@\n" cstr sig_str
-    else
-      let cstr = string_of_construct "" ~constant:true ind tag in
-      Format.fprintf fmt "  | %s@\n" cstr
-  in
-  let pp_const_sigs fmt lar =
-    Format.fprintf fmt "  | %s of t@\n" (string_of_accu_construct "" ind);
-    Array.iter (pp_const_sig fmt) lar
-  in
-  Format.fprintf fmt "@[type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
-
 let pp_global fmt g =
   match g with
   | Glet (gn, c) ->
       Format.fprintf fmt "@[( %a  %a )@]@\n@." pp_gname gn pp_mllam c
-  | Gtype (ind, lar) -> (* types are not needed in malfunction, we will leave them as comments *)
-    let rec aux s arity =
-      if Int.equal arity 0 then s else aux (s^" * Nativevalues.t") (arity-1) in
-    let pp_const_sig fmt (tag,arity) =
-      if arity > 0 then
-        let sig_str = aux "of Nativevalues.t" (arity-1) in
-        let cstr = string_of_construct "" ~constant:false ind tag in
-        Format.fprintf fmt ";  | %s %s@\n" cstr sig_str
-      else
-        let cstr = string_of_construct "" ~constant:true ind tag in
-        Format.fprintf fmt ";  | %s@\n" cstr
-    in
-    let pp_const_sigs fmt lar =
-      Format.fprintf fmt ";  | %s of Nativevalues.t@\n" (string_of_accu_construct "" ind);
-      Array.iter (pp_const_sig fmt) lar
-    in
-    Format.fprintf fmt "@[;type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
   | Gopen _ ->
       () (* open do not exist in malfunction, and there is no interest in leaving them as comments *)
   | Gletcase(gn,[||],a,accu,bs) -> (* simple biding and not a function *)
@@ -2236,7 +2183,6 @@ let global_to_mlf_name g =
   | Glet (gn,_) ->
     let gn = string_of_gname gn in
     if gn = "_" || gn = "" then None else Some gn
-  | Gtype _
   | Gcomment _
   | Gopen _ -> None
 
@@ -2256,7 +2202,6 @@ let pp_global_interface fmt g =
     end
   | Gcomment _
   | Gopen _ -> ()
-  | Gtype (ind, lar) -> pp_type_decl fmt ind lar
 
 type compiled_library_flag =
   | Supports_accumulators
@@ -2432,7 +2377,6 @@ let compile_mind consider_accs cenv mb mind stack =
   (** Generate data for every block *)
   let f i stack ob =
     let ind = (mind, i) in
-    let gtype = Gtype(ind, ob.mind_reloc_tbl) in
     let j = push_symbol cenv (SymbInd ind) in
     let name = Gind ("", ind) in
     let accu =
@@ -2484,7 +2428,7 @@ let compile_mind consider_accs cenv mb mind stack =
     | PrimRecord { tys ; _ } ->
       Array.fold_left_i add_proj [] tys
     in
-    projs @ gtype :: accu :: stack
+    projs @ accu :: stack
   in
   Array.fold_left_i f stack mb.mind_packets
 
