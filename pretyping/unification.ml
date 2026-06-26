@@ -1567,7 +1567,10 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
           (fun (substn,ks,m,test) b ->
             if match n with Some n -> Int.equal m n | None -> false then
               (* Enforce unification of type of the projected parameter and the projection's argument type *)
-              let t2ty = Retyping.get_type_of ~metas:(metasfn substn) (fst curenvnb) sigma t2 in
+              let t2ty =
+                try Retyping.get_type_of ~lax:true ~metas:(metasfn substn) (fst curenvnb) sigma t2
+                with Retyping.RetypeError _ -> error_cannot_unify (fst curenvnb) sigma (cM,cN)
+              in
               let test substn = unirec_rec curenvnb CUMUL opt substn t2ty (substl ks b) in
               (substn,t2::ks, m-1, test)
             else
