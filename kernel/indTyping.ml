@@ -336,17 +336,9 @@ let check_no_increment ~template_univs u =
     CErrors.user_err
       Pp.(str "Template polymorphism with conclusion strictly larger than a bound universe not supported.")
 
-let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes with
-| Monomorphic_ind_entry | Polymorphic_ind_entry _ -> None
-| Template_ind_entry {uctx; default_univs} ->
+let get_template uctx default_univs params arity lc =
   let ((template_qvars, _), (template_univs, _ as template_uctx)) =
     UVars.UContext.to_context_set uctx
-  in
-  let params = mie.mind_entry_params in
-  let ind =
-    match mie.mind_entry_inds with
-    | [ind] -> ind
-    | _ -> CErrors.user_err Pp.(str "Template-polymorphism not allowed with mutual inductives.")
   in
   let () = check_unbounded_from_below template_uctx in
 
@@ -434,7 +426,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
   (** arity *)
   let template_concl =
     (* don't use get_template_binding_arity, we allow constant template poly (eg eq) *)
-    let (decls, s) = Term.decompose_prod_decls ind.mind_entry_arity in
+    let (decls, s) = Term.decompose_prod_decls arity in
     let () = if not (isSort s) then
         CErrors.user_err Pp.(str "Template polymorphic inductive's type must be a syntactic arity.")
     in
@@ -454,7 +446,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
   in
 
   (** ctors *)
-  let () = List.iter check_not_appearing ind.mind_entry_lc in
+  let () = List.iter check_not_appearing lc in
 
   let template_param_arguments =
     let assums = CList.filter_map (fun x -> x) template_params in
@@ -477,7 +469,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     assert (Array.for_all (fun bind_u -> not @@ Level.is_set bind_u) bind_us)
   in
 
-  Some {
+  {
     template_param_arguments;
     template_context;
     template_concl;
@@ -493,31 +485,29 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   mind_check_names env mie;
   assert (List.is_empty (Environ.rel_context env));
 
-  (* universes *)
-  let template = get_template mie in
-
   (* Abstract universes *)
-  let env_univs, usubst, univs = match mie.mind_entry_universes with
+  let env_univs, usubst, univs, template = match mie.mind_entry_universes with
   | Monomorphic_ind_entry ->
-    env, UVars.empty_sort_subst, Monomorphic
-  | Template_ind_entry { uctx; _ } ->
+    env, UVars.empty_sort_subst, Monomorphic, None
+  | Template_ind_entry { uctx; default_univs } ->
     let (inst, _) = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst inst in
-    let template = Option.get template in
+    let ind = match mie.mind_entry_inds with
+    | [ind] -> ind
+    | _ -> CErrors.user_err Pp.(str "Template-polymorphism not allowed with mutual inductives.")
+    in
+    let template = get_template uctx default_univs mie.mind_entry_params ind.mind_entry_arity ind.mind_entry_lc in
     let env = Environ.Internal.push_template_context (AbstractContext.repr template.template_context) env in
-    env, usubst, Monomorphic
+    env, usubst, Monomorphic, Some template
   | Polymorphic_ind_entry uctx ->
     let (inst, auctx) = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst inst in
     let () = check_ucontext (AbstractContext.repr auctx) env in
     let env = Environ.push_context (AbstractContext.repr auctx) env in
-    env, usubst, Polymorphic auctx
+    env, usubst, Polymorphic auctx, None
   in
 
-  let has_template_poly = match mie.mind_entry_universes with
-  | Template_ind_entry _ -> true
-  | Monomorphic_ind_entry | Polymorphic_ind_entry _ -> false
-  in
+  let has_template_poly = Option.has_some template in
 
   (* Params *)
   let params = Vars.subst_univs_level_context usubst mie.mind_entry_params in
