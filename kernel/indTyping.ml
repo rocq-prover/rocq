@@ -336,16 +336,11 @@ let check_no_increment ~template_univs u =
     CErrors.user_err
       Pp.(str "Template polymorphism with conclusion strictly larger than a bound universe not supported.")
 
-let get_template uctx default_univs params arity lc =
+let get_template template_context default_univs params arity lc =
   let ((template_qvars, _), (template_univs, _ as template_uctx)) =
-    UVars.UContext.to_context_set uctx
+    UVars.UContext.to_context_set (AbstractContext.repr template_context)
   in
   let () = check_unbounded_from_below template_uctx in
-
-  let template_abstract, template_context =
-    let inst, ctx = UVars.abstract_universes uctx in
-    UVars.make_instance_subst inst, ctx
-  in
 
   (* Template univs must only appear in the conclusion of the
      inductive and linearly in the conclusion of parameters.
@@ -442,7 +437,7 @@ let get_template uctx default_univs params arity lc =
       check_no_increment ~template_univs u;
       ()
     in
-    UVars.subst_sort_level_sort template_abstract s
+    s
   in
 
   (** ctors *)
@@ -450,23 +445,16 @@ let get_template uctx default_univs params arity lc =
 
   let template_param_arguments =
     let assums = CList.filter_map (fun x -> x) template_params in
-    List.rev_map
-      (Option.map (fun (_, _, s) ->
-           UVars.subst_sort_level_sort template_abstract s))
-      assums
+    List.rev_map (Option.map (fun (_, _, s) -> s)) assums
   in
 
   (* don't forget to check the default_univs qualities are all QType *)
   let () =
-    let bind_instance = UVars.UContext.instance uctx in
-    let () = if not UVars.(eq_sizes (Instance.length bind_instance) (Instance.length default_univs))
+    let () = if not UVars.(eq_sizes (AbstractContext.size template_context) (Instance.length default_univs))
       then CErrors.anomaly Pp.(str "Incorrect default template universes declaration.")
     in
-    let bind_qs, bind_us = UVars.Instance.to_array bind_instance in
     let default_qs, _ = UVars.Instance.to_array default_univs in
-    let () = assert (Array.for_all Sorts.Quality.is_qvar bind_qs) in
-    let () = assert (Array.for_all Sorts.Quality.is_qtype default_qs) in
-    assert (Array.for_all (fun bind_u -> not @@ Level.is_set bind_u) bind_us)
+    assert (Array.for_all Sorts.Quality.is_qtype default_qs)
   in
 
   {
@@ -490,13 +478,22 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   | Monomorphic_ind_entry ->
     env, UVars.empty_sort_subst, Monomorphic, None
   | Template_ind_entry { uctx; default_univs } ->
-    let (inst, _) = UVars.abstract_universes uctx in
+    let () =
+      let bind_instance = UVars.UContext.instance uctx in
+      let _, bind_us = UVars.Instance.to_array bind_instance in
+      (* XXX should be checked by UVars.abstract_universes instead *)
+      assert (Array.for_all (fun bind_u -> not @@ Level.is_set bind_u) bind_us)
+    in
+    let (inst, template_context) = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst inst in
     let ind = match mie.mind_entry_inds with
     | [ind] -> ind
     | _ -> CErrors.user_err Pp.(str "Template-polymorphism not allowed with mutual inductives.")
     in
-    let template = get_template uctx default_univs mie.mind_entry_params ind.mind_entry_arity ind.mind_entry_lc in
+    let params = Vars.subst_univs_level_context usubst mie.mind_entry_params in
+    let arity = Vars.subst_univs_level_constr usubst ind.mind_entry_arity in
+    let lc = List.map (fun c -> Vars.subst_univs_level_constr usubst c) ind.mind_entry_lc in
+    let template = get_template template_context default_univs params arity lc in
     let env = Environ.Internal.push_template_context (AbstractContext.repr template.template_context) env in
     env, usubst, Monomorphic, Some template
   | Polymorphic_ind_entry uctx ->
