@@ -484,18 +484,10 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
       (* XXX should be checked by UVars.abstract_universes instead *)
       assert (Array.for_all (fun bind_u -> not @@ Level.is_set bind_u) bind_us)
     in
-    let (inst, template_context) = UVars.abstract_universes uctx in
+    let (inst, auctx) = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst inst in
-    let ind = match mie.mind_entry_inds with
-    | [ind] -> ind
-    | _ -> CErrors.user_err Pp.(str "Template-polymorphism not allowed with mutual inductives.")
-    in
-    let params = Vars.subst_univs_level_context usubst mie.mind_entry_params in
-    let arity = Vars.subst_univs_level_constr usubst ind.mind_entry_arity in
-    let lc = List.map (fun c -> Vars.subst_univs_level_constr usubst c) ind.mind_entry_lc in
-    let template = get_template template_context default_univs params arity lc in
-    let env = Environ.Internal.push_template_context (AbstractContext.repr template.template_context) env in
-    env, usubst, Monomorphic, Some template
+    let env = Environ.Internal.push_template_context (AbstractContext.repr auctx) env in
+    env, usubst, Monomorphic, Some (default_univs, auctx)
   | Polymorphic_ind_entry uctx ->
     let (inst, auctx) = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst inst in
@@ -504,18 +496,35 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     env, usubst, Polymorphic auctx, None
   in
 
+  let params = Vars.subst_univs_level_context usubst mie.mind_entry_params in
+  let map mip =
+    let arity = Vars.subst_univs_level_constr usubst mip.mind_entry_arity in
+    let lc = List.map (fun c -> Vars.subst_univs_level_constr usubst c) mip.mind_entry_lc in
+    (mip.mind_entry_typename, arity, lc)
+  in
+  let blocks = List.map map mie.mind_entry_inds in
+
+  let template = match template with
+  | None -> None
+  | Some (default_univs, template_context) ->
+    let arity, lc = match blocks with
+    | [_, arity, lc] -> arity, lc
+    | _ -> CErrors.user_err Pp.(str "Template-polymorphism not allowed with mutual inductives.")
+    in
+    let template = get_template template_context default_univs params arity lc in
+    Some template
+  in
+
   let has_template_poly = Option.has_some template in
 
   (* Params *)
-  let params = Vars.subst_univs_level_context usubst mie.mind_entry_params in
   let env_params, params = Typeops.check_context env_univs params in
 
   (* Arities *)
-  let check_arity env_univs mib =
-    let arity = Vars.subst_univs_level_constr usubst mib.mind_entry_arity in
-    check_arity ~template:has_template_poly env_params env_univs (mib.mind_entry_typename, arity)
+  let check_arity env_univs (name, arity, _) =
+    check_arity ~template:has_template_poly env_params env_univs (name, arity)
   in
-  let env_ar, data = List.fold_left_map check_arity env_univs mie.mind_entry_inds in
+  let env_ar, data = List.fold_left_map check_arity env_univs blocks in
   let env_ar_par = push_rel_context params env_ar in
 
   (* Constructors *)
@@ -523,11 +532,10 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     | Some (Some _) -> true
     | Some None | None -> false
   in
-  let map ind data =
-    let ctyp = List.map (fun t -> Vars.subst_univs_level_constr usubst t) ind.mind_entry_lc in
+  let map (_, _, ctyp) data =
     check_constructors ~env_params ~env_ar_par isrecord params ctyp data
   in
-  let data = List.map2 map mie.mind_entry_inds data in
+  let data = List.map2 map blocks data in
 
   let record = mie.mind_entry_record in
   let data, record, not_prim_reason_or_has_eta = match record with
@@ -570,11 +578,8 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
             let sec_univs = Array.map (fun u -> u, None) sec_univs in
             Array.append sec_univs univs
         in
-        let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par
-            ~arities:(List.map (fun e -> Vars.subst_univs_level_constr usubst e.mind_entry_arity) mie.mind_entry_inds)
-            ~ctors:(List.map (fun e -> List.map (fun c -> Vars.subst_univs_level_constr usubst c) e.mind_entry_lc) mie.mind_entry_inds)
-            univs
-        in
+        let arities, ctors = List.split @@ List.map (fun (_, arity, lc) -> (arity, lc)) blocks in
+        let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par ~arities ~ctors univs in
         Some variances
   in
 
