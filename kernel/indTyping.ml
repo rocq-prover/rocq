@@ -336,24 +336,11 @@ let check_no_increment ~template_univs u =
     CErrors.user_err
       Pp.(str "Template polymorphism with conclusion strictly larger than a bound universe not supported.")
 
-let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes with
-| Monomorphic_ind_entry | Polymorphic_ind_entry _ -> None
-| Template_ind_entry {uctx; default_univs} ->
+let get_template template_context default_univs params arity lc =
   let ((template_qvars, _), (template_univs, _ as template_uctx)) =
-    UVars.UContext.to_context_set uctx
-  in
-  let params = mie.mind_entry_params in
-  let ind =
-    match mie.mind_entry_inds with
-    | [ind] -> ind
-    | _ -> CErrors.user_err Pp.(str "Template-polymorphism not allowed with mutual inductives.")
+    UVars.UContext.to_context_set (AbstractContext.repr template_context)
   in
   let () = check_unbounded_from_below template_uctx in
-
-  let template_abstract, template_context =
-    let inst, ctx = UVars.abstract_universes uctx in
-    UVars.make_instance_subst inst, ctx
-  in
 
   (* Template univs must only appear in the conclusion of the
      inductive and linearly in the conclusion of parameters.
@@ -434,7 +421,7 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
   (** arity *)
   let template_concl =
     (* don't use get_template_binding_arity, we allow constant template poly (eg eq) *)
-    let (decls, s) = Term.decompose_prod_decls ind.mind_entry_arity in
+    let (decls, s) = Term.decompose_prod_decls arity in
     let () = if not (isSort s) then
         CErrors.user_err Pp.(str "Template polymorphic inductive's type must be a syntactic arity.")
     in
@@ -450,34 +437,27 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
       check_no_increment ~template_univs u;
       ()
     in
-    UVars.subst_sort_level_sort template_abstract s
+    s
   in
 
   (** ctors *)
-  let () = List.iter check_not_appearing ind.mind_entry_lc in
+  let () = List.iter check_not_appearing lc in
 
   let template_param_arguments =
     let assums = CList.filter_map (fun x -> x) template_params in
-    List.rev_map
-      (Option.map (fun (_, _, s) ->
-           UVars.subst_sort_level_sort template_abstract s))
-      assums
+    List.rev_map (Option.map (fun (_, _, s) -> s)) assums
   in
 
   (* don't forget to check the default_univs qualities are all QType *)
   let () =
-    let bind_instance = UVars.UContext.instance uctx in
-    let () = if not UVars.(eq_sizes (Instance.length bind_instance) (Instance.length default_univs))
+    let () = if not UVars.(eq_sizes (AbstractContext.size template_context) (Instance.length default_univs))
       then CErrors.anomaly Pp.(str "Incorrect default template universes declaration.")
     in
-    let bind_qs, bind_us = UVars.Instance.to_array bind_instance in
     let default_qs, _ = UVars.Instance.to_array default_univs in
-    let () = assert (Array.for_all Sorts.Quality.is_qvar bind_qs) in
-    let () = assert (Array.for_all Sorts.Quality.is_qtype default_qs) in
-    assert (Array.for_all (fun bind_u -> not @@ Level.is_set bind_u) bind_us)
+    assert (Array.for_all Sorts.Quality.is_qtype default_qs)
   in
 
-  Some {
+  {
     template_param_arguments;
     template_context;
     template_concl;
@@ -493,42 +473,58 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   mind_check_names env mie;
   assert (List.is_empty (Environ.rel_context env));
 
-  (* universes *)
-  let template = get_template mie in
-
   (* Abstract universes *)
-  let env_univs, usubst, univs = match mie.mind_entry_universes with
+  let env_univs, usubst, univs, template = match mie.mind_entry_universes with
   | Monomorphic_ind_entry ->
-    env, UVars.empty_sort_subst, Monomorphic
-  | Template_ind_entry { uctx; _ } ->
-    let (inst, _) = UVars.abstract_universes uctx in
+    env, UVars.empty_sort_subst, Monomorphic, None
+  | Template_ind_entry { uctx; default_univs } ->
+    let () =
+      let bind_instance = UVars.UContext.instance uctx in
+      let _, bind_us = UVars.Instance.to_array bind_instance in
+      (* XXX should be checked by UVars.abstract_universes instead *)
+      assert (Array.for_all (fun bind_u -> not @@ Level.is_set bind_u) bind_us)
+    in
+    let (inst, auctx) = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst inst in
-    let template = Option.get template in
-    let env = Environ.Internal.push_template_context (AbstractContext.repr template.template_context) env in
-    env, usubst, Monomorphic
+    let env = Environ.Internal.push_template_context (AbstractContext.repr auctx) env in
+    env, usubst, Monomorphic, Some (default_univs, auctx)
   | Polymorphic_ind_entry uctx ->
     let (inst, auctx) = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst inst in
     let () = check_ucontext (AbstractContext.repr auctx) env in
     let env = Environ.push_context (AbstractContext.repr auctx) env in
-    env, usubst, Polymorphic auctx
+    env, usubst, Polymorphic auctx, None
   in
 
-  let has_template_poly = match mie.mind_entry_universes with
-  | Template_ind_entry _ -> true
-  | Monomorphic_ind_entry | Polymorphic_ind_entry _ -> false
+  let params = Vars.subst_univs_level_context usubst mie.mind_entry_params in
+  let map mip =
+    let arity = Vars.subst_univs_level_constr usubst mip.mind_entry_arity in
+    let lc = List.map (fun c -> Vars.subst_univs_level_constr usubst c) mip.mind_entry_lc in
+    (mip.mind_entry_typename, arity, lc)
   in
+  let blocks = List.map map mie.mind_entry_inds in
+
+  let template = match template with
+  | None -> None
+  | Some (default_univs, template_context) ->
+    let arity, lc = match blocks with
+    | [_, arity, lc] -> arity, lc
+    | _ -> CErrors.user_err Pp.(str "Template-polymorphism not allowed with mutual inductives.")
+    in
+    let template = get_template template_context default_univs params arity lc in
+    Some template
+  in
+
+  let has_template_poly = Option.has_some template in
 
   (* Params *)
-  let params = Vars.subst_univs_level_context usubst mie.mind_entry_params in
   let env_params, params = Typeops.check_context env_univs params in
 
   (* Arities *)
-  let check_arity env_univs mib =
-    let arity = Vars.subst_univs_level_constr usubst mib.mind_entry_arity in
-    check_arity ~template:has_template_poly env_params env_univs (mib.mind_entry_typename, arity)
+  let check_arity env_univs (name, arity, _) =
+    check_arity ~template:has_template_poly env_params env_univs (name, arity)
   in
-  let env_ar, data = List.fold_left_map check_arity env_univs mie.mind_entry_inds in
+  let env_ar, data = List.fold_left_map check_arity env_univs blocks in
   let env_ar_par = push_rel_context params env_ar in
 
   (* Constructors *)
@@ -536,11 +532,10 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
     | Some (Some _) -> true
     | Some None | None -> false
   in
-  let map ind data =
-    let ctyp = List.map (fun t -> Vars.subst_univs_level_constr usubst t) ind.mind_entry_lc in
+  let map (_, _, ctyp) data =
     check_constructors ~env_params ~env_ar_par isrecord params ctyp data
   in
-  let data = List.map2 map mie.mind_entry_inds data in
+  let data = List.map2 map blocks data in
 
   let record = mie.mind_entry_record in
   let data, record, not_prim_reason_or_has_eta = match record with
@@ -583,11 +578,8 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
             let sec_univs = Array.map (fun u -> u, None) sec_univs in
             Array.append sec_univs univs
         in
-        let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par
-            ~arities:(List.map (fun e -> Vars.subst_univs_level_constr usubst e.mind_entry_arity) mie.mind_entry_inds)
-            ~ctors:(List.map (fun e -> List.map (fun c -> Vars.subst_univs_level_constr usubst c) e.mind_entry_lc) mie.mind_entry_inds)
-            univs
-        in
+        let arities, ctors = List.split @@ List.map (fun (_, arity, lc) -> (arity, lc)) blocks in
+        let variances = InferCumulativity.infer_inductive ~env_params ~env_ar_par ~arities ~ctors univs in
         Some variances
   in
 
