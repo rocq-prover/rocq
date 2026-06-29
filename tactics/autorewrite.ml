@@ -391,11 +391,11 @@ let one_base where conds tac_main bas forward =
   Tacticals.tclREPEAT_MAIN (Proofview.tclPROGRESS lrul)
 
 (* The AutoRewrite tactic *)
-let autorewrite ?(conds=Naive) ~forward tac_main lbas =
+let autorewrite ?(conds=Naive) ?(forward=true) tac_main lbas =
   Tacticals.tclREPEAT_MAIN (Proofview.tclPROGRESS
     (tclMAP_rev (fun bas -> (one_base None conds tac_main bas forward)) lbas))
 
-let autorewrite_multi_in ?(conds=Naive) ~forward idl tac_main lbas =
+let autorewrite_multi_in ?(conds=Naive) ?(forward=true) idl tac_main lbas =
   Proofview.Goal.enter begin fun gl ->
  (* let's check at once if id exists (to raise the appropriate error) *)
   let _ = List.map (fun id -> Tacmach.pf_get_hyp id gl) idl in
@@ -405,7 +405,7 @@ let autorewrite_multi_in ?(conds=Naive) ~forward idl tac_main lbas =
    idl
  end
 
-let autorewrite_in ?(conds=Naive) ~forward id = autorewrite_multi_in ~conds ~forward [id]
+let autorewrite_in ?(conds=Naive) ?(forward=true) id = autorewrite_multi_in ~conds ~forward [id]
 
 let gen_auto_multi_rewrite conds tac_main lbas forward cl =
   let try_do_hyps treat_id l =
@@ -431,7 +431,7 @@ let gen_auto_multi_rewrite conds tac_main lbas forward cl =
       in
       Tacticals.tclTHENFIRST concl_tac hyp_tac
 
-let auto_multi_rewrite ?(conds=Naive) ~forward lems cl =
+let auto_multi_rewrite ?(conds=Naive) ?(forward=true) lems cl =
   Proofview.wrap_exceptions (fun () -> gen_auto_multi_rewrite conds (Proofview.tclUNIT()) lems forward cl)
 
 (* Same hack as auto hints: we generate an essentially unique identifier for
@@ -451,7 +451,7 @@ let fresh_key =
     in
     KerName.make mp lbl
 
-let auto_multi_rewrite_with ?(conds=Naive) ~forward tac_main lbas cl =
+let auto_multi_rewrite_with ?(conds=Naive) ?(forward=true) tac_main lbas cl =
   let onconcl = match cl.Locus.concl_occs with NoOccurrences -> false | _ -> true in
   match onconcl,cl.Locus.onhyps with
     | false,Some [_] | true,Some [] | false,Some [] ->
