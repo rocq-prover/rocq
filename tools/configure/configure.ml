@@ -31,7 +31,7 @@ let pr_patch = function
   | Release i -> "." ^ string_of_int i
 
 let major = 9
-let minor = 3
+let minor = 4
 let patch = Alpha
 
 let coq_version = Printf.sprintf "%d.%d%s" major minor (pr_patch patch)
