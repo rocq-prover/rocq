@@ -1885,8 +1885,8 @@ let pp_mllam fmt l =
     | MLsetref (s, body) ->
         Format.fprintf fmt "@[(store %s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam body
     | MLmatch (c, accu_br, br) ->
-      Format.fprintf fmt (* accumulator is always tag 0 *)
-        "@[(let ($matched_value %a) (switch $matched_value @\n@ @ ((tag 0)@\n    %a)@\n  @[%a@]))@]"
+      Format.fprintf fmt (* accumulator is a function, so tag 247 or 249 *)
+        "@[(let ($matched_value %a) (switch $matched_value @\n@ @ ((tag 247) (tag 249)@\n    %a)@\n  @[%a@]))@]"
         pp_mllam c pp_mllam accu_br pp_branches br
     | MLconstruct(tag,[||]) -> (* not a construct but a constant *)
         Format.fprintf fmt "%i"
@@ -1896,7 +1896,7 @@ let pp_mllam fmt l =
           tag pp_args args
     | MLisaccu (_, _, c) ->
         Format.fprintf fmt
-          "@[(switch %a@\n  ((tag 0) 1)@\n  (_ (tag _) 0))@]"
+          "@[(switch %a@\n  ((tag 247) (tag 249) 1)@\n  (_ (tag _) 0))@]"
         pp_mllam c
   and pp_cparams fmt params =
     let len = Array.length params in

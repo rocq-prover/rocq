@@ -102,7 +102,7 @@ type symbols = symbol array
 let empty_symbols = [| |]
 
 
-let accumulate_tag = 0
+let accumulate_tag = 247 (* TODOME: maybe 249 and more ? *)
 
 (** Unique pointer used to drive the accumulator function *)
 let ret_accu = Obj.repr (ref ())
@@ -110,21 +110,30 @@ let ret_accu = Obj.repr (ref ())
 type accu_val = { acc_atm : atom; acc_arg : t list }
 
 (** Return a pointer to [caml_curry2_1] that is also recognized as an unscannable block *)
-external get_curry2_1 : unit -> Obj.t = "rocq_curry2_1_addr"
+(* external get_curry2_1 : unit -> Obj.t = "rocq_curry2_1_addr" *)
 
-type _ curry2_1_clos = Curry2_1 : Obj.t * int * 'a * ('a -> 'b -> 'c) -> ('b -> 'c) curry2_1_clos
+(* type _ curry2_1_clos = Curry2_1 : Obj.t * int * accu_val * (accu_val -> t -> Obj.t) -> (t -> Obj.t) curry2_1_clos *)
+(* an object like this is similar to a function, with:
+  Curry2_1 (curry2_1, 2, data, accumulate) being a function where:
+  - curry2_1 is the currified function pointer that will do all the work
+  - 2 indicates that the environment of the closure starts at data (offset 2) and an arity of 0 (TODOME:?)
+  - data is the first argument that curry2_1 will give to our accumulate function
+  - accumulate is a function that will be called when trying to apply the accumulator, with as first argument data and second the value it is applied to
+ *)
 
 let mk_accu =
-  let curry2_1 = get_curry2_1 () in
+  (* let curry2_1 = get_curry2_1 () in *)
   let rec accumulate data x =
     if Obj.repr x == ret_accu then Obj.repr data
     else
       let data = { data with acc_arg = x :: data.acc_arg } in
-      let ans = Curry2_1 (curry2_1, 2, data, accumulate) in
+      (* let ans = Curry2_1 (curry2_1, 2, data, accumulate) in *)
+      let ans = accumulate data in
       Obj.repr ans in
   fun (a : atom) ->
   let data = { acc_atm = a; acc_arg = [] } in
-  let ans = Curry2_1 (curry2_1, 2, data, accumulate) in
+  (* let ans = Curry2_1 (curry2_1, 2, data, accumulate) in *)
+  let ans = accumulate data in
   (Obj.magic ans : t)
 
 let get_accu (k : accumulator) =
@@ -258,12 +267,14 @@ let kind_of_value (v:t) =
   else
     let tag = Obj.tag o in
     if Int.equal tag accumulate_tag then
+      Vaccu (Obj.magic v)
+    else if Int.equal tag 0 then
       if Int.equal (Obj.size o) 1 then
         let w = Obj.field o 0 in
         let tag = Obj.tag w in
         if Int.equal tag prod_tag then Obj.magic w
         else Varray (Obj.magic v)
-      else Vaccu (Obj.magic v)
+      else assert false
     else if Int.equal tag Obj.custom_tag then Vint64 (Obj.magic v)
     else if Int.equal tag Obj.double_tag then Vfloat64 (Obj.magic v)
     else if Int.equal tag Obj.string_tag then Vstring (Obj.magic v)
