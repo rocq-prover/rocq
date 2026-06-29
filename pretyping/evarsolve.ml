@@ -1753,7 +1753,7 @@ let rec invert_definition unify flags choose imitate_defs
         (try
           map_constr_with_full_binders env' !evdref (fun d (env,k) -> push_rel d env, k+1)
                                         imitate envk t
-        with _ -> progress := p; imitate envk (whd_beta env' !evdref t))
+        with e when CErrors.noncritical e -> progress := p; imitate envk (whd_beta env' !evdref t))
     | _ ->
         progress := true;
         match
