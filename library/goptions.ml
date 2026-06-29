@@ -42,10 +42,14 @@ type option_state = {
 
 let nickname table = String.concat " " table
 
-let error_no_table_of_this_type ~kind key =
+let error_no_table key =
   CErrors.user_err
-    Pp.(str ("There is no " ^ kind ^ "-valued table with this name: \""
-      ^ nickname key ^ "\"."))
+    Pp.(str ("There is no table with this name: \"" ^ nickname key ^ "\"."))
+
+let error_table_value_not_supported ~kind key =
+  CErrors.user_err
+    Pp.(str ("The table \"" ^ nickname key ^ "\" does not support "
+      ^ kind ^ " values."))
 
 let error_undeclared_key key =
   CErrors.user_err
@@ -62,24 +66,39 @@ type 'a table_of_A =  {
   print : unit -> unit;
 }
 
+let tables = ref []
+
+let get_table k = String.List.assoc (nickname k) !tables
+
+let map_table_value f table = {
+  add = (fun env local x -> table.add env local (f x));
+  remove = (fun env local x -> table.remove env local (f x));
+  mem = (fun env x -> table.mem env (f x));
+  print = table.print;
+}
+
+let get_string_table k = map_table_value (fun s -> StringRefValue s) (get_table k)
+
+let get_ref_table k = map_table_value (fun r -> QualidRefValue r) (get_table k)
+
 let opts_cat = Libobject.create_category "options"
 
+module type TableArg =
+sig
+  type t
+  module Set : CSig.USetS with type elt = t
+  val encode : Environ.env -> table_value -> t
+  val subst : Mod_subst.substitution -> t -> t
+  val check_local : Libobject.locality -> t -> unit
+  val discharge : t -> t
+  val printer : t -> Pp.t
+  val key : option_name
+  val title : string
+  val member_message : t -> bool -> Pp.t
+end
+
 module MakeTable =
-  functor
-   (A : sig
-          type t
-          type key
-          module Set : CSig.USetS with type elt = t
-          val table : (string * key table_of_A) list ref
-          val encode : Environ.env -> key -> t
-          val subst : Mod_subst.substitution -> t -> t
-          val check_local : Libobject.locality -> t -> unit
-          val discharge : t -> t
-          val printer : t -> Pp.t
-          val key : option_name
-          val title : string
-          val member_message : t -> bool -> Pp.t
-        end) ->
+  functor (A : TableArg) ->
   struct
     type option_mark =
       | GOadd
@@ -88,7 +107,7 @@ module MakeTable =
     let nick = nickname A.key
 
     let () =
-      if String.List.mem_assoc nick !A.table then
+      if String.List.mem_assoc nick !tables then
         CErrors.anomaly
           Pp.(strbrk "Sorry, this table name (" ++ str nick
             ++ strbrk ") is already used.")
@@ -138,16 +157,12 @@ module MakeTable =
        print = (fun () -> print_table A.title A.printer !t);
      }
 
-    let () = A.table := (nick, table_of_A)::!A.table
+    let () = tables := (nick, table_of_A)::!tables
 
     let v () = !t
     let active x = A.Set.mem x !t
     let set local x b = if b then add_option local x else remove_option local x
   end
-
-let string_table = ref []
-
-let get_string_table k = String.List.assoc (nickname k) !string_table
 
 module type StringConvertArg =
 sig
@@ -159,10 +174,10 @@ end
 module StringConvert = functor (A : StringConvertArg) ->
 struct
   type t = string
-  type key = string
   module Set = CString.Set
-  let table = string_table
-  let encode _env x = x
+  let encode _env = function
+    | StringRefValue x -> x
+    | QualidRefValue _ -> error_table_value_not_supported ~kind:"reference" A.key
   let subst _ x = x
   let check_local _ _ = ()
   let discharge x = x
@@ -174,10 +189,6 @@ end
 
 module MakeStringTable =
   functor (A : StringConvertArg) -> MakeTable (StringConvert(A))
-
-let ref_table = ref []
-
-let get_ref_table k = String.List.assoc (nickname k) !ref_table
 
 module type RefConvertArg =
 sig
@@ -196,10 +207,10 @@ end
 module RefConvert = functor (A : RefConvertArg) ->
 struct
   type t = A.t
-  type key = Libnames.qualid
   module Set = A.Set
-  let table = ref_table
-  let encode = A.encode
+  let encode env = function
+    | QualidRefValue qid -> A.encode env qid
+    | StringRefValue _ -> error_table_value_not_supported ~kind:"string" A.key
   let subst = A.subst
   let check_local = A.check_local
   let discharge = A.discharge
@@ -215,19 +226,11 @@ module MakeRefTable =
 type iter_table_aux = { aux : 'a. 'a table_of_A -> Environ.env -> 'a -> unit }
 
 let iter_table env f key lv =
-  let aux = function
-    | StringRefValue s ->
-       begin
-         try f.aux (get_string_table key) env s
-         with Not_found -> error_no_table_of_this_type ~kind:"string" key
-       end
-    | QualidRefValue locqid ->
-       begin
-         try f.aux (get_ref_table key) env locqid
-         with Not_found -> error_no_table_of_this_type ~kind:"qualid" key
-       end
+  let table =
+    try get_table key
+    with Not_found -> error_no_table key
   in
-  List.iter aux lv
+  List.iter (fun v -> f.aux table env v) lv
 
 (****************************************************************************)
 (* 2- Flags.                                                              *)
@@ -265,10 +268,9 @@ let check_key key = try
   CErrors.user_err Pp.(str "Sorry, this option name ("
     ++ str (nickname key) ++ str ") is already used.")
 with Not_found ->
-  if String.List.mem_assoc (nickname key) !string_table
-    || String.List.mem_assoc (nickname key) !ref_table
-  then CErrors.user_err Pp.(str "Sorry, this option name ("
-    ++ str (nickname key) ++ str ") is already used.")
+  if String.List.mem_assoc (nickname key) !tables then
+    CErrors.user_err Pp.(str "Sorry, this option name ("
+      ++ str (nickname key) ++ str ") is already used.")
 
 let declare_raw name v = value_tab := OptionMap.add name (AnyOpt v) !value_tab
 
@@ -569,10 +571,7 @@ let print_tables () =
   str "Tables:" ++ fnl () ++
     List.fold_right
       (fun (nickkey,_) p -> p ++ str "  " ++ str nickkey ++ fnl ())
-      !string_table (mt ()) ++
-    List.fold_right
-      (fun (nickkey,_) p -> p ++ str "  " ++ str nickkey ++ fnl ())
-      !ref_table (mt ()) ++
+      !tables (mt ()) ++
     fnl ()
 
 (* Compat *)

@@ -57,14 +57,42 @@ type option_locality = OptDefault | OptLocal | OptExport | OptGlobal
 
 (** {6 Tables. } *)
 
-(** The functor [MakeStringTable] declares a table containing objects
-   of type [string]; the function [member_message] say what to print
-   when invoking the "Test Toto Titi foo." command; at the end [title]
-   is the table name printed when invoking the "Print Toto Titi."
-   command; [active] is roughly the internal version of the vernacular
-   "Test ...": it tells if a given object is in the table; [elements]
-   returns the list of elements of the table *)
+type table_value =
+  | StringRefValue of string
+  | QualidRefValue of Libnames.qualid
 
+(** The functor [MakeTable] declares a table.  Vernacular [Add],
+    [Remove], and [Test] commands pass each argument as a [table_value];
+    [encode] maps such values to stored elements, possibly globalizing
+    qualified identifiers with the supplied environment.  Tables that do
+    not support one of the constructors should raise a user error from
+    [encode]. *)
+module type TableArg = sig
+  type t
+  module Set : CSig.USetS with type elt = t
+  val encode : Environ.env -> table_value -> t
+  val subst : Mod_subst.substitution -> t -> t
+
+  val check_local : Libobject.locality -> t -> unit
+  val discharge : t -> t
+  (** Elements which cannot be discharged should only be added with Local *)
+
+  val printer : t -> Pp.t
+  val key : option_name
+  val title : string
+  val member_message : t -> bool -> Pp.t
+end
+
+module MakeTable :
+  functor (A : TableArg) ->
+sig
+  val v : unit -> A.Set.t
+  val active : A.t -> bool
+  val set : Libobject.locality -> A.t -> bool -> unit
+end
+
+(** [MakeStringTable] is a specialization of [MakeTable] for tables whose
+    vernacular arguments are strings. *)
 module MakeStringTable :
   functor
     (_ : sig
@@ -77,16 +105,9 @@ sig
   val active : string -> bool
 end
 
-(** The functor [MakeRefTable] declares a new table of objects of type
-   [A.t] practically denoted by [reference]; the encoding function
-   [encode : env -> reference -> A.t] is typically a globalization function,
-   possibly with some restriction checks; the function
-   [member_message] say what to print when invoking the "Test Toto
-   Titi foo." command; at the end [title] is the table name printed
-   when invoking the "Print Toto Titi." command; [active] is roughly
-   the internal version of the vernacular "Test ...": it tells if a
-   given object is in the table.  *)
-
+(** [MakeRefTable] is a specialization of [MakeTable] for tables whose
+    vernacular arguments are qualified identifiers.  The encoding function
+    is typically a globalization function, possibly with extra checks. *)
 module type RefConvertArg = sig
   type t
   module Set : CSig.USetS with type elt = t
@@ -185,6 +206,10 @@ type 'a table_of_A =  {
   print : unit -> unit;
 }
 
+val get_table :
+  option_name -> table_value table_of_A
+
+(** Compatibility views of [get_table]. *)
 val get_string_table :
   option_name -> string table_of_A
 val get_ref_table :
@@ -209,10 +234,6 @@ type option_value =
   | IntValue    of int option
   | StringValue of string
   | StringOptValue of string option
-
-type table_value =
-  | StringRefValue of string
-  | QualidRefValue of Libnames.qualid
 
 (** [get_option_value key] returns [None] if option with name [key] was not found. *)
 val get_option_value : option_name -> (unit -> option_value) option
