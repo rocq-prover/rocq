@@ -13,8 +13,8 @@
 type t = int
 
 external equal : t -> t -> bool = "%eq"
+external compare : t -> t -> int = "%compare"
 
-external compare : t -> t -> int = "caml_int_compare"
 
 val hash : t -> int
 
