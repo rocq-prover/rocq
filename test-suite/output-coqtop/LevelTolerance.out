@@ -703,10 +703,12 @@ Entry simple_tactic is
   | IDENT "subst"
   | IDENT "notypeclasses"; IDENT "refine"; uconstr
   | IDENT "refine"; uconstr
-  | IDENT "autorewrite"; "*"; "with"; LIST1 preident; clause; "using"; tactic
-  | IDENT "autorewrite"; "*"; "with"; LIST1 preident; clause
-  | IDENT "autorewrite"; "with"; LIST1 preident; clause; "using"; tactic
-  | IDENT "autorewrite"; "with"; LIST1 preident; clause
+  | IDENT "autorewrite"; orient; "*"; "with"; LIST1 preident; clause;
+    "using"; tactic
+  | IDENT "autorewrite"; orient; "*"; "with"; LIST1 preident; clause
+  | IDENT "autorewrite"; orient; "with"; LIST1 preident; clause; "using";
+    tactic
+  | IDENT "autorewrite"; orient; "with"; LIST1 preident; clause
   | IDENT "contradiction"; OPT constr_with_bindings
   | IDENT "decompose"; "["; LIST1 constr; "]"; constr
   | IDENT "decompose"; IDENT "record"; constr

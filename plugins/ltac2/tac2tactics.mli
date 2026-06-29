@@ -98,7 +98,7 @@ val discriminate : evars_flag -> destruction_arg option -> unit tactic
 
 val injection : evars_flag -> intro_pattern list option -> destruction_arg option -> unit tactic
 
-val autorewrite : all:bool -> unit thunk option -> Id.t list -> clause -> unit tactic
+val autorewrite : all:bool -> forward:bool -> unit thunk option -> Id.t list -> clause -> unit tactic
 
 val trivial : Hints.debug -> GlobRef.t list -> Id.t list option ->
   unit Proofview.tactic
