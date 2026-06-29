@@ -1237,7 +1237,7 @@ and eval_tactic_ist ist tac : unit Proofview.tactic =
       end
   | TacFail (g,n,s) ->
       let msg = interp_message ist s in
-      let tac ~info l = Tacticals.tclFAILn ~info (interp_int_or_var ist n) l in
+      let tac ~info l = Tacticals.tclFAILn ~info (interp_nat_or_var ist n) l in
       let tac =
         match g with
         | TacLocal ->
@@ -1272,8 +1272,8 @@ and eval_tactic_ist ist tac : unit Proofview.tactic =
   | TacThens3parts (t1,tf,t,tl) ->
       Tacticals.tclTHENS3PARTS (interp_tactic ist t1)
         (Array.map (interp_tactic ist) tf) (interp_tactic ist t) (Array.map (interp_tactic ist) tl)
-  | TacDo (n,tac) -> Tacticals.tclDO (interp_int_or_var ist n) (interp_tactic ist tac)
-  | TacTimeout (n,tac) -> Tacticals.tclTIMEOUT (interp_int_or_var ist n) (interp_tactic ist tac)
+  | TacDo (n,tac) -> Tacticals.tclDO (interp_nat_or_var ist n) (interp_tactic ist tac)
+  | TacTimeout (n,tac) -> Tacticals.tclTIMEOUT (interp_nat_or_var ist n) (interp_tactic ist tac)
   | TacTime (s,tac) -> Tacticals.tclTIME s (interp_tactic ist tac)
   | TacTry tac -> Tacticals.tclTRY (interp_tactic ist tac)
   | TacRepeat tac -> Tacticals.tclREPEAT (interp_tactic ist tac)
