@@ -1754,6 +1754,26 @@ let rec invert_definition unify flags choose imitate_defs
           map_constr_with_full_binders env' !evdref (fun d (env,k) -> push_rel d env, k+1)
                                         imitate envk t
         with _ -> progress := p; imitate envk (whd_beta env' !evdref t))
+    | Case (ci, u, pms, (p, r), iv, c, bl) ->
+        (* [CaseInvert] indices are annotations for checking the case, not
+           subterms to imitate when solving the evar.  In generated terms they
+           may mention rels from eliminator contexts that are not projectable
+           from the evar telescope; keep the annotation unchanged. *)
+        progress := true;
+        let (ci, _, pms, (p0, _), _, c, bl0) =
+          annotate_case env' !evdref (ci, u, pms, (p, r), iv, c, bl)
+        in
+        let push d (env,k) = push_rel d env, k + 1 in
+        let f_ctx (nas, _ as orig) (ctx, c) =
+          let c' = imitate (List.fold_right push ctx envk) c in
+          if c' == c then orig else (nas, c')
+        in
+        let pms' = Array.Smart.map (imitate envk) pms in
+        let p' = f_ctx p p0 in
+        let c' = imitate envk c in
+        let bl' = Array.map2 f_ctx bl bl0 in
+        if pms == pms' && p == p' && c == c' && Array.for_all2 (==) bl bl' then t else
+          mkCase (ci, u, pms', (p', r), iv, c', bl')
     | _ ->
         progress := true;
         match
