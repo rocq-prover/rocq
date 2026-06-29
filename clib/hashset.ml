@@ -44,6 +44,14 @@ module Make (E : EqType) =
 
   let emptybucket = Weak.create 0
 
+  (* Since the addition of ephemerons in OCaml 4.03 (2016),
+     a weak object reserves 2 slots instead of 1 (Link, Data),
+     which must be taken into account to compute the maximum
+     size for a weak array. We can compute this dynamically,
+     in a way that should be portable across OCaml versions,
+     from the size of [emptybucket] above. *)
+  let additional_values = Obj.size (Obj.repr emptybucket)
+
   type t = {
     mutable table : elt Weak.t array;
     mutable hashes : int array array;
@@ -154,7 +162,7 @@ module Make (E : EqType) =
     let sz = Weak.length bucket in
     let rec loop i =
       if i >= sz then begin
-        let newsz = min (3 * sz / 2 + 3) (Sys.max_array_length - 1) in
+        let newsz = min (3 * sz / 2 + 3) (Sys.max_array_length - additional_values) in
         if newsz <= sz then failwith "Weak.Make: hash bucket cannot grow more";
         let newbucket = Weak.create newsz in
         let newhashes = Array.make newsz 0 in
