@@ -12,7 +12,7 @@ Section S.
     About a, b, H.
     Show.
     rename b into y.
-    About a, y, H.
+    About a, b, y, H.
     Show.
   Abort.
 End S.

@@ -2173,12 +2173,12 @@ let vernac_global_check c =
    We only print the type and a small statement to this comes from the
    goal. Precondition: there must be at least one current goal. *)
 let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
-  let exception NoHyp in
+  let exception NoHyp of Id.t option in
   let open Context.Named.Declaration in
   try
     (* Fallback early to globals *)
     let pstate = match pstate with
-      | None -> raise Not_found
+      | None -> raise (NoHyp None)
       | Some pstate -> pstate
     in
     (* FIXME error on non None udecl if we find the hyp. *)
@@ -2190,16 +2190,16 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
       match glnumopt, ref_or_by_not.v with
       | None,AN qid when qualid_is_ident qid -> (* goal number not given, catch any failure *)
         (match List.nth_opt goals 0 with
-         | None -> raise NoHyp
+         | None -> raise (NoHyp None)
          | Some goal -> goal), qualid_basename qid
       | Some n,AN qid when qualid_is_ident qid ->  (* goal number given, catch if wong *)
         (match List.nth_opt goals (n - 1) with
          | None  -> user_err ?loc
                       (str "No such goal: " ++ int n ++ str ".")
          | Some goal -> goal), qualid_basename qid
-      | _ , _ -> raise NoHyp in
+      | _ , _ -> raise (NoHyp None) in
     let hyps = Evd.evar_filtered_hyps (Evd.find_undefined sigma ev) in
-    let decl = EConstr.lookup_named_val id hyps in
+    let decl = try EConstr.lookup_named_val id hyps with Not_found -> raise (NoHyp (Some id)) in
     let is_secvar = Termops.is_section_variable_sign hyps id in
     let natureofid = match is_secvar, decl with
       | true, LocalAssum _ -> "Section variable"
@@ -2210,9 +2210,17 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
     v 0 (Id.print id ++ str":" ++ pr_econstr_env env sigma (NamedDecl.get_type decl) ++ fnl() ++ fnl()
          ++ str natureofid ++ str ".")
   with (* fallback to globals *)
-    | NoHyp | Not_found ->
-    let sigma, env = get_current_or_global_context ~pstate in
-    Prettyp.print_about env sigma ref_or_by_not udecl
+    | NoHyp idopt ->
+    let sigma, env = get_current_or_global_context ~pstate:None in
+    let pp = Prettyp.print_about env sigma ref_or_by_not udecl in
+    let ppvar = match idopt with
+      | None -> mt()
+      | Some id ->
+        if Environ.mem_named id (Global.env()) then
+          fnl() ++ str "Section variable " ++ Id.print id ++ str " has been cleared in the current goal."
+        else mt()
+    in
+    pp ++ ppvar
 
 let prglob_without_notations env sigma c =
   let flags = PrintingFlags.Extern.current() in

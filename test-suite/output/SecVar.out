@@ -36,6 +36,12 @@ a:nat
 
 Section variable.
 
+b : nat
+
+b is not universe polymorphic
+Expands to: Variable b
+Section variable b has been cleared in the current goal.
+
 y:nat
 
 Hypothesis of the goal context.
