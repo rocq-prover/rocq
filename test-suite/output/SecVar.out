@@ -1,15 +1,48 @@
+a:nat
+
+Section variable.
+
+b:nat
+
+Section variable.
+
+H:(a = b)
+
+Section variable.
 1 goal
   
   a (* section variable *), b (* section variable *) : nat
   H (* section variable *) : a = b
   ============================
   True
+a:nat
+
+Section variable.
+
+b:nat
+
+Section variable.
+
+H:(b = a)
+
+Hypothesis of the goal context.
 1 goal
   
   a (* section variable *), b (* section variable *) : nat
   H (* hypothesis *) : b = a
   ============================
   True
+a:nat
+
+Section variable.
+
+y:nat
+
+Hypothesis of the goal context.
+
+H:(y = a)
+
+Hypothesis of the goal context.
 1 goal
   
   a (* section variable *), y (* hypothesis *) : nat

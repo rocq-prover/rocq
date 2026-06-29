@@ -2198,14 +2198,17 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
                       (str "No such goal: " ++ int n ++ str ".")
          | Some goal -> goal), qualid_basename qid
       | _ , _ -> raise NoHyp in
-    let hyps = Evd.evar_filtered_context (Evd.find_undefined sigma ev) in
-    let decl = Context.Named.lookup id hyps in
-    let natureofid = match decl with
-                     | LocalAssum _ -> "Hypothesis"
-                     | LocalDef (_,bdy,_) ->"Constant (let in)" in
+    let hyps = Evd.evar_filtered_hyps (Evd.find_undefined sigma ev) in
+    let decl = EConstr.lookup_named_val id hyps in
+    let is_secvar = Termops.is_section_variable_sign hyps id in
+    let natureofid = match is_secvar, decl with
+      | true, LocalAssum _ -> "Section variable"
+      | true, LocalDef _ -> "Section letin"
+      | false, LocalAssum _ -> "Hypothesis of the goal context"
+      | false, LocalDef _ ->"Constant (let in) of the goal context" in
     let sigma, env = Declare.Proof.get_current_context pstate in
     v 0 (Id.print id ++ str":" ++ pr_econstr_env env sigma (NamedDecl.get_type decl) ++ fnl() ++ fnl()
-         ++ str natureofid ++ str " of the goal context.")
+         ++ str natureofid ++ str ".")
   with (* fallback to globals *)
     | NoHyp | Not_found ->
     let sigma, env = get_current_or_global_context ~pstate in
