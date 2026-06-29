@@ -430,6 +430,11 @@ let interp_int_or_var ist = function
   | ArgVar locid -> interp_int ist locid
   | ArgArg n -> n
 
+let interp_nat_or_var ist x =
+  let x = interp_int_or_var ist x in
+  if x < 0 then CErrors.user_err Pp.(str "Nonnegative number expected.")
+  else x
+
 let interp_int_as_list ist = function
   | ArgVar ({v=id} as locid) ->
       (try coerce_to_int_list (Id.Map.find id ist.lfun)
@@ -2173,7 +2178,7 @@ let interp_pre_ident ist env sigma s =
 
 let () =
   register_interp0 wit_int_or_var (fun ist n -> Ftactic.return (interp_int_or_var ist n));
-  register_interp0 wit_nat_or_var (fun ist n -> Ftactic.return (interp_int_or_var ist n));
+  register_interp0 wit_nat_or_var (fun ist n -> Ftactic.return (interp_nat_or_var ist n));
   register_interp0 wit_smart_global (lift interp_reference);
   register_interp0 wit_ref (lift interp_reference);
   register_interp0 wit_pre_ident (lift interp_pre_ident);
