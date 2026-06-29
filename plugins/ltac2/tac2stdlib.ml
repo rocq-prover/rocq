@@ -695,7 +695,7 @@ let () =
 let () =
   define "tac_autorewrite"
     (bool @-> option (thunk unit) @-> list ident @-> clause @-> tac unit)
-    (fun all by ids cl -> Tac2tactics.autorewrite ~all by ids cl)
+    (fun all by ids cl -> Tac2tactics.autorewrite ~all ~forward:true by ids cl)
 
 let () =
   define "tac_subst" (list ident @-> tac unit) Equality.subst
