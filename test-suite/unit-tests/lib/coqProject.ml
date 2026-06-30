@@ -20,6 +20,10 @@ let t () =
       project_file = Some project_file_path;
       makefile = None;
       native_compiler = None;
+      rocq_package = None;
+      package_version = None;
+      package_description = None;
+      legacy_support = false;
       docroot = None;
 
       files = [];
@@ -49,6 +53,10 @@ let t () =
       project_file = Some project_file_path;
       makefile = None;
       native_compiler = None;
+      rocq_package = None;
+      package_version = None;
+      package_description = None;
+      legacy_support = false;
       docroot = None;
 
       files = [];

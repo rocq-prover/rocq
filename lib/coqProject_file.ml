@@ -23,6 +23,10 @@ type 'a project = {
   project_file  : string option;
   makefile : string option;
   native_compiler : native_compiler option;
+  rocq_package : string option;
+  package_version : string option;
+  package_description : string option;
+  legacy_support : bool;
   docroot : string option;
 
   files : string sourced list; (* .v, .ml, .mlg, .mli, .mllib, .mlpack files *)
@@ -50,6 +54,10 @@ let mk_project project_file makefile native_compiler extra_data = {
   project_file;
   makefile;
   native_compiler;
+  rocq_package = None;
+  package_version = None;
+  package_description = None;
+  legacy_support = false;
   docroot = None;
 
   files = [];
@@ -277,6 +285,26 @@ let process_cmd_line ~warning_fn orig_dir parse_extra proj args =
     if proj.meta_file <> Absent then
       error "Option -generate-meta-for-package cannot be repeated";
     aux { proj with meta_file = Generate m } r
+
+  | "--rocq-package" :: p :: r ->
+    if proj.rocq_package <> None then
+      error "Option --rocq-package given more than once";
+    if String.equal p "" then
+      error "Option --rocq-package requires a non-empty package name";
+    aux { proj with rocq_package = Some p } r
+
+  | "--package-version" :: v :: r ->
+    if proj.package_version <> None then
+      error "Option --package-version given more than once";
+    aux { proj with package_version = Some v } r
+
+  | "--description" :: d :: r ->
+    if proj.package_description <> None then
+      error "Option --description given more than once";
+    aux { proj with package_description = Some d } r
+
+  | "--legacy-support" :: r ->
+    aux { proj with legacy_support = true } r
 
 
   | v :: "=" :: def :: r ->

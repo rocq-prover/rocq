@@ -20,6 +20,10 @@ type 'a project = {
   project_file  : string option;
   makefile : string option;
   native_compiler : native_compiler option;
+  rocq_package : string option;
+  package_version : string option;
+  package_description : string option;
+  legacy_support : bool;
   (* the installation path for installing project documentation (relative to
    * the user-contrib folder) *)
   docroot : string option;
