@@ -135,27 +135,9 @@ void caml_curry2_1() {
   abort();
 }
 
-#if defined(__GNUC__) && defined(__amd64__)
-
-asm(".align 8\n\t"
-    ".quad 2043\n"
-    "rocq_curry2_1:\n\t"
-    "jmp caml_curry2_1\n");
-
-#elif defined(__GNUC__) && defined(__i386__)
-
-asm(".align 4\n\t"
-    ".long 2043\n"
-    "rocq_curry2_1:\n\t"
-    "jmp caml_curry2_1\n");
-
-#else
-#error "Unsupported architecture for native_compute."
-#endif
-
 value rocq_curry2_1_addr(value v) {
-  extern void rocq_curry2_1();
-  return (value)&rocq_curry2_1;
+  extern void caml_curry2_1() __attribute__((weak));
+  return (value)&caml_curry2_1;
 }
 
 #else // not NO_NAKED_POINTERS
