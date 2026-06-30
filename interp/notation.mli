@@ -76,12 +76,13 @@ val find_delimiters_scope : ?loc:Loc.t -> delimiters -> scope_name
    non integer or negative numbers are not supported, the interpreter
    must fail with an appropriate error message *)
 
-type notation_location = (DirPath.t * DirPath.t) * string
+type notation_location = (DirPath.t * DirPath.t * Loc.t option) * string
 (** 1st dirpath: dirpath of the library
     2nd dirpath: module and section-only dirpath (ie [Lib.current_dirpath true])
+    location: The location. Presumably you can recover the dirpaths from that but I don't know how.
     string: string used to generate the notation
 
-    dirpaths are used for dumpglob and for Locate, string for printing (pr_notation_info)
+    dirpaths are used for dumpglob, the location for Locate, and string for printing (pr_notation_info)
 *)
 
 type required_module = full_path * string list
@@ -284,3 +285,6 @@ val level_of_notation : notation -> level
 (** Rem: printing rules for primitive token are canonical *)
 
 val with_notation_protection : ('a -> 'b) -> 'a -> 'b
+
+
+val declare_ntn_gram_loc : notation -> Loc.t option -> unit
