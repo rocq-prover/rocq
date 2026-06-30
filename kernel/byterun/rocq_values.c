@@ -109,18 +109,7 @@ value rocq_tcode_array(value tcodes) {
   CAMLreturn(res);
 }
 
-/* The rocq_curry2_1 function returns a pointer to some code that
-   immediately branches to caml_curry2_1. It can be used as field 0 of
-   an OCaml closure, as long as field 3 contains a closure whose code
-   pointer accepts exactly two arguments (the first argument is stored
-   in field 2).
-
-   Since the word before the branch indicates to the garbage collector
-   that this block should be ignored, the code pointer can be used
-   inside blocks that do not have tag 247. This 2043 value is the
-   result of Caml_out_of_heap_header(2, Abstract_tag).
-
-   Keep the compile-time checks in sync with rocq_configure.c */
+/* Keep the compile-time checks in sync with rocq_configure.c */
 
 #ifdef NO_NATIVE_COMPUTE
 
