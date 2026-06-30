@@ -748,7 +748,7 @@ $(patsubst %/run.sh,%.log,$(wildcard coq-makefile/*/run.sh precomputed-time-test
 	  export COQBIN=$(BIN);\
 	  export COQPREFIX=$(COQPREFIX);\
 	  cd $* && \
-	  $(call WITH_TIMER,$@,bash run.sh 2>&1,../../$@.time); \
+	  MAKEFLAGS= $(call WITH_TIMER,$@,bash run.sh 2>&1,../../$@.time); \
 	if [ $$? = 0 ]; then \
 	    echo $(log_success); \
 	    echo "    $< ... Ok"; \
