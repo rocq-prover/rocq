@@ -184,12 +184,15 @@ let show_top_evars ~proof =
   let given_up = Evar.Set.elements @@ Evd.given_up sigma in
   pr_evars_int sigma ~shelf ~given_up 1 (Evd.undefined_map sigma)
 
-let show_universes ~proof =
-  let Proof.{ goals; sigma; poly } = Proof.data proof in
+let show_universes_aux ~poly sigma =
   let ctx = Evd.sort_context_set (Evd.minimize_universes ~poly sigma) in
   UState.pr (Evd.ustate sigma) ++ fnl () ++
   v 1 (str "Normalized constraints:" ++ cut() ++
        UnivGen.pr_sort_context (Evd.sort_printer sigma) ctx)
+
+let show_universes ~proof =
+  let Proof.{ sigma; poly } = Proof.data proof in
+  show_universes_aux ~poly sigma
 
 (* Simulate the Intro(s) tactic *)
 let show_intro ~proof all =
@@ -2105,23 +2108,7 @@ let check_may_eval env sigma redexp rc =
   let sigma, c = Pretyping.understand_tcc env sigma gc in
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   Evarconv.check_problems_are_solved env sigma;
-  let sigma = Evd.minimize_universes sigma in
-  let (qs, us), csts as uctx = Evd.sort_context_set sigma in
-  let { Environ.uj_val=c; uj_type=ty; } =
-    if Evarutil.has_undefined_evars sigma c
-    || List.exists (Context.Named.Declaration.exists (Evarutil.has_undefined_evars sigma))
-         (EConstr.named_context env)
-    then
-      Evarutil.j_nf_evar sigma (Retyping.get_judgment_of env sigma c)
-    else
-      let env = Evarutil.nf_env_evar sigma env in
-      let env = Environ.set_qualities (Evd.elim_graph sigma) env in
-      let env = Environ.set_universes (Evd.universes sigma) env in
-      let env = Safe_typing.push_private_constants env (Evd.seff_private @@ Evd.eval_side_effects sigma) in
-      let c = EConstr.to_constr sigma c in
-      (* OK to call kernel which does not support evars *)
-      Environ.on_judgment EConstr.of_constr (Arguments_renaming.rename_typing env c)
-  in
+  let { Environ.uj_val=c; uj_type=ty; } = Retyping.get_judgment_of env sigma c in
   let sigma, c = match redexp with
     | None -> sigma, c
     | Some r ->
@@ -2138,7 +2125,39 @@ let check_may_eval env sigma redexp rc =
     pr_ne_evar_set (fnl () ++ str "where" ++ fnl ()) (mt ()) sigma l
   in
   let hdr = if Option.has_some redexp then str "     = " else mt() in
-  hdr ++ pp ++ Printer.pr_sort_context_set sigma uctx
+  let ppunivs =
+    let ctx = Evd.sort_context_set sigma in
+    (* NB: flags only used for collapse_sort_variables
+       XXX get current option value instead of default? *)
+    let sigma' = Evd.minimize_universes ~poly:PolyFlags.default sigma in
+    let ctx' = Evd.sort_context_set sigma' in
+    let defsorts = Sorts.QVar.Set.(elements @@ diff (fst (fst ctx)) (fst (fst ctx'))) in
+    let defunivs = Univ.Level.Set.(elements @@ diff (snd (fst ctx)) (snd (fst ctx'))) in
+    let pr_defsort q =
+      Termops.pr_evd_qvar sigma q ++ str " := " ++
+      Termops.pr_evd_quality sigma' (UState.nf_qvar (Evd.ustate sigma') q)
+    in
+    let pr_defuniv u =
+      Termops.pr_evd_level sigma u ++ str " := " ++
+      Univ.Universe.pr (Termops.pr_evd_level sigma)
+        (UState.nf_universe (Evd.ustate sigma') (Univ.Universe.make u))
+    in
+    if !PrintingFlags.print_universes && not (UnivGen.is_empty_sort_context ctx) then
+      fnl() ++
+      (Printer.pr_in_comment
+         (UnivGen.pr_sort_context (Evd.sort_printer sigma) ctx ++ fnl() ++
+          (if List.is_empty defsorts then mt() else
+             v 1 (str "Collapsed sorts:" ++ cut() ++ prlist_with_sep cut pr_defsort defsorts)
+             ++ fnl()) ++
+          (if List.is_empty defunivs then mt() else
+             v 1 (str "Minimized universes:" ++ cut() ++ prlist_with_sep cut pr_defuniv defunivs)
+             ++ fnl()) ++
+          v 1
+            (str "Normalized constraints:" ++ cut() ++
+             UnivGen.pr_sort_context (Evd.sort_printer sigma) ctx')))
+    else mt()
+  in
+  hdr ++ pp ++ ppunivs
 
 let vernac_check_may_eval ~pstate redexp glopt rc =
   let glopt = query_command_selector glopt in

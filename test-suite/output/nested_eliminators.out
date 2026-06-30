@@ -1106,7 +1106,8 @@ All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4 u5 u6}
     All2i_bis_nil_all_all : forall (c : C) (p : PC c),
                             PPC c p ->
                             All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4
-                              u5 u6} A B C PC PPC R PR PPR n nil nil
+                                               u5 u6}
+                              A B C PC PPC R PR PPR n nil nil
                               (All2i_bis_nil A B C R n c)
                               (All2i_bis_nil_all@{α α0 ; u u0 u1 u2 u3 u4} A
                                  B C PC R PR n c p)
@@ -1119,10 +1120,12 @@ All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4 u5 u6}
                                        A B C PC R PR 
                                        (S n) lA lB a0),
                              All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4
-                               u5 u6} A B C PC PPC R PR PPR 
+                                                u5 u6}
+                               A B C PC PPC R PR PPR 
                                (S n) lA lB a0 a1 ->
                              All2i_bis_all_all@{α α0 α1 α2 ; u u0 u1 u2 u3 u4
-                               u5 u6} A B C PC PPC R PR PPR n 
+                                                u5 u6}
+                               A B C PC PPC R PR PPR n 
                                (cons a lA) (cons b lB)
                                (All2i_bis_cons A B C R n a b lA lB r a0)
                                (All2i_bis_cons_all@{α α0 ; u u0 u1 u2 u3 u4}

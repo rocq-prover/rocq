@@ -19,6 +19,8 @@ open Notation_term
 
 (** These are the entry points for printing terms, context, tac, ... *)
 
+val pr_in_comment : Pp.t -> Pp.t
+
 (** Terms *)
 
 (** Printers for terms.

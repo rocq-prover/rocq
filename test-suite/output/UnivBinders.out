@@ -50,10 +50,14 @@ Type@{u} -> Type@{v} -> Type@{uu}
 (* uu u v |=  *)
 Type@{i} -> Type@{j}
      : Type@{max(i+1,j+1)}
-(* {j i} |=  *)
+(* {j i} |= 
+Normalized constraints:
+ {j i} |=  *)
      = Type@{i} -> Type@{j}
      : Type@{max(i+1,j+1)}
-(* {j i} |=  *)
+(* {j i} |= 
+Normalized constraints:
+ {j i} |=  *)
 mono = Type@{mono.uu}
      : Type@{mono.uu+1}
 mono
@@ -213,7 +217,9 @@ foo@{i} = Type@{M.i} -> Type@{i}
 (* i |=  *)
 Type@{u0} -> Type@{UnivBinders.86}
      : Type@{max(u0+1,UnivBinders.86+1)}
-(* {UnivBinders.86} |=  *)
+(* {UnivBinders.86} |= 
+Normalized constraints:
+ {UnivBinders.86} |=  *)
 bind_univs.mono = Type@{bind_univs.mono.u}
      : Type@{bind_univs.mono.u+1}
 bind_univs.poly@{u} = Type@{u}
