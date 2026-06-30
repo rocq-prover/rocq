@@ -431,8 +431,12 @@ let interp_int_or_var ist = function
   | ArgArg n -> n
 
 let interp_nat_or_var ist x =
+  let loc = match x with
+    | ArgVar v -> v.loc
+    | ArgArg _ -> None
+  in
   let x = interp_int_or_var ist x in
-  if x < 0 then CErrors.user_err Pp.(str "Nonnegative number expected.")
+  if x < 0 then CErrors.user_err ?loc Pp.(str "Nonnegative number expected.")
   else x
 
 let interp_int_as_list ist = function
