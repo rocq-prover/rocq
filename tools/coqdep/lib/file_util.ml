@@ -37,3 +37,14 @@ let normalize_path : string -> string = fun path ->
   match normalize [] path with
   | []   -> "."
   | path -> String.concat "/" path
+
+let is_prefix a b =
+  let a = Str.split_delim re_delim a in
+  let b = Str.split_delim re_delim b in
+  let rec aux a b =
+    match a, b with
+    | [], _ -> true
+    | x :: a, y :: b -> String.equal x y && aux a b
+    | _ :: _, [] -> false
+  in
+  aux a b
