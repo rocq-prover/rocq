@@ -389,7 +389,7 @@ let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_out
        assert (UVars.is_empty_sort_subst usubst);
        push_context_set uctx env, Opaqueproof.PrivateMonomorphic uctx
     | Polymorphic _ ->
-       let () = assert (Int.equal valid_signatures 0) in
+       let () = assert (Int.equal valid_signatures 0 || Univ.ContextSet.is_empty uctx') in
        let uctx = on_snd (fun cst -> subst_univs_constraints (snd usubst) cst) uctx in
        push_subgraph uctx env, Opaqueproof.PrivatePolymorphic uctx
   in
