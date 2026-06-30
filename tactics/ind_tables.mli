@@ -84,9 +84,6 @@ end
 val define_mutual_scheme : ?locmap:Locmap.t -> mutual scheme_kind ->
   (int * Id.t) list -> MutInd.t -> unit
 
-(** Main function to retrieve a scheme in the cache *)
-val find_scheme : 'a scheme_kind -> inductive -> GlobRef.t option Proofview.tactic
-
 (** Like [find_scheme] but does not generate a constant on the fly *)
 val lookup_scheme : 'a scheme_kind -> inductive -> GlobRef.t option
 
@@ -97,7 +94,6 @@ val pr_scheme_kind : 'a scheme_kind -> Pp.t
 
 val declare_definition_scheme :
   (univs:UState.named_universes_entry
-   -> role:Evd.side_effect_role
    -> name:Id.t
    -> effs:Evd.side_effects
    -> Constr.t
