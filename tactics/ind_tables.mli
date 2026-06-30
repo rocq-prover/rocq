@@ -87,9 +87,6 @@ val define_mutual_scheme : ?locmap:Locmap.t -> mutual scheme_kind ->
 (** Main function to retrieve a scheme in the cache *)
 val find_scheme : 'a scheme_kind -> inductive -> GlobRef.t option Proofview.tactic
 
-(** Generates the scheme if not found *)
-val force_find_scheme : 'a scheme_kind -> inductive -> GlobRef.t Proofview.tactic
-
 (** Like [find_scheme] but does not generate a constant on the fly *)
 val lookup_scheme : 'a scheme_kind -> inductive -> GlobRef.t option
 
