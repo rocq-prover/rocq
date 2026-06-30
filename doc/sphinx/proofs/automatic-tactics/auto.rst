@@ -208,10 +208,14 @@ Tactics
 .. tacn:: autounfold_one {? @hintbases } {? in @ident }
    :undocumented:
 
-.. tacn:: autorewrite {? * } with {+ @ident } {? @occurrences } {? using @ltac_expr }
+.. tacn:: autorewrite {? {| -> | <- } } {? * } with {+ @ident } {? @occurrences } {? using @ltac_expr }
 
    `*`
      If present, rewrite all occurrences whose side conditions are solved.
+
+   :n:`{| -> | <- }`
+     The second form temporarily reverses the direction all equalities
+     registered in the rewriting rule base :n:`@ident`.
 
    :n:`with {+ @ident }`
      Specifies the rewriting rule bases to use.
