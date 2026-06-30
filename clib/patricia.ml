@@ -17,11 +17,9 @@
 (* -------------------------------------------------------------------------- *)
 
 (* We write every runtime assertion in the form [if debug then assert (...)]
-   so it is easy to turn off assertions just by setting [debug] to false. We
-   set [debug] to true here (so assertions are enabled while testing) and set
-   it to false when exporting to Menhir. *)
+   so it is easy to turn off assertions just by setting [debug] to false. *)
 
-let debug = true
+let debug = false
 
 (* -------------------------------------------------------------------------- *)
 
