@@ -82,7 +82,9 @@ val compile_mind_field : bool -> cenv -> ModPath.t -> Id.t ->
 val compile_rewrite_rules : env -> Id.t ->
   global list -> rewrite_rules_body -> global list
 
+(** this function may raise the errror NeedsAccumulators when compiling without them *)
 val mk_conv_code : bool -> env -> Genlambda.evars -> string -> constr -> constr -> linkable_code
+(** this function may raise the errror NeedsAccumulators when compiling without them *)
 val mk_norm_code : bool -> env -> Genlambda.evars -> string -> constr -> linkable_code
 
 val mk_library_header : Nativevalues.symbols -> global list

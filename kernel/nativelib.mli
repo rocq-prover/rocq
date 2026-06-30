@@ -24,10 +24,10 @@ val load_obj : (string -> unit) ref
 
 val get_mlf_filename : unit -> string * string
 
-(** [compile consider_accs file code ~profile] will compile native [code] to [file],
+(** [compile (consider_accs, generates_accs) file code ~profile] will compile native [code] to [file],
    and return the name of the object file; this name depends on
    whether are in byte mode or not.*)
-val compile : bool -> string -> Nativecode.global list -> profile:bool -> string
+val compile : (bool * bool) -> string -> Nativecode.global list -> profile:bool -> string
 
 type native_library = Nativecode.global list * Nativevalues.symbols * bool (* the bool is true if the library generates accumulators *)
 

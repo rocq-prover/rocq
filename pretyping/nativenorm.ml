@@ -502,15 +502,18 @@ let native_norm env sigma c ty =
   let ty = EConstr.Unsafe.to_constr ty in
   let profile = get_profiling_enabled () in
   let print_timing = get_timing_enabled () in
+  let generates_accs = ref false in
   let aux consider_accs =
     let ml_filename, prefix = Nativelib.get_mlf_filename () in
     let tnc0 = Unix.gettimeofday () in
-    let code, symbols, upd = mk_norm_code consider_accs env (evars_of_evar_map sigma) prefix c in
+    let code, symbols, upd =
+      try mk_norm_code consider_accs env (evars_of_evar_map sigma) prefix c with
+      | NeedsAccumulators -> generates_accs := true; raise NeedsAccumulators in
     let tnc1 = Unix.gettimeofday () in
     let time_info = Format.sprintf "native_compute: Conversion to native code done in %.5f" (tnc1 -. tnc0) in
     if print_timing then Feedback.msg_info (Pp.str time_info);
     let tc0 = Unix.gettimeofday () in
-    let fn = Nativelib.compile consider_accs ml_filename code ~profile:profile in
+    let fn = Nativelib.compile (consider_accs, !generates_accs) ml_filename code ~profile:profile in
     let tc1 = Unix.gettimeofday () in
     let time_info = Format.sprintf "native_compute: Compilation done in %.5f" (tc1 -. tc0) in
     if print_timing then Feedback.msg_info (Pp.str time_info);

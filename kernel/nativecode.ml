@@ -1343,7 +1343,7 @@ let rec ml_of_lam consider_accs env l t =
     let args = MLarray(Array.map (ml_of_lam consider_accs env l) args) in
     MLprimitive (Mk_evar, [|get_evar_code i; args|])
   | Lprod(dom,codom) ->
-    if not consider_accs then raise NeedsAccumulators else (* productions needs an accumulator to be evaluated TODOME: maybe remove ? (checked at runtime)*)
+    (* productions need accumulators to be evaluated, but this is checked at runtime, and ignoring it for now may allow us to flag more libraries as not generating accumulators *)
     let dom = ml_of_lam consider_accs env l dom in
     let codom = ml_of_lam consider_accs env l codom in
     let n = get_prod_name codom in
@@ -2352,19 +2352,17 @@ let register_native_file libpath ~prefix =
     generate_accus_native_file := StringSet.add prefix !generate_accus_native_file;
   loaded_native_files := StringSet.add prefix !loaded_native_files
 
-let is_code_loaded consider_accs ?(recompile_if_incompatible=false) name =
+let is_code_loaded consider_accs ~recompile_if_incompatible name =
   match !name with
   | NotLinked -> false
   | Linked s ->
     if is_loaded_native_file s then
-      (* the dependency needs accumulators to work, so we need them too.
-      We could also try to recompile them and hope that their accumulators were needed due to a parent file needing them, but this is costly and unlikely (TODOME : use a heuristic ?) *)
       let supp_accs = does_supports_accus_native_file s in
       let gen_accs = does_generate_accus_native_file s in
       if not consider_accs && gen_accs then
         if recompile_if_incompatible then
           (name := NotLinked; false) (* we recompile the dependency we need in the hope that it doesn't generate accumulators *)
-        else raise NeedsAccumulators
+        else raise NeedsAccumulators (* we fail and will recompile with accumulators *)
       else if consider_accs && not supp_accs then
         (name := NotLinked; false) (* we need to recompile the library code to support accumulators *)
       else true
@@ -2471,7 +2469,7 @@ let compile_deps consider_accs cenv env sigma prefix init t =
     let cb = lookup_constant c env in
     let (nameref, _) = lookup_constant_key c env in
     let (_, (_, const_updates)) = init in
-    if is_code_loaded consider_accs nameref
+    if is_code_loaded consider_accs ~recompile_if_incompatible:false nameref (* We could try to recompile the dependency and hope that its accumulators were needed due to a parent needing them, but this is costly and unlikely *)
     || (Cmap_env.mem c const_updates)
     then init
     else

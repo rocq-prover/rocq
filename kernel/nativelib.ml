@@ -194,8 +194,8 @@ let call_compiler ?profile:(profile=false) mlf_filename =
     error_native_compiler_failed (Inr e) "During .cmxs generation"
   end
 
-let compile consider_accs fn code ~profile:profile =
-  write_code (consider_accs, consider_accs) fn code; (* we consider as a simplification that if we need accumulators, it is probably because we generate some. TODOME: make more accurate assumptions *)
+let compile (consider_accs, generates_accs) fn code ~profile:profile =
+  write_code (consider_accs, generates_accs) fn code;
   let r = call_compiler ~profile fn in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
