@@ -238,9 +238,21 @@ by proof irrelevance :g:`e` is convertible to :g:`srefl 0` and then by
 congruence :g:`hidden_arrow` is convertible to `nat -> nat`.
 
 The special reduction reduces any match on a type which uses
-definitional UIP when the indices are convertible to those of the
-constructor. For `seq`, this means a match on a value of type `seq x
-y` reduces if and only if `x` and `y` are convertible.
+definitional UIP when the motive applied to the current indices is convertible
+to the motive applied to indices of the constructor.
+
+For :g:`seq`, this means a match on a value of type :g:`seq x y`
+reduces if and only if :g:`P x` and :g:`P y` are convertible,
+where :g:`P` is the motive.
+
+In particular, we do always reduce when the predicate is constant.
+
+.. rocqdoc::
+
+   Definition transport_constant A B (x y:A) (e:seq x y) v
+      : transport (fun _ => B) e v = v
+      := @eq_refl B v.
+
 
 Such matches are indicated in the printed representation by inserting
 a cast around the discriminee:
@@ -252,9 +264,8 @@ a cast around the discriminee:
 Non Termination with UIP
 ++++++++++++++++++++++++
 
-The special reduction rule of UIP combined with an impredicative sort
-(including `SProp`)
-breaks termination of reduction
+The special reduction rule of UIP combined with an impredicative
+proof relevant sort (i.e., `Prop`) breaks termination of reduction
 :cite:`abel19:failur_normal_impred_type_theor`:
 
 .. rocqtop:: all
