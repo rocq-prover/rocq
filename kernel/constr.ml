@@ -1054,12 +1054,33 @@ let rec eq_constr_nounivs m n =
    structure for our daily use of Rocq.
 *)
 
-let array_eqeq t1 t2 =
+let array_eqeq (type a) (t1 : a array) t2 =
   t1 == t2 ||
-  (Int.equal (Array.length t1) (Array.length t2) &&
-   let rec aux i =
-     (Int.equal i (Array.length t1)) || (t1.(i) == t2.(i) && aux (i + 1))
-   in aux 0)
+  let len = Array.length t1 in
+  Int.equal len (Array.length t2) &&
+  let i = ref 0 in
+  while !i < len && Array.unsafe_get t1 !i == Array.unsafe_get t2 !i
+  do incr i done;
+  !i = len
+
+(* Specialized versions of array_eqeq : same code, but more precise type information *)
+let annot_array_eqeq (t1 : _ Context.pbinder_annot array) t2 =
+  t1 == t2 ||
+  let len = Array.length t1 in
+  Int.equal len (Array.length t2) &&
+  let i = ref 0 in
+  while !i < len && Array.unsafe_get t1 !i == Array.unsafe_get t2 !i
+  do incr i done;
+  !i = len
+
+let constr_array_eqeq (t1 : constr array) t2 =
+  t1 == t2 ||
+  let len = Array.length t1 in
+  Int.equal len (Array.length t2) &&
+  let i = ref 0 in
+  while !i < len && Array.unsafe_get t1 !i == Array.unsafe_get t2 !i
+  do incr i done;
+  !i = len
 
 let invert_eqeq iv1 iv2 =
   match iv1, iv2 with
@@ -1069,7 +1090,7 @@ let invert_eqeq iv1 iv2 =
     i1 == i2
 
 let hasheq_ctx (nas1, c1) (nas2, c2) =
-  array_eqeq nas1 nas2 && c1 == c2
+  annot_array_eqeq nas1 nas2 && c1 == c2
 
 let hasheq_kind t1 t2 =
   match t1, t2 with
@@ -1096,12 +1117,12 @@ let hasheq_kind t1 t2 =
     | Fix ((ln1, i1),(lna1,tl1,bl1)), Fix ((ln2, i2),(lna2,tl2,bl2)) ->
       Int.equal i1 i2
       && Array.equal Int.equal ln1 ln2
-      && array_eqeq lna1 lna2
+      && annot_array_eqeq lna1 lna2
       && array_eqeq tl1 tl2
       && array_eqeq bl1 bl2
     | CoFix(ln1,(lna1,tl1,bl1)), CoFix(ln2,(lna2,tl2,bl2)) ->
       Int.equal ln1 ln2
-      && array_eqeq lna1 lna2
+      && annot_array_eqeq lna1 lna2
       && array_eqeq tl1 tl2
       && array_eqeq bl1 bl2
     | Int i1, Int i2 -> i1 == i2
@@ -1113,7 +1134,48 @@ let hasheq_kind t1 t2 =
       | App _ | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _
       | Fix _ | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
 
-let hasheq t1 t2 = hasheq_kind (kind t1) (kind t2)
+let hasheq t1 t2 =
+  match kind t1, kind t2 with
+    (* specialized version of [hasheq_kind] above: same code, but specialized implementation. *)
+    | Rel n1, Rel n2 -> n1 == n2
+    | Meta m1, Meta m2 -> m1 == m2
+    | Var id1, Var id2 -> id1 == id2
+    | Sort s1, Sort s2 -> s1 == s2
+    | Cast (c1,k1,t1), Cast (c2,k2,t2) -> c1 == c2 && k1 == k2 && t1 == t2
+    | Prod (n1,t1,c1), Prod (n2,t2,c2) -> n1 == n2 && t1 == t2 && c1 == c2
+    | Lambda (n1,t1,c1), Lambda (n2,t2,c2) -> n1 == n2 && t1 == t2 && c1 == c2
+    | LetIn (n1,b1,t1,c1), LetIn (n2,b2,t2,c2) ->
+      n1 == n2 && b1 == b2 && t1 == t2 && c1 == c2
+    | App (c1,l1), App (c2,l2) -> c1 == c2 && constr_array_eqeq l1 l2
+    | Proj (p1,r1,c1), Proj(p2,r2,c2) -> p1 == p2 && r1 == r2 && c1 == c2
+    | Evar (e1,l1), Evar (e2,l2) -> e1 == e2 && SList.equal (==) l1 l2
+    | Const (c1,u1), Const (c2,u2) -> c1 == c2 && u1 == u2
+    | Ind (ind1,u1), Ind (ind2,u2) -> ind1 == ind2 && u1 == u2
+    | Construct (cstr1,u1), Construct (cstr2,u2) -> cstr1 == cstr2 && u1 == u2
+    | Case (ci1,u1,pms1,(p1,r1),iv1,c1,bl1), Case (ci2,u2,pms2,(p2,r2),iv2,c2,bl2) ->
+      (** FIXME: use deeper equality for contexts *)
+      u1 == u2 && constr_array_eqeq pms1 pms2 &&
+      ci1 == ci2 && hasheq_ctx p1 p2 && r1 == r2 &&
+      invert_eqeq iv1 iv2 && c1 == c2 && Array.equal hasheq_ctx bl1 bl2
+    | Fix ((ln1, i1),(lna1,tl1,bl1)), Fix ((ln2, i2),(lna2,tl2,bl2)) ->
+      Int.equal i1 i2
+      && Array.equal Int.equal ln1 ln2
+      && annot_array_eqeq lna1 lna2
+      && constr_array_eqeq tl1 tl2
+      && constr_array_eqeq bl1 bl2
+    | CoFix(ln1,(lna1,tl1,bl1)), CoFix(ln2,(lna2,tl2,bl2)) ->
+      Int.equal ln1 ln2
+      && annot_array_eqeq lna1 lna2
+      && constr_array_eqeq tl1 tl2
+      && constr_array_eqeq bl1 bl2
+    | Int i1, Int i2 -> i1 == i2
+    | Float f1, Float f2 -> Float64.equal f1 f2
+    | String s1, String s2 -> Pstring.equal s1 s2
+    | Array(u1,t1,def1,ty1), Array(u2,t2,def2,ty2) ->
+      u1 == u2 && def1 == def2 && ty1 == ty2 && constr_array_eqeq t1 t2
+    | (Rel _ | Meta _ | Var _ | Sort _ | Cast _ | Prod _ | Lambda _ | LetIn _
+      | App _ | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _
+      | Fix _ | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
 
 (** Note that the following Make has the side effect of creating
     once and for all the table we'll use for hash-consing all constr *)
@@ -1122,7 +1184,7 @@ module HashsetTerm =
   Hashset.Make(struct type t = constr let eq = hasheq end)
 
 module HashsetTermArray =
-  Hashset.Make(struct type t = constr array let eq = array_eqeq end)
+  Hashset.Make(struct type t = constr array let eq = constr_array_eqeq end)
 
 let term_table = HashsetTerm.create 19991
 (* The associative table to hashcons terms. *)
