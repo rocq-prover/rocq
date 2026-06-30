@@ -1797,10 +1797,10 @@ simple_tactic: [
 | "decompose" "record" constr
 | "absurd" constr
 | "contradiction" OPT constr_with_bindings
-| "autorewrite" "with" LIST1 preident clause
-| "autorewrite" "with" LIST1 preident clause "using" tactic
-| "autorewrite" "*" "with" LIST1 preident clause
-| "autorewrite" "*" "with" LIST1 preident clause "using" tactic
+| "autorewrite" orient "with" LIST1 preident clause
+| "autorewrite" orient "with" LIST1 preident clause "using" tactic
+| "autorewrite" orient "*" "with" LIST1 preident clause
+| "autorewrite" orient "*" "with" LIST1 preident clause "using" tactic
 | "rewrite" "*" orient uconstr "in" hyp "at" occurrences by_arg_tac
 | "rewrite" "*" orient uconstr "at" occurrences "in" hyp by_arg_tac
 | "rewrite" "*" orient uconstr "in" hyp by_arg_tac
