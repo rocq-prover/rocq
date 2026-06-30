@@ -102,8 +102,6 @@ type symbols = symbol array
 let empty_symbols = [| |]
 
 
-let accumulate_tag = 247
-
 (** Unique pointer used to drive the accumulator function *)
 let ret_accu = Obj.repr (ref ())
 
@@ -112,26 +110,30 @@ type accu_val = { acc_atm : atom; acc_arg : t list }
 (** Return a pointer to [caml_curry2_1] that is also recognized as an unscannable block *)
 external get_curry2_1 : unit -> Obj.t = "rocq_curry2_1_addr"
 
-(* an accumulator is similar to a function, with:
-  Obj.with_tag accumulate_tag @@ Obj.repr (curry2_1, 2, data, accumulate, ret_accu) being a cloture where:
+(* an accumulator is a handcrafted closure, with:
+  Obj.with_tag Obj.closure_tag @@ Obj.repr (curry2_1, 2, data, accumulate) being a closure where:
   - curry2_1 is the currified function pointer that will do all the work
-  - 2 indicates that the environment of the closure starts at data (offset 2) and an arity of 0 (TODOME:?)
+  - 2 indicates where the environment of the closure starts and its arity
   - data is the first argument that curry2_1 will give to our accumulate function
-  - accumulate is a function that will be called when trying to apply the accumulator, with as first argument data and second the value it is applied to
-  - ret_accu is a special value that is only present on accumulators (to distinguish them from regular closures)
+  - accumulate is a function that will be called when trying to apply the accumulator, with as first argument data and second the value it is applied to.
+    It is also unique to accumulators, allowing us to distinguish them from regular closures
+  
+  It is created manually so that we have guarantees on its layout (writing "accumulate data" would allow the compiler to do optimisations that would break everything)
  *)
-let mk_accu =
-  let curry2_1 = get_curry2_1 () in
-  let rec accumulate data x =
-    if Obj.repr x == ret_accu then Obj.repr data
-    else
-      let data = { data with acc_arg = x :: data.acc_arg } in
-      let ans = Obj.with_tag accumulate_tag @@ Obj.repr (curry2_1, 2, data, accumulate, ret_accu) in
-      Obj.repr ans in
-  fun (a : atom) ->
+let curry2_1 = get_curry2_1 ()
+let rec accumulate data x =
+  if Obj.repr x == ret_accu then Obj.repr data
+  else
+    let data = { data with acc_arg = x :: data.acc_arg } in
+    let ans = Obj.with_tag Obj.closure_tag @@ Obj.repr (curry2_1, 2, data, accumulate) in
+    Obj.repr ans
+let mk_accu (a : atom) =
   let data = { acc_atm = a; acc_arg = [] } in
-  let ans = Obj.with_tag accumulate_tag @@ Obj.repr (curry2_1, 2, data, accumulate, ret_accu) in
+  let ans = Obj.with_tag Obj.closure_tag @@ Obj.repr (curry2_1, 2, data, accumulate) in
   (Obj.magic ans : t)
+(** differentiates an accumulator from a closure. Should only be used on memory blocks. *)
+let is_accu v =
+  Obj.size v = 4 && Obj.field v 3 == Obj.repr accumulate
 
 let get_accu (k : accumulator) =
   (Obj.magic k : Obj.t -> accu_val) ret_accu
@@ -272,14 +274,11 @@ let kind_of_value (v:t) =
     else if Int.equal tag Obj.double_tag then Vfloat64 (Obj.magic v)
     else if Int.equal tag Obj.string_tag then Vstring (Obj.magic v)
     else if (tag < Obj.lazy_tag) then Vblock (Obj.magic v)
-    else (* value is either a function or an accumulator *)
-      let vo = Obj.repr v in
-      if Obj.size vo = 5 && Obj.field vo 4 == ret_accu then
-        Vaccu (Obj.magic v)
-      else
-        (* assert (tag = Obj.closure_tag || tag = Obj.infix_tag);
-            or ??? what is 1002*)
-        Vfun (apply v)
+    else if is_accu @@ Obj.repr v then Vaccu (Obj.magic v)
+    else
+      (* assert (tag = Obj.closure_tag || tag = Obj.infix_tag);
+          or ??? what is 1002*)
+      Vfun (apply v)
 
 (** Support for machine integers *)
 
