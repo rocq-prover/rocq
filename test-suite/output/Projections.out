@@ -14,7 +14,7 @@ Record U (A : Type) (B : Type := A) (C : Type) : Type := Build_U
 
 U has primitive projections with eta conversion.
 Arguments U (A C)%_type_scope
-Arguments Build_U (A C)%_type_scope c b
+Arguments Build_U (A C)%_type_scope & c b
 Arguments c (A C)%_type_scope u
 Arguments a (A C)%_type_scope u
 Arguments b (A C)%_type_scope u

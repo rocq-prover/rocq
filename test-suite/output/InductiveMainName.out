@@ -25,5 +25,5 @@ Declared in library InductiveMainName, line 5, characters 23-28
 Record foo''' : Set := Build_foo''' { bar''' : nat } as id.
 
 foo''' has primitive projections with eta conversion.
-Arguments Build_foo''' bar'''%_nat_scope
+Arguments Build_foo''' & bar'''%_nat_scope
 Arguments bar''' id

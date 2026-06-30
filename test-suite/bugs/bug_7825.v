@@ -18,8 +18,8 @@ Goal forall a : nat,  exists x, T x.
    (** Here ?x := ?x0 which is shelved, so ?x becomes shelved even if it would
    not be by default (refine ?x and _ produce non-shelved evars by default)*)
    simple refine (Build_T ?x _).
+   exact 0.
    reflexivity.
-   Unshelve. exact 0.
 Qed.
 
 Goal { A : _ & { P : _ & @sigT A P } }.

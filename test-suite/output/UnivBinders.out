@@ -6,7 +6,7 @@ Record PWrap@{uu} (A : Type@{uu}) : Type@{uu} := pwrap
 
 PWrap has primitive projections with eta conversion.
 Arguments PWrap A%_type_scope
-Arguments pwrap A%_type_scope punwrap
+Arguments pwrap A%_type_scope & punwrap
 Arguments punwrap A%_type_scope p
 Record PWrap@{uu} (A : Type@{uu}) : Type@{uu} := pwrap
   { punwrap : A }.
@@ -14,14 +14,14 @@ Record PWrap@{uu} (A : Type@{uu}) : Type@{uu} := pwrap
 
 PWrap has primitive projections with eta conversion.
 Arguments PWrap A%_type_scope
-Arguments pwrap A%_type_scope punwrap
+Arguments pwrap A%_type_scope & punwrap
 Arguments punwrap A%_type_scope p
 Record RWrap@{uu} (A : Type@{uu}) : Type@{uu} := rwrap
   { runwrap : A }.
 (* uu |=  *)
 
 Arguments RWrap A%_type_scope
-Arguments rwrap A%_type_scope runwrap
+Arguments rwrap A%_type_scope & runwrap
 Arguments runwrap A%_type_scope r
 runwrap@{uu} =
 fun (A : Type@{uu}) (r : RWrap@{uu} A) => let (runwrap) := r in runwrap
@@ -100,7 +100,7 @@ Record PWrap@{E} (A : Type@{E}) : Type@{E} := pwrap
 
 PWrap has primitive projections with eta conversion.
 Arguments PWrap A%_type_scope
-Arguments pwrap A%_type_scope punwrap
+Arguments pwrap A%_type_scope & punwrap
 Arguments punwrap A%_type_scope p
 punwrap@{K} : forall A : Type@{K}, PWrap@{K} A -> A
 (* K |=  *)
@@ -226,10 +226,10 @@ Inductive MutualR1@{u} (A : Type@{u}) : Prop := Build_MutualR1
 (* u |=  *)
 
 Arguments MutualR1 A%_type_scope
-Arguments Build_MutualR1 A%_type_scope p1
+Arguments Build_MutualR1 A%_type_scope & p1
 Arguments p1 A%_type_scope m
 Arguments MutualR2 A%_type_scope
-Arguments Build_MutualR2 A%_type_scope p2
+Arguments Build_MutualR2 A%_type_scope & p2
 Arguments p2 A%_type_scope m
 Inductive MutualI1@{u u0} (A : Type@{u}) : Type@{u0} :=
     C1 : MutualI2@{u u0} A -> MutualI1@{u u0} A
@@ -248,10 +248,10 @@ CoInductive MutualR1'@{u} (A : Type@{u}) : Prop := Build_MutualR1'
 (* u |=  *)
 
 Arguments MutualR1' A%_type_scope
-Arguments Build_MutualR1' A%_type_scope p1'
+Arguments Build_MutualR1' A%_type_scope & p1'
 Arguments p1' A%_type_scope m
 Arguments MutualR2' A%_type_scope
-Arguments Build_MutualR2' A%_type_scope p2'
+Arguments Build_MutualR2' A%_type_scope & p2'
 Arguments p2' A%_type_scope m
 CoInductive MutualI1'@{u u0} (A : Type@{u}) : Type@{u0} :=
     C1' : MutualI2'@{u u0} A -> MutualI1'@{u u0} A
