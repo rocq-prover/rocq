@@ -45,6 +45,10 @@ val mem: key -> 'a t -> bool
    map [m] contains no binding for the key [k] then [Not_found] is raised. *)
 val find: key -> 'a t -> 'a
 
+(**[find_opt k m] is similar to {!find}, but returns an option
+   instead of raising an exception. *)
+val find_opt: key -> 'a t -> 'a option
+
 (**[remove k m] is the map [m] deprived from any binding for [k]. *)
 val remove: key -> 'a t -> 'a t
 

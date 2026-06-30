@@ -243,6 +243,15 @@ let rec find k t =
 let find =
   find
 
+let rec find_opt k t =
+  match t with
+  | Empty ->
+      None
+  | Leaf (k', d) ->
+      if k = k' then Some d else None
+  | Branch (_, m, t0, t1) ->
+      find_opt k (if k land m = 0 then t0 else t1)
+
 let mem k m =
   try
     let _ = find k m in true
