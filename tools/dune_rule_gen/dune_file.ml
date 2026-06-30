@@ -23,7 +23,7 @@ module Rule = struct
 
   let pp fmt { alias; targets; deps; action } =
     F.fprintf fmt
-      "@[(rule@\n @[%a(targets @[%a@])@\n(deps @[%a@])@\n(action @[%a@])@])@]@\n"
+      "@[(rule@\n @[%a(targets @[%a@])@\n(deps (sandbox none) @[%a@])@\n(action @[%a@])@])@]@\n"
       pp_alias alias ppl targets ppl deps F.pp_print_string action
 end
 
