@@ -274,38 +274,6 @@ let find_scheme kind (mind,i as ind) =
   let s = local_lookup_scheme (Evd.eval_side_effects sigma) kind ind in
   Proofview.tclUNIT s
 
-let force_find_scheme kind (mind,i as ind) =
-  let open Proofview.Notations in
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let eff = Evd.eval_side_effects sigma in
-  match local_lookup_scheme eff kind ind with
-  | Some s ->
-    Proofview.tclUNIT s
-  | None ->
-    let senv = Evd.get_senv_side_effects eff in
-    try
-      let eff, ans = match Hashtbl.find scheme_object_table kind with
-      | s,IndividualSchemeFunction (f, deps) ->
-        let env = Safe_typing.env_of_safe_env senv in
-        let deps = match deps with None -> [] | Some deps -> deps env ind in
-        let sch = empty_schemes eff in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
-        let c, eff = define_individual_scheme_base kind s f ~internal:true None ind eff in
-        eff, c
-      | s,MutualSchemeFunction (f, deps) ->
-        let env = Safe_typing.env_of_safe_env senv in
-        let deps = match deps with None -> [] | Some deps -> deps env mind in
-        let sch = empty_schemes eff in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
-        let ca, eff = define_mutual_scheme_base kind s f ~internal:true [] mind eff in
-        eff, ca.(i)
-      in
-      let sigma = Evd.emit_side_effects eff.sch_eff sigma in
-      Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (GlobRef.ConstRef ans)
-    with Rocqlib.NotFoundRef _ as e ->
-      let e, info = Exninfo.capture e in
-      Proofview.tclZERO ~info e
-
 let register_schemes sch =
   let iter (id, kn, loc, univs) =
     !register_definition_scheme ~internal:false ~name:id ~const:kn ~univs ?loc ()
