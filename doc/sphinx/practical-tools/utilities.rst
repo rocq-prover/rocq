@@ -395,8 +395,10 @@ separated by whitespace:
 * Selected options of `rocq compile`, which are forwarded directly to it. Currently these
   are ``-Q``, ``-I``, ``-R`` and ``-native-compiler``.
 * ``-arg`` options for other options of `rocq compile` that don’t fall in the above set.
-* Options specific to ``rocq makefile``. Currently there are two options:
-  ``-generate-meta-for-package`` (see below for details), and ``-docroot``.
+* Options specific to ``rocq makefile``. Currently these include ``-docroot``,
+  ``-generate-meta-for-package`` (see below for details), ``--rocq-package``,
+  ``--package-version``, ``--description``, ``--legacy-support``, and
+  ``--no-rocq-package-warning``.
 * Directory names, which include all appropriate files in the directory and
   its subdirectories.
 * Comments, started with an unquoted ``#`` and continuing to the end of the
@@ -438,6 +440,18 @@ project (which conventionally starts with ``rocq-``). If the project
 includes a ``.mlg`` file (to be pre-processed by ``rocq pp-mlg``) that
 declares a plugin, then the given name must match the ``findlib`` plugin
 name, e.g. ``DECLARE PLUGIN "my-package.plugin"``.
+
+Passing ``--rocq-package my-package`` enables the newer Findlib-backed Rocq
+package installation scheme. In that mode, the project must declare exactly one
+``-Q`` or exactly one ``-R`` directive, whose logical path becomes the package
+``rocqpath``. Theory files are installed under the Findlib package's ``rocq.d``
+directory, and ``-package`` entries declare package dependencies. The
+``--package-version`` and ``--description`` options fill in the corresponding
+fields of the generated ``META`` file. The ``--legacy-support`` option also
+installs a copy of the theories under the global ``user-contrib`` directory.
+Because the legacy installation scheme is deprecated, ``rocq makefile`` warns
+by default when ``--rocq-package`` is omitted; pass
+``--no-rocq-package-warning`` to silence that warning.
 
 The ``-native-compiler`` option given in the ``_RocqProject`` file overrides
 the global one passed at configure time.
