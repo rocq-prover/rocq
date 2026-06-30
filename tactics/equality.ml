@@ -488,9 +488,9 @@ let () = CErrors.register_handler @@ function
 (* find_elim determines which elimination principle is necessary to
    eliminate lbeq on sort_of_gl. *)
 let find_scheme kind scheme_name ind =
-  find_scheme scheme_name ind >>= function
-    | Some s -> Proofview.tclUNIT s
-    | None -> Proofview.tclZERO (MissingScheme (kind,Ind_tables.scheme_kind_name scheme_name,ind))
+  match lookup_scheme scheme_name ind with
+  | Some s -> Proofview.tclUNIT s
+  | None -> Proofview.tclZERO (MissingScheme (kind,Ind_tables.scheme_kind_name scheme_name,ind))
 
 let find_elim lft2rgt dep inccl type_of_cls (ctx, hdcncl, args) =
   Proofview.Goal.enter_one begin fun gl ->
