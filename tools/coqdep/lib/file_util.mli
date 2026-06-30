@@ -24,3 +24,5 @@ val to_relative_path : string -> string
     ["../../dir/file.v"] are possible return values, but ["./file.v"] and
     ["dir1/../dir2"] are not. *)
 val normalize_path : string -> string
+
+val is_prefix : string -> string -> bool
