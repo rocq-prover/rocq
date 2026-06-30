@@ -253,10 +253,9 @@ let rec find_opt k t =
       find_opt k (if k land m = 0 then t0 else t1)
 
 let mem k m =
-  try
-    let _ = find k m in true
-  with Not_found ->
-    false
+  match find_opt k m with
+  | None -> false
+  | Some _ -> true
 
 (* [join p0 t0 p1 t1] is a special case of [union]. We assume that the keys in
    the tree [t0] have longest common prefix [p0] and that the keys in the tree
@@ -283,13 +282,18 @@ let[@inline] join p0 t0 p1 t1 =
 
 exception Unchanged
 
+(* For control-flow-only exceptions, use
+   [raise_notrace] which is substantially faster
+   when backtraces are enabled (a good default). *)
+external raise_notrace : exn -> 'a = "%raise_notrace"
+
 let rec add k d t =
   match t with
   | Empty ->
       Leaf (k, d)
   | Leaf (k0, d0) ->
       if k = k0 then
-        if d == d0 then raise Unchanged else Leaf (k, d)
+        if d == d0 then raise_notrace Unchanged else Leaf (k, d)
       else
         join k (Leaf (k, d)) k0 t
   | Branch (p, m, t0, t1) ->
@@ -316,9 +320,9 @@ let rec cardinal t =
 let rec remove k t =
   match t with
   | Empty ->
-      raise Not_found
+      raise_notrace Not_found
   | Leaf (k', _) ->
-      if k = k' then Empty else raise Not_found
+      if k = k' then Empty else raise_notrace Not_found
   | Branch (p, m, t0, t1) ->
       if k land m = 0 then
         match remove k t0 with
