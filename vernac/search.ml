@@ -42,14 +42,61 @@ type glob_search_request =
   | GlobSearchLiteral of glob_search_item
   | GlobSearchDisjConj of (bool * glob_search_request) list list
 
-module SearchBlacklist =
-  Goptions.MakeStringTable
-    (struct
-      let key = ["Search";"Blacklist"]
-      let title = "Current search blacklist : "
-      let member_message s b =
-        str "Search blacklist does " ++ (if b then mt () else str "not ") ++ str "include " ++ str s
-     end)
+module SearchBlacklistArg =
+struct
+
+type t =
+| Pattern of string
+| Reference of GlobRef.t
+
+let compare v1 v2 = match v1, v2 with
+| Pattern s1, Pattern s2 -> String.compare s1 s2
+| Reference r1, Reference r2 -> GlobRef.UserOrd.compare r1 r2
+| Pattern _, Reference _ -> -1
+| Reference _, Pattern _ -> 1
+
+module Set = Set.Make(struct type nonrec t = t let compare = compare end)
+
+let encode env v = match v with
+| Goptions.StringRefValue s -> Pattern s
+| Goptions.QualidRefValue qid ->
+  let r = Nametab.global qid in
+  let r = Environ.QGlobRef.canonize env r in
+  Reference r
+
+let subst subs v = match v with
+| Pattern _ -> v
+| Reference r ->
+  let r' = Globnames.subst_global_reference subs r in
+  if r == r' then v else Reference r'
+
+let check_local_ref local = function
+| GlobRef.ConstRef _ | ConstructRef _ | IndRef _ -> ()
+| VarRef x -> match local with
+  | Libobject.Local -> ()
+  | Export | SuperGlobal ->
+    let local = if local = Export then "export" else "global" in
+    CErrors.user_err
+      Pp.(Id.print x ++ str " cannot be added with locality " ++ str local ++ str ".")
+
+let check_local local v = match v with
+| Pattern _ -> ()
+| Reference r -> check_local_ref local r
+
+let discharge v = v
+
+let printer = function
+| Pattern s -> quote (str s)
+| Reference r -> Printer.pr_global r
+
+let key = ["Search";"Blacklist"]
+let title = "Current search blacklist : "
+let member_message s b =
+  str "Search blacklist does " ++ (if b then mt () else str "not ") ++ str "include " ++ printer s
+
+end
+
+module SearchBlacklist = Goptions.MakeTable(SearchBlacklistArg)
 
 let { Goptions.get = blacklist_locals } =
   Goptions.declare_bool_option_and_ref ~key:["Search";"Blacklist";"Locals"] ~value:true ()
@@ -194,8 +241,14 @@ let blacklist_filter : filter_function = fun ref kind env sigma typ ->
   if blacklist_locals() && is_local_ref ref then false
   else
     let name = full_name_of_reference ref in
-    let is_not_bl str = not (String.string_contains ~where:name ~what:str) in
-    CString.Set.for_all is_not_bl (SearchBlacklist.v ())
+    let is_not_bl entry = match entry with
+    | SearchBlacklistArg.Pattern str -> not (String.string_contains ~where:name ~what:str)
+    | SearchBlacklistArg.Reference _ -> true
+    in
+    let blacklist = SearchBlacklist.v () in
+    let ref = SearchBlacklistArg.Reference ref in
+    (* XXX very inefficient *)
+    not (SearchBlacklistArg.Set.mem ref blacklist) && SearchBlacklistArg.Set.for_all is_not_bl blacklist
 
 let module_filter : _ -> filter_function = fun mods ref kind env sigma typ ->
   let sp = Nametab.path_of_global ref in
