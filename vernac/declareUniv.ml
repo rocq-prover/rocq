@@ -256,6 +256,15 @@ let do_sort_poly l =
 let do_sort ~poly l =
   if poly then do_sort_poly l else do_sort_mono l
 
+let redundant_elim_warning =
+  CWarnings.create
+    ~name:"redundant-constraint"
+    (fun (q1, k, q2) ->
+      Pp.(hov 1 (str "Redundant elimination constraint: "
+        ++ UnivNames.pr_quality_with_global_universes q1 ++ spc()
+        ++ Sorts.ElimConstraint.pr_kind k ++ spc()
+        ++ UnivNames.pr_quality_with_global_universes q2)))
+
 let do_constraint ~poly l =
   let evd = Evd.from_env (Global.env ()) in
   let constraints = List.fold_left (fun acc cst ->
@@ -268,15 +277,23 @@ let do_constraint ~poly l =
          PConstraints.add_quality cst acc)
       PConstraints.empty l
   in
+  let qcst, ucst = constraints in
+  let graph = Global.elim_graph () in
+  let qcst = Sorts.ElimConstraints.filter
+    (fun q ->
+      (* this does not check redundancy of multiple new constraints *)
+      let b = QGraph.check_constraint graph q in
+      let () = if b then redundant_elim_warning q else () in
+      not b)
+    qcst in
   match poly with
   | false ->
-    let qcst, ucst = constraints in
     let () = Global.merge_elim_constraints qcst in
     Global.push_context_set (Univ.Level.Set.empty, ucst)
   | true ->
     let uctx = UVars.UContext.make
         UVars.empty_bound_names
-        (UVars.Instance.empty,constraints)
+        (UVars.Instance.empty, (qcst, ucst))
     in
     Global.push_section_context uctx
 
