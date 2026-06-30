@@ -37,6 +37,13 @@ val is_singleton: 'a t -> bool
    for the key [k] then it is overridden. *)
 val add: key -> 'a -> 'a t -> 'a t
 
+(** Let [o] be [None] if [k] is missing from [m],
+    and [Some v] if [k] is bound to [v] in [m].
+    Then,
+    - if [f o] is [None], then [update k f m] is [remove k m],
+    - if [f o] is [Some v], then [update k f] is [add k v m]. *)
+val update: key -> ('a option -> 'a option) -> 'a t -> 'a t
+
 (**[mem k m] determines whether the map [m] contains a binding of the key [k]
    to some value. *)
 val mem: key -> 'a t -> bool

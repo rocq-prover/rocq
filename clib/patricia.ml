@@ -308,6 +308,38 @@ let rec add k d t =
 let[@inline] add k d t =
   try add k d t with Unchanged -> t
 
+let rec update k f t =
+  let[@inline] missing k f p t =
+    match f None with
+    | None -> raise_notrace Unchanged
+    | Some d ->
+      join k (Leaf (k, d)) p t
+  in
+  match t with
+  | Empty ->
+      begin match f None with
+      | None -> raise_notrace Unchanged
+      | Some d -> Leaf (k, d)
+      end
+  | Leaf (k0, d0) ->
+      if k = k0 then
+        begin match f (Some d0) with
+        | None -> Empty
+        | Some d ->
+          if d == d0 then raise_notrace Unchanged else Leaf (k, d)
+        end
+      else missing k f k0 t
+  | Branch (p, m, t0, t1) ->
+      if match_prefix k p m then
+        if k land m = 0 then
+          Branch (p, m, update k f t0, t1)
+        else
+          Branch (p, m, t0, update k f t1)
+      else missing k f p t
+
+let[@inline] update k f t =
+  try update k f t with Unchanged -> t
+
 let rec cardinal t =
   match t with
   | Empty ->
