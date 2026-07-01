@@ -369,11 +369,11 @@ Module UnivPoly.
   (* Nesting with array *)
   Module Array.
 
-    Definition array_all@{s; +} (A : Type) (P : A -> Type@{s; _}) :
-        array A -> Type@{s; _} :=
+    Definition array_all@{s; +} (A : Type) (P : A -> Univ@{s; _}) :
+        array A -> Univ@{s; _} :=
       fun a => forall i, P a.[i].
 
-    Definition array_all_forall@{s; +} A (P : A -> Type@{s; _}) :
+    Definition array_all_forall@{s; +} A (P : A -> Univ@{s; _}) :
         (forall a, P a) -> forall a, array_all A P a :=
       fun H a i => H _.
 
@@ -409,7 +409,7 @@ Module SortPoly.
   (* Example with a sort polymorphic containers *)
   Set Universe Polymorphism.
 
-  Inductive list@{sA;uA uR} (A : Type@{sA;uA}) : Type@{sA; uR} :=
+  Inductive list@{sA;uA uR} (A : Univ@{sA;uA}) : Univ@{sA; uR} :=
   | nil : list A
   | cons : A -> list A -> list A.
 

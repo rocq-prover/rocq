@@ -5,10 +5,10 @@ Set Printing Relevance Marks.
 Definition foo (A:Type) (a:A) := a.
 Definition foo' (A:Prop) (a:A) := a.
 Definition bar (A:SProp) (a:A) := a.
-Definition baz@{s;u|} (A:Type@{s;u}) (a:A) := a.
+Definition baz@{s;u|} (A:Univ@{s;u}) (a:A) := a.
 
-Definition hide@{s;u|} {A:Type@{s;u}} := A.
-Definition boz@{s s';u|} (A:Type@{s;u}) (B:Type@{s';u}) (a:@hide A) (b:@hide B) := a.
+Definition hide@{s;u|} {A:Univ@{s;u}} := A.
+Definition boz@{s s';u|} (A:Univ@{s;u}) (B:Univ@{s';u}) (a:@hide A) (b:@hide B) := a.
 
 Print foo.
 Print foo'.

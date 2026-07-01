@@ -1,7 +1,7 @@
 (* from #20508 *)
 
 #[universes(polymorphic=yes)]
-Definition abc@{s;u|} := Type@{s;u}.
+Definition abc@{s;u|} := Univ@{s;u}.
 Inductive SUnit : SProp := stt.
 Definition xyz : abc := SUnit. (* works as expected, abc is sort-polymorphic *)
 Set Printing Universes.

@@ -19,7 +19,7 @@ End M1.
 
 Module M2.
   Set Universe Polymorphism.
-  Lemma foo@{s;u|} (A : Type@{s;u}) : True.
+  Lemma foo@{s;u|} (A : Univ@{s;u}) : True.
   Proof.
   Check A.
   Set Printing Universes.

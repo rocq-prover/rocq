@@ -1,5 +1,5 @@
 Set Universe Polymorphism.
-Inductive sum@{s;u v|} (A : Type@{s;u}) (B : Type@{s;v}) : Type@{s;max(u,v)} :=
+Inductive sum@{s;u v|} (A : Univ@{s;u}) (B : Univ@{s;v}) : Univ@{s;max(u,v)} :=
   | inl : A -> sum A B
   | inr : B -> sum A B.
 Arguments inl {A B}.
@@ -12,9 +12,9 @@ This is introduced by the constraints Prop -> Type
 *)
 
 
-Inductive sBox@{s s';u|} (A:Type@{s;u}) : Type@{s';u} := sbox (_:A).
+Inductive sBox@{s s';u|} (A:Univ@{s;u}) : Univ@{s';u} := sbox (_:A).
 
-Fail Definition elim@{s s';u|} (A:Type@{s;u}) (x:sBox@{s s';u} A) : A :=
+Fail Definition elim@{s s';u|} (A:Univ@{s;u}) (x:sBox@{s s';u} A) : A :=
   match x with sbox _ v => v end.
 (* Error: Elimination constraints are not implied by the ones declared: s' -> s *)
 

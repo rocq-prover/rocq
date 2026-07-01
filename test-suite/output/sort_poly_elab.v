@@ -7,17 +7,17 @@ Set Warnings "-native-compiler-disabled".
 
 Module Reduction.
 
-  Definition qsort := Type.
-  (* qsort@{α ; u |} = Type@{α ; u} : Type@{u+1} *)
+  Definition qsort := Univ.
+  (* qsort@{α ; u |} = Univ@{α ; u} : Univ@{u+1} *)
   About qsort.
 
-  Definition qsort' : Type := Type.
-  (* qsort'@{α ; u u0 |} = Type@{α ; u0} : Type@{u} *)
+  Definition qsort' : Univ := Univ.
+  (* qsort'@{α ; u u0 |} = Univ@{α ; u0} : Univ@{u} *)
   About qsort'.
 
   Monomorphic Universe U.
 
-  Definition tU := Type@{U}.
+  Definition tU := Univ@{U}.
   Definition qU := qsort@{Type ; U}.
 
   Definition q1 := Eval lazy in qU.
@@ -29,45 +29,45 @@ Module Reduction.
   Definition q3 := Eval native_compute in qU.
   Check eq_refl : q3 = tU.
 
-  Definition exfalso (A:Type) (H:False) : A := match H with end.
-  (* exfalso@{α ; u |} : forall A : Type@{α ; _}, False -> A *)
+  Definition exfalso (A:Univ) (H:False) : A := match H with end.
+  (* exfalso@{α ; u |} : forall A : Univ@{α ; _}, False -> A *)
   About exfalso.
 
   Definition exfalsoVM := Eval vm_compute in exfalso@{Type;Set}.
   Definition exfalsoNative := Eval native_compute in exfalso@{Type;Set}.
 
-  Fixpoint iter (A:Type) (f:A -> A) n x :=
+  Fixpoint iter (A:Univ) (f:A -> A) n x :=
     match n with
     | 0 => x
     | S k => iter A f k (f x)
     end.
-  (* iter@{α ; u |} : forall (A : Type@{α ; u}) (_ : forall _ : A, A) (_ : nat) (_ : A), A *)
+  (* iter@{α ; u |} : forall (A : Univ@{α ; u}) (_ : forall _ : A, A) (_ : nat) (_ : A), A *)
   About iter.
 
-  Definition iterType := Eval lazy in iter@{Type;_}.
+  Definition iterUniv := Eval lazy in iter@{Type;_}.
   Definition iterSProp := Eval lazy in iter@{SProp;_}.
 
 End Reduction.
 
 Module Conversion.
 
-  Inductive Box (A:Type) := box (_:A).
-  (* Box@{α α0 ; u |} (A : Type@{α ; u}) : Type@{α0 ; u} *)
+  Inductive Box (A:Univ) := box (_:A).
+  (* Box@{α α0 ; u |} (A : Univ@{α ; u}) : Univ@{α0 ; u} *)
   About Box.
 
-  Definition t1 (A:Type) (x y : A) := box _ x.
-  (* t1@{α α0 ; u |} : forall (A : Type@{α ; u}) (_ : A) (_ : A), Box@{α α0 ; u} A *)
+  Definition t1 (A:Univ) (x y : A) := box _ x.
+  (* t1@{α α0 ; u |} : forall (A : Univ@{α ; u}) (_ : A) (_ : A), Box@{α α0 ; u} A *)
   About t1.
 
-  Definition t2 (A:Type) (x y : A) := box _ y.
-  (* t2@{α α0 ; u |} : forall (A : Type@{α ; u}) (_ : A) (_ : A), Box@{α α0 ; u} A *)
+  Definition t2 (A:Univ) (x y : A) := box _ y.
+  (* t2@{α α0 ; u |} : forall (A : Univ@{α ; u}) (_ : A) (_ : A), Box@{α α0 ; u} A *)
   About t2.
 
-  Definition t1' (A:Type) (x y : A) := x.
-  (* t1'@{α ; u |} : forall (A : Type@{α ; u}) (_ : A) (_ : A), A *)
+  Definition t1' (A:Univ) (x y : A) := x.
+  (* t1'@{α ; u |} : forall (A : Univ@{α ; u}) (_ : A) (_ : A), A *)
   About t1'.
 
-  Definition t2' (A:Type) (x y : A) := y.
+  Definition t2' (A:Univ) (x y : A) := y.
   About t2'.
 
   Fail Check eq_refl : t1 nat = t2 nat.
@@ -75,25 +75,25 @@ Module Conversion.
 
   Check fun A:SProp => eq_refl : t1 A = t2 A.
   (* : forall A : SProp,
-       @eq (forall (_ : A) (_ : A), Box@{SProp Type ; sort_poly_elab.475} A)
-         (t1@{SProp Type ; sort_poly_elab.475} A)
-         (t2@{SProp Type ; sort_poly_elab.475} A) *)
+       @eq (forall (_ : A) (_ : A), Box@{SProp Univ ; sort_poly_elab.475} A)
+         (t1@{SProp Univ ; sort_poly_elab.475} A)
+         (t2@{SProp Univ ; sort_poly_elab.475} A) *)
 
   Check fun A:SProp => eq_refl : box _ (t1' A) = box _ (t2' A).
   (* : forall A : SProp,
        @eq
-         (Box@{SProp Type ; sort_poly_elab.479} (forall (_ : A) (_ : A), A))
-         (box@{SProp Type ; sort_poly_elab.479} (forall (_ : A) (_ : A), A)
+         (Box@{SProp Univ ; sort_poly_elab.479} (forall (_ : A) (_ : A), A))
+         (box@{SProp Univ ; sort_poly_elab.479} (forall (_ : A) (_ : A), A)
             (t1'@{SProp ; sort_poly_elab.480} A))
-         (box@{SProp Type ; sort_poly_elab.479} (forall (_ : A) (_ : A), A)
+         (box@{SProp Univ ; sort_poly_elab.479} (forall (_ : A) (_ : A), A)
             (t2'@{SProp ; sort_poly_elab.482} A)) *)
 
-  Definition ignore {A:Type} (x:A) := tt.
-  (* ignore@{α ; u |} : forall {A : Type@{α ; u}} (_ : A), unit *)
+  Definition ignore {A:Univ} (x:A) := tt.
+  (* ignore@{α ; u |} : forall {A : Univ@{α ; u}} (_ : A), unit *)
   About ignore.
 
-  Definition unfold_ignore (A:Type) : ignore (t1 A) = ignore (t2 A) := eq_refl.
-  (* unfold_ignore@{α α0 α1 ; u |} : forall A : Type@{α ; u},
+  Definition unfold_ignore (A:Univ) : ignore (t1 A) = ignore (t2 A) := eq_refl.
+  (* unfold_ignore@{α α0 α1 ; u |} : forall A : Univ@{α ; u},
        @eq unit
          (@ignore@{α0 ; u} (forall (_ : A) (_ : A), Box@{α α0 ; u} A)
             (t1@{α α0 ; u} A))
@@ -105,41 +105,41 @@ Module Conversion.
   (* t@{α ; u |} : forall (A : SProp) (_ : A) (_ : A), Box@{SProp α ; u} A *)
   About t.
 
-  Axiom v : forall (A:Type), bool -> A.
+  Axiom v : forall (A:Univ), bool -> A.
   About v.
   Fail Check fun P (x:P (v@{Type;_} nat true)) => x : P (v nat false).
   Check fun (A:SProp) P (x:P (v A true)) => x : P (v A false).
-    (* : forall (A : SProp) (P : A -> Type@{sort_poly_elab.105}),
+    (* : forall (A : SProp) (P : A -> Univ@{sort_poly_elab.105}),
        P (v@{SProp ; sort_poly_elab.104} A true) ->
        P (v@{SProp ; sort_poly_elab.106} A false) *)
 End Conversion.
 
 Module Inference.
-  Definition zog (A:Type) := A.
-  (* zog@{α ; u |} : Type@{α ; _} -> Type@{α ; _} *)
+  Definition zog (A:Univ) := A.
+  (* zog@{α ; u |} : Univ@{α ; _} -> Univ@{α ; _} *)
   About zog.
 
-  (* implicit instance of zog gets a variable which then gets unified with s from the type of A *)
-  Definition zag (A:Type) := zog A.
-  (* zag@{α ; u |} : Type@{α ; _} -> Type@{α ; _} *)
+  (* implicit instance of zog gets a variable which then gets unified with s from the Univ of A *)
+  Definition zag (A:Univ) := zog A.
+  (* zag@{α ; u |} : Univ@{α ; _} -> Univ@{α ; _} *)
   About zag.
 
-  (* implicit type of A gets unified to Type@{s;u} *)
+  (* implicit Univ of A gets unified to Univ@{s;u} *)
   Definition zig A := zog A.
-  (* zig@{α ; u |} : Type@{α ; _} -> Type@{α ; _} *)
+  (* zig@{α ; u |} : Univ@{α ; _} -> Univ@{α ; _} *)
   About zig.
 
   (* different manually bound sort variables don't unify *)
-  Fail Definition zog'@{s s'; |} (A:Type@{s;Set}) := zog@{s';Set} A.
+  Fail Definition zog'@{s s'; |} (A:Univ@{s;Set}) := zog@{s';Set} A.
 End Inference.
 
 Module Inductives.
   Inductive implicit :=.
-  (* implicit@{α ; u} : Type@{α ; _} *)
+  (* implicit@{α ; u} : Univ@{α ; _} *)
   About implicit.
 
-  Inductive foo1 : Type := .
-  (* foo1@{α ; u |} : Type@{α ; _} :=  . *)
+  Inductive foo1 : Univ := .
+  (* foo1@{α ; u |} : Univ@{α ; _} :=  . *)
   About foo1.
   Fail Check foo1_sind.
   (* The reference foo1_sind was not found in the current environment. Did you mean bool_sind, prod_sind, or_sind or bool_ind? *)
@@ -159,81 +159,81 @@ Module Inductives.
   (* α ; u |= α -> Prop *)
   About foo1_False'.
 
-  Inductive foo2 := Foo2 : Type -> foo2.
-  (* foo2@{α ; u |} : Type@{α ; u+1} *)
+  Inductive foo2 := Foo2 : Univ -> foo2.
+  (* foo2@{α ; u |} : Univ@{α ; u+1} *)
   About foo2.
   Fail Check foo2_rect.
   (* The reference foo2_rect was not found in the current environment. Did you mean bool_rect, sig2_rect, prod_rect, ex2_rect or bool_rec? *)
 
   Inductive foo3 A := Foo3 : A -> foo3 A.
-  (* foo3@{α α0 ; u |} (A : Type@{α0 ; u}) : Type@{α ; u} *)
+  (* foo3@{α α0 ; u |} (A : Univ@{α0 ; u}) : Univ@{α ; u} *)
   About foo3.
   Fail Check foo3_rect.
   (* The reference foo3_rect was not found in the current environment. Did you mean bool_rect, prod_rect or bool_rec? *)
 
-  Inductive foo5 (A : Type) : Prop := Foo5 (_ : A).
-  (* foo5@{α ; u} : Type@{α ; u} -> Prop *)
+  Inductive foo5 (A : Univ) : Prop := Foo5 (_ : A).
+  (* foo5@{α ; u} : Univ@{α ; u} -> Prop *)
   About foo5.
 
-  Definition foo5_ind' : forall (A : Type) (P : Prop), (A -> P) -> foo5 A -> P
+  Definition foo5_ind' : forall (A : Univ) (P : Prop), (A -> P) -> foo5 A -> P
     := foo5_ind.
   About foo5_ind'.
 
-  Definition foo5_Prop_rect (A:Prop) (P:foo5 A -> Type)
+  Definition foo5_Prop_rect (A:Prop) (P:foo5 A -> Univ)
     (H : forall a, P (Foo5 A a))
     (f : foo5 A)
     : P f
     := match f with Foo5 _ a => H a end.
   (* foo5_Prop_rect@{α ; u} :
-    forall (A : Prop) (P : foo5@{Type ; Set} A -> Type@{α ; u}),
+    forall (A : Prop) (P : foo5@{Type ; Set} A -> Univ@{α ; u}),
     (forall a : A, P (Foo5@{Type ; Set} A a)) -> forall f : foo5@{Type ; Set} A, P f *)
   (* α ; u |= Prop -> α *)
   About foo5_Prop_rect.
 
-  Definition foo5_Prop_rect' (A : Prop) (P : foo5 A -> Type)
+  Definition foo5_Prop_rect' (A : Prop) (P : foo5 A -> Univ)
     (H : forall a, P (Foo5 A a))
     (f : foo5@{Prop;_} A)
     : P f
     := match f with Foo5 _ a => H a end.
   (* foo5_Prop_rect'@{α ; u} :
-    forall (A : Prop) (P : foo5@{Prop ; Set} A -> Type@{α ; u}),
+    forall (A : Prop) (P : foo5@{Prop ; Set} A -> Univ@{α ; u}),
     (forall a : A, P (Foo5@{Prop ; Set} A a)) -> forall f : foo5@{Prop ; Set} A, P f *)
   (* α ; u |=  *)
   About foo5_Prop_rect'.
 
-  Inductive foo6 : Type := Foo6.
+  Inductive foo6 : Univ := Foo6.
   About foo6.
   Fail Check foo6_sind.
   (* The reference foo6_sind was not found in the current environment. Did you mean foo5_sind, foo5_ind, bool_sind, prod_sind, or_sind, foo5_ind' or bool_ind? *)
 
-  Definition foo6_rect (P:foo6 -> Type)
+  Definition foo6_rect (P:foo6 -> Univ)
     (H : P Foo6)
     (f : foo6)
     : P f
     := match f with Foo6 => H end.
-  (* foo6_rect@{α α0 ; u u0} : forall P : foo6@{α0 ; u} -> Type@{α ; u0}, P Foo6@{α0 ; u} -> forall f : foo6@{α0 ; u}, P f *)
+  (* foo6_rect@{α α0 ; u u0} : forall P : foo6@{α0 ; u} -> Univ@{α ; u0}, P Foo6@{α0 ; u} -> forall f : foo6@{α0 ; u}, P f *)
   (* α α0 ; u u0 |= α0 -> α *)
   About foo6_rect.
 
-  Definition foo6_prop_rect (P:foo6 -> Type)
+  Definition foo6_prop_rect (P:foo6 -> Univ)
     (H : P Foo6)
     (f : foo6@{Prop;_})
     : P f
     := match f with Foo6 => H end.
-  (* foo6_prop_rect@{α ; u u0} : forall P : foo6@{Prop ; u} -> Type@{α ; u0}, P Foo6@{Prop ; u} -> forall f : foo6@{Prop ; u}, P f *)
+  (* foo6_prop_rect@{α ; u u0} : forall P : foo6@{Prop ; u} -> Univ@{α ; u0}, P Foo6@{Prop ; u} -> forall f : foo6@{Prop ; u}, P f *)
   (* α ; u u0 |=  *)
   About foo6_prop_rect.
 
-  Definition foo6_type_rect (P:foo6 -> Type)
+  Definition foo6_Univ_rect (P:foo6 -> Univ)
     (H : P Foo6)
     (f : foo6@{Type;_})
     : P f
     := match f with Foo6 => H end.
-  (* foo6_type_rect@{α ; u u0} : forall P : foo6@{Type ; u} -> Type@{α ; u0}, P Foo6@{Type ; u} -> forall f : foo6@{Type ; u}, P f *)
+  (* foo6_Univ_rect@{α ; u u0} : forall P : foo6@{Type ; u} -> Univ@{α ; u0}, P Foo6@{Type ; u} -> forall f : foo6@{Type ; u}, P f *)
   (* α ; u u0 |=  *)
-  About foo6_type_rect.
+  About foo6_Univ_rect.
 
-  Inductive foo7 : Type := Foo7_1 | Foo7_2.
+  Inductive foo7 : Univ := Foo7_1 | Foo7_2.
   About foo7.
   Fail Check foo7_sind.
   Fail Check foo7_ind.
@@ -245,7 +245,7 @@ Module Inductives.
     := match f with Foo7_1 => H | Foo7_2 => H' end.
   About foo7_prop_ind.
 
-  Definition foo7_prop_rect (P:foo7 -> Type)
+  Definition foo7_prop_rect (P:foo7 -> Univ)
     (H : P Foo7_1) (H' : P Foo7_2)
     (f : foo7@{Prop;})
     : P f
@@ -255,13 +255,13 @@ Module Inductives.
   (*********************************************)
   (*                 SIGMA                     *)
   (*********************************************)
-  Inductive sigma (A:Type) (B:A -> Type) : Type
+  Inductive sigma (A:Univ) (B:A -> Univ) : Univ
     := pair : forall x : A, B x -> sigma A B.
-  (* Inductive sigma@{α α0 α1 ; u u0 |} (A : Type@{α ; u}) (B : A -> Type@{α0 ; u0}) : Type@{α1 ; max(u,u0)} *)
+  (* Inductive sigma@{α α0 α1 ; u u0 |} (A : Univ@{α ; u}) (B : A -> Univ@{α0 ; u0}) : Univ@{α1 ; max(u,u0)} *)
   About sigma.
 
   Definition sigma_srect A B
-    (P : sigma A B -> Type)
+    (P : sigma A B -> Univ)
     (H : forall x b, P (pair _ _ x b))
     (s:sigma A B)
     : P s
@@ -282,16 +282,16 @@ Module Inductives.
   About pr2.
 
 
-  Definition π1 {A:Type} {P:A -> Type} (p : sigma@{Type _ _;_ _} A P) : A :=
+  Definition π1 {A:Univ} {P:A -> Univ} (p : sigma@{Type _ _;_ _} A P) : A :=
     match p return A with pair _ _ a _ => a end.
-  (* α α0 ; u u0 |= α0 -> Type *)
+  (* α α0 ; u u0 |= α0 -> Univ *)
   About π2.
 
   (*********************************************)
   (*                   EQ                      *)
   (*********************************************)
-  Inductive seq (A:Type) (a:A) : A -> Prop := seq_refl : seq A a a.
-  (* Inductive seq@{α ; u |} (A : Type@{α ; u}) (a : A) : A -> Prop *)
+  Inductive seq (A:Univ) (a:A) : A -> Prop := seq_refl : seq A a a.
+  (* Inductive seq@{α ; u |} (A : Univ@{α ; u}) (a : A) : A -> Prop *)
   Arguments seq_refl {_ _}.
   About seq.
 
@@ -304,10 +304,10 @@ Module Inductives.
   (*********************************************)
   (*                   SUM                     *)
   (*********************************************)
-  Inductive sum (A B : Type) : Type :=
+  Inductive sum (A B : Univ) : Univ :=
   | inl : A -> sum A B
   | inr : B -> sum A B.
-  (* sum@{α α0 α1 ; u u0} : Type@{α ; u} -> Type@{α0 ; u0} -> Type@{α1 ; max(Set,u,u0)} *)
+  (* sum@{α α0 α1 ; u u0} : Univ@{α ; u} -> Univ@{α0 ; u0} -> Univ@{α1 ; max(Set,u,u0)} *)
   (* α α0 α1 ; u u0 |=  *)
   About sum.
 
@@ -316,7 +316,7 @@ Module Inductives.
 
   (* Elimination constraint left explicitly empty. Definition fails because of missing constraint. *)
   Fail Definition sum_elim@{sl sr s0 s0';ul ur v|}
-    (A : Type@{sl;ul}) (B : Type@{sr;ur}) (P : sum@{sl sr s0;ul ur} A B -> Type@{s0';v})
+    (A : Univ@{sl;ul}) (B : Univ@{sr;ur}) (P : sum@{sl sr s0;ul ur} A B -> Univ@{s0';v})
     (fl : forall a, P (inl a)) (fr : forall b, P (inr b)) (x : sum@{sl sr s0;ul ur} A B) :=
     match x with
     | inl a => fl a
@@ -326,7 +326,7 @@ Module Inductives.
   Elimination constraints are not implied by the ones declared: s0->s0' *)
 
   (* Leaving them implicit *)
-  Definition sum_elim (A B : Type) (P : sum A B -> Type)
+  Definition sum_elim (A B : Univ) (P : sum A B -> Univ)
     (fl : forall a, P (inl a)) (fr : forall b, P (inr b)) (x : sum A B) :=
     match x with
     | inl a => fl a
@@ -335,35 +335,35 @@ Module Inductives.
   (* α α0 α1 α2 ; u u0 u1 |= α2 -> α *)
   About sum_elim.
 
-  Definition sum_sind := sum_elim@{Type Type Type SProp;_ _ _}.
-  Definition sum_rect := sum_elim@{Type Type Type Type;_ _ _}.
-  Definition sum_ind := sum_elim@{Type Type Type Prop;_ _ _}.
+  Definition sum_sind := sum_elim@{Type Univ Univ SProp;_ _ _}.
+  Definition sum_rect := sum_elim@{Type Univ Univ Univ;_ _ _}.
+  Definition sum_ind := sum_elim@{Type Univ Univ Prop;_ _ _}.
 
   Definition or_ind := sum_elim@{Prop Prop Prop Prop;_ _ _}.
   Definition or_sind := sum_elim@{Prop Prop Prop SProp;_ _ _}.
-  Fail Definition or_rect := sum_elim@{Prop Prop Prop Type;_ _ _}.
+  Fail Definition or_rect := sum_elim@{Prop Prop Prop Univ;_ _ _}.
   (* The command has indeed failed with message:
-  The quality constraints are inconsistent: cannot enforce Prop -> Type because it would identify Type and Prop which is inconsistent.
-  This is introduced by the constraints Prop -> Type *)
+  The quality constraints are inconsistent: cannot enforce Prop -> Univ because it would identify Univ and Prop which is inconsistent.
+  This is introduced by the constraints Prop -> Univ *)
 
-  Definition sumor := sum@{Type Prop Type;_ _}.
+  Definition sumor := sum@{Type Prop Univ;_ _}.
 
-  Definition sumor_sind := sum_elim@{Type Prop Type SProp;_ _ _}.
-  Definition sumor_rect := sum_elim@{Type Prop Type Type;_ _ _}.
-  Definition sumor_ind := sum_elim@{Type Prop Type Prop;_ _ _}.
+  Definition sumor_sind := sum_elim@{Type Prop Univ SProp;_ _ _}.
+  Definition sumor_rect := sum_elim@{Type Prop Univ Univ;_ _ _}.
+  Definition sumor_ind := sum_elim@{Type Prop Univ Prop;_ _ _}.
 
   (* Implicit qualities and constraints are elaborated *)
-  Definition idT (A B : Type) (x : sum A B)
-    : sum@{_ _ Type; _ _} A B :=
+  Definition idT (A B : Univ) (x : sum A B)
+    : sum@{_ _ Univ; _ _} A B :=
     match x with
     | inl a => inl a
     | inr b => inr b
     end.
-  (* α α0 α1 ; u u0 |= α -> Type *)
+  (* α α0 α1 ; u u0 |= α -> Univ *)
   About idT.
 
   (* Implicit qualities and constraints are elaborated *)
-  Definition idP (A B : Type) (x : sum A B)
+  Definition idP (A B : Univ) (x : sum A B)
     : sum@{_ _ Prop; _ _} A B :=
     match x with
     | inl a => inl a
@@ -373,7 +373,7 @@ Module Inductives.
   About idP.
 
   (* Implicit qualities and constraints are elaborated *)
-  Definition idS (A B : Type) (x : sum A B)
+  Definition idS (A B : Univ) (x : sum A B)
     : sum@{_ _ SProp; _ _} A B :=
     match x with
     | inl a => inl a
@@ -383,7 +383,7 @@ Module Inductives.
   About idS.
 
   (* Implicit qualities and constraints are elaborated *)
-  Definition idV (A B : Type) (x : sum A B)
+  Definition idV (A B : Univ) (x : sum A B)
     : sum A B :=
     match x with
     | inl a => inl a
@@ -392,12 +392,12 @@ Module Inductives.
   (* α α0 α1 α2 ; u u0 |= α -> α2 *)
   About idV.
 
-  Fail Compute idV@{Prop Type Prop Type;Set Set} (inl I).
+  Fail Compute idV@{Prop Univ Prop Univ;Set Set} (inl I).
 
   (*********************************************)
   (*                  LIST                     *)
   (*********************************************)
-  Inductive list (A : Type) : Type :=
+  Inductive list (A : Univ) : Univ :=
   | nil : list A
   | cons : A -> list A -> list A.
   About list.
@@ -406,7 +406,7 @@ Module Inductives.
   Arguments cons {A} _ _.
 
   Definition list_elim
-    (A : Type) (P : list A -> Type)
+    (A : Univ) (P : list A -> Univ)
     (fn : P nil) (fc : forall (x : A) (l : list A), P l -> P (cons x l)) :=
     fix F (l : list A) : P l :=
       match l with
@@ -416,15 +416,15 @@ Module Inductives.
   (* α α0 α1 ; u u0 |= α1 -> α *)
   About list_elim.
 
-  Fixpoint list_idT {A : Type} (l : list A) : list@{_ Type;_} A :=
+  Fixpoint list_idT {A : Univ} (l : list A) : list@{_ Univ;_} A :=
     match l with
     | nil => nil
     | cons x l => cons x (list_idT l)
     end.
-  (* α α0 ; u |= α -> Type *)
+  (* α α0 ; u |= α -> Univ *)
   About list_idT.
 
-  Fixpoint list_idP {A : Type} (l : list A) : list@{_ Prop;_} A :=
+  Fixpoint list_idP {A : Univ} (l : list A) : list@{_ Prop;_} A :=
     match l with
     | nil => nil
     | cons x l => cons x (list_idP l)
@@ -432,7 +432,7 @@ Module Inductives.
   (* α α0 ; u |= α -> Prop *)
   About list_idP.
 
-  Fixpoint list_idS {A : Type} (l : list A) : list@{_ SProp;_} A :=
+  Fixpoint list_idS {A : Univ} (l : list A) : list@{_ SProp;_} A :=
     match l with
     | nil => nil
     | cons x l => cons x (list_idS l)
@@ -446,7 +446,7 @@ Module Inductives.
     | cons x l' => cons (f x) (map A B f l')
     end.
   (* map@{α α0 α1 α2 ; u u0} :
-      forall (A : Type@{α ; u}) (B : Type@{α1 ; u0}) (_ : forall _ : A, B)
+      forall (A : Univ@{α ; u}) (B : Univ@{α1 ; u0}) (_ : forall _ : A, B)
       (_ : list@{α α0 ; u} A), list@{α1 α2 ; u0} B *)
   (* α α0 α1 α2 ; u u0 |= α0 -> α2 *)
   About map.
@@ -454,8 +454,8 @@ Module Inductives.
   (*********************************************)
   (*                  FALSE                    *)
   (*********************************************)
-  Inductive False' : Type :=.
-  (* False'@{α ; u} : Type@{α ; u} *)
+  Inductive False' : Univ :=.
+  (* False'@{α ; u} : Univ@{α ; u} *)
   About False'.
 
   Definition False'_False (x : False') : False := match x return False with end.
@@ -465,7 +465,7 @@ Module Inductives.
   (*********************************************)
   (*                  BOOL                     *)
   (*********************************************)
-  Inductive bool : Type := true | false.
+  Inductive bool : Univ := true | false.
   About bool.
 
   Definition bool_to_Prop (b : bool) : Prop.
@@ -474,7 +474,7 @@ Module Inductives.
     - exact True.
     - exact False.
   Defined.
-  (* α ;  |= α -> Type *)
+  (* α ;  |= α -> Univ *)
   About bool_to_Prop.
 
   Definition bool_to_True_conj (b : bool) : True \/ True.
@@ -493,30 +493,30 @@ Module Inductives.
     - exact True.
     - exact False.
   Defined.
-  (* α ;  |= α -> Type *)
+  (* α ;  |= α -> Univ *)
   About bool_to_Prop'.
 
   #[universes(polymorphic=no)]
   Sort Test.
   (* Sort variables not instantiated *)
   Fail Check (match true@{Test;} return ?[P] with true => tt | false => tt end).
-  (* Incorrect elimination of "true@{Test ; }" in the inductive type "bool@{Test ; }":
-  the return type has sort "Set" while it should be in a sort Test eliminates to.
+  (* Incorrect elimination of "true@{Test ; }" in the inductive Univ "bool@{Test ; }":
+  the return Univ has sort "Set" while it should be in a sort Test eliminates to.
   Elimination of a sort polymorphic inductive object instantiated to a variable sort quality
   is only allowed on itself or with an explicit elimination constraint to the target sort. *)
 
   Monomorphic Sort Test2.
-  Monomorphic Inductive testind : Type@{Test2;Set} := testctor.
+  Monomorphic Inductive testind : Univ@{Test2;Set} := testctor.
   Fail Check (match true@{Test;} return ?[P] with true => testctor | false => testctor end).
 
-  Polymorphic Inductive testind'@{s;} : Type@{s;Set} := testctor'.
+  Polymorphic Inductive testind'@{s;} : Univ@{s;Set} := testctor'.
   Check (match true@{Test;} return ?[P] with true => testctor' | false => testctor' end).
 
   (*********************************************)
   (*                  UNIT                     *)
   (*********************************************)
-  Inductive unit : Type := tt.
-  (* unit@{α ; u} : Type@{α ; u} *)
+  Inductive unit : Univ := tt.
+  (* unit@{α ; u} : Univ@{α ; u} *)
   About unit.
 
   (*********************************************)
@@ -537,7 +537,7 @@ Module Inductives.
   About Foo.
 
   Check Foo@{Type Prop;}.
-  Fail Check Foo@{Prop Type;}.
+  Fail Check Foo@{Prop Univ;}.
 End Inductives.
 
 Module Records.
@@ -546,29 +546,29 @@ Module Records.
   Set Warnings "+records".
 
   (* the SProp instantiation may not be primitive so the whole thing must be nonprimitive *)
-  Fail Record R1 : Type := {}.
+  Fail Record R1 : Univ := {}.
 
-  Record R2 (A:SProp) : Type := { R2f1 : A }.
-  (* R2@{α ; u} : SProp -> Type@{α ; _} *)
+  Record R2 (A:SProp) : Univ := { R2f1 : A }.
+  (* R2@{α ; u} : SProp -> Univ@{α ; _} *)
   About R2.
 
-  Record R3 (A:Type) : Type := { R3f1 : A }.
-  (* R3@{α α0 ; u} : forall _ : Type@{α ; u}, Type@{α0 ; u} *)
+  Record R3 (A:Univ) : Univ := { R3f1 : A }.
+  (* R3@{α α0 ; u} : forall _ : Univ@{α ; u}, Univ@{α0 ; u} *)
   (* α α0 ; u |= α0 -> α *)
   About R3.
 
-  Record R4@{s; |} (A:Type@{s;Set}) : Type@{s;Set} := { R4f1 : A}.
+  Record R4@{s; |} (A:Univ@{s;Set}) : Univ@{s;Set} := { R4f1 : A}.
   About R4.
 
   (* non SProp instantiation must be squashed *)
-  Fail Record R5 (A:Type) : SProp := { R5f1 : A}.
+  Fail Record R5 (A:Univ) : SProp := { R5f1 : A}.
   #[warnings="-non-primitive-record"]
-    Record R5 (A:Type) : SProp := { R5f1 : A}.
-  (* R5@{α ; u} : forall _ : Type@{α ; u}, SProp *)
+    Record R5 (A:Univ) : SProp := { R5f1 : A}.
+  (* R5@{α ; u} : forall _ : Univ@{α ; u}, SProp *)
   (* α ; u |= SProp -> α *)
   About R5.
 
-  Record R6@{s; |+} (A:Type@{s;Set}) : Set := { R6f1 : A; R6f2 : nat }.
+  Record R6@{s; |+} (A:Univ@{s;Set}) : Set := { R6f1 : A; R6f2 : nat }.
   About R6.
 
   Check fun (A:SProp) (x y : R6 A) =>
@@ -579,37 +579,37 @@ Module Records.
           eq_refl : Conversion.box _ x.(R6f2 _) = Conversion.box _ y.(R6f2 _).
 
   (* Elimination constraints are added specifically for each projection *)
-  #[projections(primitive=no)] Record R7 (A:Type) := { R7f1 : A; R7f2 : nat }.
-  (* Record R7@{α α0 ; u |} (A : Type@{α ; u}) : Type@{α0 ; max(Set,u)}  *)
-  (* R7f1@{α α0 ; u |} : forall A : Type@{α ; u}, R7@{α α0 ; u} A -> A
+  #[projections(primitive=no)] Record R7 (A:Univ) := { R7f1 : A; R7f2 : nat }.
+  (* Record R7@{α α0 ; u |} (A : Univ@{α ; u}) : Univ@{α0 ; max(Set,u)}  *)
+  (* R7f1@{α α0 ; u |} : forall A : Univ@{α ; u}, R7@{α α0 ; u} A -> A
       α α0 ; u |= α0 -> α *)
-  (* R7f2@{α α0 ; u |} : forall A : Type@{α ; u}, R7@{α α0 ; u} A -> nat
-      α α0 ; u |= α0 -> Type *)
+  (* R7f2@{α α0 ; u |} : forall A : Univ@{α ; u}, R7@{α α0 ; u} A -> nat
+      α α0 ; u |= α0 -> Univ *)
   About R7.
   About R7f1.
   About R7f2.
 
   (* sigma as a primitive record works better *)
-  Record Rsigma@{s;u v|} (A:Type@{s;u}) (B:A -> Type@{s;v}) : Type@{s;max(u,v)}
+  Record Rsigma@{s;u v|} (A:Univ@{s;u}) (B:A -> Univ@{s;v}) : Univ@{s;max(u,v)}
     := Rpair { Rpr1 : A; Rpr2 : B Rpr1 }.
   About Rsigma.
 
   (* match desugared to primitive projections using definitional eta *)
   Definition Rsigma_srect A B
-    (P : Rsigma A B -> Type)
+    (P : Rsigma A B -> Univ)
     (H : forall x b, P (Rpair _ _ x b))
     (s:Rsigma A B)
     : P s
     := match s with Rpair _ _ x b => H x b end.
-  (* Rsigma_srect@{α α0 ; u u0 u1 |} : forall (A : Type@{α0 ; _}) (B : A -> Type@{α0 ; _})
-         (P : Rsigma A B -> Type@{α ; _}),
+  (* Rsigma_srect@{α α0 ; u u0 u1 |} : forall (A : Univ@{α0 ; _}) (B : A -> Univ@{α0 ; _})
+         (P : Rsigma A B -> Univ@{α ; _}),
        (forall (x : A) (b : B x), P {| Rpr1 := x; Rpr2 := b |}) ->
        forall s : Rsigma A B, P s *)
   About Rsigma_srect.
 
   (* sort polymorphic exists (we could also make B sort poly)
      can't be a primitive record since the first projection isn't defined at all sorts *)
-  Inductive sexists (A:Type) (B:A -> Prop) : Prop
+  Inductive sexists (A:Univ) (B:A -> Prop) : Prop
     := sexist : forall a:A, B a -> sexists A B.
   About sexists.
 
@@ -620,20 +620,20 @@ Module Records.
 
   (* Elimination constraints are added specifically for each projection *)
   Record R8 := {
-    R8f1 : Type;
+    R8f1 : Univ;
     R8f2 : R8f1
   }.
-  (* Record R8@{α α0 ; u |} : Type@{α ; u+1}. *)
-  (* R8f1@{α α0 ; u |} : R8@{α α0 ; u} -> Type@{α0 ; u}
-      α α0 ; u |= α -> Type *)
+  (* Record R8@{α α0 ; u |} : Univ@{α ; u+1}. *)
+  (* R8f1@{α α0 ; u |} : R8@{α α0 ; u} -> Univ@{α0 ; u}
+      α α0 ; u |= α -> Univ *)
   (* R8f2@{α α0 ; u |} : forall r : R8@{α α0 ; u}, R8f1@{α α0 ; u} r
       α α0 ; u |= α -> α0
-                  α -> Type *)
+                  α -> Univ *)
   About R8.
   About R8f1.
   About R8f2.
 
-  Inductive eq {A} x : A -> Type :=
+  Inductive eq {A} x : A -> Univ :=
   eq_refl : eq x x.
 
   Inductive bool := true | false.
@@ -643,7 +643,7 @@ Module Records.
     R9f1 : bool ;
     R9f2 : bool ;
   }.
-  (* R9@{α α0 α1 ; } : Type@{α ; Set} *)
+  (* R9@{α α0 α1 ; } : Univ@{α ; Set} *)
   (* R9f1@{α α0 α1 ; } : forall _ : R9@{α α0 α1 ; }, bool@{α0 ; } *)
         (* α α0 α1 ;  |= α -> α0 *)
   (* R9f2@{α α0 α1 ; } : forall _ : R9@{α α0 α1 ; }, bool@{α1 ; } *)
@@ -653,19 +653,19 @@ Module Records.
   About R9f2.
 
   (* Elimination constraints are added specifically for each projection *)
-  Record R10 (A : Type) := {
+  Record R10 (A : Univ) := {
     R10f1 : A ;
     R10f2 : eq R10f1 R10f1 ;
     R10f3 : bool
   }.
-  (* R10@{α α0 α1 α2 ; u u0} : forall _ : Type@{α0 ; u}, Type@{α ; max(Set,u,u0)} *)
-  (* R10f1@{α α0 α1 α2 ; u u0} : forall (A : Type@{α0 ; u}) (_ : R@{α α0 α1 α2 ; u u0} A), A *)
+  (* R10@{α α0 α1 α2 ; u u0} : forall _ : Univ@{α0 ; u}, Univ@{α ; max(Set,u,u0)} *)
+  (* R10f1@{α α0 α1 α2 ; u u0} : forall (A : Univ@{α0 ; u}) (_ : R@{α α0 α1 α2 ; u u0} A), A *)
      (* α α0 α1 α2 ; u u0 |= α -> α0 *)
-  (* R10f2@{α α0 α1 α2 ; u u0} : forall (A : Type@{α0 ; u}) (r : R@{α α0 α1 α2 ; u u0} A),
+  (* R10f2@{α α0 α1 α2 ; u u0} : forall (A : Univ@{α0 ; u}) (r : R@{α α0 α1 α2 ; u u0} A),
                               @eq@{α0 α1 ; u u0} A (x@{α α0 α1 α2 ; u u0} A r) (x@{α α0 α1 α2 ; u u0} A r) *)
      (* α α0 α1 α2 ; u u0 |= α -> α0
                              α -> α1 *)
-  (* R10f3@{α α0 α1 α2 ; u u0} : forall (A : Type@{α0 ; u}) (_ : R@{α α0 α1 α2 ; u u0} A), bool@{α2 ; } *)
+  (* R10f3@{α α0 α1 α2 ; u u0} : forall (A : Univ@{α0 ; u}) (_ : R@{α α0 α1 α2 ; u u0} A), bool@{α2 ; } *)
      (* α α0 α1 α2 ; u u0 |= α -> α2 *)
   About R10.
   About R10f1.
@@ -681,18 +681,18 @@ Module Records.
           bool ;
     R11f3 : bool
   }.
-  (* R11@{α α0 α1 α2 α3 α4 α5 ; u} : Type@{α ; Set} *)
+  (* R11@{α α0 α1 α2 α3 α4 α5 ; u} : Univ@{α ; Set} *)
        (* α α0 α1 α2 α3 α4 α5 ; u |= α0 -> α3
-                                     α3 -> Type *)
+                                     α3 -> Univ *)
   (* R11f2 : ... *)
     (* α α0 α1 α2 α3 α4 α5 ; u |= α -> α3
                               α -> α4
                               α0 -> α3
-                              α3 -> Type *)
+                              α3 -> Univ *)
   (* R11f3 : ... *)
     (* α α0 α1 α2 α3 α4 α5 ; u |= α -> α5
                               α0 -> α3
-                              α3 -> Type *)
+                              α3 -> Univ *)
   About R11.
   About R11f1.
   About R11f2.
@@ -716,8 +716,8 @@ Module Records.
  (* Elimination constraints added to the inductive itself and propagated to projections.
     Elimination constraints of projections are specifically for each projection *)
   Record R13 := {
-    R13f1 : Type ;
-    R13f2 : Type ;
+    R13f1 : Univ ;
+    R13f2 : Univ ;
     R13f3 : bool;
     R13f4 : forall (b : bool),
           match b with
@@ -728,21 +728,21 @@ Module Records.
           | false => bool
           end
     }.
-   (* R13@{α α0 α1 α2 ; u u0} : Type@{α ; max(Set,u+1,u0+1)} *)
-       (* α α0 α1 α2 ; u u0 |= α1 -> Type
-                               α2 -> Type,
+   (* R13@{α α0 α1 α2 ; u u0} : Univ@{α ; max(Set,u+1,u0+1)} *)
+       (* α α0 α1 α2 ; u u0 |= α1 -> Univ
+                               α2 -> Univ,
                                u0 <= u *)
   (* R13f3@{α α0 α1 α2 ; u u0} : forall _ : R'@{α α0 α1 α2 ; u u0}, bool@{α1 ; }  *)
       (* α α0 α1 α2 ; u u0 |= α -> α1
-                              α1 -> Type
-                              α2 -> Type,
+                              α1 -> Univ
+                              α2 -> Univ,
                               u0 <= u *)
   (* R13f4@{α α0 α1 α2 ; u u0} : ... *)
       (* α α0 α1 α2 ; u u0 |= α -> α0
                               α -> α1
-                              α -> Type
-                              α1 -> Type
-                              α2 -> Type,
+                              α -> Univ
+                              α1 -> Univ
+                              α2 -> Univ,
                               u0 <= u *)
   About R13.
   About R13f1.
@@ -754,13 +754,13 @@ End Records.
 
 Module Classes.
 
-  Class C1 (A : Type) : Type := {
+  Class C1 (A : Univ) : Univ := {
     C1f1 : A
   }.
   About C1.
   About C1f1.
 
-  Inductive unit : Type := tt.
+  Inductive unit : Univ := tt.
 
   Instance C1I1 : C1 unit := { C1f1 := tt }.
   About C1I1.
@@ -794,10 +794,10 @@ Module Classes.
 End Classes.
 
 Unset Universe Polymorphism.
-Set Collapse Sorts ToType.
+Set Collapse Sorts ToUniv.
 Fail #[universes(collapse_sort_variables=no)]
-Inductive Attr : Type := attr.
+Inductive Attr : Univ := attr.
 
 #[universes(polymorphic, collapse_sort_variables=no)]
-Inductive Attr : Type := attr.
+Inductive Attr : Univ := attr.
 About Attr.

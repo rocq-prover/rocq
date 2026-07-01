@@ -1,13 +1,13 @@
 Sort s.
 Sort s'.
 
-Fail Check fun (A:Type@{s;Set}) => A : Type@{s';_}.
+Fail Check fun (A:Univ@{s;Set}) => A : Univ@{s';_}.
 
-Fail Check fun (A:Type@{s;Set}) => A : Type.
+Fail Check fun (A:Univ@{s;Set}) => A : Type.
 
-Fail Check fun (A:Set) => A : Type@{s;_}.
+Fail Check fun (A:Set) => A : Univ@{s;_}.
 
-Check fun (A:Type@{s;Set}) => A : Type@{s;_}.
+Check fun (A:Univ@{s;Set}) => A : Univ@{s;_}.
 
 Sort S1.
 
