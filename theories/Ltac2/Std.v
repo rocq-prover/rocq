@@ -361,6 +361,8 @@ Ltac2 @ external contradiction : constr_with_bindings option -> unit := "rocq-ru
 
 Ltac2 @ external autorewrite : bool -> (unit -> unit) option -> ident list -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_autorewrite".
 
+Ltac2 @ external autorewrite_backward : bool -> (unit -> unit) option -> ident list -> clause -> unit := "rocq-runtime.plugins.ltac2" "tac_autorewrite_backward".
+
 Ltac2 @ external subst : ident list -> unit := "rocq-runtime.plugins.ltac2" "tac_subst".
 Ltac2 @ external subst_all : unit -> unit := "rocq-runtime.plugins.ltac2" "tac_substall".
 
