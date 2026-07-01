@@ -61,6 +61,18 @@ type table_value =
   | StringRefValue of string
   | QualidRefValue of Libnames.qualid
 
+module type ArgSet =
+sig
+  type elt
+  type t
+  val empty : t
+  val is_empty : t -> bool
+  val add : elt -> t -> t
+  val remove : elt -> t -> t
+  val mem : elt -> t -> bool
+  val elements : t -> elt list
+end
+
 (** The functor [MakeTable] declares a table.  Vernacular [Add],
     [Remove], and [Test] commands pass each argument as a [table_value];
     [encode] maps such values to stored elements, possibly globalizing
@@ -69,7 +81,7 @@ type table_value =
     [encode]. *)
 module type TableArg = sig
   type t
-  module Set : CSig.USetS with type elt = t
+  module Set : ArgSet with type elt = t
   val encode : Environ.env -> table_value -> t
   val subst : Mod_subst.substitution -> t -> t
 

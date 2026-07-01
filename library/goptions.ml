@@ -83,10 +83,22 @@ let get_ref_table k = map_table_value (fun r -> QualidRefValue r) (get_table k)
 
 let opts_cat = Libobject.create_category "options"
 
+module type ArgSet =
+sig
+  type elt
+  type t
+  val empty : t
+  val is_empty : t -> bool
+  val add : elt -> t -> t
+  val remove : elt -> t -> t
+  val mem : elt -> t -> bool
+  val elements : t -> elt list
+end
+
 module type TableArg =
 sig
   type t
-  module Set : CSig.USetS with type elt = t
+  module Set : ArgSet with type elt = t
   val encode : Environ.env -> table_value -> t
   val subst : Mod_subst.substitution -> t -> t
   val check_local : Libobject.locality -> t -> unit
