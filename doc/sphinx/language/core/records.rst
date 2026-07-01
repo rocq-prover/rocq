@@ -261,7 +261,8 @@ Constructing records
    .. insertprodn term_record field_val
 
    .. prodn::
-      term_record ::= %{%| {? {+; @field_val } {? ; } } %|%}
+      term_record ::= %{%| {? @term1 with } {? @record_declaration } %|%}
+      record_declaration ::= {+; @field_val }
       field_val ::= @qualid {* @binder } := @term
 
    Instances of record types can be constructed using either *record form*
@@ -271,6 +272,7 @@ Constructing records
 
    In the record form, the fields can be given in any order.  Fields that can be
    inferred by unification or by using obligations (see :ref:`programs`) may be omitted.
+   If :n:`@term1 with` is provided, missing fields are taken from :n:`@term1`.
 
    In application form, all fields of the record must be passed, in order,
    as arguments to the constructor.

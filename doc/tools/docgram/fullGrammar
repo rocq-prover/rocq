@@ -139,7 +139,7 @@ term0: [
 | NUMBER
 | string
 | "(" term200 ")"
-| "{|" record_declaration bar_cbrace
+| "{|" full_record_declaration bar_cbrace
 | "`{" term200 "}"
 | test_array_opening "[" "|" array_elems "|" lconstr type_cstr test_array_closing "|" "]" univ_annot
 | "`(" term200 ")"
@@ -158,12 +158,13 @@ array_elems: [
 | LIST0 lconstr SEP ";"
 ]
 
-record_declaration: [
-| fields_def
+full_record_declaration: [
+| test_record_nowith record_declaration
+| term1 "with" record_declaration
 ]
 
-fields_def: [
-| field_def ";" fields_def
+record_declaration: [
+| field_def ";" record_declaration
 | field_def
 |
 ]
