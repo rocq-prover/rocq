@@ -319,19 +319,6 @@ written using the :ref:`let-tuple syntax <let-tuple>`.
    Use the :cmd:`Add` and :cmd:`Remove` commands to update this set.
 
 
-Printing matching on booleans
-+++++++++++++++++++++++++++++
-
-If an inductive type is isomorphic to the boolean type, pattern matching
-can be written using ``if`` … ``then`` … ``else`` ….  This table controls
-which types are written this way:
-
-.. table:: Printing If @qualid
-
-   This :term:`table` specifies a set of qualids for which pattern matching is displayed using
-   ``if`` … ``then`` … ``else`` ….  Use the :cmd:`Add` and :cmd:`Remove`
-   commands to update this set.
-
 This example emphasizes what the printing settings offer.
 
 .. example::
@@ -361,7 +348,7 @@ Printing regular match syntax
 
    When enabled, this flag makes printing avoid the alternate case
    analysis syntaxes (with :ref:`if <if-then-else>` and :ref:`let
-   <irrefutable-patterns>`), overriding :table:`Printing If` and
+   <irrefutable-patterns>`), overriding
    :table:`Printing Let` and disregarding the syntax used to input the
    case analysis (so e.g. `let 'tt := tt in tt` will be printed using `match`).
 

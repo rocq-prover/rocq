@@ -733,6 +733,18 @@ let pr ~flags pr sep lev_after inherited a =
                  pr_case_type (pr_dangling_with_for mt pr) rtntypopt ++
                  spc () ++ keyword "in" ++ pr spc lev_after ltop b)))
       lletpattern
+  | CCases(Constr.IfStyle,rtntypopt,[c,as_clause,in_clause],[{v=([[p]],b1)};{v=(_,b2)}]) ->
+    return (fun lev_after ->
+        hv 0 (
+          hov 1 (keyword "if" ++ spc () ++ pr mt no_after ltop c
+                 ++ pr_as_in ~flags (pr mt no_after ltop) as_clause in_clause
+                 ++ spc () ++ keyword "is" ++ spc ()
+                 ++ pr_patt ~flags (pr mt no_after ltop) no_after ltop p) ++
+          spc () ++
+          hov 0 (keyword "then"
+                 ++ pr (fun () -> brk (1,1)) no_after ltop b1) ++ spc () ++
+          hov 0 (keyword "else" ++ pr (fun () -> brk (1,1)) lev_after ltop b2)))
+      lif
   | CCases(_,rtntypopt,c,eqns) ->
     return (fun lev_after ->
         v 0

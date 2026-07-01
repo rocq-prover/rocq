@@ -40,8 +40,6 @@ Inductive bool : Set :=
   | true : bool
   | false : bool.
 
-Add Printing If bool.
-
 Declare Scope bool_scope.
 Delimit Scope bool_scope with bool.
 Bind Scope bool_scope with bool.

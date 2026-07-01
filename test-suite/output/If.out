@@ -1,0 +1,50 @@
+if true then 1 else 0
+     : nat
+if 4 is 0 then 1 else 0
+     : nat
+if 4 is S n then n else 0
+     : nat
+if 4 is 0 then 0 else 1
+     : nat
+if 4 is 0 then 1 else 0
+     : nat
+match A with
+| A => 0
+| _ => 1
+end
+     : nat
+if B is C then 1 else 0
+     : nat
+match B return nat with
+| A => O
+| B => O
+| C => S O
+end
+     : nat
+if B is C then 1 else 0
+     : nat
+match B with
+| C => 1
+| _ => 0
+end
+     : nat
+if B is C then 1 else 0
+     : nat
+match A1 with
+| A1 => 1
+| A2 => 0
+end
+     : nat
+if A1 is A1 then 1 else 0
+     : nat
+if A1 is A1 then 0 else 1
+     : nat
+if Or is Sr _ then 1 else 0
+     : nat
+if Or is Sr _ then 0 else 1
+     : nat
+test =
+fun x : {True} + {True} => match x with
+                           | left t | right t => t
+                           end
+     : {True} + {True} -> True
