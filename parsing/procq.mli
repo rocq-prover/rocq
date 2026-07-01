@@ -40,6 +40,7 @@ module Lookahead : sig
   val lk_name : t
   val lk_qualid : t
   val lk_ident_except : string list -> t
+  val lk_except_kws : string list -> t
   val lk_ident_list : t
 end
 
@@ -191,7 +192,7 @@ module Constr :
     val one_closed_binder : kinded_cases_pattern_expr Entry.t
     val binders_fixannot : (local_binder_expr list * fixpoint_order_expr option) Entry.t
     val typeclass_constraint : (lname * bool * constr_expr) Entry.t
-    val record_declaration : constr_expr Entry.t
+    val record_declaration : (Libnames.qualid * constr_expr) list Entry.t
     val arg : (constr_expr * explicitation CAst.t option) Entry.t
     val type_cstr : constr_expr Entry.t
   end

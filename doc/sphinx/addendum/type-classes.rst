@@ -341,7 +341,7 @@ Command summary
       or :n:`@constructor` with a right-hand-side that
       is not itself a Class has no effect (apart from emitting this warning).
 
-.. cmd:: Instance {? @ident_decl {* @binder } } : @type {? @hint_info } {? {| := %{ {* @field_val } %} | := @term } }
+.. cmd:: Instance {? @ident_decl {* @binder } } : @type {? @hint_info } {? {| := %{ {? @record_declaration } %} | := @term } }
 
    Declares a typeclass instance named :token:`ident_decl` of the typeclass
    :n:`@type` with the specified parameters and with

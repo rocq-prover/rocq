@@ -113,7 +113,7 @@ module Interner : sig
   ; app : t -> (constr_expr * (constr_expr * explicitation CAst.t option) list) fn
   ; proj : t -> (explicit_flag * (qualid * instance_expr option)
               * (constr_expr * explicitation CAst.t option) list * constr_expr) fn
-  ; record : t -> ((qualid * constr_expr) list) fn
+  ; record : t -> (constr_expr option * (qualid * constr_expr) list) fn
   ; cases : t -> (Constr.case_style * constr_expr option * case_expr list * branch_expr list) fn
   ; lettuple : t -> (lname list * (lname option * constr_expr option) * constr_expr * constr_expr) fn
   ; if_ : t -> (constr_expr * (lname option * constr_expr option) * constr_expr * constr_expr) fn

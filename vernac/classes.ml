@@ -459,7 +459,8 @@ let do_instance_type_ctx_instance props k env' ctx' sigma ~program_mode subst =
     res, sigma
 
 let interp_props ~program_mode env' cty k ctx ctx' subst sigma = function
-  | (true, { CAst.v = CRecord fs; loc }) ->
+  | (true, { CAst.v = CRecord (def,fs); loc }) ->
+    let () = assert (Option.is_empty def) in
     check_duplicate ?loc fs;
     let subst, sigma = do_instance_type_ctx_instance fs k env' ctx' sigma ~program_mode subst in
     let term, termtype =

@@ -148,7 +148,7 @@ and constr_expr_r =
   | CApp     of constr_expr * (constr_expr * explicitation CAst.t option) list
   | CProj    of explicit_flag * (qualid * instance_expr option)
               * (constr_expr * explicitation CAst.t option) list * constr_expr
-  | CRecord  of (qualid * constr_expr) list
+  | CRecord  of constr_expr option * (qualid * constr_expr) list
 
   (* representation of the "let" and "match" constructs *)
   | CCases of Constr.case_style   (* determines whether this value represents "let" or "match" construct *)
