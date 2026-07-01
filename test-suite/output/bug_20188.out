@@ -4,7 +4,7 @@ The reference foo was not found in the current environment.
 ?Goal
      : ?T
 where
-?T : [ |- Type]
+?T : [ |- Univ]
 ?Goal : [ |- ?T]
 File "./output/bug_20188.v", line 6, characters 8-11:
 Error: The reference foo was not found in the current environment.

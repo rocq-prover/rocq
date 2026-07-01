@@ -798,11 +798,15 @@ Quantifying over universes does not allow instantiation with `Prop` or `SProp`. 
 
 To be able to instantiate a sort with `Prop` or `SProp`, we must
 quantify over :gdef:`sort qualities`. Definitions which quantify over
-sort qualities are called :gdef:`sort polymorphic`.
+sort qualities are called :gdef:`sort polymorphic`. The generic universe
+constructor `Univ@{s;l}` combines a sort quality `s` and a universe level `l`.
+We have the equivalences `Univ@{Prop;_} = Prop`, `Univ@{SProp;_} = SProp` and
+`Univ@{Type;i} = Type@{i}`. The syntax `Type@{s;_}` is deprecated since version
+9.4, to avoid confusion with `Type@{u} = Univ@{Type;u}` in particular.
 
 .. rocqtop:: all
 
-   Polymorphic Definition sort@{s ; u} := Type@{s;u}.
+   Polymorphic Definition sort@{s ; u} := Univ@{s;u}.
 
 .. note::
 
@@ -810,7 +814,7 @@ sort qualities are called :gdef:`sort polymorphic`.
 
    .. rocqtop:: all warn
 
-      Polymorphic Definition sort'@{s | u |} := Type@{s|u}.
+      Polymorphic Definition sort'@{s | u |} := Univ@{s;u}.
 
    To help the parser, both `|` in the :n:`@univ_decl` are required.
 
@@ -818,7 +822,7 @@ Sort quality variables of a sort polymorphic definition may be
 instantiated by the concrete values `SProp`, `Prop` and `Type` or by a
 bound variable.
 
-Instantiating `s` in `Type@{s;u}` with the impredicative `Prop` or
+Instantiating `s` in `Univ@{s;u}` with the impredicative `Prop` or
 `SProp` produces `Prop` or `SProp` respectively regardless of the
 instantiation of `u`.
 
@@ -866,9 +870,10 @@ is valid.
 
    .. rocqtop:: all
 
+      Set Universe Polymorphism.
       Unset Collapse Sorts ToType.
 
-      Inductive list (A : Type) : Type :=
+      Inductive list (A : Univ) : Univ :=
       | nil : list A
       | cons : A -> list A -> list A.
 
@@ -901,7 +906,7 @@ on the following example:
 
    Set Universe Polymorphism.
 
-   Inductive Squash@{s;u} (A:Type@{s;u}) : Prop := squash (_:A).
+   Inductive Squash@{s;u} (A:Univ@{s;u}) : Prop := squash (_:A).
 
 Here, elimination to `Prop` and `SProp` is always allowed, so `Squash_ind`
 and `Squash_sind` are automatically defined.
@@ -918,7 +923,7 @@ However elimination to `Type` or to a polymorphic sort with `s := Prop` is allow
      : forall s, P s
      := fun s => match s with squash _ x => H x end.
 
-   Definition Squash_Prop_srect@{s;u +} A (P:Squash@{Prop;_} A -> Type@{s;u})
+   Definition Squash_Prop_srect@{s;u +} A (P:Squash@{Prop;_} A -> Univ@{s;u})
      (H:forall x, P (squash _ x))
      : forall s, P s
      := fun s => match s with squash _ x => H x end.
@@ -935,7 +940,7 @@ the inductive matches the sort it is eliminated to.
 
 .. rocqtop:: all
 
-   Inductive sum@{sl sr s;ul ur} (A:Type@{sl;ul}) (B:Type@{sr;ur}) : Type@{s;max(ul,ur)} :=
+   Inductive sum@{sl sr s;ul ur} (A:Univ@{sl;ul}) (B:Univ@{sr;ur}) : Univ@{s;max(ul,ur)} :=
    | inl (_:A)
    | inr (_:B).
 
@@ -947,7 +952,7 @@ the inductive matches the sort it is eliminated to.
 .. rocqtop:: all
 
    Fail Definition sum_elim@{sl sr s s';ul ur u'|}
-     (A:Type@{sl;ul}) (B:Type@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Type@{s';u'})
+     (A:Univ@{sl;ul}) (B:Univ@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Univ@{s';u'})
      (fl : forall (x : A), P (inl x)) (fr : forall (y : B), P (inr y))
      (v : sum@{sl sr s;ul ur} A B) : P v :=
          match v with
@@ -963,7 +968,7 @@ into `s'`.
 .. rocqtop:: all
 
    Definition sum_elim@{sl sr s s';ul ur u'|s -> s'}
-     (A:Type@{sl;ul}) (B:Type@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Type@{s';u'})
+     (A:Univ@{sl;ul}) (B:Univ@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Univ@{s';u'})
      (fl : forall (x : A), P (inl x)) (fr : forall (y : B), P (inr y))
      (v : sum@{sl sr s;ul ur} A B) : P v :=
          match v with
@@ -994,7 +999,7 @@ It means that `s` and `s'` can respectively be instantiated to e.g., `Type` and 
    .. rocqtop:: all
 
       Definition sum_elim_ext@{sl sr s s';ul ur u'|+}
-        (A:Type@{sl;ul}) (B:Type@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Type@{s';u'})
+        (A:Univ@{sl;ul}) (B:Univ@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Univ@{s';u'})
         (fl : forall (x : A), P (inl x)) (fr : forall (y : B), P (inr y))
         (v : sum@{sl sr s;ul ur} A B) : P v :=
             match v with
@@ -1003,7 +1008,7 @@ It means that `s` and `s'` can respectively be instantiated to e.g., `Type` and 
                 end.
 
       Definition sum_elim_elab@{sl sr s s';ul ur u'}
-        (A:Type@{sl;ul}) (B:Type@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Type@{s';u'})
+        (A:Univ@{sl;ul}) (B:Univ@{sr;ur}) (P:sum@{sl sr s;ul ur} A B -> Univ@{s';u'})
         (fl : forall (x : A), P (inl x)) (fr : forall (y : B), P (inr y))
         (v : sum@{sl sr s;ul ur} A B) : P v :=
             match v with
@@ -1013,7 +1018,7 @@ It means that `s` and `s'` can respectively be instantiated to e.g., `Type` and 
 
       Unset Collapse Sorts ToType.
 
-      Definition sum_elim_implicit (A B : Type) (P : sum A B -> Type)
+      Definition sum_elim_implicit (A B : Univ) (P : sum A B -> Univ)
         (fl : forall (x : A), P (inl x)) (fr : forall (y : B), P (inr y))
         (v : sum A B) : P v :=
             match v with
@@ -1075,19 +1080,19 @@ constraint on global sorts can be declared with the :cmd:`Constraint`.
     Print Sorts.
 
     (* Universe of g-sorted type. *)
-    Definition G@{l|} : Type@{l+1} := Type@{g;l}.
+    Definition G@{l|} : Type@{l+1} := Univ@{g;l}.
 
     Section LocalSorts.
       Sort u v w.
 
-      Definition arr2@{l|} (A : Type@{u;l}) (B : Type@{v;l}) (C : Type@{w;l}) : Type@{w;l} :=
+      Definition arr2@{l|} (A : Univ@{u;l}) (B : Univ@{v;l}) (C : Univ@{w;l}) : Univ@{w;l} :=
         A -> B -> C.
 
       Print Sorts.
 
       Sort x y.
 
-      Definition arr1@{l|} (X : Type@{x;l}) (Y : Type@{y;l}) : Type@{y;l} :=
+      Definition arr1@{l|} (X : Univ@{x;l}) (Y : Univ@{y;l}) : Univ@{y;l} :=
         X -> Y.
 
       Print Sorts.
@@ -1098,7 +1103,7 @@ constraint on global sorts can be declared with the :cmd:`Constraint`.
     Print Sorts.
 
     (* Equivalent definition of arr2 outside the section LocalSorts. *)
-    Definition arr2'@{u v w ; l |} (A : Type@{u;l}) (B : Type@{v;l}) (C : Type@{w;l}) : Type@{w;l} :=
+    Definition arr2'@{u v w ; l |} (A : Univ@{u;l}) (B : Univ@{v;l}) (C : Univ@{w;l}) : Univ@{w;l} :=
         A -> B -> C.
 
     (* All sort declarations of the section are bound, even the unused one. *)
@@ -1128,8 +1133,8 @@ A template polymorphic inductive is polymorphic over some specific
 universe levels and sort variables which are introduced by the inductive's declaration.
 These levels are called "template (polymorphic) levels" and sorts.
 
-A type of the shape `Type@{s;u}` or `forall ..., Type@{s;u}` (i.e. a
-type of types or type families) is called an "arity". `Type@{s;u}` is
+A type of the shape `Univ@{s;u}` or `forall ..., Univ@{s;u}` (i.e. a
+type of types or type families) is called an "arity". `Univ@{s;u}` is
 the "conclusion" of the arity. The type of an inductive is always an
 arity, and for short we say "the inductive's conclusion" instead of
 "the inductive's type's conclusion". Template polymorphism also
@@ -1142,7 +1147,7 @@ An inductive may be template polymorphic when
 
 - the template levels appear linearly in the conclusions of parameters
   which are arities. Such conclusions must have only that level as its universe
-  (i.e. `Type@{s;u}` where `u` is a template level, not `Type@{s;max(u,v)}` or `Type@{u+1}`).
+  (i.e. `Univ@{s;u}` where `u` is a template level, not `Univ@{s;max(u,v)}` or `Type@{u+1}`).
   Each template level is said to be "bound" by the parameter in whose type it appears.
 
 - the template levels may also appear in the inductive's conclusion,
@@ -1219,7 +1224,7 @@ Using template polymorphic inductives
 
 For each template universe `u` bound by parameter `A` of an inductive
 `I`, when `I` is applied such that `A` is instantiated with a term of
-type `forall ..., Type@{q;i}` (where `i` may be an algebraic
+type `forall ..., Univ@{q;i}` (where `i` may be an algebraic
 universe), `u` is instantiated by `i` in the inductive's conclusion
 and in the constraints (which must be of the form `u <= x` where `x`
 is a global universe due to the "no constraints from below"

@@ -18,6 +18,9 @@ Sorts
    | Type
    | Type @%{ _ %}
    | Type @%{ {? @qualid {| %| | ; } } @universe %}
+   | Univ @%{ @qualid ; @universe %}
+   | Univ @%{ @universe %}
+   | Univ
    universe ::= max ( {+, @universe_expr } )
    | _
    | @universe_expr

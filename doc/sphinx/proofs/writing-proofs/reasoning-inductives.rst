@@ -1374,7 +1374,7 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
       The depth for nested inductive types is `Depth Scheme All -1` as if `X` is nested with `Y`,
       then `X_all` is nested with `Y_all`, and the eliminator for `X_all` requires `Y_all_all`.
 
-   The `All` predicate features a predicate `PA : A -> Type@{s;u}` for each
+   The `All` predicate features a predicate `PA : A -> Univ@{s;u}` for each
    strictly positive uniform-parameter `A : Type` (or more generally an arity), and
    enforces they hold for each subterm of type `A` in the body of `ind`.
    The theorem `AllForall` then states that if all the predicates `PA` hold,
@@ -1412,7 +1412,7 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
       | pair : A -> B -> prod A B.
 
    The `All` predicate should then be a predicate with additional
-   parameters `PA : A -> Type@{s;u}` and `PB : B -> Type@{s';u'}`, and requires
+   parameters `PA : A -> Univ@{s;u}` and `PB : B -> Univ@{s';u'}`, and requires
    `PA a` and `PB b` for `prod A PA B PB (pair a b)` to hold.
    Its theorem will then state that if `PA` and `PB` hold, then `prod_all` holds.
    They can be generated with :cmd:`Scheme All` command.
@@ -1468,11 +1468,11 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
       Set Universe Polymorphism.
       From Corelib Require Import PrimInt63 PrimArray ArrayAxioms.
 
-      Definition array_all@{s; +} (A : Type) (P : A -> Type@{s; _}) :
-         array A -> Type@{s; _} :=
+      Definition array_all@{s; +} (A : Type) (P : A -> Univ@{s; _}) :
+         array A -> Univ@{s; _} :=
          fun a => forall i, P a.[i].
 
-      Definition array_all_forall@{s; +} A (P : A -> Type@{s; _}) :
+      Definition array_all_forall@{s; +} A (P : A -> Univ@{s; _}) :
          (forall a, P a) -> forall a, array_all A P a :=
          fun H a i => H _.
 

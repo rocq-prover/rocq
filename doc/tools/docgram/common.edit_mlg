@@ -330,6 +330,10 @@ scope_delimiter: [
 | WITH "%_" scope
 ]
 
+SPLICE: [
+| typeloc
+]
+
 sort: [
 | REPLACE "Type" "@{" reference ";" universe "}"
 | WITH "Type" "@{" OPT [ qualid [ "|" | ";" ] ] universe "}"

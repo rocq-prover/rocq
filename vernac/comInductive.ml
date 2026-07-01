@@ -119,8 +119,8 @@ let rec check_type_conclusion ind =
 let rec make_anonymous_conclusion_flexible ind =
   let open Glob_term in
   match DAst.get ind with
-  | GSort (None, UAnonymous {rigid=UnivRigid}) ->
-    Some (DAst.make ?loc:ind.loc (GSort (None, UAnonymous {rigid=UnivFlexible true})))
+  | GSort (None | Some (GLocalQVar CAst.{v = Anonymous}) as q, UAnonymous {rigid=UnivRigid}) ->
+    Some (DAst.make ?loc:ind.loc (GSort (q, UAnonymous {rigid=UnivFlexible true})))
   | GSort _ -> None
   | GProd (a, b, c, d, e) -> begin match make_anonymous_conclusion_flexible e with
       | None -> None
@@ -873,7 +873,7 @@ let extract_inductive indl =
   List.map (fun ({CAst.v=indname},_,ar,lc) -> {
     ind_name = indname;
     ind_arity_explicit = Option.has_some ar;
-    ind_arity = Option.default (CAst.make @@ CSort Constrexpr_ops.expr_Type_sort) ar;
+    ind_arity = Option.default (CAst.make @@ CSort Constrexpr_ops.expr_Univ_sort) ar;
     ind_lc = List.map (fun (_,({CAst.v=id},t)) -> (id,t)) lc
   }) indl
 
@@ -990,4 +990,5 @@ struct
 
 let error_differing_params = error_differing_params
 
+let make_anonymous_conclusion_flexible = make_anonymous_conclusion_flexible
 end

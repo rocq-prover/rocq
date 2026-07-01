@@ -58,7 +58,7 @@ Check pid@{u}.
    instance, because dropping it re-elaborates [idT] at a fresh quality
    (defaulting to [Type], quality [QType]) which differs from [Prop]. *)
 Set Universe Polymorphism.
-Definition idT@{s;u} (A : Type@{s;u}) (a : A) := a.
+Definition idT@{s;u} (A : Univ@{s;u}) (a : A) := a.
 Set Printing Reversible Up To Conversion Modulo Universes.
 Check idT@{Prop;Set}.
 (* Modulo universe unification is laxer on sorts: the fresh sort quality

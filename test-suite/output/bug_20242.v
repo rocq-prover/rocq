@@ -1,4 +1,4 @@
-Polymorphic Record foo@{s;u|} (x : Type@{s;u}) := {}.
+Polymorphic Record foo@{s;u|} (x : Univ@{s;u}) := {}.
 
 Set Universe Polymorphism.
 

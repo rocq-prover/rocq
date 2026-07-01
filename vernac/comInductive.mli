@@ -127,4 +127,8 @@ sig
     -> (Names.lident * Vernacexpr.inductive_params_expr)
     -> (Names.lident * Vernacexpr.inductive_params_expr)
     -> 'a
+
+  val make_anonymous_conclusion_flexible :
+    'a Glob_term.glob_constr_g ->
+    'a Glob_term.glob_constr_g option
 end

@@ -1,8 +1,8 @@
 Require Extraction.
 
-Polymorphic Definition idp@{s;u} (A : Type@{s;u}) (a : A) : A := a.
+Polymorphic Definition idp@{s;u} (A : Univ@{s;u}) (a : A) : A := a.
 
-Polymorphic Inductive bli@{s;u} (A:Type@{s;u}) : Type := { x : A }.
+Polymorphic Inductive bli@{s;u} (A:Univ@{s;u}) : Type := { x : A }.
 
 Extraction idp.
 

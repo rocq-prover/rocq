@@ -1,2 +1,2 @@
-forall f : nat -> Type, f x where x : nat := 1
-     : Type
+forall f : nat -> Univ, f x where x : nat := 1
+     : Univ

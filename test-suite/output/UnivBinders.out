@@ -237,11 +237,11 @@ Arguments p1 A%_type_scope m
 Arguments MutualR2 A%_type_scope
 Arguments Build_MutualR2 A%_type_scope p2
 Arguments p2 A%_type_scope m
-Inductive MutualI1@{u u0} (A : Type@{u}) : Type@{u0} :=
-    C1 : MutualI2@{u u0} A -> MutualI1@{u u0} A
-  with MutualI2@{u u0} (A : Type@{u}) : Type@{u0} :=
-    C2 : MutualI1@{u u0} A -> MutualI2@{u u0} A.
-(* u u0 |  *)
+Inductive MutualI1@{u} (A : Type@{u}) : Prop :=
+    C1 : MutualI2@{u} A -> MutualI1@{u} A
+  with MutualI2@{u} (A : Type@{u}) : Prop :=
+    C2 : MutualI1@{u} A -> MutualI2@{u} A.
+(* u |  *)
 
 Arguments MutualI1 A%_type_scope
 Arguments C1 A%_type_scope p1
@@ -259,11 +259,11 @@ Arguments p1' A%_type_scope m
 Arguments MutualR2' A%_type_scope
 Arguments Build_MutualR2' A%_type_scope p2'
 Arguments p2' A%_type_scope m
-CoInductive MutualI1'@{u u0} (A : Type@{u}) : Type@{u0} :=
-    C1' : MutualI2'@{u u0} A -> MutualI1'@{u u0} A
-  with MutualI2'@{u u0} (A : Type@{u}) : Type@{u0} :=
-    C2' : MutualI1'@{u u0} A -> MutualI2'@{u u0} A.
-(* u u0 |  *)
+CoInductive MutualI1'@{u} (A : Type@{u}) : Prop :=
+    C1' : MutualI2'@{u} A -> MutualI1'@{u} A
+  with MutualI2'@{u} (A : Type@{u}) : Prop :=
+    C2' : MutualI1'@{u} A -> MutualI2'@{u} A.
+(* u |  *)
 
 Arguments MutualI1' A%_type_scope
 Arguments C1' A%_type_scope p1
@@ -289,24 +289,26 @@ eq_rect
      : forall (A : Type@{eq_rect.u1}) (x : A) (P : A -> Type@{eq_rect.u0}),
        P x -> forall y : A, x = y -> P y
 File "./output/UnivBinders.v", line 268, characters 18-19:
-Warning: Separating sorts from universes with "|" is deprecated.
-Use ";" instead.
+Warning: Support for Type@{s|l} is deprecated. Use "Univ@{s;l}" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
+File "./output/UnivBinders.v", line 268, characters 26-30:
+Warning: Support for Type@{s;l} is deprecated. Use "Univ@{s;l}" instead.
+[deprecated-type-sort-poly-syntax,deprecated-since-9.3,deprecated,default]
+Quickfix:
+Replace File "./output/UnivBinders.v", line 268, characters 26-30 with Univ
 File "./output/UnivBinders.v", line 268, characters 33-34:
-Warning: Separating sorts from universes with "|" is deprecated.
-Use ";" instead.
+Warning: Support for Type@{s|l} is deprecated. Use "Univ@{s;l}" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
 File "./output/UnivBinders.v", line 274, characters 16-17:
-Warning: Separating sorts from universes with "|" is deprecated.
-Use ";" instead.
+Warning: Support for Type@{s|l} is deprecated. Use "Univ@{s;l}" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
 id@{Prop ; Set}
      : forall A : Prop, A -> A
 id@{SProp ; Set}
      : forall A : SProp, A -> A
 id3@{s ; u} =
-fun (A : Type@{s ; u}) (a : A) => a
-     : forall A : Type@{s ; u}, A -> A
+fun (A : Univ@{s ; u}) (a : A) => a
+     : forall A : Univ@{s ; u}, A -> A
 (* s ; u | Set < u *)
 
 Arguments id3 A%_type_scope a
