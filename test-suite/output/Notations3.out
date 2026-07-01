@@ -241,7 +241,7 @@ Notation "'exists' ! x .. y , p" :=
   (defined in library Corelib.Init.Logic, line 791, characters 9-32)
 Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) : core_scope
   (default interpretation)
-  (defined in library Corelib.Init.Datatypes, line 264, characters 9-29)
+  (defined in library Corelib.Init.Datatypes, line 262, characters 9-29)
   (reserved in library Corelib.Init.Notations, line 60, characters 18-38)
 1 goal
   
