@@ -48,6 +48,10 @@ shift
 PR_NUMBER=$1
 shift
 OVERLAY_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$OVERLAY_BRANCH" = master ]; then
+  >&2 echo "Overlays not supported for master, rename your branch."
+  exit 1
+fi
 OVERLAY_FILE=$(mktemp overlay-XXXX)
 
 # Create the overlay file
