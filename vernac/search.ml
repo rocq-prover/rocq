@@ -49,13 +49,32 @@ type t =
 | Pattern of string
 | Reference of GlobRef.t
 
-let compare v1 v2 = match v1, v2 with
-| Pattern s1, Pattern s2 -> String.compare s1 s2
-| Reference r1, Reference r2 -> GlobRef.UserOrd.compare r1 r2
-| Pattern _, Reference _ -> -1
-| Reference _, Pattern _ -> 1
+module Set =
+struct
 
-module Set = Set.Make(struct type nonrec t = t let compare = compare end)
+type elt = t
+type t = GlobRef.Set_env.t * String.Set.t
+let empty = (GlobRef.Set_env.empty, String.Set.empty)
+let is_empty (gset, sset) = GlobRef.Set_env.is_empty gset && String.Set.is_empty sset
+
+let add v (gset, sset) = match v with
+| Pattern s -> (gset, String.Set.add s sset)
+| Reference r -> (GlobRef.Set_env.add r gset, sset)
+
+let remove v (gset, sset) = match v with
+| Pattern s -> (gset, String.Set.remove s sset)
+| Reference r -> (GlobRef.Set_env.remove r gset, sset)
+
+let mem v (gset, sset) = match v with
+| Pattern s -> String.Set.mem s sset
+| Reference r -> GlobRef.Set_env.mem r gset
+
+let elements (gset, sset) =
+  let sset = List.map (fun s -> Pattern s) (String.Set.elements sset) in
+  let gset = List.map (fun r -> Reference r) (GlobRef.Set_env.elements gset) in
+  sset @ gset
+
+end
 
 let encode env v = match v with
 | Goptions.StringRefValue s -> Pattern s
@@ -241,14 +260,9 @@ let blacklist_filter : filter_function = fun ref kind env sigma typ ->
   if blacklist_locals() && is_local_ref ref then false
   else
     let name = full_name_of_reference ref in
-    let is_not_bl entry = match entry with
-    | SearchBlacklistArg.Pattern str -> not (String.string_contains ~where:name ~what:str)
-    | SearchBlacklistArg.Reference _ -> true
-    in
-    let blacklist = SearchBlacklist.v () in
-    let ref = SearchBlacklistArg.Reference ref in
-    (* XXX very inefficient *)
-    not (SearchBlacklistArg.Set.mem ref blacklist) && SearchBlacklistArg.Set.for_all is_not_bl blacklist
+    let is_not_bl str = not (String.string_contains ~where:name ~what:str) in
+    let (gref_blacklist, str_blacklist) = SearchBlacklist.v () in
+    not (GlobRef.Set_env.mem ref gref_blacklist) && String.Set.for_all is_not_bl str_blacklist
 
 let module_filter : _ -> filter_function = fun mods ref kind env sigma typ ->
   let sp = Nametab.path_of_global ref in
