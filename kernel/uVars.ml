@@ -315,7 +315,7 @@ struct
 
   let pr printer ?variance (_, (univs, csts) as uctx) =
     if is_empty uctx then mt() else
-      h (Instance.pr printer ?variance univs ++ str " |= ") ++ h (v 0 (PConstraints.pr printer csts))
+      h (Instance.pr printer ?variance univs ++ str " | ") ++ h (v 0 (PConstraints.pr printer csts))
 
   let hcons ({quals = qnames; univs = unames}, (univs, csts)) =
     let hqnames, qnames = Hashcons.hashcons_array Names.Name.hcons qnames in

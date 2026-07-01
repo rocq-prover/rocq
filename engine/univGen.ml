@@ -99,7 +99,7 @@ let pr_sort_context printer ((vs, us), cst as ctx) =
       if Sorts.QVar.Set.is_empty vs then mt ()
       else Sorts.QVar.Set.pr printer.Sorts.prq.prvar vs ++ pr_semicolon ()
     in
-    hov 0 (h (vs ++ Level.Set.pr printer.pru us ++ str " |=") ++ brk(1,2) ++ h (PConstraints.pr printer cst))
+    hov 0 (h (vs ++ Level.Set.pr printer.pru us ++ str " |") ++ brk(1,2) ++ h (PConstraints.pr printer cst))
 
 type univ_length_mismatch = {
   gref : GlobRef.t;
