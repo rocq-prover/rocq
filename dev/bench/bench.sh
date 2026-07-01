@@ -432,7 +432,7 @@ create_opam() {
       exit 1
     fi
 
-    opam pin add dune 3.23.1 # 3.24 not compatible with many packages
+    opam pin add -y dune 3.23.1 # 3.24 not compatible with many packages
 
     opam install -qy -j "$number_of_processors" $initial_opam_packages
     if [ ! -z "$BENCH_DEBUG" ]; then opam repo list; fi
