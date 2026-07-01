@@ -210,7 +210,7 @@ let pr_univ l =
   match l with
   | UNamed [x] -> pr_univ_expr x
   | UNamed l -> str"max(" ++ prlist_with_sep (fun () -> str",") pr_univ_expr l ++ str")"
-  | UAnonymous {rigid=UnivRigid} -> tag_type (str "Type")
+  | UAnonymous {rigid=UnivRigid} -> tag_type (str "*")
   | UAnonymous {rigid=UnivFlexible _} -> tag_type (str "_")
 
 let pr_quality_expr = function
@@ -229,7 +229,7 @@ let pr_relevance_info = function
   | Some r -> str "(* " ++ pr_relevance r ++ str " *) "
 
 let pr_quality_univ (q, l) = match q with
-  | None -> pr_univ l
+  | None | Some (CQAnon _) -> pr_univ l
   | Some q ->  pr_quality_expr q ++ spc() ++ str ";" ++ spc () ++ pr_univ l
 
 let pr_univ_annot pr x = hov 2 (str "@{" ++ pr x ++ str "}")
@@ -239,7 +239,8 @@ let pr_sort_expr : sort_expr -> Pp.t = function
   | None, UNamed [CProp, 0] -> tag_type (str "Prop")
   | None, UNamed [CSet, 0] -> tag_type (str "Set")
   | None, UAnonymous {rigid=UnivRigid} -> tag_type (str "Type")
-  | u -> hov 0 (tag_type (str "Type") ++ pr_univ_annot pr_quality_univ u)
+  | Some (CQAnon _), UAnonymous {rigid=UnivRigid} -> tag_type (str "Univ")
+  | u -> hov 0 (tag_type (str "Univ") ++ pr_univ_annot pr_quality_univ u)
 
 let pr_qualid sp =
   let (sl, id) = repr_qualid sp in

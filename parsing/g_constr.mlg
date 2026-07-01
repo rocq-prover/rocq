@@ -94,7 +94,11 @@ let test_sort_qvar =
 
 let warn_old_sort_syntax =
   CWarnings.create ~name:"deprecated-sort-poly-syntax" ~category:Deprecation.Version.v9_1
-    Pp.(fun () -> fmt "Separating sorts from universes with \"|\" is deprecated.@ Use \";\" instead.")
+    Pp.(fun () -> str "Support for Type@{s|l} is deprecated." ++ spc () ++ str"Use \"Univ@{s;l}\" instead.")
+
+let warn_old_type_univ_syntax =
+  CWarnings.create ~name:"deprecated-type-sort-poly-syntax" ~category:Deprecation.Version.v9_3
+    Pp.(fun () -> str "Support for Type@{s;l} is deprecated." ++ spc () ++ str"Use \"Univ@{s;l}\" instead.")
 
 type univ_level_or_quality =
   | SProp | Prop | Set | Type | Anon of Loc.t | Global of Libnames.qualid
@@ -154,9 +158,15 @@ GRAMMAR EXTEND Gram
           Some (CQVar q), u
         }
       | "Type"; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> {
+          warn_old_type_univ_syntax ?loc:q.CAst.loc ();
           Some (CQVar q), u
         }
-      | "Type"; "@{"; u = universe; "}" -> { None, u } ] ]
+      | "Type"; "@{"; u = universe; "}" -> { None, u }
+      | "Univ"; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> { Some (CQVar q), u }
+      | "Univ"; "@{"; u = universe; "}" -> { Some (CQAnon (Some loc)), u }
+      | "Univ" -> { Some (CQAnon (Some loc)), UAnonymous {rigid=UnivRigid} }
+
+      ] ]
   ;
   sort_quality_or_set:
     [ [ "Prop" -> { UnivGen.QualityOrSet.prop }

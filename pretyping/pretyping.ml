@@ -239,6 +239,10 @@ type pretype_flags = {
   unconstrained_sorts : bool;
 }
 
+let warn_old_type_univ_interp =
+  CWarnings.create ~name:"deprecated-type-sort-poly-interp" ~category:Deprecation.Version.v9_3
+    Pp.(fun () -> str "Support for Type being interpreted as Univ is deprecated." ++ spc () ++ str"Use \"Univ\" instead.")
+
 let glob_opt_quality ?loc ~flags sigma = function
   | Some q ->
     let sigma, q = glob_quality ?loc sigma q in
@@ -246,6 +250,7 @@ let glob_opt_quality ?loc ~flags sigma = function
   | None ->
     let collapse_sort_variables = PolyFlags.collapse_sort_variables flags.poly in
     if flags.unconstrained_sorts || not collapse_sort_variables then
+      let () = if not collapse_sort_variables then warn_old_type_univ_interp ?loc () in
       let sigma, q = new_quality_variable ?loc sigma in
       sigma, (QVar q)
     else sigma, Sorts.Quality.qtype
