@@ -31,4 +31,5 @@ val traverse :
    {!traverse} also applies. *)
 val assumptions :
   ?add_opaque:bool -> ?add_transparent:bool -> Global.indirect_accessor ->
-  TransparentState.t -> GlobRef.t list -> types ContextObjectMap.t
+  TransparentState.t -> GlobRef.t list ->
+  theory_assumptions * types ContextObjectMap.t
