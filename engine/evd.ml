@@ -387,10 +387,9 @@ module FutureGoals : sig
   val push : stack -> stack
   val pop : stack -> t * stack
 
-  val map_stack : (t -> t) -> stack -> stack
-
   val add : Evar.t -> stack -> stack
   val remove : Evar.t -> stack -> stack
+  val mem : Evar.t -> stack -> bool
 
   val fold : ('a -> Evar.t -> 'a) -> 'a -> stack -> 'a
 
@@ -435,7 +434,7 @@ end = struct
     in
     List.map remove stack
 
-  let map_stack f stack = List.map f stack
+  let mem e stack = List.exists (fun fgl -> Evar.Map.mem e fgl.revmap) stack
 
   let empty = {
     uid = 0;
@@ -1478,10 +1477,12 @@ let restrict evk filter ?candidates ?src evd =
   in
   let evd =
     if !changed then { evd with shelf }
-    else
-      let aux ev = if Evar.equal ev evk then Some evk' else Some ev in
-      let future_goals = FutureGoals.(map_stack (map_filter aux)) evd.future_goals in
+    else if FutureGoals.mem evk evd.future_goals then
+      (* NB this moves the evar to the end of the future goals instead
+         of keeping its location as we do for shelf *)
+      let future_goals = FutureGoals.(add evk' @@ remove evk evd.future_goals) in
       { evd with future_goals }
+    else evd
   in
   (evd, evk')
 
