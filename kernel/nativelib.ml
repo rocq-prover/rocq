@@ -92,32 +92,41 @@ let rt2 = ref None
 
 let get_symbols () = !rsymbols
 
-let get_ml_filename () =
+let get_mlf_filename () =
   let temp_dir = force_temp_dir() in
   let filename = Filename.temp_file ~temp_dir "Coq_native" source_ext in
   let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
   filename, prefix
 
-let write_ml_code fn ?(header=[]) code =
+let write_code fn ?(header=[]) code =
   let header = open_header@header in
   let ch_out = open_out fn in
   let fmt = Format.formatter_of_out_channel ch_out in
+  Format.fprintf fmt "@[(module@]@\n";
   List.iter (pp_global fmt) (header@code);
-  close_out ch_out
+  Format.fprintf fmt "@[(export";
+  List.iter (Format.fprintf fmt " %s") (List.map_filter global_to_mlf_name code);
+  Format.fprintf fmt "))@]@.";
+  close_out ch_out;
+  let ch_mli_out = open_out ((Filename.chop_extension fn)^".mli") in
+  let fmt = Format.formatter_of_out_channel ch_mli_out in
+  Format.fprintf fmt "type t\n";
+  List.iter (pp_global_interface fmt) code;
+  close_out ch_mli_out
 
-let error_native_compiler_failed e =
+let error_native_compiler_failed e head =
   let msg = match e with
-  | Inl (Unix.WEXITED 127) -> Pp.(strbrk "The OCaml compiler was not found. Make sure it is installed, together with findlib.")
+  | Inl (Unix.WEXITED 127) -> Pp.(strbrk head ++ str "The OCaml compiler was not found. Make sure it is installed, together with findlib.")
   | Inl (Unix.WEXITED n) ->
-     Pp.(strbrk "Native compiler exited with status" ++ str" " ++ int n
+     Pp.(strbrk head ++ str "Native compiler exited with status" ++ str" " ++ int n
          ++ strbrk (if n = 2 then " (in case of stack overflow, increasing stack size (typically with \"ulimit -s\") often helps)" else ""))
-  | Inl (Unix.WSIGNALED n) -> Pp.(strbrk "Native compiler killed by signal" ++ str" " ++ int n)
-  | Inl (Unix.WSTOPPED n) -> Pp.(strbrk "Native compiler stopped by signal" ++ str" " ++ int n)
-  | Inr e -> Pp.(strbrk "Native compiler failed with error: " ++ strbrk (Unix.error_message e))
+  | Inl (Unix.WSIGNALED n) -> Pp.(strbrk head ++ str "Native compiler killed by signal" ++ str" " ++ int n)
+  | Inl (Unix.WSTOPPED n) -> Pp.(strbrk head ++ str "Native compiler stopped by signal" ++ str" " ++ int n)
+  | Inr e -> Pp.(strbrk head ++ str "Native compiler failed with error: " ++ strbrk (Unix.error_message e))
   in
   CErrors.user_err msg
 
-let call_compiler ?profile:(profile=false) ml_filename =
+let call_compiler ?profile:(profile=false) mlf_filename =
   (* The below path is computed from Require statements, by uniquizing
      the paths, see [Library.get_used_load_paths] This is in general
      hacky and we should do a bit better once we move loadpath to its
@@ -127,47 +136,63 @@ let call_compiler ?profile:(profile=false) ml_filename =
   (* To ease the build we also consider the current dir, but at some point the build system should manage both *)
   let install_load_path = List.map (fun dn -> dn / dft_output_dir) require_load_path @ require_load_path in
   let include_dirs = List.flatten (List.map (fun x -> ["-I"; x]) (get_include_dirs () @ install_load_path)) in
-  let f = Filename.chop_extension ml_filename in
+  let f = Filename.chop_extension mlf_filename in
   let link_filename = f ^ ".cmo" in
   let link_filename = Dynlink.adapt_filename link_filename in
   let remove f = if Sys.file_exists f then Sys.remove f in
   remove link_filename;
   remove (f ^ ".cmi");
-  let initial_args =
-    if Dynlink.is_native then
-      ["opt"; "-shared"]
-     else
-      ["ocamlc"; "-c"]
-  in
   let profile_args =
     if profile then
       ["-g"]
     else
       []
   in
-  let flambda_args = if Sys.(backend_type = Native) then ["-Oclassic"] else [] in
+  (* let flambda_args = if Sys.(backend_type = Native) then ["-Oclassic"] else [] in *)
   let args =
-    initial_args @
+      ["cmx"; mlf_filename] @
       profile_args @
-        flambda_args @
+        (* flambda_args @ *)
       ("-o"::link_filename
        ::"-rectypes"
-       ::"-w"::"a"
-       ::include_dirs) @
-    ["-impl"; ml_filename] in
+       ::"-I"::(Filename.dirname mlf_filename)
+       (* ::"-w"::"a" *)
+       ::include_dirs) in
+  let ocamlc_args = ["ocamlc"; "-opaque"; "-c"; f^".mli"]@include_dirs in
+  let ocamlopt_args = ["opt"; "-shared"; "-o"; f^".cmxs"; f^".cmx"] in
+  let malfunction = "malfunction" in
   let ocamlfind = Boot.Env.ocamlfind () in
-  debug_native_compiler (fun () -> Pp.str (ocamlfind ^ " " ^ (String.concat " " args)));
-  try
-    let res = CUnix.sys_command ocamlfind args in
+  begin try
+    debug_native_compiler (fun () -> Pp.str (ocamlfind ^ " " ^ (String.concat " " ocamlc_args)));
+    let res = CUnix.sys_command ocamlfind ocamlc_args in
+    match res with
+    | Unix.WEXITED 0 -> ()
+    | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
+      error_native_compiler_failed (Inl res) "During .cmi generation: "
+  with Unix.Unix_error (e,_,_) ->
+    error_native_compiler_failed (Inr e) "During .cmi generation: "
+  end; begin try
+    debug_native_compiler (fun () -> Pp.str (malfunction ^ " " ^ (String.concat " " args)));
+    let res = CUnix.sys_command malfunction args in
+    match res with
+    | Unix.WEXITED 0 -> ()
+    | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
+      error_native_compiler_failed (Inl res) "During .mlf compilation: "
+  with Unix.Unix_error (e,_,_) ->
+    error_native_compiler_failed (Inr e) "During .mlf compilation: "
+  end; begin try
+    debug_native_compiler (fun () -> Pp.str (ocamlfind ^ " " ^ (String.concat " " ocamlopt_args)));
+    let res = if Dynlink.is_native then CUnix.sys_command ocamlfind ocamlopt_args else Unix.WEXITED 0 in
     match res with
     | Unix.WEXITED 0 -> link_filename
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
-      error_native_compiler_failed (Inl res)
+      error_native_compiler_failed (Inl res) "During .cmxs generation"
   with Unix.Unix_error (e,_,_) ->
-    error_native_compiler_failed (Inr e)
+    error_native_compiler_failed (Inr e) "During .cmxs generation"
+  end
 
 let compile fn code ~profile:profile =
-  write_ml_code fn code;
+  write_code fn code;
   let r = call_compiler ~profile fn in
   (* NB: to prevent reusing the same filename we MUST NOT remove the file until exit
      cf #15263 *)
@@ -187,7 +212,7 @@ let compile_library (code, symb) fn =
     with Unix.Unix_error (Unix.EEXIST, _, _) -> ()
   in
   let fn = dirname / basename in
-  write_ml_code fn ~header code;
+  write_code fn ~header code;
   let _ = call_compiler fn in
   delay_cleanup_file fn
 

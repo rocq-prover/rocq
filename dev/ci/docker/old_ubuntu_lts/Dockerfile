@@ -50,7 +50,7 @@ RUN mkdir -p ~/.config/dune && printf '(lang dune 2.1)\n(jobs %s)\n' $NJOBS > ~/
 ENV COMPILER="4.14.0"
 
 # Common OPAM packages
-ENV BASE_OPAM="zarith.1.11 ounit2.2.2.6 yojson.1.7.0 camlzip.1.10" \
+ENV BASE_OPAM="zarith.1.11 ounit2.2.2.6 yojson.1.7.0 camlzip.1.10 ocaml-compiler-libs" \
     CI_OPAM="ocamlgraph.2.0.0 cppo.1.6.9" \
     BASE_ONLY_OPAM="dune.3.21.1 stdlib-shims.0.1.0 ocamlfind.1.9.1 odoc.3.2.1 num.1.4"
 
@@ -65,6 +65,7 @@ RUN opam init -a --disable-sandboxing --compiler="$COMPILER" default https://opa
     opam repo add archive git+https://github.com/ocaml/opam-repository-archive && \
     opam update && \
     opam install $BASE_OPAM $COQIDE_OPAM $CI_OPAM $BASE_ONLY_OPAM && \
+    opam pin add git+https://github.com/IBBXEF/malfunction#recusive_types && \
     opam clean -a -c && \
     find ~ '(' -name '*.cmt' -o -name '*.cmti' ')' -delete
 
@@ -76,6 +77,7 @@ RUN opam switch create "${COMPILER}+32bit" \
     opam update && \
     i386 env CC='gcc -m32' opam install zarith.1.11 && \
     opam install $BASE_OPAM && \
+    opam pin add git+https://github.com/IBBXEF/malfunction#recusive_types && \
     opam clean -a -c && \
     find ~ '(' -name '*.cmt' -o -name '*.cmti' ')' -delete
 

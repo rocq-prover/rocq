@@ -50,7 +50,7 @@ check_variable () {
 : "${num_of_iterations:=1}"
 : "${timeout:=3h}"
 : "${coq_opam_packages:=rocq-stdlib rocq-bignums coq-hott coq-performance-tests-lite coq-engine-bench-lite rocq-elpi rocq-mathcomp-boot rocq-mathcomp-order rocq-mathcomp-ssreflect rocq-mathcomp-finite-group rocq-mathcomp-algebra rocq-mathcomp-solvable rocq-mathcomp-field rocq-mathcomp-group-representation coq-mathcomp-odd-order coq-mathcomp-analysis coq-math-classes coq-corn coq-compcert rocq-equations rocq-metarocq-utils rocq-metarocq-common rocq-metarocq-template rocq-metarocq-pcuic rocq-metarocq-safechecker rocq-metarocq-erasure rocq-metarocq-translations coq-color coq-coqprime coq-coqutil coq-bedrock2 coq-rewriter coq-fiat-core coq-fiat-parsers coq-fiat-crypto-with-bedrock coq-unimath coq-coquelicot coq-iris-examples coq-fourcolor coq-rewriter-perf-SuperFast coq-vst coq-category-theory coq-neural-net-interp-computed-lite}"
-: "${coq_native:=}"
+: "${coq_native:=1}"
 : "${auto_overlays:=1}"
 
 # example: coq-hott.dev git+https://github.com/some-user/coq-hott#some-branch
@@ -436,6 +436,8 @@ create_opam() {
 
     opam install -qy -j "$number_of_processors" $initial_opam_packages
     if [ ! -z "$BENCH_DEBUG" ]; then opam repo list; fi
+
+    opam pin add -qy -j "$number_of_processors" git+https://github.com/IBBXEF/malfunction#recusive_types
 
     cd "$coq_dir"
     echo "$1_coq_commit = $COQ_HASH"
