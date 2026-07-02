@@ -2175,7 +2175,7 @@ module Interner = struct
   ; app : t -> (constr_expr * (constr_expr * explicitation CAst.t option) list) fn
   ; proj : t -> (explicit_flag * (qualid * instance_expr option)
               * (constr_expr * explicitation CAst.t option) list * constr_expr) fn
-  ; record : t -> ((qualid * constr_expr) list) fn
+  ; record : t -> (constr_expr option * (qualid * constr_expr) list) fn
   ; cases : t -> (Constr.case_style * constr_expr option * case_expr list * branch_expr list) fn
   ; lettuple : t -> (lname list * (lname option * constr_expr option) * constr_expr * constr_expr) fn
   ; if_ : t -> (constr_expr * (lname option * constr_expr option) * constr_expr * constr_expr) fn
@@ -2212,8 +2212,8 @@ module Interner = struct
       self.app self genv env lvar ?loc (f, args)
     | CProj (expl, f, args, c) ->
       self.proj self genv env lvar ?loc (expl, f, args, c)
-    | CRecord fs ->
-      self.record self genv env lvar ?loc fs
+    | CRecord (def,fs) ->
+      self.record self genv env lvar ?loc (def, fs)
     | CCases (sty, rtnpo, tms, eqns) ->
       self.cases self genv env lvar ?loc (sty, rtnpo, tms, eqns)
     | CLetTuple (nal, (na,po), b, c) ->
@@ -2611,20 +2611,41 @@ let app self genv env lvar ?loc (f, args) =
 let proj self genv env lvar ?loc (expl, f, args, c) =
   intern_proj self genv env lvar ?loc expl f args c []
 
-let record self genv env lvar ?loc fs =
+let record self genv env lvar ?loc (def,fs) =
   let st = Evar_kinds.Define (not (Program.get_proofs_transparency ())) in
-  let fields =
-    sort_fields genv ~complete:true loc fs
-      (fun _idx fieldname constructorname ->
-         let open Evar_kinds in
-         let fieldinfo : Evar_kinds.record_field =
-           {fieldname=Option.get fieldname; recordname=inductive_of_constructor constructorname}
-         in
-         CAst.make ?loc @@ CHole (Some
-                                    (GQuestionMark { Evar_kinds.default_question_mark with
-                                                     Evar_kinds.qm_obligation=st;
-                                                     Evar_kinds.qm_record_field=Some fieldinfo
-                                                   })))
+  let used_default = Stdlib.ref false in
+  let completer _idx fieldname constructorname =
+    let fieldname = Option.get fieldname in
+    match def with
+    | None ->
+      let open Evar_kinds in
+      let fieldinfo : Evar_kinds.record_field =
+        {fieldname; recordname=inductive_of_constructor constructorname}
+      in
+      CAst.make ?loc @@
+      CHole (Some
+               (GQuestionMark { Evar_kinds.default_question_mark with
+                                Evar_kinds.qm_obligation=st;
+                                Evar_kinds.qm_record_field=Some fieldinfo
+                              }))
+    | Some def ->
+      (* duplicating internalization of the default value is not ideal *)
+      used_default := true;
+      let fieldname =
+        Libnames.qualid_of_path @@ Nametab.XRefs.to_path (TrueGlobal (ConstRef fieldname))
+      in
+      let mib = Environ.lookup_mind (fst @@ fst constructorname) genv in
+      let hole = CAst.make ?loc @@ CHole None in
+      let params = List.make mib.mind_nparams (hole, None) in
+      CAst.make ?loc @@ CProj (true, (fieldname, None), params, def)
+  in
+  let fields = sort_fields genv ~complete:true loc fs completer in
+  let () = match def with
+    | None -> ()
+    | Some def ->
+      (* could do a warning, but then any nonsense in [def] would be ignored which seems not nice *)
+      if not !used_default then
+        CErrors.user_err ?loc:def.loc Pp.(fmt "All the fields are explicitly listed in this record:@ the 'with' clause is useless.")
   in
   begin
     match fields with

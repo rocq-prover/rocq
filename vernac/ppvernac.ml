@@ -613,7 +613,7 @@ let pr_record_field (x, { rfu_attrs = attr ; rfu_coercion = coe ; rfu_instance =
   prx ++ prpri ++ prlist pr_where_notation ntn
 
 let pr_record_decl c fs obinder =
-  pr_opt pr_lident c ++ pr_record "{" "}" pr_record_field fs ++
+  pr_opt pr_lident c ++ pr_record "{" "}" None pr_record_field fs ++
   pr_opt (fun id -> str "as " ++ pr_lident id) obinder
 
 let pr_printable = function
@@ -1071,7 +1071,9 @@ let pr_synpure_vernac_expr v =
         str":" ++ spc () ++
         pr_constr cl ++ pr_hint_info pr_constr_pattern_expr info ++
         (match props with
-         | Some (true, { v = CRecord l}) -> spc () ++ str":=" ++ spc () ++ pr_record_body "{" "}" pr_lconstr l
+         | Some (true, { v = CRecord (None,l)}) ->
+           spc () ++ str":=" ++ spc () ++
+           pr_record_body "{" "}" pr_lconstr None l
          | Some (true,_) -> assert false
          | Some (false,p) -> spc () ++ str":=" ++ spc () ++ pr_constr p
          | None -> mt()))

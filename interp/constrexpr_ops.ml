@@ -224,10 +224,11 @@ module EqGen (A:sig val constr_expr_eq : constr_expr -> constr_expr -> bool end)
         Option.equal instance_expr_eq u1 u2 &&
         List.equal args_eq al1 al2 &&
         constr_expr_eq c1 c2
-      | CRecord l1, CRecord l2 ->
+      | CRecord (def1,l1), CRecord (def2,l2) ->
         let field_eq (r1, e1) (r2, e2) =
           qualid_eq r1 r2 && constr_expr_eq e1 e2
         in
+        Option.equal constr_expr_eq def1 def2 &&
         List.equal field_eq l1 l2
       | CCases(_,r1,a1,brl1), CCases(_,r2,a2,brl2) ->
         (* Don't care about the case_style *)
@@ -378,7 +379,9 @@ let fold_constr_expr_with_binders g f n acc = CAst.with_val (function
       List.fold_left (fun acc bl -> fold_local_binders g f n acc (CAst.make @@ CHole (None)) bl) acc bll
     | CGeneralization (_,c) -> f n acc c
     | CDelimiters (_,_,a) -> f n acc a
-    | CRecord l -> List.fold_left (fun acc (id, c) -> f n acc c) acc l
+    | CRecord (def,l) ->
+      let acc = Option.fold_left (f n) acc def in
+      List.fold_left (fun acc (id, c) -> f n acc c) acc l
     | CCases (sty,rtnpo,al,bl) ->
       let ids = ids_of_cases_tomatch al in
       let acc = Option.fold_left (f (Id.Set.fold g ids n)) acc rtnpo in
@@ -492,7 +495,7 @@ let map_constr_expr_with_binders g f e = CAst.map (function
                     List.map (fun bl -> snd (fold_map_local_binders f g e bl)) bll))
     | CGeneralization (b,c) -> CGeneralization (b,f e c)
     | CDelimiters (depth,s,a) -> CDelimiters (depth,s,f e a)
-    | CRecord l -> CRecord (List.map (fun (id, c) -> (id, f e c)) l)
+    | CRecord (def,l) -> CRecord (Option.map (f e) def, List.map (fun (id, c) -> (id, f e c)) l)
     | CCases (sty,rtnpo,a,bl) ->
       let bl = List.map (fun {CAst.v=(patl,rhs);loc} ->
           let ids = ids_of_pattern_list patl in
@@ -644,7 +647,7 @@ let rec coerce_to_cases_pattern_expr c = CAst.map_with_loc (fun ?loc -> function
                                 b),[])
   | CPrim p ->
      CPatPrim p
-  | CRecord l ->
+  | CRecord (None,l) ->
      CPatRecord (List.map (fun (r,p) -> (r,coerce_to_cases_pattern_expr p)) l)
   | CDelimiters (depth,s,p) ->
      CPatDelimiters (depth,s,coerce_to_cases_pattern_expr p)
@@ -655,7 +658,7 @@ let rec coerce_to_cases_pattern_expr c = CAst.map_with_loc (fun ?loc -> function
   | CFix _ | CCoFix _ | CApp _ | CProj _ | CCases _ | CLetTuple _ | CIf _
   | CPatVar _ | CEvar _
   | CNotation (_,_,(_,_,_,_::_))
-  | CHole (Some _) | CGenarg _ | CGenargGlob _ ->
+  | CRecord (Some _, _) | CHole (Some _) | CGenarg _ | CGenargGlob _ ->
     CErrors.user_err ?loc
                       (str "This expression should be coercible to a pattern.")
   | CArray _ ->

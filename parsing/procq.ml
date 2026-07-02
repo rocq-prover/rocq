@@ -243,6 +243,11 @@ struct
   | Some (Tok.IDENT ident) when not (List.mem_f String.equal ident idents) -> Some (n + 1)
   | _ -> None
 
+  let lk_except_kws bad n kwstate strm =
+    match LStream.peek_nth kwstate n strm with
+    | Some (Tok.KEYWORD kw) when List.mem_f String.equal kw bad -> None
+    | _ -> Some (n + 1)
+
   let lk_nat n kwstate strm = match LStream.peek_nth kwstate n strm with
   | Some (Tok.NUMBER p) when NumTok.Unsigned.is_nat p -> Some (n + 1)
   | _ -> None

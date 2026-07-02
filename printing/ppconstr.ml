@@ -325,19 +325,24 @@ let pr_evar pr id l =
      { a; b;
        c }
 *)
-let pr_record left right pr = function
-  | [] -> str left ++ str " " ++ str right
+let pr_record_default = function
+  | None -> mt()
+  | Some def -> def ++ str " with" ++ spc()
+
+let pr_record left right def pr = function
+  | [] -> assert (Option.is_empty def); str left ++ str " " ++ str right
   | l ->
     hv 0 (
       str left ++
       brk (1,String.length left) ++
+      pr_record_default def ++
       hv 0 (prlist_with_sep pr_semicolon pr l) ++
       brk (1,0) ++
       str right)
 
-let pr_record_body left right pr l =
+let pr_record_body left right pr def l =
   let pr_defined_field (id, c) = hov 2 (pr_reference id ++ str" :=" ++ pr c) in
-  pr_record left right pr_defined_field l
+  pr_record left right def pr_defined_field l
 
 let las = lapp
 let lpator = 0
@@ -361,7 +366,7 @@ and pr_patt ~flags sep pr lev_after inh p =
     pr_with_comments ?loc:p.CAst.loc (sep() ++ pp) in
   match CAst.(p.v) with
   | CPatRecord l ->
-    return (fun lev_after -> pr_record_body "{|" "|}" (pr_patt ~flags spc pr no_after lpattop) l) lpatrec
+    return (fun lev_after -> pr_record_body "{|" "|}" (pr_patt ~flags spc pr no_after lpattop) None l) lpatrec
 
   | CPatAlias (p, na) ->
     return (fun lev_after -> pr_patt ~flags mt pr lev_after (LevelLe las) p ++ str " as " ++ pr_lname na) las
@@ -721,8 +726,9 @@ let pr ~flags pr sep lev_after inherited a =
     return (fun lev_after -> pr_appexpl (pr mt) lev_after (f,us) l) lapp
   | CApp (a,l) ->
     return (fun lev_after -> pr_app (pr mt) lev_after a l) lapp
-  | CRecord l ->
-    return (fun lev_after -> pr_record_body "{|" "|}" (pr spc no_after ltop) l) latom
+  | CRecord (def,l) ->
+    let def = Option.map (pr mt no_after (LevelLe lproj)) def in
+    return (fun lev_after -> pr_record_body "{|" "|}" (pr spc no_after ltop) def l) latom
   | CCases (Constr.LetPatternStyle,rtntypopt,[c,as_clause,in_clause],[{v=([[p]],b)}]) ->
     return (fun lev_after ->
         hv 0 (

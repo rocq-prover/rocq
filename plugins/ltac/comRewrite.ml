@@ -70,7 +70,7 @@ let declare_instance a aeq n s = declare_an_instance n s [a;aeq]
 
 let anew_instance atts binders (name,t) fields =
   let _id = Classes.new_instance ~poly:atts.poly ~locality:atts.locality
-    name binders t (true, CAst.make @@ CRecord (fields))
+    name binders t (true, CAst.make @@ CRecord (None, fields))
     Hints.empty_hint_info
   in
   ()
