@@ -175,19 +175,19 @@ open Autorewrite
 }
 
 TACTIC EXTEND autorewrite
-| [ "autorewrite" "with" ne_preident_list(l) clause(cl) ] ->
-    { auto_multi_rewrite  l ( cl) }
-| [ "autorewrite" "with" ne_preident_list(l) clause(cl) "using" tactic(t) ] ->
+| [ "autorewrite" orient(forward) "with" ne_preident_list(l) clause(cl) ] ->
+    { auto_multi_rewrite ~forward l ( cl) }
+| [ "autorewrite" orient(forward) "with" ne_preident_list(l) clause(cl) "using" tactic(t) ] ->
     {
-      auto_multi_rewrite_with (Tacinterp.tactic_of_value ist t) l cl
+      auto_multi_rewrite_with ~forward (Tacinterp.tactic_of_value ist t) l cl
    }
 END
 
 TACTIC EXTEND autorewrite_star
-| [ "autorewrite" "*" "with" ne_preident_list(l) clause(cl) ] ->
-    { auto_multi_rewrite ~conds:AllMatches l cl }
-| [ "autorewrite" "*" "with" ne_preident_list(l) clause(cl) "using" tactic(t) ] ->
-  { auto_multi_rewrite_with ~conds:AllMatches (Tacinterp.tactic_of_value ist t) l cl }
+| [ "autorewrite" orient(forward) "*" "with" ne_preident_list(l) clause(cl) ] ->
+    { auto_multi_rewrite ~conds:AllMatches ~forward l cl }
+| [ "autorewrite" orient(forward) "*" "with" ne_preident_list(l) clause(cl) "using" tactic(t) ] ->
+  { auto_multi_rewrite_with ~conds:AllMatches ~forward (Tacinterp.tactic_of_value ist t) l cl }
 END
 
 (**********************************************************************)

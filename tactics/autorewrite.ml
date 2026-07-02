@@ -363,7 +363,7 @@ let tclMAP_rev f args =
   List.fold_left (fun accu arg -> Tacticals.tclTHEN accu (f arg)) (Proofview.tclUNIT ()) args
 
 (* Applies all the rules of one base *)
-let one_base where conds tac_main bas =
+let one_base where conds tac_main bas forward =
   let lrul = find_rewrites bas in
   let rewrite dir c tac =
     let c = (EConstr.of_constr c, Tactypes.NoBindings) in
@@ -375,7 +375,8 @@ let one_base where conds tac_main bas =
     let subst, ctx' = UnivGen.fresh_sort_context_instance h.rew_ctx in
     let c' = Vars.subst_univs_level_constr subst h.rew_lemma in
     let sigma = Evd.merge_sort_context_set Evd.univ_flexible ~src:UState.Internal sigma ctx' in
-    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (rewrite h.rew_l2r c' tc)
+    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
+      (rewrite (Bool.equal h.rew_l2r forward) c' tc)
   end in
   let open Proofview.Notations in
   Proofview.tclProofInfo [@ocaml.warning "-3"] >>= fun (_name, poly) ->
@@ -390,27 +391,27 @@ let one_base where conds tac_main bas =
   Tacticals.tclREPEAT_MAIN (Proofview.tclPROGRESS lrul)
 
 (* The AutoRewrite tactic *)
-let autorewrite ?(conds=Naive) tac_main lbas =
+let autorewrite ?(conds=Naive) ?(forward=true) tac_main lbas =
   Tacticals.tclREPEAT_MAIN (Proofview.tclPROGRESS
-    (tclMAP_rev (fun bas -> (one_base None conds tac_main bas)) lbas))
+    (tclMAP_rev (fun bas -> (one_base None conds tac_main bas forward)) lbas))
 
-let autorewrite_multi_in ?(conds=Naive) idl tac_main lbas =
+let autorewrite_multi_in ?(conds=Naive) ?(forward=true) idl tac_main lbas =
   Proofview.Goal.enter begin fun gl ->
  (* let's check at once if id exists (to raise the appropriate error) *)
   let _ = List.map (fun id -> Tacmach.pf_get_hyp id gl) idl in
  Tacticals.tclMAP (fun id ->
   Tacticals.tclREPEAT_MAIN (Proofview.tclPROGRESS
-    (tclMAP_rev (fun bas -> (one_base (Some id) conds tac_main bas)) lbas)))
+    (tclMAP_rev (fun bas -> (one_base (Some id) conds tac_main bas forward)) lbas)))
    idl
  end
 
-let autorewrite_in ?(conds=Naive) id = autorewrite_multi_in ~conds [id]
+let autorewrite_in ?(conds=Naive) ?(forward=true) id = autorewrite_multi_in ~conds ~forward [id]
 
-let gen_auto_multi_rewrite conds tac_main lbas cl =
+let gen_auto_multi_rewrite conds tac_main lbas forward cl =
   let try_do_hyps treat_id l =
-    autorewrite_multi_in ~conds (List.map treat_id l) tac_main lbas
+    autorewrite_multi_in ~conds ~forward (List.map treat_id l) tac_main lbas
   in
-  let concl_tac = (if cl.concl_occs != NoOccurrences then autorewrite ~conds tac_main lbas else Proofview.tclUNIT ()) in
+  let concl_tac = (if cl.concl_occs != NoOccurrences then autorewrite ~conds ~forward tac_main lbas else Proofview.tclUNIT ()) in
   if not (Locusops.is_all_occurrences cl.concl_occs) &&
      cl.concl_occs != NoOccurrences
   then
@@ -430,8 +431,8 @@ let gen_auto_multi_rewrite conds tac_main lbas cl =
       in
       Tacticals.tclTHENFIRST concl_tac hyp_tac
 
-let auto_multi_rewrite ?(conds=Naive) lems cl =
-  Proofview.wrap_exceptions (fun () -> gen_auto_multi_rewrite conds (Proofview.tclUNIT()) lems cl)
+let auto_multi_rewrite ?(conds=Naive) ?(forward=true) lems cl =
+  Proofview.wrap_exceptions (fun () -> gen_auto_multi_rewrite conds (Proofview.tclUNIT()) lems forward cl)
 
 (* Same hack as auto hints: we generate an essentially unique identifier for
    rewrite hints. *)
@@ -450,14 +451,14 @@ let fresh_key =
     in
     KerName.make mp lbl
 
-let auto_multi_rewrite_with ?(conds=Naive) tac_main lbas cl =
+let auto_multi_rewrite_with ?(conds=Naive) ?(forward=true) tac_main lbas cl =
   let onconcl = match cl.Locus.concl_occs with NoOccurrences -> false | _ -> true in
   match onconcl,cl.Locus.onhyps with
     | false,Some [_] | true,Some [] | false,Some [] ->
         (* autorewrite with .... in clause using tac n'est sur que
            si clause represente soit le but soit UNE hypothese
         *)
-        Proofview.wrap_exceptions (fun () -> gen_auto_multi_rewrite conds tac_main lbas cl)
+        Proofview.wrap_exceptions (fun () -> gen_auto_multi_rewrite conds tac_main lbas forward cl)
     | _ ->
       let info = Exninfo.reify () in
       Tacticals.tclZEROMSG ~info

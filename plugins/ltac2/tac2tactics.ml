@@ -347,15 +347,15 @@ let injection ev ipat arg =
   let tac ev arg = Equality.injClause None ipat ev arg in
   on_destruction_arg tac ev arg
 
-let autorewrite ~all by ids cl =
+let autorewrite ~all ?(forward=true) by ids cl =
   let conds = if all then Some Equality.AllMatches else None in
   let ids = List.map Id.to_string ids in
   let cl = mk_clause cl in
   match by with
-  | None -> Autorewrite.auto_multi_rewrite ?conds ids cl
+  | None -> Autorewrite.auto_multi_rewrite ?conds ~forward ids cl
   | Some by ->
     let by = thaw by in
-    Autorewrite.auto_multi_rewrite_with ?conds by ids cl
+    Autorewrite.auto_multi_rewrite_with ?conds ~forward by ids cl
 
 (** Auto *)
 

@@ -1482,7 +1482,7 @@ simple_tactic: [
 | "decompose" "record" one_term
 | "absurd" one_type
 | "contradiction" OPT one_term_with_bindings
-| "autorewrite" OPT "*" "with" LIST1 ident OPT occurrences OPT ( "using" ltac_expr )
+| "autorewrite" OPT [ "->" | "<-" ] OPT "*" "with" LIST1 ident OPT occurrences OPT ( "using" ltac_expr )
 | "rewrite" "*" OPT [ "->" | "<-" ] one_term OPT ( "in" ident ) OPT ( "at" rewrite_occs ) OPT ( "by" ltac_expr3 )
 | "rewrite" "*" OPT [ "->" | "<-" ] one_term "at" rewrite_occs "in" ident OPT ( "by" ltac_expr3 )
 | OPT "simple" OPT "notypeclasses" "refine" one_term
