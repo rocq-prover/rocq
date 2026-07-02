@@ -51,8 +51,20 @@ module H : sig
 end = struct
   type t = int
   let void = 0
-  let of_int x =
-    let x = x * 0x85ebca6b in
+  let of_int (x : int) =
+    (* Open-adressing hashtables need hash values that are "random
+       enough" so that void elements are spread almost-randomly, to
+       avoid long sequences of consecutive non-void elements.
+
+       Unfortunately the hash functions used by Rocq tend to not be
+       random at all, for example integers are hashed by identity --
+       this is not a problem for the previous array-of-bucket
+       implementation. So we postprocess the hashes here to make them
+       more random. *)
+    let x =
+      (* This constant looks very random,
+         so the result is random. *)
+      x * 0xcc9e2d51 in
     if x = void then void + 1 else x
 end
 
