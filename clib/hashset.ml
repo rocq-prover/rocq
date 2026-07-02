@@ -29,6 +29,9 @@ module type S = sig
   val stats : t -> statistics
 end
 
+let verbose =
+  Option.has_some (Sys.getenv_opt "HASHSET_VERBOSE")
+
 (* H.t is a representation of hashes as stored within the [hashes]
    array below. We reserve 0 to denote a distinguished 'void' value
    which corresponds to the absence of a key in this position.
@@ -49,11 +52,20 @@ end = struct
   type t = int
   let void = 0
   let of_int x =
+    let x = x * 0x85ebca6b in
     if x = void then void + 1 else x
 end
 
+
+(* for debug purposes *)
+let hashcons_id = ref 0
+
 module Make (E : EqType) =
   struct
+
+  let hashcons_id =
+    incr hashcons_id;
+    !hashcons_id
 
   type elt = E.t
 
@@ -95,12 +107,24 @@ module Make (E : EqType) =
       | Some hc -> f hc
     done
 
+let locate_calls = ref 0
+let locate_travel = ref 0
+
+let () = if verbose then at_exit (fun () ->
+  Printf.eprintf "Hashcons(%.2d) locate: calls %d, average travel %g/call\n%!"
+    hashcons_id
+    !locate_calls
+    (float !locate_travel /. float !locate_calls)
+)
+
   let rec locate t k h =
+    incr locate_calls;
     let i = (h : H.t :> int) land t.mask in
     locate_loop
       ~mask:t.mask ~travel:t.travel
       t.keys k t.hashes h i
   and locate_loop ~mask ~travel keys k hashes h i =
+    incr locate_travel;
     incr travel;
     let h' = Array.unsafe_get hashes i in
     let i' = (i + 1) land mask in
@@ -119,7 +143,11 @@ module Make (E : EqType) =
 
   let next_sz n = min (2*n) (Sys.max_array_length / 2)
 
+let resize_count = ref 0
+
   let resize t =
+    if verbose then incr resize_count;
+    let old_occupation = t.occupation in
     let old_capacity = Array.length t.hashes in
     let old_hashes, old_keys = t.hashes, t.keys in
     let new_capacity = next_sz old_capacity in
@@ -144,9 +172,18 @@ module Make (E : EqType) =
           t.occupation <- t.occupation + 1;
           Weak.set new_keys i (Some k);
           new_hashes.(i) <- h;
-    done
+    done;
+  let new_occupation = t.occupation in
+  if verbose then
+    Printf.eprintf "[%.2d:%.2d] Resize: size %d=>%d, occupation %d=>%d\n%!"
+      hashcons_id !resize_count
+      old_capacity new_capacity
+      old_occupation new_occupation;
+  ()
 
   let compress t =
+    if verbose then incr resize_count;
+    let old_occupation = t.occupation in
     let first_void =
       CArray.findi (fun i h -> h = H.void) t.hashes |> Option.get in
     let len = Array.length t.hashes in
@@ -166,7 +203,13 @@ module Make (E : EqType) =
             Weak.set t.keys i None;
             t.hashes.(j) <- h;
             t.hashes.(i) <- H.void;
-    done
+    done;
+  let new_occupation = t.occupation in
+  if verbose then
+    Printf.eprintf "[%.2d:%.2d] Compression: occupation %d=>%d\n%!"
+      hashcons_id !resize_count
+      old_occupation new_occupation;
+  ()
 
   let[@inline] capacity t =
     t.mask + 1
@@ -176,7 +219,37 @@ module Make (E : EqType) =
        from François Pottier's [hachis] library. *)
     128 * t.occupation > 105 * capacity t
 
+let dump_count = ref 0
+let dump t =
+  incr dump_count;
+  Printf.eprintf "DUMP(%.2d:%.2d)\n%!"
+    hashcons_id !dump_count;
+  for i = 0 to capacity t - 1 do
+    if t.hashes.(i) = H.void then
+      prerr_char '.'
+    else if Weak.check t.keys i then
+      prerr_char 'E'
+    else
+      prerr_char 'x';
+    if (i+1) mod 50 = 0 then prerr_newline ();
+  done;
+  prerr_newline ()
+
+let calls = ref 0
+let hits = ref 0
+let misses = ref 0
+let () = if verbose then at_exit (fun () ->
+  let ratio n = 100. *. float n /. float !calls in
+  if !calls > 0 then
+  Printf.eprintf "Hachcons(%.2d) calls %d: hits %d (%g%%), misses %d (%g%%).\n%!"
+    hashcons_id
+    !calls
+    !hits (ratio !hits)
+    !misses (ratio !misses)
+)
+
   let repr h k t =
+    if verbose then incr calls;
     let h = H.of_int h in
     if crowded t then begin
       (* Our estimation of occupation does not take into account weak
@@ -185,6 +258,7 @@ module Make (E : EqType) =
          whether the real occupation is low enough that no resizing is
          necessary -- in this case we just compress the data in-place,
          without moving to larger backing arrays. *)
+      if verbose then dump t;
       let real_occupation =
         let count = ref 0 in
         iter (fun _ -> incr count) t;
@@ -216,8 +290,10 @@ module Make (E : EqType) =
     end;
     match locate t k h with
     | Ok k' ->
+    if verbose then incr hits;
       k'
     | Error i ->
+    if verbose then incr misses;
       Weak.set t.keys i (Some k);
       Array.unsafe_set t.hashes i h;
       t.occupation <- t.occupation + 1;
@@ -254,6 +330,7 @@ module Make (E : EqType) =
       max_bucket_length = max_interval_len;
       bucket_histogram = histogram;
     }
+
 end
 
 module Combine = struct
