@@ -10,9 +10,13 @@
 
 (** The type of token for the Rocq lexer and parser *)
 
+type (_,_) exact =
+  | Any : ('a,'a) exact
+  | Exact : 'a -> ('a,unit) exact
+
 type 'c p =
-  | PKEYWORD : string -> string p
-  | PIDENT : string option -> string p
+  | PKEYWORD : string -> unit p
+  | PIDENT : (string, 'v) exact -> 'v p
   | PFIELD : string option -> string p
   | PNUMBER : NumTok.Unsigned.t option -> NumTok.Unsigned.t p
   | PSTRING : string option -> string p

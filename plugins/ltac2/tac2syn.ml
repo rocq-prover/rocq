@@ -529,7 +529,7 @@ let terminal_synclass_tag : string SynclassDyn.tag = SynclassDyn.create "<termin
 
 let interp_terminal str : syntax_class_rule =
   let v_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0)) in
-  SyntaxRule (Syntax.token (Tok.PIDENT (Some str)), (fun _ -> v_unit))
+  SyntaxRule (Syntax.token (Tok.PIDENT (Exact str)), (fun _ -> v_unit))
 
 let () =
   syntax_class_interps := SynclassInterpMap.add terminal_synclass_tag interp_terminal !syntax_class_interps

@@ -140,6 +140,10 @@ let print_opt fmt pr = function
 | None -> fprintf fmt "None"
 | Some x -> fprintf fmt "Some@ @[(%a)@]" pr x
 
+let print_exact fmt pr = function
+| None -> fprintf fmt "Any"
+| Some x -> fprintf fmt "Exact@ @[(%a)@]" pr x
+
 module GramExt :
 sig
 
@@ -254,9 +258,10 @@ let print_fun fmt (vars, body) =
     violates value restriction *)
 let print_tok fmt =
 let print_pat fmt = print_opt fmt print_string in
+let print_pat_exact fmt = print_exact fmt print_string in
 function
 | "", Some s -> fprintf fmt "Tok.PKEYWORD (%a)" print_string s
-| "IDENT", s -> fprintf fmt "Tok.PIDENT (%a)" print_pat s
+| "IDENT", s -> fprintf fmt "Tok.PIDENT (%a)" print_pat_exact s
 | "FIELD", s -> fprintf fmt "Tok.PFIELD (%a)" print_pat s
 | "NUMBER", None -> fprintf fmt "Tok.PNUMBER None"
 | "NUMBER", Some s -> fprintf fmt "Tok.PNUMBER (Some (Option.get (NumTok.Unsigned.parse_string %a)))" print_string s
