@@ -8,14 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(** Adapted from Damien Doligez, projet Para, INRIA Rocquencourt,
-    OCaml stdlib. *)
-
-(** The following functor is a specialized version of [Weak.Make].
-    Here, the responsibility of computing the hash function is now
-    given to the caller, which makes possible the interleaving of the
-    hash key computation and the hash-consing. *)
-
 module type EqType = sig
   type t
   val eq : t -> t -> bool
@@ -37,189 +29,231 @@ module type S = sig
   val stats : t -> statistics
 end
 
+(* H.t is a representation of hashes as stored within the [hashes]
+   array below. We reserve 0 to denote a distinguished 'void' value
+   which corresponds to the absence of a key in this position.
+
+   Note: François Pottier's implementation
+   ( https://github.com/fpottier/hachis/ ) also contains
+   a distinguished 'tomb' value for slots whose key has been removed
+   (Hashtbl.remove). For hash-consing we do not need to handle
+   explicit removal; we could use tombstones for keys that get erased
+   by the GC, but we just leave the hashes around until the next
+   resizing or compression.
+*)
+module H : sig
+  type t = private int
+  val void : t
+  val of_int : int -> t
+end = struct
+  type t = int
+  let void = 0
+  let of_int x =
+    if x = void then void + 1 else x
+end
+
 module Make (E : EqType) =
   struct
 
   type elt = E.t
 
-  let emptybucket = Weak.create 0
-
   type t = {
-    mutable table : elt Weak.t array;
-    mutable hashes : int array array;
-    mutable limit : int;               (* bucket size limit *)
-    mutable oversize : int;            (* number of oversize buckets *)
-    mutable rover : int;               (* for internal bookkeeping *)
+    mutable hashes : H.t array;
+    mutable keys : elt Weak.t;
+    mutable occupation : int;
+    mutable mask : int; (* Array.length hashes - 1
+      (note: the length must be a power of two) *)
+    travel : int ref;
   }
 
-  let get_index t h = (h land max_int) mod (Array.length t)
-
-  let limit = 7
-  let over_limit = 2
-
   let create sz =
-    let sz = if sz < 7 then 7 else sz in
-    let sz = if sz > Sys.max_array_length then Sys.max_array_length else sz in
+    (* We need to guarantee that there is always at least one [void]
+       slot for search to terminate, so [sz] must be at least 1.
+       We also guarantee that sizes are always a power of 2,
+       to compute the modulo efficiently. *)
+    let sz' = ref 1 in
+    while !sz' < sz do sz' := 2 * !sz' done;
+    let sz = !sz' in
     {
-      table = Array.make sz emptybucket;
-      hashes = Array.make sz [| |];
-      limit = limit;
-      oversize = 0;
-      rover = 0;
+      hashes = Array.make sz H.void;
+      keys = Weak.create sz;
+      occupation = 0;
+      mask = sz - 1;
+      travel = ref 0;
     }
 
   let clear t =
-    for i = 0 to Array.length t.table - 1 do
-      t.table.(i) <- emptybucket;
-      t.hashes.(i) <- [| |];
-    done;
-    t.limit <- limit;
-    t.oversize <- 0
+    Weak.fill t.keys 0 (Weak.length t.keys) None;
+    Array.fill t.hashes 0 (Array.length t.hashes) H.void;
+    t.occupation <- 0
 
-  let iter_weak f t =
-    let rec iter_bucket i j b =
-      if i >= Weak.length b then () else
-      match Weak.check b i with
-      | true -> f b t.hashes.(j) i; iter_bucket (i+1) j b
-      | false -> iter_bucket (i+1) j b
-    in
-    for i = 0 to pred (Array.length t.table) do
-      iter_bucket 0 i (Array.unsafe_get t.table i)
+  let iter f t =
+    let len = Array.length t.hashes in
+    for i = 0 to len - 1 do
+      match Weak.get t.keys i with
+      | None -> ()
+      | Some hc -> f hc
     done
 
-  let rec count_bucket i b accu =
-    if i >= Weak.length b then accu else
-    count_bucket (i+1) b (accu + (if Weak.check b i then 1 else 0))
+  let rec locate t k h =
+    let i = (h : H.t :> int) land t.mask in
+    locate_loop
+      ~mask:t.mask ~travel:t.travel
+      t.keys k t.hashes h i
+  and locate_loop ~mask ~travel keys k hashes h i =
+    incr travel;
+    let h' = Array.unsafe_get hashes i in
+    let i' = (i + 1) land mask in
+    if h' <> h then
+      if h' = H.void then Error i
+      else locate_loop ~mask ~travel keys k hashes h i'
+    else
+      match Weak.get keys i with
+      | Some k' when E.eq k k' -> Ok k'
+      | _ ->
+        (* When a value has been erased by the GC (case [None]), we must
+           keep looking further for another value with the same hash. It
+           would be incorrect to treat it as a [void] hash, for the same
+           reason that François distinguishes [tomb] from [void]. *)
+        locate_loop ~mask ~travel keys k hashes h i'
 
-  let min x y = if x - y < 0 then x else y
+  let next_sz n = min (2*n) (Sys.max_array_length / 2)
 
-  let next_sz n = min (3 * n / 2 + 3) Sys.max_array_length
-  let prev_sz n = ((n - 3) * 2 + 2) / 3
-
-  let test_shrink_bucket t =
-    let bucket = t.table.(t.rover) in
-    let hbucket = t.hashes.(t.rover) in
-    let len = Weak.length bucket in
-    let prev_len = prev_sz len in
-    let live = count_bucket 0 bucket 0 in
-    if live <= prev_len then begin
-      let rec loop i j =
-        if j >= prev_len then begin
-          if Weak.check bucket i then loop (i + 1) j
-          else if Weak.check bucket j then begin
-            Weak.blit bucket j bucket i 1;
-            hbucket.(i) <- hbucket.(j);
-            loop (i + 1) (j - 1);
-          end else loop i (j - 1);
-        end;
-      in
-      loop 0 (Weak.length bucket - 1);
-      if prev_len = 0 then begin
-        t.table.(t.rover) <- emptybucket;
-        t.hashes.(t.rover) <- [| |];
-      end else begin
-        let newbucket = Weak.create prev_len in
-        Weak.blit bucket 0 newbucket 0 prev_len;
-        t.table.(t.rover) <- newbucket;
-        t.hashes.(t.rover) <- Array.sub hbucket 0 prev_len
-      end;
-      if len > t.limit && prev_len <= t.limit then t.oversize <- t.oversize - 1;
-    end;
-    t.rover <- (t.rover + 1) mod (Array.length t.table)
-
-  let rec resize t =
-    let oldlen = Array.length t.table in
-    let newlen = next_sz oldlen in
-    if newlen > oldlen then begin
-      let newt = create newlen in
-      let add_weak ob oh oi =
-        let setter nb ni _ = Weak.blit ob oi nb ni 1 in
-        let h = oh.(oi) in
-        add_aux newt setter None h (get_index newt.table h);
-      in
-      iter_weak add_weak t;
-      t.table <- newt.table;
-      t.hashes <- newt.hashes;
-      t.limit <- newt.limit;
-      t.oversize <- newt.oversize;
-      t.rover <- t.rover mod Array.length newt.table;
-    end else begin
-      t.limit <- max_int;             (* maximum size already reached *)
-      t.oversize <- 0;
-    end
-
-  and add_aux t setter d h index =
-    let bucket = t.table.(index) in
-    let hashes = t.hashes.(index) in
-    let sz = Weak.length bucket in
-    let rec loop i =
-      if i >= sz then begin
-        let newsz = min (3 * sz / 2 + 3) (Sys.max_array_length - 1) in
-        if newsz <= sz then failwith "Weak.Make: hash bucket cannot grow more";
-        let newbucket = Weak.create newsz in
-        let newhashes = Array.make newsz 0 in
-        Weak.blit bucket 0 newbucket 0 sz;
-        Array.blit hashes 0 newhashes 0 sz;
-        setter newbucket sz d;
-        newhashes.(sz) <- h;
-        t.table.(index) <- newbucket;
-        t.hashes.(index) <- newhashes;
-        if sz <= t.limit && newsz > t.limit then begin
-          t.oversize <- t.oversize + 1;
-          for _i = 0 to over_limit do test_shrink_bucket t done;
-        end;
-        if t.oversize > Array.length t.table / over_limit then resize t
-      end else if Weak.check bucket i then begin
-        loop (i + 1)
-      end else begin
-        setter bucket i d;
-        hashes.(i) <- h
-      end
+  let resize t =
+    let old_capacity = Array.length t.hashes in
+    let old_hashes, old_keys = t.hashes, t.keys in
+    let new_capacity = next_sz old_capacity in
+    let new_mask = new_capacity - 1 in
+    let new_hashes, new_keys =
+      Array.make new_capacity H.void,
+      Weak.create new_capacity
     in
-    loop 0
+    t.hashes <- new_hashes;
+    t.keys <- new_keys;
+    t.mask <- new_mask;
+    t.occupation <- 0;
+    for i = 0 to old_capacity - 1 do
+      match Weak.get old_keys i with
+      | None -> ()
+      | Some k ->
+        let h = Array.unsafe_get old_hashes i in
+        match locate t k h with
+        | Ok _ ->
+          failwith "resize: key already in the table?";
+        | Error i ->
+          t.occupation <- t.occupation + 1;
+          Weak.set new_keys i (Some k);
+          new_hashes.(i) <- h;
+    done
 
-  external unsafe_weak_get : 'a Weak.t -> int -> 'a option = "caml_weak_get"
+  let compress t =
+    let first_void =
+      CArray.findi (fun i h -> h = H.void) t.hashes |> Option.get in
+    let len = Array.length t.hashes in
+    for i = 0 to len - 1 do
+      let i = (first_void + i) mod len in
+      let h = t.hashes.(i) in
+      if h <> H.void then
+        match Weak.get t.keys i with
+        | None ->
+          t.occupation <- t.occupation - 1;
+          t.hashes.(i) <- H.void;
+        | Some k ->
+          match locate t k h with
+          | Ok _ -> ()
+          | Error j ->
+            Weak.set t.keys j (Some k);
+            Weak.set t.keys i None;
+            t.hashes.(j) <- h;
+            t.hashes.(i) <- H.void;
+    done
 
-  let repr h d t =
-    let table = t.table in
-    let index = get_index table h in
-    let bucket = Array.unsafe_get table index in
-    let hashes = Array.unsafe_get t.hashes index in
-    let sz = Weak.length bucket in
-    let pos = ref 0 in
-    let ans = ref None in
-    while !pos < sz && !ans == None do
-      let i = !pos in
-      if Int.equal h (Array.unsafe_get hashes i) then begin
-        match unsafe_weak_get bucket i with
-        | Some v as res when E.eq v d -> ans := res
-        | _ -> incr pos
-      end else incr pos
-    done;
-    match !ans with
-    | Some v -> v
-    | None ->
-      let () = add_aux t Weak.set (Some d) h index in
-      d
+  let[@inline] capacity t =
+    t.mask + 1
+
+  let crowded t =
+    (* resize at 82% occupation (105/128);
+       from François Pottier's [hachis] library. *)
+    128 * t.occupation > 105 * capacity t
+
+  let repr h k t =
+    let h = H.of_int h in
+    if crowded t then begin
+      (* Our estimation of occupation does not take into account weak
+         keys that have been removed by the GC. When the occupation
+         becomes high and we consider resizing, we first loook at
+         whether the real occupation is low enough that no resizing is
+         necessary -- in this case we just compress the data in-place,
+         without moving to larger backing arrays. *)
+      let real_occupation =
+        let count = ref 0 in
+        iter (fun _ -> incr count) t;
+        !count
+      in
+      if real_occupation < capacity t / 2
+      then compress t
+      else resize t;
+      t.travel := 0;
+    end
+    else if !(t.travel) > 42 * capacity t then begin
+      (* In workloads where hits dominate misses, the table grows very
+         slowly, so the crowded criterion rarely applies. It remains
+         useful to compress it from time to time, to get a chance to
+         remove collected values and thus speedup future lookups.
+
+         To compress regularly, we measure the 'travel' caused by
+         lookups, the total number of positions they have visited since
+         the last resizing or compression. When they have visited many
+         times the total size of the structure, we have amortized the
+         cost of a compression.
+
+         On [test_qs.ml] from the [ocaml-hashcons] repository (99.8%
+         hit rate), this extra source of compression reduces average
+         lookup travel from 5.4 to 1.3, and runtime is reduced from 1.7s
+         to 1.3s. *)
+      compress t;
+      t.travel := 0;
+    end;
+    match locate t k h with
+    | Ok k' ->
+      k'
+    | Error i ->
+      Weak.set t.keys i (Some k);
+      Array.unsafe_set t.hashes i h;
+      t.occupation <- t.occupation + 1;
+      k
 
   let stats t =
-    let fold accu bucket = max (count_bucket 0 bucket 0) accu in
-    let max_length = Array.fold_left fold 0 t.table in
-    let histogram = Array.make (max_length + 1) 0 in
-    let iter bucket =
-      let len = count_bucket 0 bucket 0 in
-      histogram.(len) <- succ histogram.(len)
+    let num_bindings =
+      (* number of live keys *)
+      let i = ref 0 in iter (fun _ -> incr i) t; !i in
+    let interval_lens =
+      let voids = ref [] in
+      Array.iteri (fun i h -> if h == H.void then voids := i :: !voids) t.hashes;
+      let voids = Array.of_list (List.rev !voids) in
+      List.init (Array.length voids - 1) (fun i ->
+        if i < Array.length voids - 1 then
+          voids.(i + 1) - voids.(i) - 1
+        else
+          Array.length t.hashes - voids.(i) - 1
+          + voids.(0)
+      )
+      |> List.filter ((<>) 0) (* filter out empty gaps *)
+      |> Array.of_list
     in
-    let () = Array.iter iter t.table in
-    let fold (num, len, i) k = (num + k * i, len + k, succ i) in
-    let (num, len, _) = Array.fold_left fold (0, 0, 0) histogram in
+    let nb_intervals = Array.length interval_lens in
+    let max_interval_len = interval_lens.(nb_intervals - 1) in
+    let histogram =
+      let hist = Array.make (max_interval_len + 1) 0 in
+      Array.iter (fun l -> hist.(l) <- hist.(l) + 1) interval_lens;
+      hist
+    in
     {
-      num_bindings = num;
-      num_buckets = len;
-      max_bucket_length = Array.length histogram;
+      num_bindings;
+      num_buckets = nb_intervals;
+      max_bucket_length = max_interval_len;
       bucket_histogram = histogram;
     }
-
 end
 
 module Combine = struct
