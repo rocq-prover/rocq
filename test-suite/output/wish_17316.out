@@ -1,2 +1,6 @@
-Notation "%" := 0 (default interpretation) (only printing) (from wish_17316)
-Notation "%" := 0 (default interpretation) (only parsing) (from wish_17316)
+Notation "%" := 0 (default interpretation) (only printing)
+  (defined in library wish_17316, line 1, characters 9-12)
+  (reserved in library wish_17316, line 2, characters 9-12)
+Notation "%" := 0 (default interpretation) (only parsing)
+  (defined in library wish_17316, line 2, characters 9-12)
+  (reserved in library wish_17316, line 1, characters 9-12)

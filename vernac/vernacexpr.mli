@@ -180,6 +180,7 @@ type notation_declaration =
   ; ntn_decl_interp : constr_expr
   ; ntn_decl_scope : scope_name option
   ; ntn_decl_modifiers : syntax_modifier CAst.t list
+  ; ntn_decl_loc : Loc.t option
   }
 
 type recursion_order_expr =

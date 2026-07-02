@@ -253,7 +253,7 @@ let cook_notation (from,df) sc =
   in
   from_df_sc
 
-let dump_notation_location posl df (((path,secpath),_),sc) =
+let dump_notation_location posl df (((path,secpath,_),_),sc) =
   if dump () then
     let path = Names.DirPath.to_string path in
     let secpath = Names.DirPath.to_string secpath in

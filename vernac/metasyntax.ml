@@ -918,6 +918,7 @@ type syntax_extension = {
   synext_nottyps : constr_entry_key list;
   synext_notgram : notation_grammar option;
   synext_notprint : generic_notation_printing_rules option;
+  synext_location : Loc.t option;
 }
 
 type syntax_rules =
@@ -1031,7 +1032,9 @@ let cache_one_syntax_extension (ntn,synext) =
   | _ -> (* The grammars rules are canonically derived from the string and the precedence*) ()
   end;
   (* Printing *)
-  Option.iter (declare_generic_notation_printing_rules ntn) synext.synext_notprint
+  Option.iter (declare_generic_notation_printing_rules ntn) synext.synext_notprint;
+  (* Save the location for `Locate`: *)
+  declare_ntn_gram_loc ntn synext.synext_location
 
 let cache_syntax_extension (_, sy) =
   cache_one_syntax_extension sy
@@ -1773,7 +1776,7 @@ let with_syntax_protection f x =
 
 exception NoSyntaxRule
 
-let recover_notation_syntax ntn =
+let recover_notation_syntax loc ntn =
   try
     let prec = Notation.level_of_notation ntn in
     let pa_typs = Notgram_ops.non_terminals_of_notation ntn in
@@ -1785,12 +1788,14 @@ let recover_notation_syntax ntn =
       synext_nottyps = pa_typs;
       synext_notgram = pa_rule;
       synext_notprint = pp_rule;
+      synext_location = loc;
     }
   with Not_found ->
     raise NoSyntaxRule
 
 let recover_squash_syntax sy =
-  let sq = recover_notation_syntax (InConstrEntry,"{ _ }") in
+  (* use `None` because this entire function is a hack anyways... *)
+  let sq = recover_notation_syntax None (InConstrEntry,"{ _ }") in
   match sq.synext_notgram with
   | Some gram -> sy :: gram
   | None -> raise NoSyntaxRule
@@ -1865,7 +1870,7 @@ let make_generic_printing_rules reserved main_data ntn sd =
   with Not_found ->
     Some (make_rule (make_pp_rule level sd.pp_syntax_data main_data.format))
 
-let make_syntax_rules reserved main_data ntn sd =
+let make_syntax_rules loc reserved main_data ntn sd =
   let open SynData in
   List.iter (fun f -> f ()) sd.msgs;
   (* Prepare the parsing and printing rules *)
@@ -1877,6 +1882,7 @@ let make_syntax_rules reserved main_data ntn sd =
     synext_nottyps = List.map snd sd.subentries;
     synext_notgram  = pa_rules;
     synext_notprint = pp_rules;
+    synext_location = loc;
   }
 
 (**********************************************************************)
@@ -1915,7 +1921,7 @@ let make_use reserved onlyparse onlyprint =
 (**********************************************************************)
 (* Main functions about notations                                     *)
 
-let make_notation_interpretation ~local main_data notation_symbols ntn syntax_rules df env ?(impls=empty_internalization_env) c scope =
+let make_notation_interpretation ~local loc main_data notation_symbols ntn syntax_rules df env ?(impls=empty_internalization_env) c scope =
   let {recvars;mainvars;symbols} = notation_symbols in
   (* Recover types of variables and pa/pp rules; redeclare them if needed *)
   let level, i_typs, main_data, sy_pp_rules =
@@ -1928,7 +1934,7 @@ let make_notation_interpretation ~local main_data notation_symbols ntn syntax_ru
   in
   (* Declare interpretation *)
   let sy_pp_rules = make_specific_printing_rules i_typs symbols level sy_pp_rules main_data.format in
-  let path = (Lib.library_dp(), Lib.current_dirpath true) in
+  let path = (Lib.library_dp(), Lib.current_dirpath true, loc) in
   let df' = ntn, (path,df) in
   let i_vars = make_internalization_vars recvars i_typs in
   let nenv = {
@@ -1977,7 +1983,7 @@ let add_reserved_notation ~local ~infix ({CAst.loc;v=df},mods) =
   let ntn = make_notation_key main_data.entry notation_symbols.symbols in
   if is_prim_token then user_err ?loc (str "Notations for numbers or strings are primitive and need not be reserved.");
   let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
-  let synext = make_syntax_rules true main_data ntn sd in
+  let synext = make_syntax_rules loc true main_data ntn sd in
   let () = warn_at_level_200 synext in
   Lib.add_leaf (inSyntaxExtension(local,(ntn,synext)))
 
@@ -1992,6 +1998,7 @@ let prepare_where_notation ntn_decl =
       ntn_decl_interp = c;
       ntn_decl_modifiers = modifiers;
       ntn_decl_scope = sc;
+      ntn_decl_loc = ll;
     } = ntn_decl in
   let (main_data,mods) = interp_non_syntax_modifiers ~reserved:false ~infix:false ~abbrev:false None modifiers in
   match mods with
@@ -2001,21 +2008,21 @@ let prepare_where_notation ntn_decl =
     let ntn = make_notation_key main_data.entry notation_symbols.symbols in
     let syntax_rules =
       if is_prim_token then PrimTokenSyntax else
-      try SpecificSyntax (recover_notation_syntax ntn)
+      try SpecificSyntax (recover_notation_syntax ll ntn)
       with NoSyntaxRule ->
         user_err Pp.(str "Parsing rule for this notation has to be previously declared.") in
     (ntn_decl, main_data, notation_symbols, ntn, syntax_rules)
 
 let add_notation_interpretation ~local env (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
   let { ntn_decl_string = { CAst.loc ; v = df }; ntn_decl_interp = c; ntn_decl_scope = sc } = ntn_decl in
-  let notation = make_notation_interpretation ~local main_data notation_symbols ntn syntax_rules df env c sc in
+  let notation = make_notation_interpretation ~local loc main_data notation_symbols ntn syntax_rules df env c sc in
   Lib.add_leaf (inNotation notation);
   Dumpglob.dump_notation (CAst.make ?loc ntn) sc true
 
 (* interpreting a where clause *)
 let set_notation_for_interpretation env impls (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
   let { ntn_decl_string = { CAst.loc ; v = df }; ntn_decl_interp = c; ntn_decl_scope = sc } = ntn_decl in
-  let notation = make_notation_interpretation ~local:true main_data notation_symbols ntn syntax_rules df env ~impls c sc in
+  let notation = make_notation_interpretation ~local:true loc main_data notation_symbols ntn syntax_rules df env ~impls c sc in
   Lib.add_leaf (inNotation notation);
   Option.iter (fun sc -> Lib.add_leaf (inScope (false,true,sc))) sc
 
@@ -2033,16 +2040,16 @@ let build_notation_syntax ~local ~infix user_warns ntn_decl =
   match syntax_modifiers with
   | [] ->
     (* No syntax data: try to rely on a previously declared rule *)
-    (try SpecificSyntax (recover_notation_syntax ntn)
+    (try SpecificSyntax (recover_notation_syntax loc ntn)
     with NoSyntaxRule ->
       (* Try to determine a default syntax rule *)
       let sd = compute_syntax_data ~local main_data notation_symbols ntn NotationMods.default in
-      SpecificSyntax (make_syntax_rules false main_data ntn sd))
+      SpecificSyntax (make_syntax_rules loc false main_data ntn sd))
 
   | _ ->
     let mods = interp_modifiers main_data.entry syntax_modifiers in
     let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
-    SpecificSyntax (make_syntax_rules false main_data ntn sd)
+    SpecificSyntax (make_syntax_rules loc false main_data ntn sd)
   in
   main_data, notation_symbols, ntn, syntax_rules, c, df
 
