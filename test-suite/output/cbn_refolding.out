@@ -1,0 +1,190 @@
+"** direct closed aliases"
+     : string
+     = 0
+     : nat
+     = 0
+     : nat
+     = exist (fun _ : nat => True) 0 I
+     : set
+"** aliases over reduced iota arguments"
+     : string
+"alias_id_nat_inline_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_id_nat_inline_if_true"
+     : string
+     = fun x : nat => S x
+     : nat -> nat
+"alias_id_nat_def_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_id_nat_def_match_SS"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_id_nat_beta_then_iota"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_fst_nat_inline_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_fst_nat_inline_if_true"
+     : string
+     = fun x : nat => S x
+     : nat -> nat
+"alias_fst_nat_def_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_fst_nat_def_match_SS"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_fst_nat_beta_then_iota"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_snd_nat_inline_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_snd_nat_inline_if_true"
+     : string
+     = fun x : nat => S x
+     : nat -> nat
+"alias_snd_nat_def_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_snd_nat_def_match_SS"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_snd_nat_beta_then_iota"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_third_nat_inline_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_third_nat_inline_if_true"
+     : string
+     = fun x : nat => S x
+     : nat -> nat
+"alias_third_nat_def_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_third_nat_def_match_SS"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_third_nat_beta_then_iota"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_id_poly_nat_inline_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_id_poly_nat_inline_if_true"
+     : string
+     = fun x : nat => S x
+     : nat -> nat
+"alias_id_poly_nat_def_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_id_poly_nat_def_match_SS"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_id_poly_nat_beta_then_iota"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_ret_cast_inline_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_ret_cast_inline_if_true"
+     : string
+     = fun x : nat => S x
+     : nat -> nat
+"alias_ret_cast_def_match_S"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_ret_cast_def_match_SS"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"alias_ret_cast_beta_then_iota"
+     : string
+     = fun x : nat => x
+     : nat -> nat
+"selected_under_pair"
+     : string
+     = fun x : nat => (x, 0)
+     : nat -> nat * nat
+"sort_id_Type_if_true"
+     : string
+     = nat
+     : Type
+"sort_id_Prop_if_true"
+     : string
+     = True
+     : Prop
+"sort_id_Prop_under_fun"
+     : string
+     = fun P : Prop => P
+     : Prop -> Prop
+"fun_id_if_true"
+     : string
+     = S
+     : nat -> nat
+"fun_id_if_true_applied"
+     : string
+     = fun x : nat => S x
+     : nat -> nat
+"record_id_R_if_true"
+     : string
+     = fun x : nat => {| ra := x; rb := 0 |}
+     : nat -> R
+"prim_record_id_PR_if_true"
+     : string
+     = fun x : nat => {| pra := x; prb := 0 |}
+     : nat -> PR
+"box_id_if_true"
+     : string
+     = Box 0
+     : box
+"set_id_poly_if_true"
+     : string
+     = set0
+     : set
+"set_difference_direct"
+     : string
+     = fun y : set => let (t2, _) := y in exist (fun _ : nat => True) 0 I
+     : set -> set
+"set_difference_cast"
+     : string
+     = fun y : set => let (t2, _) := y in exist (fun _ : nat => True) 0 I
+     : set -> set
+"set_difference_class"
+     : string
+     = fun y : set => let (t2, _) := y in exist (fun _ : nat => True) 0 I
+     : set -> set
+"set_difference_direct_both_known"
+     : string
+     = exist (fun _ : nat => True) 0 I
+     : set
+"set_difference_class_both_known"
+     : string
+     = exist (fun _ : nat => True) 0 I
+     : set
