@@ -21,9 +21,11 @@ Refer to doc/sphinx/README.rst for the documentation of the coqrst domain.
 # pylint: disable=import-outside-toplevel, abstract-method, too-many-lines
 
 import os
+import json
 import re
 import shlex
 from itertools import chain
+from dataclasses import dataclass
 from collections import defaultdict
 
 from docutils import nodes, utils
@@ -33,6 +35,7 @@ from docutils.parsers.rst.roles import code_role #, set_classes
 from docutils.parsers.rst.directives.admonitions import BaseAdmonition
 
 from sphinx import addnodes, version_info as sphinx_version
+from sphinx.application import Sphinx
 from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType, Index
 from sphinx.errors import ExtensionError
@@ -41,12 +44,14 @@ from sphinx.util.docutils import ReferenceRole
 from sphinx.util.logging import getLogger, get_node_location
 from sphinx.util.nodes import set_source_info, set_role_source_info, make_refnode
 from sphinx.writers.latex import LaTeXTranslator
+from sphinx.builders.text import TextBuilder
 
 from . import rocqdoc
 from .repl import ansicolors
 from .repl.rocqtop import RocqTop, RocqTopError
 from .notations.parsing import ParseError
 from .notations.sphinx import sphinxify
+from .notations import object as object_notations
 from .notations.plain import stringify_with_ellipses
 
 # FIXME: Patch this in Sphinx
@@ -83,6 +88,14 @@ LaTeXTranslator.visit_desc_signature = visit_desc_signature
 PARSE_ERROR = """{}:{} Parse error in notation!
 Offending notation: {}
 Error message: {}"""
+
+@dataclass
+class SubdomainItemData:
+    """Data stored for each object in a subdomain"""
+    docname: str
+    objtype: str
+    targetid: str
+    syntax: list[object_notations.TaggedNotationObject]
 
 def notation_to_sphinx(notation, source, line, rawtext=None):
     """Parse notation and wrap it in an inline node"""
@@ -170,6 +183,14 @@ class RocqObject(ObjectDescription):
         """Render a signature, placing resulting nodes into signode."""
         raise NotImplementedError(self)
 
+    def _signature_to_syntax(self, signature: str) -> list[object_notations.TaggedNotationObject]:
+        """Convert a signature into a syntax tree, used in generated plain JSON indices.
+
+        By default, returns the signature as a literal string.
+
+        """
+        return [object_notations.Literal.new(object_notations.Literal(value=signature, subscript=None))]
+
     option_spec = {
         # Explicit object naming
         'name': directives.unchanged,
@@ -179,7 +200,7 @@ class RocqObject(ObjectDescription):
         'noindex': directives.flag
     }
 
-    def subdomain_data(self):
+    def subdomain_data(self) -> dict[str, SubdomainItemData]:
         if self.subdomain is None:
             raise ValueError()
         return self.env.domaindata['rocq']['objects'][self.subdomain]
@@ -207,14 +228,14 @@ class RocqObject(ObjectDescription):
             names = [name] if name else None
         return names
 
-    def _warn_if_duplicate_name(self, objects, name, signode):
+    def _warn_if_duplicate_name(self, objects: dict[str, SubdomainItemData], name: str, signode):
         """Check that two objects in the same domain don't have the same name."""
         if name in objects:
             MSG = 'Duplicate name {} (other is in {}) attached to {}'
-            msg = MSG.format(name, self.env.doc2path(objects[name][0]), signode)
+            msg = MSG.format(name, self.env.doc2path(objects[name].docname), signode)
             self.state_machine.reporter.warning(msg, line=self.lineno)
 
-    def _record_name(self, name, target_id, signode):
+    def _record_name(self, name, target_id, signature: str, signode):
         """Record a `name` in the current subdomain, mapping it to `target_id`.
 
         Warns if another object of the same name already exists; `signode` is
@@ -222,19 +243,19 @@ class RocqObject(ObjectDescription):
         """
         names_in_subdomain = self.subdomain_data()
         self._warn_if_duplicate_name(names_in_subdomain, name, signode)
-        names_in_subdomain[name] = (self.env.docname, self.objtype, target_id)
+        names_in_subdomain[name] = SubdomainItemData(self.env.docname, self.objtype, target_id, self._signature_to_syntax(signature))
 
     def _target_id(self, name):
         return make_target(self.objtype, make_id(name))
 
-    def _add_target(self, signode, name):
+    def _add_target(self, signature: str, signode, name):
         """Register a link target ‘name’, pointing to signode."""
         targetid = self._target_id(name)
         if targetid not in self.state.document.ids:
             signode['ids'].append(targetid)
             signode['names'].append(name)
             signode['first'] = (not self.names)
-            self._record_name(name, targetid, signode)
+            self._record_name(name, targetid, signature, signode)
         else:
             # We don't warn for duplicates in the SSReflect chapter, because
             # it's the style of this chapter to repeat all the defined
@@ -253,14 +274,14 @@ class RocqObject(ObjectDescription):
             index_text += " " + self.index_suffix
         self.indexnode['entries'].append(('single', index_text, target, '', None))
 
-    def add_target_and_index(self, names, _, signode):
+    def add_target_and_index(self, names, signature: str, signode):
         """Attach a link target to `signode` and index entries for `names`.
         This is only called (from ``ObjectDescription.run``) if ``:noindex:`` isn't specified."""
         if names:
             for name in names:
                 if isinstance(name, str) and name.startswith('_'):
                     continue
-                target = self._add_target(signode, name)
+                target = self._add_target(signature, signode, name)
                 self._add_index_entry(name, target)
             self.state.document.note_explicit_target(signode)
 
@@ -320,6 +341,9 @@ class NotationObject(DocumentableObject):
     Objects that inherit from this class can use the notation grammar (“{+ …}”,
     “@…”, etc.) in their signature.
     """
+    def _signature_to_syntax(self, signature: str) -> list[object_notations.TaggedNotationObject]:
+        return object_notations.objectify(signature)
+
     def _render_signature(self, signature, signode):
         position = self.state_machine.get_source_and_line(self.lineno)
         tacn_node = notation_to_sphinx(signature, *position)
@@ -457,7 +481,7 @@ class ProductionObject(RocqObject):
     def _target_id(self, name):
         return make_id('grammar-token-{}'.format(name[1]))
 
-    def _record_name(self, name, targetid, signode):
+    def _record_name(self, name, targetid, signature, signode):
         env = self.state.document.settings.env
         objects = env.domaindata['std']['objects']
         self._warn_if_duplicate_name(objects, name, signode)
@@ -975,12 +999,12 @@ class RocqSubdomainsIndex(Index):
         items = chain(*(self.domain.data['objects'][subdomain].items()
                         for subdomain in self.subdomains))
 
-        for itemname, (docname, _, anchor) in sorted(items, key=lambda x: x[0].lower()):
-            if docnames and docname not in docnames:
+        for itemname, data in sorted(items, key=lambda x: x[0].lower()):
+            if docnames and data.docname not in docnames:
                 continue
 
             entries = content[itemname[0].lower()]
-            entries.append([itemname, 0, docname, anchor, '', '', ''])
+            entries.append([itemname, 0, data.docname, data.targetid, '', '', ''])
 
         collapse = False
         content = sorted(content.items())
@@ -1158,7 +1182,7 @@ class RocqDomain(Domain):
     initial_data = {
         # Collect everything under a key that we control, since Sphinx adds
         # others, such as “version”
-        'objects' : { # subdomain → name → docname, objtype, targetid
+        'objects' : { # subdomain → name → SubdomainItemData
             'cmd': {},
             'tacn': {},
             'opt': {},
@@ -1182,8 +1206,8 @@ class RocqDomain(Domain):
     def get_objects(self):
         # Used for searching and object inventories (intersphinx)
         for _, objects in self.data['objects'].items():
-            for name, (docname, objtype, targetid) in objects.items():
-                yield (name, name, objtype, docname, targetid, self.object_types[objtype].attrs['searchprio'])
+            for name, data in objects.items():
+                yield (name, name, data.objtype, data.docname, data.targetid, self.object_types[data.objtype].attrs['searchprio'])
         for index in self.indices:
             yield (index.name, index.localname, 'index', "rocq-" + index.name, '', -1)
 
@@ -1191,11 +1215,11 @@ class RocqDomain(Domain):
         DUP = "Duplicate declaration: '{}' also defined in '{}'.\n"
         for subdomain, their_objects in otherdata['objects'].items():
             our_objects = self.data['objects'][subdomain]
-            for name, (docname, objtype, targetid) in their_objects.items():
-                if docname in docnames:
+            for name, data in their_objects.items():
+                if data.docname in docnames:
                     if name in our_objects:
-                        self.env.warn(docname, DUP.format(name, our_objects[name][0]))
-                    our_objects[name] = (docname, objtype, targetid)
+                        self.env.warn(data.docname, DUP.format(name, our_objects[name].docname))
+                    our_objects[name] = data
 
     def resolve_xref(self, env, fromdocname, builder, role, targetname, node, contnode):
         # ‘target’ is the name that was written in the document
@@ -1207,14 +1231,13 @@ class RocqDomain(Domain):
         else:
             resolved = self.data['objects'][role].get(targetname)
             if resolved:
-                (todocname, _, targetid) = resolved
-                return make_refnode(builder, fromdocname, todocname, targetid, contnode, targetname)
+                return make_refnode(builder, fromdocname, resolved.docname, resolved.targetid, contnode, targetname)
         return None
 
     def clear_doc(self, docname_to_clear):
         for subdomain_objects in self.data['objects'].values():
-            for name, (docname, _, _) in list(subdomain_objects.items()):
-                if docname == docname_to_clear:
+            for name, data in list(subdomain_objects.items()):
+                if data.docname == docname_to_clear:
                     del subdomain_objects[name]
 
 def is_rocqtop_or_rocqdoc_block(node):
@@ -1238,6 +1261,63 @@ def simplify_source_code_blocks_for_latex(app, doctree, fromdocname): # pylint: 
         else:
             node.replace_self(nodes.literal_block(node.rawsource, node.rawsource, language="Coq"))
 
+
+class IndicesBuilder(TextBuilder):
+    """Custom sphinx builder to generate JSON files containing the content of our indices.
+
+    It is based on the TextBuilder to be able to generate the content of the documentation for each object."""
+    name = 'indices'
+    format = 'json'
+    allow_parallel = True
+
+    def init(self):
+        super().init()
+        self.rendered: dict[str, str] = {}
+
+    def write_doc(self, docname: str, doctree: nodes.document) -> None:
+        domain = self.env.get_domain('rocq')
+        # find all nodes that are handled by our rocq domain
+        for node in doctree.findall(lambda n: isinstance(n, nodes.Element) and n.get('objtype') in domain.object_types):
+            # all IDs will be associated to this content
+            all_target_ids = []
+            for sig in node.traverse(addnodes.desc_signature):
+                all_target_ids.extend(sig.get('ids', []))
+
+            # the content is the next node
+            content_node = node.next_node(addnodes.desc_content)
+
+            if all_target_ids and content_node:
+                # translate sphinx nodes to text and associate it to all IDs
+                translator = self.create_translator(doctree, self)
+                translator.visit_document(content_node)
+                content_node.walkabout(translator)
+                translator.depart_document(content_node)
+                text = translator.body.strip()
+                for tid in all_target_ids:
+                    self.rendered[tid] = text
+
+    def finish(self):
+        domain = self.env.get_domain('rocq')
+
+        def write_json(index: RocqSubdomainsIndex):
+            items: list[tuple[str, SubdomainItemData]] = chain(*(domain.data['objects'][subdomain].items()
+                            for subdomain in index.subdomains))
+
+            output_data = {}
+            for name, data in items:
+                output_data[name] = {
+                    "documentation_path": data.docname,
+                    "documentation_anchor": data.targetid,
+                    "syntax": [[x[0], x[1].asdict()] for x in data.syntax],
+                    "documentation": self.rendered.get(data.targetid, "")
+                }
+
+            with open(self.outdir / f"{index.name}.json", "w") as f:
+                json.dump(output_data, f, indent=2)
+
+        for index in RocqDomain.indices:
+            write_json(index)
+
 ROCQ_ADDITIONAL_DIRECTIVES = [RocqtopDirective,
                              RocqdocDirective,
                              ExampleDirective,
@@ -1260,6 +1340,7 @@ def setup(app):
 
     # Add domain, directives, and roles
     app.add_domain(RocqDomain)
+    app.add_builder(IndicesBuilder)
     app.add_index_to_domain('std', StdGlossaryIndex)
 
     for role in ROCQ_ADDITIONAL_ROLES:
