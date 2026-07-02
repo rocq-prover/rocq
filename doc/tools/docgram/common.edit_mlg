@@ -979,11 +979,11 @@ simple_tactic: [
 | WITH "eenough" "(" identref ":" type ")" by_tactic
 | REPLACE "eenough" constr as_ipat by_tactic
 | WITH "eenough" one_type as_ipat by_tactic
-| DELETE "autorewrite" "with" LIST1 preident clause
-| DELETE "autorewrite" "with" LIST1 preident clause "using" tactic
-| DELETE "autorewrite" "*" "with" LIST1 preident clause
-| REPLACE "autorewrite" "*" "with" LIST1 preident clause "using" tactic
-| WITH "autorewrite" OPT "*" "with" LIST1 preident clause OPT ( "using" tactic )
+| DELETE "autorewrite" orient "with" LIST1 preident clause
+| DELETE "autorewrite" orient "with" LIST1 preident clause "using" tactic
+| DELETE "autorewrite" orient "*" "with" LIST1 preident clause
+| REPLACE "autorewrite" orient "*" "with" LIST1 preident clause "using" tactic
+| WITH "autorewrite" orient OPT "*" "with" LIST1 preident clause OPT ( "using" tactic )
 | REPLACE "autounfold" hintbases clause_dft_concl
 | WITH "autounfold" hintbases OPT simple_occurrences
 | REPLACE "red" clause_dft_concl

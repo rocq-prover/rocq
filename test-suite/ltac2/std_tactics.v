@@ -175,3 +175,24 @@ Proof.
   split.
   all: exfalso; assumption.
 Qed.
+
+Axioms a b c : nat.
+Axioms (ab : a = b) (bc : b = c).
+
+Create Rewrite HintDb arw.
+#[local] Hint Rewrite ab bc : arw.
+
+Ltac2 concl () : Std.clause :=
+  { Std.on_hyps := Some []; Std.on_concl := Std.AllOccurrences }.
+
+Goal a = c.
+Proof.
+  Std.autorewrite false None [@arw] (concl ()).
+  exact (eq_refl c).
+Qed.
+
+Goal a = c.
+Proof.
+  Std.autorewrite_backward false None [@arw] (concl ()).
+  exact (eq_refl a).
+Qed.
