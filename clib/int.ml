@@ -11,8 +11,7 @@
 type t = int
 
 external equal : int -> int -> bool = "%eq"
-
-external compare : int -> int -> int = "caml_int_compare"
+external compare : int -> int -> int = "%compare"
 
 let hash i = i land 0x3FFFFFFF
 
