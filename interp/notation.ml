@@ -68,7 +68,7 @@ module SpecificNotationMap = CMap.Make(SpecificNotationOrd)
 (* Scope of symbols *)
 
 type delimiters = string
-type notation_location = (DirPath.t * DirPath.t) * string
+type notation_location = (DirPath.t * DirPath.t * Loc.t option) * string
 
 type notation_data = {
   not_interp : interpretation;
@@ -1579,6 +1579,26 @@ let pr_id_infos (id, ((level,(tmp_scopes, scopes)), under_binders, kind)) =
     in
     Some pp
 
+
+let notation_gram_locs = Summary.ref ~stage:Synterp ~name:"ntn-gram-locs" NotationMap.empty
+
+let declare_ntn_gram_loc ntn (loc : Loc.t option) =
+  match loc with
+  | None -> ()
+  | Some loc ->
+    notation_gram_locs :=
+      NotationMap.update ntn (fun old ->
+          let old = Option.default [] old in
+          Some (loc :: old))
+        !notation_gram_locs
+
+let get_ntn_gram_locs ntn decl_loc =
+  let list = NotationMap.find ntn !notation_gram_locs in
+  (match decl_loc with
+     None -> list
+     (* Filter out the implicit [Reserve Notation] that every [Notation] performs. *)
+   | Some decl_loc -> List.filter (fun x -> x <> decl_loc) list)
+
 let pr_ids_infos ids =
   let pp = List.filter_map pr_id_infos ids in
   match pp with
@@ -1594,7 +1614,7 @@ let locate_notation prglob ntn scope =
     prlist_with_sep fnl (fun (ntn,l) ->
       let scope = find_default ntn scopes in
       prlist_with_sep fnl
-        (fun (sc,(on_parsing,on_printing,{ not_interp  = (ids, r); not_location = ((libpath,secpath), df) })) ->
+        (fun (sc,(on_parsing,on_printing,{ not_interp  = (ids, r); not_location = ((libpath,secpath,loc), df) })) ->
           let full_path = DirPath.make (DirPath.repr secpath @ DirPath.repr libpath) in
           hov 2 (
             str "Notation" ++ spc() ++
@@ -1605,7 +1625,10 @@ let locate_notation prglob ntn scope =
             (if Option.equal String.equal (Some sc) scope
              then spc() ++ str "(default interpretation)" else mt ()) ++
             pr_non_empty (spc()) (pr_notation_status on_parsing on_printing) ++
-            spc() ++ surround (str "from " ++  DirPath.print full_path)
+            spc() ++ surround (str "defined in " ++  (match loc with
+                Some loc -> Loc.pr_use_dp loc
+              | None -> DirPath.print full_path)) ++
+            List.fold_right (fun rloc x -> x ++ spc() ++ surround (str "reserved in " ++ Loc.pr_use_dp rloc)) (get_ntn_gram_locs ntn loc) (Pp.mt ())
           ))
         l) ntns
 

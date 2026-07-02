@@ -91,6 +91,8 @@ val map : ('a -> 'b) -> 'a located -> 'b located
 (** Print for user consumption. *)
 val pr : t -> Pp.t
 
+val pr_use_dp : t -> Pp.t
+
 (** {5 Location of the current command (if any) } *)
 
 val get_current_command_loc : unit -> t option

@@ -494,6 +494,7 @@ GRAMMAR EXTEND Gram
       { { ntn_decl_string = ntn; ntn_decl_interp = c;
           ntn_decl_scope = scopt;
           ntn_decl_modifiers = modl;
+          ntn_decl_loc = Some loc;
       } } ] ]
   ;
   decl_sep:

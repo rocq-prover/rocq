@@ -924,22 +924,10 @@ let canonical_info env ref =
     | path -> spc() ++ str "(syntactically equal to" ++ spc() ++ pr_path path ++ str ")"
     | exception Not_found -> spc() ++ str "(missing canonical, bug?)"
 
-let pr_loc_use_dp loc = match loc.Loc.fname with
-  | Loc.ToplevelInput ->
-    (* NB emacs mangles the message if it contains the capitalized "Toplevel input" of [Loc.pr] *)
-    str "toplevel input, characters " ++ int loc.bp ++ str "-" ++ int loc.ep
-  | InFile  { dirpath = None } -> Loc.pr loc
-  | InFile { dirpath = Some dp } ->
-    let f = str "library " ++ str dp in
-    (f ++
-     str", line " ++ int loc.line_nb ++ str", characters " ++
-     int (loc.bp-loc.bol_pos) ++ str"-" ++ int (loc.ep-loc.bol_pos))
-
-
 let loc_info gr =
   match Nametab.cci_src_loc gr with
   | None -> mt()
-  | Some loc -> cut() ++ hov 0 (str "Declared in" ++ spc() ++ pr_loc_use_dp loc)
+  | Some loc -> cut() ++ hov 0 (str "Declared in" ++ spc() ++ Loc.pr_use_dp loc)
 
 let pr_dir dir =
   let s,mp =
