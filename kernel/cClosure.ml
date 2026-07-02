@@ -357,12 +357,15 @@ let inject c = injectu c UVars.Instance.empty
 
 let mk_irrelevant = { mark = Cstr; term = FIrrelevant }
 
-let is_irrelevant info r = match info.i_cache.i_mode with
-| Reduction -> false
-| Conversion -> match r with
+let is_irrelevant0 info r =
+  match r with
   | Sorts.Irrelevant -> true
   | Sorts.RelevanceVar q -> info.i_cache.i_sigma.qvar_irrelevant q
   | Sorts.Relevant -> false
+
+let is_irrelevant info r = match info.i_cache.i_mode with
+| Reduction -> false
+| Conversion -> is_irrelevant0 info r
 
 let eq_quality info q1 q2 =
   info.i_cache.i_sigma.qual_equal q1 q2
@@ -1504,8 +1507,11 @@ and knht info e t stk =
       else
         knht info e t (ZcaseT(ci, u, pms, p, br, e)::stk)
     | Case(ci,u,pms,(_,r as p),CaseInvert{indices},t,br) ->
-      if is_irrelevant info (usubst_relevance e r) then
+      let ur = usubst_relevance e r in
+      if is_irrelevant info ur then
         (mk_irrelevant, skip_irrelevant_stack info stk)
+      else if is_irrelevant0 info ur then
+        knht info e t (ZcaseT(ci, u, pms, p, br, e)::stk)
       else
         let term = FCaseInvert (ci, u, pms, p, (Array.map (mk_clos e) indices), mk_clos e t, br, e) in
         { mark = Red; term }, stk
