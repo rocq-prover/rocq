@@ -1022,10 +1022,10 @@ let () =
 let () =
   define "case" (thunk valexpr @-> tac (result (pair valexpr (fun1 exn valexpr)))) @@ fun f ->
   Proofview.tclCASE (thaw f) >>= begin function
-  | Proofview.Next (x, k) ->
+  | Ok (x, k) ->
     let k (e,info) = set_bt info >>= fun info -> k (e,info) in
     return (Ok (x, k))
-  | Proofview.Fail e -> return (Error e)
+  | Error _ as e -> return e
   end
 
 let () =
