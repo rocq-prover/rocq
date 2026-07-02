@@ -83,6 +83,11 @@ val edit_distance : ?limit:int -> string -> string -> int
 
     copied from ocaml 5.4 *)
 
+val edit_distance_substring : ?limit:int -> pattern:string -> string -> int
+(** [edit_distance_substring ?limit ~pattern s1]
+    is the minimum [edit_distance ?limit pattern s2]
+    where [s2] is a substring of [s1]. *)
+
 (** {6 Generic operations} **)
 
 module Set : CSet.ExtS with type elt = t

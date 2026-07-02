@@ -7,6 +7,14 @@ Search (@eq _ _ true).
 Search (@eq _ _ _) true -false.         (* andb_prop *)
 Search (@eq _ _ _) true -false "prop" -"intro".  (* andb_prop *)
 
+Search "add_comm".
+(* currently set to return results whose name contains a substring
+   with edit distance <=2 from the pattern:
+
+  - and_comm (mutate the first "d")
+  - eq_id_comm_r and eq_id_comm_l (mutate the "a" and second "d")
+*)
+
 Definition newdef := fun x:nat => x.
 
 Goal forall n:nat, n <> newdef n -> newdef n <> n -> False.
