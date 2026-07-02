@@ -1403,6 +1403,16 @@ struct
     let pretype tycon env sigma c = eval_pretyper self ~flags tycon env sigma c in
     Cases.compile_cases ?loc ~program_mode:flags.program_mode sty (pretype, sigma) tycon env (po,tml,eqns)
 
+  let warn_nonbool_if =
+    let quickfix ~loc (cloc, pp) =
+      let qf loc = let loc = Loc.after loc 0 0 in [Quickfix.make ~loc pp] in
+      Option.cata qf [] cloc in
+    CWarnings.create ~name:"non-boolean-if" ~category:Deprecation.Version.v9_3
+      ~quickfix
+      (fun _ ->
+         strbrk "The \"if <c> then _\" syntax for non boolean guard is deprecated. "
+         ++ strbrk "Use \"if <c> is <first_constructor> then _\" instead.")
+
   let pretype_if self (c, (na, po), b1, b2) =
     fun ?loc ~flags tycon env sigma ->
     let open Context.Rel.Declaration in
@@ -1417,6 +1427,15 @@ struct
     let () = if not (Int.equal (Array.length cstrs) 2) then
         CErrors.user_err ?loc (str "If is only for inductive types with two constructors.")
     in
+    let () =
+      let indf_is_bool =
+        match dest_ind_family indf with _, _ :: _ -> false | (ind, _), [] ->
+          match Rocqlib.lib_ref_opt "core.bool.type" with
+          | None -> false
+          | Some bool -> GlobRef.CanOrd.equal (IndRef ind) bool in
+      if not indf_is_bool then
+        let cloc = loc_of_glob_constr c in
+        warn_nonbool_if ?loc (cloc, Pp.str " is " ++ Id.print cstrs.(0).cs_name) in
     let arsgn, indr =
       let arsgn = get_arity !!env indf in
       (* Make dependencies from arity signature impossible *)

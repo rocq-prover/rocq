@@ -128,7 +128,7 @@ use the :g:`dec` combinator to get the correct hypotheses as in:
 .. rocqtop:: all
 
    Program Definition id (n : nat) : { x : nat | x = n } :=
-     if sumbool_of_bool (Nat.leb n 0) then 0
+     if sumbool_of_bool (Nat.leb n 0) is left _ then 0
      else S (pred n).
 
 The :g:`let` tupling construct :g:`let (x1, ..., xn) := t in b` does not
