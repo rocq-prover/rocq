@@ -1164,7 +1164,7 @@ let matches_head env sigma c t =
     parameters. This is a temporary fix while rewrite etc... are not up to equivalence
     of the projection and its eta expanded form.
 *)
-let change_map_constr_with_binders_left_to_right changed g f (env, l as acc) sigma c =
+let change_map_constr_with_binders_left_to_right ~partial_app changed g f (env, l as acc) sigma c =
   match EConstr.kind sigma c with
   | Proj (p, r, v) -> (* Treat specially for partial applications *)
     let t = Retyping.expand_projection env sigma p v [] in
@@ -1180,7 +1180,7 @@ let change_map_constr_with_binders_left_to_right changed g f (env, l as acc) sig
     else
       let () = changed := true in
       mkApp (app', [| a' |])
-  | _ -> map_constr_with_binders_left_to_right env sigma g f acc c
+  | _ -> map_constr_with_binders_left_to_right ~partial_app env sigma g f acc c
 
 let e_contextually byhead (occs,c) f = begin fun env sigma t ->
   let count = ref (Locusops.initialize_occurrence_counter occs) in
@@ -1220,7 +1220,7 @@ let e_contextually byhead (occs,c) f = begin fun env sigma t ->
     | App (f,l) when byhead -> mkApp (f, Array.map_left (traverse nested envc) l)
     | Proj (p,r,c) when byhead -> mkProj (p,r,traverse nested envc c)
     | _ ->
-        change_map_constr_with_binders_left_to_right changed
+        change_map_constr_with_binders_left_to_right ~partial_app:true changed
           (fun d (env,c) -> (push_rel d env, Patternops.lift_pattern 1 c))
           (traverse nested) envc sigma t
   in
@@ -1260,7 +1260,7 @@ let substlin env sigma evalref occs c =
         count := count';
         if ok then Lazy.force v else c
       | None ->
-        map_constr_with_binders_left_to_right env sigma
+        map_constr_with_binders_left_to_right ~partial_app:true env sigma
           (fun _ () -> ())
           substrec () c
   in
