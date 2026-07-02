@@ -164,7 +164,7 @@ let is_rigid m q = match repr_node_qvar q m with
 | ReprVar (_, rigid) -> rigid
 | ReprConstant _ | ReprGlobal _ -> true
 
-let set q qv m =
+let set ?(check_rigid=true) q qv m =
   let q = repr_node_qvar q m in
   let q, rigid = match q with
     | ReprVar (q, rigid) -> q, rigid
@@ -173,7 +173,7 @@ let set q qv m =
   let qv = repr_node qv m in
   let enforce_eq q1 q2 g =
     let ans = QGraph.enforce_eliminates_to q1 q2 (QGraph.enforce_eliminates_to q2 q1 g) in
-    let () = QGraph.check_rigid_paths ans in
+    let () = if check_rigid then QGraph.check_rigid_paths ans in
     ans
   in
   match qv with
@@ -314,15 +314,19 @@ let undefined m =
   QMap.domain mq
 
 let collapse_above_prop ~to_prop m =
-  QMap.fold (fun q v m ->
+  let m' =
+    QMap.fold (fun q v m ->
            match v with
            | Equiv _ -> m
            | Canonical _ ->
               if not @@ is_above_prop m q then m else
-                if to_prop then Option.get (set q qprop m)
-                else Option.get (set q qtype m)
+                if to_prop then Option.get (set ~check_rigid:false q qprop m)
+                else Option.get (set ~check_rigid:false q qtype m)
          )
          m.qmap m
+  in
+  let () = if m != m' then QGraph.check_rigid_paths m'.elims in
+  m'
 
 let collapse ?(except=QSet.empty) ~only_above_prop m =
   let free_qualities = QMap.fold (fun q v fqs ->
@@ -334,7 +338,8 @@ let collapse ?(except=QSet.empty) ~only_above_prop m =
   let dominates_above_prop q q' =
     not (QVar.equal q q') && QGraph.eliminates_to m.elims (QVar q) (QVar q') && not (QSet.mem q m.above_prop)
   in
-  QMap.fold (fun q v m ->
+  let m' =
+    QMap.fold (fun q v m ->
       match v with
       | Equiv _ -> m
       | Canonical { rigid } ->
@@ -354,10 +359,14 @@ let collapse ?(except=QSet.empty) ~only_above_prop m =
         *)
         else if QSet.mem q m.above_prop then
           if QSet.exists (fun q' -> dominates_above_prop q' q) free_qualities then
-            Option.get (set q qprop m)
-          else Option.get (set q qtype m)
-        else if not only_above_prop then Option.get (set q qtype m) else m)
+            Option.get (set ~check_rigid:false q qprop m)
+          else Option.get (set ~check_rigid:false q qtype m)
+        else if not only_above_prop then Option.get (set ~check_rigid:false q qtype m) else m)
     m.qmap m
+  in
+  let () = if m != m' then QGraph.check_rigid_paths m'.elims in
+  m'
+
 
 let pr prqvar local_name ({ qmap; elims } as m) =
   let open Pp in
