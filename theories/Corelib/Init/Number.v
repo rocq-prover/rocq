@@ -31,6 +31,12 @@ Register uint as num.num_uint.type.
 Register int as num.num_int.type.
 Register number as num.number.type.
 
+Variant luint := LUIntDecimal (u:Decimal.luint) | LUIntHexadecimal (u:Hexadecimal.luint).
+Variant lint := LIntDecimal (i:Decimal.lint) | LIntHexadecimal (i:Hexadecimal.lint).
+
+Register luint as num.num_luint.type.
+Register lint as num.num_lint.type.
+
 (** Pseudo-conversion functions used when declaring
     Number Notations on [uint] and [int]. *)
 

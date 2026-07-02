@@ -240,6 +240,28 @@ Definition to_num_uint n := Number.UIntDecimal (to_uint n).
 
 Definition to_num_hex_uint n := Number.UIntHexadecimal (to_hex_uint n).
 
+(** ** Little-endian conversion functions *)
+
+Definition of_luint (d:Decimal.luint) :=
+  of_uint (Decimal.rev (Decimal.luint_IsLittleEndian d)).
+
+Definition to_luint n :=
+  {| Decimal.luint_IsLittleEndian := to_little_uint n Decimal.zero |}.
+
+Definition of_hex_luint (d:Hexadecimal.luint) :=
+  of_hex_uint (Hexadecimal.rev (Hexadecimal.luint_IsLittleEndian d)).
+
+Definition to_hex_luint n :=
+  {| Hexadecimal.luint_IsLittleEndian := to_little_hex_uint n Hexadecimal.zero |}.
+
+Definition of_num_luint (d:Number.luint) :=
+  match d with
+  | Number.LUIntDecimal d => of_luint d
+  | Number.LUIntHexadecimal d => of_hex_luint d
+  end.
+
+Definition to_num_luint n := Number.LUIntDecimal (to_luint n).
+
 Definition of_int (d:Decimal.int) : option nat :=
   match Decimal.norm d with
     | Decimal.Pos u => Some (of_uint u)

@@ -100,6 +100,45 @@ let locate_number () =
       { kind = Number num_ty; typ = gref q_num };
     ]
 
+let locate_little_number () =
+  match Rocqlib.lib_ref "num.uint.type",
+        Rocqlib.lib_ref "num.int.type",
+        Rocqlib.lib_ref "num.hexadecimal_uint.type",
+        Rocqlib.lib_ref "num.hexadecimal_int.type",
+        Rocqlib.lib_ref "num.num_uint.type",
+        Rocqlib.lib_ref "num.num_int.type",
+        Rocqlib.lib_ref "num.luint.type",
+        Rocqlib.lib_ref "num.lint.type",
+        Rocqlib.lib_ref "num.hexadecimal_luint.type",
+        Rocqlib.lib_ref "num.hexadecimal_lint.type",
+        Rocqlib.lib_ref "num.num_luint.type",
+        Rocqlib.lib_ref "num.num_lint.type"
+  with
+  | exception Rocqlib.NotFoundRef _ -> []
+  | q_duint, q_dint, q_huint, q_hint, q_uint, q_int,
+    q_dluint, q_dlint, q_hluint, q_hlint,
+    q_luint, q_lint ->
+    let big = {
+      dec_uint = unsafe_ref_ind q_duint;
+      dec_int = unsafe_ref_ind q_dint;
+      hex_uint = unsafe_ref_ind q_huint;
+      hex_int = unsafe_ref_ind q_hint;
+      uint = unsafe_ref_ind q_uint;
+      int = unsafe_ref_ind q_int;
+    } in
+    let little_int_ty = {
+      big;
+      dec_luint = unsafe_ref_ind q_dluint;
+      dec_lint = unsafe_ref_ind q_dlint;
+      hex_luint = unsafe_ref_ind q_hluint;
+      hex_lint = unsafe_ref_ind q_hlint;
+      luint = unsafe_ref_ind q_luint;
+      lint = unsafe_ref_ind q_lint;
+    } in
+    [ { kind = LInt little_int_ty; typ = gref q_lint };
+      { kind = LUInt little_int_ty; typ = gref q_luint };
+    ]
+
 let locate_int63 () =
   let pos_neg_int63n = "num.int63.pos_neg_int63" in
   match Rocqlib.lib_ref pos_neg_int63n with
@@ -486,6 +525,7 @@ let vernac_number_notation local ty f g opts scope =
   let sigma = Evd.from_env env in
   let targets = List.concat [
       locate_number ();
+      locate_little_number ();
       locate_z ();
       locate_int63 ();
       locate_float ();
