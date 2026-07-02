@@ -200,6 +200,7 @@ let check_constructors ~env_params ~env_ar_par isrecord params lc (arity,indices
       if (Environ.typing_flags env_ar_par).allow_uip
            && fst (splayed_lc.(0)) = []
            && List.for_all Context.Rel.Declaration.is_local_assum params
+           && List.for_all Context.Rel.Declaration.is_local_assum indices
            && Sorts.is_sprop univ_info.ind_univ
       then univ_info
       (* 1 constructor with arguments must squash if SProp / sort poly

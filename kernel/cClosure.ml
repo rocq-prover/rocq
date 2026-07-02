@@ -2058,10 +2058,8 @@ let rec knr info tab ~pat_state m stk =
            kni info tab ~pat_state a (Zprimitive(op,c,rargs,nargs)::s)
              end
      | (depth, _, _, stk) -> knr_ret info tab ~pat_state (m,zshift depth stk))
-  | FCaseInvert (ci, u, pms, _p,iv,_c,v,env) when red_set info.i_flags fMATCH ->
-    let pms = mk_clos_vect env pms in
-    let u = usubst_instance env u in
-    begin match case_inversion info tab ci u pms iv v with
+  | FCaseInvert (ci, u, pms, ((_pnas, p), _r), iv, _c, v, env) when red_set info.i_flags fMATCH ->
+    begin match case_inversion info tab ci u pms p iv v env with
       | Some c -> knit info tab ~pat_state env c stk
       | None -> knr_ret info tab ~pat_state (m, stk)
     end
@@ -2094,29 +2092,32 @@ and knit info tab ~pat_state e t stk =
   let (ht,s) = knht info e t stk in
   knr info tab ~pat_state ht s
 
-and case_inversion info tab ci u params indices v = match v with
+and case_inversion info tab ci u pms p indices brs env = match brs with
 | [||] -> None (* empty type *)
 | [| [||], v |] ->
   (* No binders / lets at all in the unique branch *)
   let open Declarations in
   if Array.is_empty indices then Some v
   else
-    let env = info_env info in
-    let ind = ci.ci_ind in
-    let psubst = subs_consn params 0 ci.ci_npar (subs_id 0) in
-    let mib = Environ.lookup_mind (fst ind) env in
-    let mip = mib.mind_packets.(snd ind) in
+    let u = usubst_instance env u in
+    let pms = mk_clos_vect env pms in
+    let psubst = subs_consn pms 0 ci.ci_npar (subs_id 0) in
+
+    let mib = Environ.lookup_mind (fst ci.ci_ind) (info_env info) in
+    let mip = mib.mind_packets.(snd ci.ci_ind) in
     (* indtyping enforces 1 ctor with no letins in the context *)
-    let _, expect = mip.mind_nf_lc.(0) in
-    let _ind, expect_args = destApp expect in
+    let _, indargs = mip.mind_nf_lc.(0) in
+    let _, allargs = destApp indargs in
+    let _, branch_indices = Array.chop ci.ci_npar allargs in
+    let branch_indices = Array.map (fun c -> mk_clos (psubst, u) c) branch_indices in
+    let branch_subs = usubs_cons mk_irrelevant (usubs_consv branch_indices env) in
+    let external_subs = usubs_cons mk_irrelevant (usubs_consv indices env) in
+    let branch_type = mk_clos branch_subs p in
+    let external_type = mk_clos external_subs p in
+
     let tab = if info.i_cache.i_mode == Conversion then tab else Table.create () in
     let info = {info with i_cache = { info.i_cache with i_mode = Conversion}; i_flags=all} in
-    let check_index i index =
-      let expected = expect_args.(ci.ci_npar + i) in
-      let expected = mk_clos (psubst,u) expected in
-      !conv info tab expected index
-    in
-    if Array.for_all_i check_index 0 indices
+    if !conv info tab branch_type external_type
     then Some v else None
 | _ -> assert false
 
