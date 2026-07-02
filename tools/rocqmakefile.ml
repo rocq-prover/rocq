@@ -21,9 +21,11 @@ let usage_coq_makefile ~ok =
 \n\
 \nrocq makefile .... [file.v] ... [file.ml[ig]?] ... [file.ml{lib,pack}]\
 \n  ... [-I dir] ... [-R physicalpath logicalpath]\
-\n  ... [-Q physicalpath logicalpath] ... [VARIABLE = value]\
-\n  ... [-arg opt] ... [-docroot path] [-f file] [-o file]\
-\n  ... [-generate-meta-for-package project-name]\
+\n  ... [-Q physicalpath logicalpath] ... [-package package]\
+\n  ... [VARIABLE = value] ... [-arg opt] ... [-docroot path]\
+\n  ... [-f file] [-o file] [--rocq-package package]\
+\n  ... [--package-version version] [--description text]\
+\n  ... [--legacy-support] [-generate-meta-for-package project-name]\
 \n  [-h] [--help] [-v] [--version]\
 \n";
   output_string out "\
@@ -40,6 +42,8 @@ let usage_coq_makefile ~ok =
 \n[-Q physicalpath logicalpath]: look for Rocq dependencies starting from\
 \n  \"physicalpath\". The logical path associated to the physical path\
 \n  is \"logicalpath\".\
+\n[-package package]: add the given Rocq (findlib) package and its\
+\n  dependencies to the load path.\
 \n[-coqlib dir]: set the Rocq Corelib directory\
 \n[VARIABLE = value]: Add the variable definition \"VARIABLE=value\"\
 \n[-arg opt]: send option \"opt\" to rocq compile\
@@ -48,6 +52,13 @@ let usage_coq_makefile ~ok =
 \n[-f file]: take the contents of file as arguments\
 \n[-o file]: output should go in file file (recommended)\
 \n	Output file outside the current directory is forbidden.\
+\n[--rocq-package package]: enable the Findlib-backed Rocq package\
+\n  installation scheme for the package named \"package\". This option\
+\n  requires exactly one -Q or one -R directive.\
+\n[--package-version version]: set the generated META version field.\
+\n[--description text]: set the generated META description field.\
+\n[--legacy-support]: with --rocq-package, also install theories under\
+\n  the global user-contrib directory.\
 \n[-generate-meta-for-package project-name]: generate META.project-name.\
 \n[-h]: print this usage summary\
 \n[--help]: equivalent to [-h]\
@@ -93,6 +104,32 @@ let read_whole_file s =
     close_in ic;
     Buffer.contents b
 
+let read_meta_top_field field f =
+  let field_re = Str.regexp ("[ \t]*" ^ field ^ "[ \t]*=[ \t]*\"\\([^\"]*\\)\"") in
+  let package_re = Str.regexp "[ \t]*package[ \t]+\"[^\"]+\"[ \t]*(" in
+  let close_re = Str.regexp "[ \t]*)" in
+  let lines = String.split_on_char '\n' (read_whole_file f) in
+  let rec aux depth = function
+    | [] -> None
+    | line :: lines ->
+        let depth =
+          if Str.string_match close_re line 0 then max 0 (depth - 1)
+          else depth
+        in
+        if Int.equal depth 0 && Str.string_match field_re line 0 then
+          Some (Str.matched_group 1 line)
+        else
+          let depth =
+            if Str.string_match package_re line 0 then depth + 1
+            else depth
+          in
+          aux depth lines
+  in
+  aux 0 lines
+
+let read_meta_rocqpath = read_meta_top_field "rocqpath"
+let read_meta_directory = read_meta_top_field "directory"
+
 (* Use this for quoting contents of variables which never appears as target or
  * pattern. *)
 let makefile_quote s =
@@ -137,22 +174,62 @@ let generate_makefile oc env conf_file local_file local_late_file dep_file args 
     ] in
   output_string oc s
 
-let generate_meta_file p =
-  try
-    match p.meta_file with
-    | Absent -> p
-    | Generate proj ->
-        let cmname = List.map (fun { thing } -> thing)
-            (files_by_suffix p.files [".mllib"; ".mlpack"]) in
-        let dir, cmname =
-          match cmname with
-          | [] -> Printf.eprintf "In order to generate a META file one needs an .mlpack or .mllib file\n"; exit 1
-          | [x] -> Filename.dirname x, Filename.(basename @@ chop_extension x)
-          | _ -> Printf.eprintf "Automatic META generation only works for one .mlpack or .mllib file, since you have more you need to write the META file by hand\n"; exit 1 in
-        let f = dir ^ "/META." ^ proj in
-        let oc = open_out f in
-        let meta : _ format = {|
-package "plugin" (
+let meta_quote s =
+  let b = Buffer.create (String.length s) in
+  String.iter (function
+    | '\\' -> Buffer.add_string b "\\\\"
+    | '"' -> Buffer.add_string b "\\\""
+    | c -> Buffer.add_char b c)
+    s;
+  Buffer.contents b
+
+let meta_field name = function
+  | None -> ""
+  | Some v -> sprintf "%s = \"%s\"\n" name (meta_quote v)
+
+let meta_requires_field = function
+  | [] -> ""
+  | reqs -> sprintf "requires = \"%s\"\n" (String.concat " " reqs)
+
+let generated_meta_file_name dir pkg =
+  let file = "META." ^ pkg in
+  if String.equal dir Filename.current_dir_name then file else Filename.concat dir file
+
+let archive = function
+  | [] -> None
+  | [x] -> Some (Filename.dirname x, Filename.(basename @@ chop_extension x))
+  | _ ->
+      Printf.eprintf "Automatic META generation only works for one .mlpack or .mllib file, since you have more you need to write the META file by hand\n";
+      exit 1
+
+let archive p =
+  List.map (fun { thing } -> thing) (files_by_suffix p.files [".mllib"; ".mlpack"])
+  |> archive
+
+let copy_meta_in f =
+  let ext = Filename.extension f in
+  if ext = ".in" then
+    let meta_file = Filename.chop_extension f in
+    let oc = open_out meta_file in
+    (* META generation is just a renaming for now, we lack some metadata *)
+    output_string oc (read_whole_file f);
+    close_out oc;
+    Present meta_file
+  else
+    Present f (* already a META.package file *)
+
+let generate_legacy_meta_file p proj =
+  match archive p with
+  | None -> Printf.eprintf "In order to generate a META file one needs an .mlpack or .mllib file\n"; exit 1
+  | Some (dir, cmname) ->
+      let f = generated_meta_file_name dir proj in
+      let oc = open_out f in
+      let metadata =
+        meta_field "version" p.package_version ^
+        meta_field "description" p.package_description
+      in
+      let meta : _ format = {|
+%spackage "plugin" (
   directory = "."
   requires = "rocq-runtime.plugins.ltac"
   archive(byte) = "%s.cma"
@@ -162,25 +239,107 @@ package "plugin" (
 )
 directory = "."
 |}
-        in
-        let meta = Printf.sprintf meta cmname cmname cmname cmname in
-        output_string oc meta;
-        close_out oc;
-        { p with meta_file = Present f }
-    | Present f ->
-        let ext = Filename.extension f in
-        if ext = ".in" then
-          let meta_file = Filename.chop_extension f in
-          let oc = open_out meta_file in
-          (* META generation is just a renaming for now, we lack some metadata *)
-          output_string oc (read_whole_file f);
-          close_out oc;
-          { p with meta_file = Present meta_file }
-        else
-          p (* already a META.package file *)
+      in
+      let meta = Printf.sprintf meta metadata cmname cmname cmname cmname in
+      output_string oc meta;
+      close_out oc;
+      { p with meta_file = Present f }
+
+let single_package_rocqpath p = match p.q_includes, p.r_includes with
+  | [{ thing = (_, logic); _ }], []
+  | [], [{ thing = (_, logic); _ }] -> logic
+  | [], [] ->
+      Printf.eprintf "Option --rocq-package requires exactly one -Q or one -R directive, but none was provided\n";
+      exit 1
+  | q, r ->
+      Printf.eprintf "Option --rocq-package requires exactly one -Q or one -R directive, but found %d -Q and %d -R directives\n"
+        (List.length q) (List.length r);
+      exit 1
+
+let generate_rocq_package_meta_file p pkg =
+  let rocqpath = single_package_rocqpath p in
+  let plugin = archive p in
+  let dir = match plugin with Some (dir, _) -> dir | None -> Filename.current_dir_name in
+  let f = generated_meta_file_name dir pkg in
+  let oc = open_out f in
+  let root_requires = p.packages @ if plugin = None then [] else [pkg ^ ".plugin"] in
+  let plugin_meta = match plugin with
+    | None -> ""
+    | Some (_, cmname) ->
+        let requires = meta_requires_field ("rocq-runtime.plugins.ltac" :: p.packages) in
+        sprintf {|
+package "plugin" (
+  directory = "."
+  %s  archive(byte) = "%s.cma"
+  archive(native) = "%s.cmxa"
+  plugin(byte) = "%s.cma"
+  plugin(native) = "%s.cmxs"
+)
+|} requires cmname cmname cmname cmname
+  in
+  let version = Some (Option.default "dev" p.package_version) in
+  let meta = sprintf {|%s%sdirectory = "."
+rocqpath = "%s"
+%s%s|}
+    (meta_field "version" version)
+    (meta_field "description" p.package_description)
+    (meta_quote rocqpath) (meta_requires_field root_requires) plugin_meta in
+  output_string oc meta;
+  close_out oc;
+  { p with meta_file = Present f }
+
+let check_rocq_package_meta_file p = match p.rocq_package, p.meta_file with
+  | Some _, Present f ->
+      begin match read_meta_rocqpath f with
+      | Some rocqpath when String.equal rocqpath (single_package_rocqpath p) -> ()
+      | Some rocqpath ->
+          Printf.eprintf "The top-level rocqpath field in %s is %S, but --rocq-package expects the -Q/-R logical path %S\n"
+            f rocqpath (single_package_rocqpath p);
+          exit 1
+      | None ->
+          Printf.eprintf "Option --rocq-package requires %s to contain a top-level rocqpath field\n" f;
+          exit 1
+      end;
+      begin match read_meta_directory f with
+      | None | Some "." -> p
+      | Some dir ->
+          Printf.eprintf "The top-level directory field in %s is %S, but --rocq-package requires \".\"\n" f dir;
+          exit 1
+      end
+  | _ -> p
+
+let generate_meta_file p =
+  try
+    let p = match p.rocq_package, p.meta_file with
+      | Some pkg, (Absent | Generate _) -> generate_rocq_package_meta_file p pkg
+      | Some _, Present f -> { p with meta_file = copy_meta_in f }
+      | None, Absent -> p
+      | None, Generate proj -> generate_legacy_meta_file p proj
+      | None, Present f -> { p with meta_file = copy_meta_in f }
+    in
+    check_rocq_package_meta_file p
   with Sys_error e ->
     Printf.eprintf "Error: %s\n" e;
     exit 1
+
+let remove_package_includes p =
+  let packages =
+    List.map (fun (Rocq_package.{ dir; logpath; _ }) ->
+      CUnix.canonical_path_name dir, logpath)
+      (Rocq_package.resolve p.packages)
+  in
+  let is_package_include { thing = ({ canonical_path; _ }, logic); _ } =
+    List.exists (fun (dir, logpath) ->
+      String.equal canonical_path dir && String.equal logic logpath) packages
+  in
+  { p with q_includes = List.filter (fun inc -> not (is_package_include inc)) p.q_includes }
+
+let setup_rocq_package project = match project.rocq_package with
+  | None -> project
+  | Some _ ->
+      let project = remove_package_includes project in
+      ignore (single_package_rocqpath project);
+      project
 
 let section oc s =
   let pad = String.make (76 - String.length s) ' ' in
@@ -193,7 +352,7 @@ let section oc s =
   fprintf oc "%s\n\n" sharps
 ;;
 
-let generate_conf_includes oc { ml_includes; r_includes; q_includes } =
+let generate_conf_includes oc { ml_includes; r_includes; q_includes; packages; rocq_package; _ } =
   section oc "Path directives (-I, -R, -Q).";
   let module S = String in
   let map = map_sourced_list in
@@ -214,6 +373,8 @@ let generate_conf_includes oc { ml_includes; r_includes; q_includes } =
     (S.concat " " (map_cmdline (fun { path } -> dash1 "I" path) ml_includes))
     (S.concat " " (map_cmdline (fun ({ path },l) -> dash2 "Q" path l) q_includes))
     (S.concat " " (map_cmdline (fun ({ path },l) -> dash2 "R" path l) r_includes));
+  fprintf oc "COQMF_PACKAGES = %s\n"
+    (match rocq_package with None -> "" | Some _ -> S.concat " " packages);
 ;;
 
 let windrive s =
@@ -231,7 +392,8 @@ let generate_conf_coq_config oc env =
 ;;
 
 let check_metafile p =
-  if files_by_suffix p.files [".mlpack"; ".mllib"] <> [] && p.meta_file = Absent then begin
+  if p.rocq_package = None &&
+     files_by_suffix p.files [".mlpack"; ".mllib"] <> [] && p.meta_file = Absent then begin
     eprintf "Warning: it is recommended you provide a META.package-name file\n";
     eprintf "Warning: since you build plugins. See also -generate-meta-for-package.\n";
   end
@@ -264,7 +426,15 @@ let generate_conf_files oc p =
   fout "MLGFILES" ".mlg";
   fout "MLPACKFILES" ".mlpack";
   fout "MLLIBFILES" ".mllib";
-  fprintf oc "COQMF_METAFILE = %s\n"  (match p.meta_file with Present x -> x | _ -> "")
+  fprintf oc "COQMF_METAFILE = %s\n"  (match p.meta_file with Present x -> x | _ -> "");
+  fprintf oc "COQMF_ROCQPACKAGE = %s\n" (Option.default "" p.rocq_package);
+  fprintf oc "COQMF_LEGACY_SUPPORT = %s\n" (if p.legacy_support then "true" else "false");
+  let rocqpath = match p.rocq_package, p.meta_file with
+    | Some _, Present x -> read_meta_rocqpath x
+    | _ -> None
+  in
+  fprintf oc "COQMF_HAS_ROCQPATH = %s\n" (if Option.has_some rocqpath then "true" else "false");
+  fprintf oc "COQMF_ROCQPATH = %s\n" (Option.default "" rocqpath)
 
 let rec all_start_with prefix = function
   | [] -> true
@@ -439,6 +609,8 @@ let normal_mode ~coqlib project prog args =
   let dep_file = "." ^ Option.default "CoqMakefile" project.makefile ^ ".d" in
 
   let project = ensure_root_dir project in
+
+  let project = setup_rocq_package project in
 
   check_overlapping_include project;
 

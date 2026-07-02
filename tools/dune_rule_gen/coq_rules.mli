@@ -76,3 +76,8 @@ val install_rules :
   dir_info :Coq_module.t Dir_info.t
   -> cctx:Context.t
   -> Dune_file.Install.t list Dune_file.Subdir.t list
+
+val package_install_rules :
+  dir_info :Coq_module.t Dir_info.t
+  -> cctx:Context.t
+  -> Dune_file.Install.t list Dune_file.Subdir.t list

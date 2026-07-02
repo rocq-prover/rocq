@@ -20,6 +20,10 @@ let t () =
       project_file = Some project_file_path;
       makefile = None;
       native_compiler = None;
+      rocq_package = None;
+      package_version = None;
+      package_description = None;
+      legacy_support = false;
       docroot = None;
 
       files = [];
@@ -29,6 +33,7 @@ let t () =
       ml_includes = [];
       r_includes = [];
       q_includes = [];
+      packages = [];
       extra_args = [];
       defs = [];
 
@@ -48,6 +53,10 @@ let t () =
       project_file = Some project_file_path;
       makefile = None;
       native_compiler = None;
+      rocq_package = None;
+      package_version = None;
+      package_description = None;
+      legacy_support = false;
       docroot = None;
 
       files = [];
@@ -57,6 +66,7 @@ let t () =
       ml_includes = [];
       r_includes = [];
       q_includes = [];
+      packages = [];
       extra_args = List.map sourced_file ["-w"; "default"; "-w"; "foo"; "-set"; "Default Goal Selector=!"];
       defs = [];
 
