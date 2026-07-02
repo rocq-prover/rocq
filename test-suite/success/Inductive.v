@@ -220,3 +220,13 @@ Module Discharge.
   End S.
   Check @bar nat 0.
 End Discharge.
+
+Module TemplateType.
+  (* Type in a template means above Prop qvar or Type, cannot be forced to SProp *)
+   Fail #[universes(template)] Inductive Bla (A:Type) :=
+     C (_:ltac:(let T := type of A in unify T SProp; exact (forall P, P))).
+
+   (* questionable: it can be forced to Prop *)
+   #[universes(template)] Inductive Bla (A:Type) :=
+     C (_:ltac:(let T := type of A in unify T Prop; exact (forall P, P))).
+End TemplateType.

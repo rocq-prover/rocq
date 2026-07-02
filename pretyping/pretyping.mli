@@ -80,6 +80,7 @@ type inference_flags = {
   program_mode : bool;
   poly : PolyFlags.t;
   undeclared_evars_rr : bool;
+  (** unconstrained_sorts is for template poly, use [poly] with collapse = false otherwise *)
   unconstrained_sorts : bool;
 }
 

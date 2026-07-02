@@ -568,7 +568,7 @@ let do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm =
   let (sigma, thm) = AllScheme.generate_all_theorem env sigma kn kn_nested focus u mib strpos in
   (* universe *)
   let uctx = Evd.ustate sigma in
-  let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
+  let uctx = UState.collapse_sort_variables ~only_above_prop:true uctx in
   let uctx = UState.normalize_variables uctx in
   let uctx = UState.minimize uctx in
   let sigma = Evd.set_ustate sigma uctx in

@@ -247,6 +247,7 @@ let glob_opt_quality ?loc ~flags sigma = function
     let collapse_sort_variables = PolyFlags.collapse_sort_variables flags.poly in
     if flags.unconstrained_sorts || not collapse_sort_variables then
       let sigma, q = new_quality_variable ?loc sigma in
+      let sigma = if flags.unconstrained_sorts then set_above_prop sigma q BelowType else sigma in
       sigma, (QVar q)
     else sigma, Sorts.Quality.qtype
 
@@ -991,7 +992,7 @@ struct
         | None -> sigma, q
         | Some _ ->
           let sigma, q = Evd.new_quality_variable sigma in
-          let sigma = Evd.set_above_prop sigma (QVar q) in
+          let sigma = Evd.set_above_prop sigma q BelowType in
           sigma, q
       in
       let sigma, u = match Option.bind (Univ.Universe.level u) Univ.Level.var_index with

@@ -385,8 +385,8 @@ foo5_ind' is transparent
 Expands to: Constant sort_poly_elab.Inductives.foo5_ind'
 Declared in library sort_poly_elab, line 178, characters 13-22
 foo5_Prop_rect@{α ; u} :
-forall (A : Prop) (P : forall _ : foo5@{Type ; Set} A, Type@{α ; u})
-  (_ : forall a : A, P (Foo5@{Type ; Set} A a)) (f : foo5@{Type ; Set} A),
+forall (A : Prop) (P : forall _ : foo5@{Prop ; Set} A, Type@{α ; u})
+  (_ : forall a : A, P (Foo5@{Prop ; Set} A a)) (f : foo5@{Prop ; Set} A),
 P f
 (* α ; u |= Prop -> α *)
 

@@ -600,7 +600,7 @@ val set_eq_instances : ?flex:bool ->
 
 val set_eq_qualities : evar_map -> Sorts.Quality.t -> Sorts.Quality.t -> evar_map
 val set_elim_to : evar_map -> Sorts.Quality.t -> Sorts.Quality.t -> evar_map
-val set_above_prop : evar_map -> Sorts.Quality.t -> evar_map
+val set_above_prop : evar_map -> Sorts.QVar.t -> UState.above_prop -> evar_map
 
 val check_eq : evar_map -> esorts -> esorts -> bool
 val check_leq : evar_map -> esorts -> esorts -> bool

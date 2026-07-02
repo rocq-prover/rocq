@@ -398,7 +398,7 @@ let non_template_levels sigma ~params ~arity ~constructors =
      appearances in relevance marks aren't counted *)
   let+ sigma = match ESorts.kind sigma u with
     | VSort (q, _) ->
-      if Sorts.QVar.is_unif q then Ok (Evd.set_above_prop sigma (QVar q))
+      if Sorts.QVar.is_unif q then Ok (Evd.set_above_prop sigma q BelowType)
       else Error "Cannot handle template polymorphism when the conclusion is a global sort."
     | GSort _ -> Error "Cannot handle template polymorphism when the conclusion is a global sort."
     | _ -> Ok sigma
@@ -538,7 +538,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
     | None -> QVar.Set.empty
   in
   let sigma = Evd.collapse_sort_variables ~except:template_qvars ~only_above_prop:false sigma in
-  let sigma = QVar.Set.fold (fun q sigma -> Evd.set_above_prop sigma (QVar q))
+  let sigma = QVar.Set.fold (fun q sigma -> Evd.set_above_prop sigma q BelowType)
       template_qvars sigma
   in
   let uctx =
