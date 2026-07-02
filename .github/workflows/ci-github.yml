@@ -29,7 +29,7 @@ jobs:
             packages: ./coqide-server.opam ./rocq-*.opam
           - name: Linux (latest OCaml)
             os: ubuntu-latest
-            ocaml: 5.4
+            ocaml: 5
             test_disabled:
             packages: ./coqide-server.opam ./rocq*.opam
       fail-fast: false
