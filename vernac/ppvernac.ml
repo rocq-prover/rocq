@@ -272,11 +272,32 @@ let pr_delimiter_depth = function
 
 let pr_scope_delimiter (d, sc) = pr_delimiter_depth d ++ str sc
 
+let pr_assumption_token many discharge kind =
+  match discharge, kind with
+  | (NoDischarge,Decls.Logical) ->
+    keyword (if many then "Axioms" else "Axiom")
+  | (NoDischarge,Decls.Definitional) ->
+    keyword (if many then "Parameters" else "Parameter")
+  | (NoDischarge,Decls.Conjectural) -> str"Conjecture"
+  | (DoDischarge,Decls.Logical) ->
+    keyword (if many then "Hypotheses" else "Hypothesis")
+  | (DoDischarge,Decls.Definitional) ->
+    keyword (if many then "Variables" else "Variable")
+  | (DoDischarge,Decls.Conjectural) ->
+    anomaly (Pp.str "Don't know how to beautify a local conjecture.")
+  | (_,Decls.Context) ->
+    anomaly (Pp.str "Context is used only internally.")
+
+let pr_logical_token discharge kind =
+  match kind with
+  | Decls.IsAssumption k -> pr_assumption_token false discharge k
+  | _ -> str (string_of_logical_kind kind)
+
 let pr_search_item = function
   | SearchSubPattern (where,p) ->
     pr_search_where where ++ pr_constr_pattern_expr p
   | SearchString (where,s,sc) -> pr_search_where where ++ qs s ++ pr_opt pr_scope_delimiter sc
-  | SearchKind kind -> str "is:" ++ str (string_of_logical_kind kind)
+  | SearchKind (discharge, kind) -> str "is:" ++ pr_logical_token discharge kind
 
 let rec pr_search_request = function
   | SearchLiteral a -> pr_search_item a
@@ -467,22 +488,6 @@ let pr_class_rawexpr = function
   | FunClass -> keyword "Funclass"
   | SortClass -> keyword "Sortclass"
   | RefClass qid -> pr_smart_global qid
-
-let pr_assumption_token many discharge kind =
-  match discharge, kind with
-  | (NoDischarge,Decls.Logical) ->
-    keyword (if many then "Axioms" else "Axiom")
-  | (NoDischarge,Decls.Definitional) ->
-    keyword (if many then "Parameters" else "Parameter")
-  | (NoDischarge,Decls.Conjectural) -> str"Conjecture"
-  | (DoDischarge,Decls.Logical) ->
-    keyword (if many then "Hypotheses" else "Hypothesis")
-  | (DoDischarge,Decls.Definitional) ->
-    keyword (if many then "Variables" else "Variable")
-  | (DoDischarge,Decls.Conjectural) ->
-    anomaly (Pp.str "Don't know how to beautify a local conjecture.")
-  | (_,Decls.Context) ->
-    anomaly (Pp.str "Context is used only internally.")
 
 let pr_params pr_c (xl,(c,t)) =
   hov 2 (prlist_with_sep sep pr_lident xl ++ spc() ++

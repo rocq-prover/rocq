@@ -19,7 +19,7 @@ open Vernacexpr
 type glob_search_item =
   | GlobSearchSubPattern of glob_search_where * bool * constr_pattern
   | GlobSearchString of string
-  | GlobSearchKind of Decls.logical_kind
+  | GlobSearchKind of (Vernacexpr.discharge * Decls.logical_kind)
   | GlobSearchFilter of (GlobRef.t -> bool)
 
 type glob_search_request =
@@ -27,9 +27,9 @@ type glob_search_request =
   | GlobSearchDisjConj of (bool * glob_search_request) list list
 
 type filter_function =
-  GlobRef.t -> Decls.logical_kind option -> env -> Evd.evar_map -> constr -> bool
+  GlobRef.t -> (Vernacexpr.discharge * Decls.logical_kind) option -> env -> Evd.evar_map -> constr -> bool
 type display_function =
-  GlobRef.t -> Decls.logical_kind option -> env -> Evd.evar_map -> constr -> unit
+  GlobRef.t -> (Vernacexpr.discharge * Decls.logical_kind) option -> env -> Evd.evar_map -> constr -> unit
 
 (** {6 Generic filter functions} *)
 

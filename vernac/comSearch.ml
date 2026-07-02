@@ -98,9 +98,9 @@ let interp_search_item env sigma =
         Notation.interp_notation_as_global_reference
           ~head:false (fun _ -> true) s sc in
       GlobSearchSubPattern (where,head,Pattern.PRef ref)
-  | SearchKind k ->
+  | SearchKind (d,k) ->
      match kind_searcher env k with
-     | Inl k -> GlobSearchKind k
+     | Inl k -> GlobSearchKind (d,k)
      | Inr f -> GlobSearchFilter f
 
 let rec interp_search_request env sigma = function
