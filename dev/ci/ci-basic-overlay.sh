@@ -466,3 +466,9 @@ project autosubst_ocaml "https://github.com/uds-psl/autosubst-ocaml" "master"
 ########################################################################
 project trakt "https://github.com/rocq-trakt/trakt" "master"
 # Contact @ckeller, @lafeychine on github
+
+########################################################################
+# MLtac2
+########################################################################
+project mltac2 "https://github.com/epfl-systemf/mltac2" "main"
+# Contact @dhalilov on github

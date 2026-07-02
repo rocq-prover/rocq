@@ -1175,6 +1175,11 @@ plugin:plugin-tutorial:
     - ./configure -prefix "$(pwd)/_install_ci"
     - make -j "$NJOBS" plugin-tutorial
 
+plugin:ci-mltac2:
+  extends: .ci-template
+  needs:
+  - build:base
+
 plugin:ci-quickchick:
   extends: .ci-template-flambda
   needs:
