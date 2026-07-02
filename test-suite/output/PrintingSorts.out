@@ -1,0 +1,61 @@
+S
+     : Type@{s ; _}
+T
+     : Type
+S
+     : Type@{s ; _}
+T
+     : Type
+S
+     : Type@{s ; Set}
+T
+     : Type@{T.u0}
+pid
+     : forall A : Type, A -> A
+plist
+     : Type -> Type
+pid
+     : forall A : Type, A -> A
+pid
+     : forall A : Type, A -> A
+plist
+     : Type -> Type
+pnil
+     : forall A : Type, plist A
+pcons
+     : forall A : Type, A -> plist A -> plist A
+pid@{PrintingSorts.39}
+     : forall A : Type@{PrintingSorts.39}, A -> A
+(* {PrintingSorts.39} |=  *)
+plist@{PrintingSorts.40}
+     : Type@{PrintingSorts.40} -> Type@{max(Set,PrintingSorts.40)}
+(* {PrintingSorts.40} |=  *)
+spid
+     : forall A : Type, A -> A
+sbox
+     : Type -> Type
+spid@{Type ; _}
+     : forall A : Type, A -> A
+spid@{Type ; _}
+     : forall A : Type, A -> A
+sbox@{Type ; _}
+     : Type -> Type
+spack@{Type ; _}
+     : forall A : Type, A -> sbox@{Type ; _} A
+spid@{Type ;
+PrintingSorts.56}
+     : forall A : Type@{PrintingSorts.56}, A -> A
+(* {PrintingSorts.56} |=  *)
+spid@{Type ;
+PrintingSorts.57}
+     : forall A : Type@{PrintingSorts.57}, A -> A
+(* {PrintingSorts.57} |=  *)
+sbox@{Type ;
+PrintingSorts.58}
+     : Type@{PrintingSorts.58} -> Type@{PrintingSorts.58}
+(* {PrintingSorts.58} |=  *)
+spack@{Type ;
+PrintingSorts.59}
+     : forall A : Type@{PrintingSorts.59},
+       A -> sbox@{Type ; PrintingSorts.59} A
+(* {PrintingSorts.59} |=  *)
