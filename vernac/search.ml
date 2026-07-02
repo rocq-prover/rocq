@@ -42,14 +42,80 @@ type glob_search_request =
   | GlobSearchLiteral of glob_search_item
   | GlobSearchDisjConj of (bool * glob_search_request) list list
 
-module SearchBlacklist =
-  Goptions.MakeStringTable
-    (struct
-      let key = ["Search";"Blacklist"]
-      let title = "Current search blacklist : "
-      let member_message s b =
-        str "Search blacklist does " ++ (if b then mt () else str "not ") ++ str "include " ++ str s
-     end)
+module SearchBlacklistArg =
+struct
+
+type t =
+| Pattern of string
+| Reference of GlobRef.t
+
+module Set =
+struct
+
+type elt = t
+type t = GlobRef.Set_env.t * String.Set.t
+let empty = (GlobRef.Set_env.empty, String.Set.empty)
+let is_empty (gset, sset) = GlobRef.Set_env.is_empty gset && String.Set.is_empty sset
+
+let add v (gset, sset) = match v with
+| Pattern s -> (gset, String.Set.add s sset)
+| Reference r -> (GlobRef.Set_env.add r gset, sset)
+
+let remove v (gset, sset) = match v with
+| Pattern s -> (gset, String.Set.remove s sset)
+| Reference r -> (GlobRef.Set_env.remove r gset, sset)
+
+let mem v (gset, sset) = match v with
+| Pattern s -> String.Set.mem s sset
+| Reference r -> GlobRef.Set_env.mem r gset
+
+let elements (gset, sset) =
+  let sset = List.map (fun s -> Pattern s) (String.Set.elements sset) in
+  let gset = List.map (fun r -> Reference r) (GlobRef.Set_env.elements gset) in
+  sset @ gset
+
+end
+
+let encode env v = match v with
+| Goptions.StringRefValue s -> Pattern s
+| Goptions.QualidRefValue qid ->
+  let r = Nametab.global qid in
+  let r = Environ.QGlobRef.canonize env r in
+  Reference r
+
+let subst subs v = match v with
+| Pattern _ -> v
+| Reference r ->
+  let r' = Globnames.subst_global_reference subs r in
+  if r == r' then v else Reference r'
+
+let check_local_ref local = function
+| GlobRef.ConstRef _ | ConstructRef _ | IndRef _ -> ()
+| VarRef x -> match local with
+  | Libobject.Local -> ()
+  | Export | SuperGlobal ->
+    let local = if local = Export then "export" else "global" in
+    CErrors.user_err
+      Pp.(Id.print x ++ str " cannot be added with locality " ++ str local ++ str ".")
+
+let check_local local v = match v with
+| Pattern _ -> ()
+| Reference r -> check_local_ref local r
+
+let discharge v = v
+
+let printer = function
+| Pattern s -> quote (str s)
+| Reference r -> Printer.pr_global r
+
+let key = ["Search";"Blacklist"]
+let title = "Current search blacklist : "
+let member_message s b =
+  str "Search blacklist does " ++ (if b then mt () else str "not ") ++ str "include " ++ printer s
+
+end
+
+module SearchBlacklist = Goptions.MakeTable(SearchBlacklistArg)
 
 let { Goptions.get = blacklist_locals } =
   Goptions.declare_bool_option_and_ref ~key:["Search";"Blacklist";"Locals"] ~value:true ()
@@ -195,7 +261,8 @@ let blacklist_filter : filter_function = fun ref kind env sigma typ ->
   else
     let name = full_name_of_reference ref in
     let is_not_bl str = not (String.string_contains ~where:name ~what:str) in
-    CString.Set.for_all is_not_bl (SearchBlacklist.v ())
+    let (gref_blacklist, str_blacklist) = SearchBlacklist.v () in
+    not (GlobRef.Set_env.mem ref gref_blacklist) && String.Set.for_all is_not_bl str_blacklist
 
 let module_filter : _ -> filter_function = fun mods ref kind env sigma typ ->
   let sp = Nametab.path_of_global ref in

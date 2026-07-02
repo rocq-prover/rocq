@@ -410,12 +410,12 @@ described elsewhere
    (except for those from the current module or its parents).
    Unsetting this :term:`flag` will include such lemmas in the results.
 
-.. table:: Search Blacklist @string
+.. table:: Search Blacklist {| @reference | @string }
 
    This :term:`table` specifies a set of strings used to exclude lemmas from the results of :cmd:`Search`,
-   :cmd:`SearchPattern` and :cmd:`SearchRewrite` queries.  A lemma whose
+   :cmd:`SearchPattern` and :cmd:`SearchRewrite` queries. A lemma present in the table or whose
    fully qualified name contains any of the strings will be excluded from the
-   search results.  The default blacklisted substrings are ``_subterm``, ``_subproof`` and
+   search results. The default blacklisted substrings are ``_subterm``, ``_subproof`` and
    ``Private_``.
 
    Use the :cmd:`Add` and :cmd:`Remove` commands to update the set of

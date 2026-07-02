@@ -1,18 +1,24 @@
 File "./output/undeclared_key.v", line 1, characters 0-28:
 The command has indeed failed with message:
 There is no flag, option or table with this name: "Search Blacklists".
-File "./output/undeclared_key.v", line 2, characters 0-35:
+File "./output/undeclared_key.v", line 2, characters 31-34:
 The command has indeed failed with message:
-There is no qualid-valued table with this name: "Search Blacklist".
+The reference foo was not found in the current environment.
 File "./output/undeclared_key.v", line 3, characters 0-22:
 Warning: There is no flag or option with this name: "Search Blacklists".
 [unknown-option,default]
 File "./output/undeclared_key.v", line 4, characters 0-40:
 The command has indeed failed with message:
-There is no string-valued table with this name: "Search Blacklists".
-File "./output/undeclared_key.v", line 5, characters 0-39:
+There is no table with this name: "Search Blacklists".
+File "./output/undeclared_key.v", line 5, characters 35-38:
 The command has indeed failed with message:
-There is no qualid-valued table with this name: "Search Blacklist".
-File "./output/undeclared_key.v", line 6, characters 0-36:
+The reference foo was not found in the current environment.
+File "./output/undeclared_key.v", line 6, characters 32-35:
 The command has indeed failed with message:
-There is no qualid-valued table with this name: "Search Blacklist".
+The reference foo was not found in the current environment.
+File "./output/undeclared_key.v", line 7, characters 0-28:
+The command has indeed failed with message:
+The table "Printing Let" does not support string values.
+File "./output/undeclared_key.v", line 8, characters 0-31:
+The command has indeed failed with message:
+The table "Printing Let" does not support string values.

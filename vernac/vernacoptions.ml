@@ -49,9 +49,7 @@ let vernac_remove_option local = iter_table { aux = fun table env x -> table.rem
 let vernac_mem_option = iter_table { aux = fun table -> table.mem }
 
 let vernac_print_option key =
-  try (get_ref_table key).print ()
-  with Not_found ->
-  try (get_string_table key).print ()
+  try (get_table key).print ()
   with Not_found ->
   try print_option_value key
   with Not_found -> error_undeclared_key key
