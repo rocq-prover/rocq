@@ -38,7 +38,7 @@ Module Import IsoEq.
 #[local] Notation "x = y" := (IsomorphismDefinitions.eq x y) : type_scope.
 Theorem f_equal@{s s';u u'} {A : Type@{s;u}} {B : Type@{s';u'}} (f : A -> B) {x y : A} (H : x = y) : f x = f y.
 Admitted.
-Lemma seq_of_peq_t@{u} {A : Prop} {x y : A} (H : Logic.eq x y) : IsomorphismDefinitions.eq@{Type;u} x y.
+Lemma seq_of_peq_t@{u} {A : Prop} {x y : A} (H : Logic.eq x y) : IsomorphismDefinitions.eq@{Prop;u} x y.
 Admitted.
 
 End IsoEq.
