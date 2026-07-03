@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+module CVars = Vars
+
 open Pp
 open CErrors
 open Sorts
@@ -526,11 +528,14 @@ type should_template =
 let nontemplate_univ_entry ~poly sigma udecl =
   let sigma = Evd.collapse_sort_variables ~only_above_prop:(not @@ PolyFlags.collapse_sort_variables poly) sigma in
   let uentry, _ as ubinders = Evd.check_univ_decl ~poly sigma udecl in
-  let uentry, global = match uentry with
-    | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, Univ.ContextSet.empty
-    | UState.Monomorphic_entry uctx -> Monomorphic_ind_entry, uctx
+  let uentry, uinst, global = match uentry with
+    | UState.Polymorphic_entry uctx ->
+      let (uinst, auctx) = UVars.abstract_universes uctx in
+      Polymorphic_ind_entry auctx, uinst, Univ.ContextSet.empty
+    | UState.Monomorphic_entry uctx ->
+      Monomorphic_ind_entry, UVars.Instance.empty, uctx
   in
-  sigma, uentry, ubinders, global
+  sigma, uentry, ubinders, uinst, global
 
 let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let template_qvars = match pseudo_sort_poly with
@@ -556,7 +561,8 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
     let qs, us = UVars.Instance.to_array inst in
     UVars.Instance.of_array (Array.map (fun _ -> Quality.qtype) qs, us)
   in
-  sigma, Template_ind_entry {uctx; default_univs}, ubinders, global
+  let (uinst, auctx) = UVars.abstract_universes uctx in
+  sigma, Template_ind_entry {uctx = auctx; default_univs}, ubinders, uinst, global
 
 let should_template ~user_template ~poly =
 match user_template, PolyFlags.univ_poly poly with
@@ -623,7 +629,7 @@ let variance_of_entry ~cumulative ~variances uctx =
     if not cumulative then begin check_trivial_variances variances; None end
     else
       let lvs = Array.length variances in
-      let _, lus = UVars.UContext.size uctx in
+      let _, lus = UVars.AbstractContext.size uctx in
       assert (lvs <= lus);
       Some (Array.append variances (Array.make (lus - lvs) None))
 
@@ -653,15 +659,17 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
   let sigma = Evd.minimize_universes_no_collapse sigma in
   let sigma = restrict_inductive_universes sigma ctx_params arities constructors in
 
-  let sigma, univ_entry, ubinders, global_univs =
+  let sigma, univ_entry, ubinders, uinst, global_univs =
     inductive_univs sigma ~user_template:template ~poly udecl
       ~indnames ~ctx_params ~arities ~constructors template_syntax
   in
 
   (* evar-normalize *)
-  let arities = List.map EConstr.(to_constr sigma) arities in
-  let constructors = List.map (on_snd (List.map (EConstr.to_constr sigma))) constructors in
-  let ctx_params = List.map (fun d -> EConstr.to_rel_decl sigma d) ctx_params in
+  let usubst = UVars.make_instance_subst uinst in
+  let nf c = CVars.subst_univs_level_constr usubst @@ EConstr.to_constr sigma c in
+  let arities = List.map nf arities in
+  let constructors = List.map (on_snd (fun l -> List.map nf l)) constructors in
+  let ctx_params = CVars.subst_univs_level_context usubst @@ List.map (fun d -> EConstr.to_rel_decl sigma d) ctx_params in
 
   (* Build the inductive entries *)
   let entries = List.map3 (fun indname arity (cnames,ctypes) ->

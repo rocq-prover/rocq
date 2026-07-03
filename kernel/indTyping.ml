@@ -475,33 +475,21 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   assert (List.is_empty (Environ.rel_context env));
 
   (* Abstract universes *)
-  let env_univs, usubst, univs, template = match mie.mind_entry_universes with
+  let env_univs, univs, template = match mie.mind_entry_universes with
   | Monomorphic_ind_entry ->
-    env, UVars.empty_sort_subst, Monomorphic, None
-  | Template_ind_entry { uctx; default_univs } ->
-    let () =
-      let bind_instance = UVars.UContext.instance uctx in
-      let _, bind_us = UVars.Instance.to_array bind_instance in
-      (* XXX should be checked by UVars.abstract_universes instead *)
-      assert (Array.for_all (fun bind_u -> not @@ Level.is_set bind_u) bind_us)
-    in
-    let (inst, auctx) = UVars.abstract_universes uctx in
-    let usubst = UVars.make_instance_subst inst in
+    env, Monomorphic, None
+  | Template_ind_entry { uctx = auctx; default_univs } ->
     let env = Environ.Internal.push_template_context (AbstractContext.repr auctx) env in
-    env, usubst, Monomorphic, Some (default_univs, auctx)
-  | Polymorphic_ind_entry uctx ->
-    let (inst, auctx) = UVars.abstract_universes uctx in
-    let usubst = UVars.make_instance_subst inst in
+    env, Monomorphic, Some (default_univs, auctx)
+  | Polymorphic_ind_entry auctx ->
     let () = check_ucontext (AbstractContext.repr auctx) env in
     let env = Environ.push_context (AbstractContext.repr auctx) env in
-    env, usubst, Polymorphic auctx, None
+    env, Polymorphic auctx, None
   in
 
-  let params = Vars.subst_univs_level_context usubst mie.mind_entry_params in
+  let params = mie.mind_entry_params in
   let map mip =
-    let arity = Vars.subst_univs_level_constr usubst mip.mind_entry_arity in
-    let lc = List.map (fun c -> Vars.subst_univs_level_constr usubst c) mip.mind_entry_lc in
-    (mip.mind_entry_typename, arity, lc)
+    (mip.mind_entry_typename, mip.mind_entry_arity, mip.mind_entry_lc)
   in
   let blocks = List.map map mie.mind_entry_inds in
 

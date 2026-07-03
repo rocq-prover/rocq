@@ -22,9 +22,9 @@ type universes_entry =
 
 type inductive_universes_entry =
   | Monomorphic_ind_entry
-  | Polymorphic_ind_entry of UVars.UContext.t
+  | Polymorphic_ind_entry of UVars.AbstractContext.t
   | Template_ind_entry of {
-      uctx : UVars.UContext.t;
+      uctx : UVars.AbstractContext.t;
       (* The quality part of default_univs must be all qtype *)
       default_univs : UVars.Instance.t;
     }
