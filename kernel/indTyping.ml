@@ -564,12 +564,12 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   let variance = match mie.mind_entry_variance with
     | None -> None
     | Some variances ->
-      match mie.mind_entry_universes with
-      | Monomorphic_ind_entry | Template_ind_entry _ ->
+      match univs with
+      | Monomorphic ->
         CErrors.user_err Pp.(str "Inductive cannot be both monomorphic and universe cumulative.")
-      | Polymorphic_ind_entry uctx ->
+      | Polymorphic auctx ->
         (* no variance for qualities *)
-        let _qualities, univs = Instance.to_array @@ subst_sort_level_instance usubst @@ UContext.instance uctx in
+        let _qualities, univs = Instance.to_array @@ UContext.instance @@ AbstractContext.repr auctx in
         let univs = Array.map2 (fun a b -> a,b) univs variances in
         let univs = match sec_univs with
           | None -> univs
