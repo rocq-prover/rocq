@@ -85,6 +85,19 @@ let maxtime =
     Q.zero all_data
 in
 
+let maxinstructions =
+  Array.fold_left (fun max (_,data) ->
+      Array.fold_left (fun max d ->
+          Option.cata (fun instructions ->
+              if max < instructions then instructions
+              else max
+            ) max d.instructions
+        )
+        max
+        data)
+    0 all_data
+in
+
 let maxheap =
   Array.fold_left (fun max (_,data) ->
       Array.fold_left (fun max d ->
@@ -117,6 +130,7 @@ let () = data_files |> Array.iteri (fun i _ ->
   position: absolute;
   opacity: 0%%;
 }
+#instructions:checked ~ pre .instructions { opacity: 50%%; }
 #time:checked ~ pre .time { opacity: 50%%; }
 #memory:checked ~ pre .memory { opacity: 50%%; }
 |} (i+1) color (100 / ndata) (100 / ndata * i))
@@ -160,7 +174,12 @@ in
 let () = out "</ol>\n" in
 
 let () =
-  out {|<input type="radio" name="mode" id="time" checked><label for="time">Time</label>
+  out {|<input type="radio" name="mode" id="instructions" checked><label for="time">Instructions</label>
+|}
+in
+
+let () =
+  out {|<input type="radio" name="mode" id="time"><label for="time">Time</label>
 |}
 in
 
@@ -193,6 +212,11 @@ Line: %d
     let () = out {|">|} in
 
     let () = data |> Array.iteri (fun k d ->
+        Option.iter (fun instructions ->
+          out {|<div class="measure%d instructions" style="width: %f%%"></div>|}
+            (k+1)
+            (percentage (Q.of_int instructions) ~max:(Q.of_int maxinstructions))
+          ) d.instructions ;
         out {|<div class="measure%d time" style="width: %f%%"></div>|}
           (k+1)
           (percentage d.time.q ~max:maxtime);
