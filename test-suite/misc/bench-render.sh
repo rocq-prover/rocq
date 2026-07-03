@@ -17,6 +17,10 @@ rocq timelog2html foo.v foo.v.time1 foo.v.time2 > result.html.real
 
 diff result.html result.html.real
 
+rocq timelog2html foo.v foo.v.json foo.v.2.json > result.json.html.real
+
+diff result.json.html result.json.html.real
+
 if rocq timelog2html foo.v foo.v.time1 foo.v.time3 > bad1v3.html.real 2>stderr1v3.real
 then >&2 echo "Should have failed!"; exit 1
 fi
