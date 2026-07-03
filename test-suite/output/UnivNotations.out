@@ -15,15 +15,15 @@ UnivNotations.24).
   forall A : Type, A -> ! A
 foo Type@{UnivNotations.27} nat
      : Type@{foo.u1}
-(* {UnivNotations.27} |= UnivNotations.27 < foo.u0
-                         Set <= UnivNotations.27
+(* {UnivNotations.27} | UnivNotations.27 < foo.u0
+                        Set <= UnivNotations.27
 Normalized constraints:
- {UnivNotations.27} |= UnivNotations.27 < foo.u0 *)
+ {UnivNotations.27} | UnivNotations.27 < foo.u0 *)
 foo Type@{s ; Set} S
      : Type@{foo.u1}
-(* {} |= Set < foo.u0
+(* {} | Set < foo.u0
 Normalized constraints:
- {} |= Set < foo.u0 *)
+ {} | Set < foo.u0 *)
 1 goal
   
   ============================

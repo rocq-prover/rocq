@@ -34,7 +34,7 @@ Arguments foo _%_type_scope
 Expands to: Constant DeclareSort.foo
 Declared in library DeclareSort, line 19, characters 8-11
 foo@{S2 ; } : Type@{S1 ; Set} -> Type@{S2 ; Set}
-(* S2 ;  |=  *)
+(* S2 ;  |  *)
 
 foo is universe polymorphic
 Arguments foo _%_type_scope
@@ -42,14 +42,14 @@ Expands to: Constant DeclareSort.foo
 Declared in library DeclareSort, line 19, characters 8-11
 foo@{SProp ; } : Type@{S1 ; Set} -> SProp
      : Type@{S1 ; Set} -> SProp
-(* {DeclareSort.25} |= Set < DeclareSort.25
+(* {DeclareSort.25} | Set < DeclareSort.25
 Minimized universes:
  DeclareSort.25 := Set+1
 Normalized constraints:
   *)
 foo@{Type ; } : Type@{S1 ; Set} -> Set
      : Type@{S1 ; Set} -> Set
-(* {DeclareSort.26} |= Set < DeclareSort.26
+(* {DeclareSort.26} | Set < DeclareSort.26
 Minimized universes:
  DeclareSort.26 := Set+1
 Normalized constraints:

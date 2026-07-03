@@ -572,7 +572,7 @@ struct
 
   let pr prl (univs, cst as ctx) =
     if is_empty ctx then mt() else
-      hov 0 (h (Level.Set.pr prl univs ++ str " |=") ++ brk(1,2) ++ h (UnivConstraints.pr prl cst))
+      hov 0 (h (Level.Set.pr prl univs ++ str " |") ++ brk(1,2) ++ h (UnivConstraints.pr prl cst))
 
   let constraints (_univs, cst) = cst
   let levels (univs, _cst) = univs

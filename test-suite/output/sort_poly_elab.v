@@ -150,13 +150,13 @@ Module Inductives.
 
   (* Explicitly allowing extending the constraints *)
   Definition foo1_False@{s;+|+} (x : foo1@{s;_}) : False := match x return False with end.
-  (* s ; u |= s -> Prop *)
+  (* s ; u | s -> Prop *)
   About foo1_False.
 
   (* Fully implicit qualities and constraints *)
   Definition foo1_False' (x : foo1) : False := match x return False with end.
   (* foo1_False'@{α ; u |} : foo1@{α ; u} -> False *)
-  (* α ; u |= α -> Prop *)
+  (* α ; u | α -> Prop *)
   About foo1_False'.
 
   Inductive foo2 := Foo2 : Type -> foo2.
@@ -185,9 +185,9 @@ Module Inductives.
     : P f
     := match f with Foo5 _ a => H a end.
   (* foo5_Prop_rect@{α ; u} :
-    forall (A : Prop) (P : foo5@{Prop ; Set} A -> Type@{α ; u}),
-    (forall a : A, P (Foo5@{Prop ; Set} A a)) -> forall f : foo5@{Prop ; Set} A, P f *)
-  (* α ; u |= Prop -> α *)
+    forall (A : Prop) (P : foo5@{Type ; Set} A -> Type@{α ; u}),
+    (forall a : A, P (Foo5@{Type ; Set} A a)) -> forall f : foo5@{Type ; Set} A, P f *)
+  (* α ; u | Prop -> α *)
   About foo5_Prop_rect.
 
   Definition foo5_Prop_rect' (A : Prop) (P : foo5 A -> Type)
@@ -198,7 +198,7 @@ Module Inductives.
   (* foo5_Prop_rect'@{α ; u} :
     forall (A : Prop) (P : foo5@{Prop ; Set} A -> Type@{α ; u}),
     (forall a : A, P (Foo5@{Prop ; Set} A a)) -> forall f : foo5@{Prop ; Set} A, P f *)
-  (* α ; u |=  *)
+  (* α ; u |  *)
   About foo5_Prop_rect'.
 
   Inductive foo6 : Type := Foo6.
@@ -212,7 +212,7 @@ Module Inductives.
     : P f
     := match f with Foo6 => H end.
   (* foo6_rect@{α α0 ; u u0} : forall P : foo6@{α0 ; u} -> Type@{α ; u0}, P Foo6@{α0 ; u} -> forall f : foo6@{α0 ; u}, P f *)
-  (* α α0 ; u u0 |= α0 -> α *)
+  (* α α0 ; u u0 | α0 -> α *)
   About foo6_rect.
 
   Definition foo6_prop_rect (P:foo6 -> Type)
@@ -221,7 +221,7 @@ Module Inductives.
     : P f
     := match f with Foo6 => H end.
   (* foo6_prop_rect@{α ; u u0} : forall P : foo6@{Prop ; u} -> Type@{α ; u0}, P Foo6@{Prop ; u} -> forall f : foo6@{Prop ; u}, P f *)
-  (* α ; u u0 |=  *)
+  (* α ; u u0 |  *)
   About foo6_prop_rect.
 
   Definition foo6_type_rect (P:foo6 -> Type)
@@ -230,7 +230,7 @@ Module Inductives.
     : P f
     := match f with Foo6 => H end.
   (* foo6_type_rect@{α ; u u0} : forall P : foo6@{Type ; u} -> Type@{α ; u0}, P Foo6@{Type ; u} -> forall f : foo6@{Type ; u}, P f *)
-  (* α ; u u0 |=  *)
+  (* α ; u u0 |  *)
   About foo6_type_rect.
 
   Inductive foo7 : Type := Foo7_1 | Foo7_2.
@@ -266,25 +266,25 @@ Module Inductives.
     (s:sigma A B)
     : P s
     := match s with pair _ _ x b => H x b end.
-  (* α α0 α1 α2 ; u u0 u1 |= α2 -> α *)
+  (* α α0 α1 α2 ; u u0 u1 | α2 -> α *)
   About sigma_srect.
 
   (* Elimination constraints are added *)
   Definition pr1 {A B} (s:sigma A B) : A
     := match s with pair _ _ x _ => x end.
-  (* α α0 α1 ; u u0 |= α1 -> α *)
+  (* α α0 α1 ; u u0 | α1 -> α *)
   About pr1.
 
   Definition pr2 {A B} (s:sigma A B) : B (pr1 s)
     := match s with pair _ _ _ y => y end.
-  (* α α0 α1 ; u u0 |= α1 -> α
+  (* α α0 α1 ; u u0 | α1 -> α
                        α1 -> α0 *)
   About pr2.
 
 
   Definition π1 {A:Type} {P:A -> Type} (p : sigma@{Type _ _;_ _} A P) : A :=
     match p return A with pair _ _ a _ => a end.
-  (* α α0 ; u u0 |= α0 -> Type *)
+  (* α α0 ; u u0 | α0 -> Type *)
   About π2.
 
   (*********************************************)
@@ -308,7 +308,7 @@ Module Inductives.
   | inl : A -> sum A B
   | inr : B -> sum A B.
   (* sum@{α α0 α1 ; u u0} : Type@{α ; u} -> Type@{α0 ; u0} -> Type@{α1 ; max(Set,u,u0)} *)
-  (* α α0 α1 ; u u0 |=  *)
+  (* α α0 α1 ; u u0 |  *)
   About sum.
 
   Arguments inl {A B} _ , [A] B _.
@@ -332,7 +332,7 @@ Module Inductives.
     | inl a => fl a
     | inr b => fr b
     end.
-  (* α α0 α1 α2 ; u u0 u1 |= α2 -> α *)
+  (* α α0 α1 α2 ; u u0 u1 | α2 -> α *)
   About sum_elim.
 
   Definition sum_sind := sum_elim@{Type Type Type SProp;_ _ _}.
@@ -359,7 +359,7 @@ Module Inductives.
     | inl a => inl a
     | inr b => inr b
     end.
-  (* α α0 α1 ; u u0 |= α -> Type *)
+  (* α α0 α1 ; u u0 | α -> Type *)
   About idT.
 
   (* Implicit qualities and constraints are elaborated *)
@@ -369,7 +369,7 @@ Module Inductives.
     | inl a => inl a
     | inr b => inr b
     end.
-  (* α α0 α1 ; u u0 |= α -> Prop *)
+  (* α α0 α1 ; u u0 | α -> Prop *)
   About idP.
 
   (* Implicit qualities and constraints are elaborated *)
@@ -379,7 +379,7 @@ Module Inductives.
     | inl a => inl a
     | inr b => inr b
     end.
-  (* α α0 α1 ; u u0 |= α -> Prop *)
+  (* α α0 α1 ; u u0 | α -> Prop *)
   About idS.
 
   (* Implicit qualities and constraints are elaborated *)
@@ -389,7 +389,7 @@ Module Inductives.
     | inl a => inl a
     | inr b => inr b
     end.
-  (* α α0 α1 α2 ; u u0 |= α -> α2 *)
+  (* α α0 α1 α2 ; u u0 | α -> α2 *)
   About idV.
 
   Fail Compute idV@{Prop Type Prop Type;Set Set} (inl I).
@@ -413,7 +413,7 @@ Module Inductives.
       | nil => fn
       | cons x l => fc x l (F l)
       end.
-  (* α α0 α1 ; u u0 |= α1 -> α *)
+  (* α α0 α1 ; u u0 | α1 -> α *)
   About list_elim.
 
   Fixpoint list_idT {A : Type} (l : list A) : list@{_ Type;_} A :=
@@ -421,7 +421,7 @@ Module Inductives.
     | nil => nil
     | cons x l => cons x (list_idT l)
     end.
-  (* α α0 ; u |= α -> Type *)
+  (* α α0 ; u | α -> Type *)
   About list_idT.
 
   Fixpoint list_idP {A : Type} (l : list A) : list@{_ Prop;_} A :=
@@ -429,7 +429,7 @@ Module Inductives.
     | nil => nil
     | cons x l => cons x (list_idP l)
     end.
-  (* α α0 ; u |= α -> Prop *)
+  (* α α0 ; u | α -> Prop *)
   About list_idP.
 
   Fixpoint list_idS {A : Type} (l : list A) : list@{_ SProp;_} A :=
@@ -437,7 +437,7 @@ Module Inductives.
     | nil => nil
     | cons x l => cons x (list_idS l)
     end.
-  (* α α0 ; u |= α -> SProp *)
+  (* α α0 ; u | α -> SProp *)
   About list_idS.
 
   Fixpoint map A B f (l : list A) : list B :=
@@ -448,7 +448,7 @@ Module Inductives.
   (* map@{α α0 α1 α2 ; u u0} :
       forall (A : Type@{α ; u}) (B : Type@{α1 ; u0}) (_ : forall _ : A, B)
       (_ : list@{α α0 ; u} A), list@{α1 α2 ; u0} B *)
-  (* α α0 α1 α2 ; u u0 |= α0 -> α2 *)
+  (* α α0 α1 α2 ; u u0 | α0 -> α2 *)
   About map.
 
   (*********************************************)
@@ -459,7 +459,7 @@ Module Inductives.
   About False'.
 
   Definition False'_False (x : False') : False := match x return False with end.
-  (* α ; u |= α -> Prop *)
+  (* α ; u | α -> Prop *)
   About False'_False.
 
   (*********************************************)
@@ -474,7 +474,7 @@ Module Inductives.
     - exact True.
     - exact False.
   Defined.
-  (* α ;  |= α -> Type *)
+  (* α ;  | α -> Type *)
   About bool_to_Prop.
 
   Definition bool_to_True_conj (b : bool) : True \/ True.
@@ -483,7 +483,7 @@ Module Inductives.
     - exact (or_introl I).
     - exact (or_intror I).
   Defined.
-  (* α ;  |= α -> Prop *)
+  (* α ;  | α -> Prop *)
   About bool_to_True_conj.
 
   (* Using Program *)
@@ -493,7 +493,7 @@ Module Inductives.
     - exact True.
     - exact False.
   Defined.
-  (* α ;  |= α -> Type *)
+  (* α ;  | α -> Type *)
   About bool_to_Prop'.
 
   #[universes(polymorphic=no)]
@@ -554,7 +554,7 @@ Module Records.
 
   Record R3 (A:Type) : Type := { R3f1 : A }.
   (* R3@{α α0 ; u} : forall _ : Type@{α ; u}, Type@{α0 ; u} *)
-  (* α α0 ; u |= α0 -> α *)
+  (* α α0 ; u | α0 -> α *)
   About R3.
 
   Record R4@{s; |} (A:Type@{s;Set}) : Type@{s;Set} := { R4f1 : A}.
@@ -565,7 +565,7 @@ Module Records.
   #[warnings="-non-primitive-record"]
     Record R5 (A:Type) : SProp := { R5f1 : A}.
   (* R5@{α ; u} : forall _ : Type@{α ; u}, SProp *)
-  (* α ; u |= SProp -> α *)
+  (* α ; u | SProp -> α *)
   About R5.
 
   Record R6@{s; |+} (A:Type@{s;Set}) : Set := { R6f1 : A; R6f2 : nat }.
@@ -582,9 +582,9 @@ Module Records.
   #[projections(primitive=no)] Record R7 (A:Type) := { R7f1 : A; R7f2 : nat }.
   (* Record R7@{α α0 ; u |} (A : Type@{α ; u}) : Type@{α0 ; max(Set,u)}  *)
   (* R7f1@{α α0 ; u |} : forall A : Type@{α ; u}, R7@{α α0 ; u} A -> A
-      α α0 ; u |= α0 -> α *)
+      α α0 ; u | α0 -> α *)
   (* R7f2@{α α0 ; u |} : forall A : Type@{α ; u}, R7@{α α0 ; u} A -> nat
-      α α0 ; u |= α0 -> Type *)
+      α α0 ; u | α0 -> Type *)
   About R7.
   About R7f1.
   About R7f2.
@@ -625,9 +625,9 @@ Module Records.
   }.
   (* Record R8@{α α0 ; u |} : Type@{α ; u+1}. *)
   (* R8f1@{α α0 ; u |} : R8@{α α0 ; u} -> Type@{α0 ; u}
-      α α0 ; u |= α -> Type *)
+      α α0 ; u | α -> Type *)
   (* R8f2@{α α0 ; u |} : forall r : R8@{α α0 ; u}, R8f1@{α α0 ; u} r
-      α α0 ; u |= α -> α0
+      α α0 ; u | α -> α0
                   α -> Type *)
   About R8.
   About R8f1.
@@ -645,9 +645,9 @@ Module Records.
   }.
   (* R9@{α α0 α1 ; } : Type@{α ; Set} *)
   (* R9f1@{α α0 α1 ; } : forall _ : R9@{α α0 α1 ; }, bool@{α0 ; } *)
-        (* α α0 α1 ;  |= α -> α0 *)
+        (* α α0 α1 ;  | α -> α0 *)
   (* R9f2@{α α0 α1 ; } : forall _ : R9@{α α0 α1 ; }, bool@{α1 ; } *)
-        (* α α0 α1 ;  |= α -> α1 *)
+        (* α α0 α1 ;  | α -> α1 *)
   About R9.
   About R9f1.
   About R9f2.
@@ -660,13 +660,13 @@ Module Records.
   }.
   (* R10@{α α0 α1 α2 ; u u0} : forall _ : Type@{α0 ; u}, Type@{α ; max(Set,u,u0)} *)
   (* R10f1@{α α0 α1 α2 ; u u0} : forall (A : Type@{α0 ; u}) (_ : R@{α α0 α1 α2 ; u u0} A), A *)
-     (* α α0 α1 α2 ; u u0 |= α -> α0 *)
+     (* α α0 α1 α2 ; u u0 | α -> α0 *)
   (* R10f2@{α α0 α1 α2 ; u u0} : forall (A : Type@{α0 ; u}) (r : R@{α α0 α1 α2 ; u u0} A),
                               @eq@{α0 α1 ; u u0} A (x@{α α0 α1 α2 ; u u0} A r) (x@{α α0 α1 α2 ; u u0} A r) *)
-     (* α α0 α1 α2 ; u u0 |= α -> α0
+     (* α α0 α1 α2 ; u u0 | α -> α0
                              α -> α1 *)
   (* R10f3@{α α0 α1 α2 ; u u0} : forall (A : Type@{α0 ; u}) (_ : R@{α α0 α1 α2 ; u u0} A), bool@{α2 ; } *)
-     (* α α0 α1 α2 ; u u0 |= α -> α2 *)
+     (* α α0 α1 α2 ; u u0 | α -> α2 *)
   About R10.
   About R10f1.
   About R10f2.
@@ -682,15 +682,15 @@ Module Records.
     R11f3 : bool
   }.
   (* R11@{α α0 α1 α2 α3 α4 α5 ; u} : Type@{α ; Set} *)
-       (* α α0 α1 α2 α3 α4 α5 ; u |= α0 -> α3
+       (* α α0 α1 α2 α3 α4 α5 ; u | α0 -> α3
                                      α3 -> Type *)
   (* R11f2 : ... *)
-    (* α α0 α1 α2 α3 α4 α5 ; u |= α -> α3
+    (* α α0 α1 α2 α3 α4 α5 ; u | α -> α3
                               α -> α4
                               α0 -> α3
                               α3 -> Type *)
   (* R11f3 : ... *)
-    (* α α0 α1 α2 α3 α4 α5 ; u |= α -> α5
+    (* α α0 α1 α2 α3 α4 α5 ; u | α -> α5
                               α0 -> α3
                               α3 -> Type *)
   About R11.
@@ -729,16 +729,16 @@ Module Records.
           end
     }.
    (* R13@{α α0 α1 α2 ; u u0} : Type@{α ; max(Set,u+1,u0+1)} *)
-       (* α α0 α1 α2 ; u u0 |= α1 -> Type
+       (* α α0 α1 α2 ; u u0 | α1 -> Type
                                α2 -> Type,
                                u0 <= u *)
   (* R13f3@{α α0 α1 α2 ; u u0} : forall _ : R'@{α α0 α1 α2 ; u u0}, bool@{α1 ; }  *)
-      (* α α0 α1 α2 ; u u0 |= α -> α1
+      (* α α0 α1 α2 ; u u0 | α -> α1
                               α1 -> Type
                               α2 -> Type,
                               u0 <= u *)
   (* R13f4@{α α0 α1 α2 ; u u0} : ... *)
-      (* α α0 α1 α2 ; u u0 |= α -> α0
+      (* α α0 α1 α2 ; u u0 | α -> α0
                               α -> α1
                               α -> Type
                               α1 -> Type
