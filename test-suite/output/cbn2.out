@@ -1,0 +1,26 @@
+File "./output/cbn2.v", line 80, characters 9-17:
+Warning: Use of "Notation" keyword for abbreviations is deprecated, use
+"Abbreviation" instead.
+[notation-for-abbreviation,deprecated-since-9.2,deprecated,default]
+Quickfix:
+Replace File "./output/cbn2.v", line 80, characters 9-17 with Abbreviation
+File "./output/cbn2.v", line 108, characters 2-14:
+Warning: This interactive proof is not started by the "Proof" command.
+[missing-proof-command,fragile,default]
+Quickfix:
+Replace File "./output/cbn2.v", line 108, characters 2-2 with Proof.
+
+File "./output/cbn2.v", line 109, characters 2-6:
+Warning: This interactive proof is not started by the "Proof" command.
+[missing-proof-command,fragile,default]
+Quickfix:
+Replace File "./output/cbn2.v", line 109, characters 2-2 with Proof.
+
+     = fun _ _ _ _ _ _ _ _ _ _ : nat => 8
+     : build_tele 10 -pt> nat
+     = fun _ _ _ _ _ _ _ _ _ _ : nat => 8
+     : build_tele 10 -pt> nat
+     = fun _ _ _ _ _ _ _ _ _ _ : nat => 2000
+     : build_tele 10 -pt> nat
+     = fun _ _ _ _ _ _ _ _ _ _ : nat => 2000
+     : build_tele 10 -pt> nat
