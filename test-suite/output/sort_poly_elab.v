@@ -675,7 +675,7 @@ Module Records.
   Record R11 := {
     R11f1 : bool ;
     R11f2 : let r := {| R10f1 := true; R10f2 := eq_refl true ; R10f3 := R11f1 |} in
-         if R10f3 bool r then
+         if R10f3 bool r is true then
           bool
         else
           bool ;
@@ -702,7 +702,7 @@ Module Records.
     R12f1 : bool ;
     R12f2 : let f' :=
           fix F n :=
-            if R12f1 then n else O
+            if R12f1 is true then n else O
         in
         match f' O with
         | O => bool
