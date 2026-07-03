@@ -93,7 +93,7 @@ let test_sort_qvar =
   end
 
 let test_record_nowith =
-let open Procq.Lookahead in
+  let open Procq.Lookahead in
   to_entry "test_record_nowith" begin
     lk_kw "}" <+> lk_kw "|}" <+> (lk_ident >> lk_list lk_field >> lk_except_kws ["with"; ".("])
   end
