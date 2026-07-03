@@ -933,7 +933,7 @@ let rec apply_stack info t = function
       (nas, aux env c)
     in
       apply_stack info
-        (mkCase (ci, u, Array.map (aux env) pms, (map_ctx ty,r), iv, t,
+        (mkCase (ci, u, Array.map (aux env) pms, (map_ctx ty,r), map_invert (aux env) iv, t,
                     Array.map map_ctx br))
         st
   | PROJ (p, r, st) ->
