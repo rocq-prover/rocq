@@ -148,7 +148,7 @@ let mk_pkg_timings work_dir pkg_name suffix iteration =
       (* Perf can indeed be not supported in some systems, so we must fail gracefully *)
       ; num_instr =
           (try command_prefix ^ ".perf | grep instructions:u | awk '{print $1}' | sed 's/,//g'" |>
-               run |> String.rchop ~n:1 |> int_of_string
+               run |> String.rchop ~n:1 |> int_of_string |> fun i -> i / 1_000_000
            with Failure _ -> 0)
       ; num_mem = time_command_output |> nth 1 |> int_of_string
       })
@@ -243,9 +243,9 @@ coq_opam_packages
 
   [
     [ package_name ];
-    [ prf new_t.user_time; prf old_t.user_time; prf perc.user_time ];
     [ pri new_t.num_instr; pri old_t.num_instr; prf perc.num_instr ];
     [ pri new_t.num_mem; pri old_t.num_mem; prf perc.num_mem ];
+    [ prf new_t.user_time; prf old_t.user_time; prf perc.user_time ];
   ]
 
   end
@@ -254,9 +254,9 @@ coq_opam_packages
 
     let headers = [
       "";
-      "user time [s]";
-      "CPU instructions";
+      "CPU instructions [M]";
       "max resident mem [KB]";
+      "user time [s]";
     ] in
 
     let descr = ["NEW"; "OLD"; "PDIFF"] in
