@@ -772,6 +772,14 @@ end end >>= begin
   fun infos -> tclDISPATCH (infos |> List.map conclusion)
 end
 
+let generalize_term sigma t concl =
+  let open Find_subterm in
+  Goal.enter_one begin fun g ->
+    let sigma, env = Goal.sigma g, Goal.env g in
+    let concl', sigma' = subst_closed_term_occ env sigma Locus.(AtOccs AllOccurrences) t concl in
+    Unsafe.tclEVARS sigma' <*> tclUNIT concl'
+  end
+
 (** a typical mate of [tclLAST_GEN] doing the job of applying the views [cs]
     to [c] and generalizing the resulting term *)
 let tacVIEW_THEN_GRAB ?(simple_types=true)
@@ -782,9 +790,9 @@ let tacVIEW_THEN_GRAB ?(simple_types=true)
     Ssrcommon.tacCONSTR_NAME c >>= fun name ->
     Goal.enter_one ~__LOC__ begin fun g ->
       let sigma, env = Goal.sigma g, Goal.env g in
-      Ssrcommon.tacMKPROD t ~name
-        (Termops.subst_term sigma t (* NOTE: we grab t here *)
-          (Termops.prod_applist sigma new_concl [c])) >>=
+      generalize_term sigma t (* NOTE: we grab t here *)
+          (Termops.prod_applist sigma new_concl [c]) >>= fun gt ->
+      Ssrcommon.tacMKPROD t ~name gt >>=
       conclusion is_letin t clear
     end)
 
