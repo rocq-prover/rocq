@@ -1054,7 +1054,7 @@ let constant_entry_of_side_effect eff =
     | Monomorphic ->
       Monomorphic_entry
     | Polymorphic auctx ->
-      Polymorphic_entry (UVars.AbstractContext.repr auctx)
+      Polymorphic_entry auctx
   in
   let p =
     match cb.const_body with

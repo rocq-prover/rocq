@@ -17,7 +17,7 @@ open UVars
 
 val universes_context : universes -> AbstractContext.t
 
-val abstract_universes : Entries.universes_entry -> UVars.sort_level_subst * universes
+val abstract_universes : Entries.universes_entry -> universes
 
 (** {6 Constants} *)
 

@@ -160,8 +160,11 @@ let build_by_tactic_opt env ~uctx ~poly ~typ tac =
 
 let extract_monomorphic = function
   | UState.Monomorphic_entry ctx ->
-    Entries.Monomorphic_entry, ctx
-  | UState.Polymorphic_entry uctx -> Entries.Polymorphic_entry uctx, Univ.ContextSet.empty
+    UVars.empty_sort_subst, Entries.Monomorphic_entry, ctx
+  | UState.Polymorphic_entry uctx ->
+    let uinst, auctx = UVars.abstract_universes uctx in
+    let usubst = UVars.make_instance_subst uinst in
+    usubst, Entries.Polymorphic_entry auctx, Univ.ContextSet.empty
 
 let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
   let (const, safe, sigma') =
@@ -184,7 +187,9 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
     (* No side-effects in the entry, they already exist in the ambient environment *)
     let effs = Evd.eval_side_effects sigma in
     let de, ctx =
-      let univ_entry, ctx = extract_monomorphic (fst univs) in
+      let usubst, univ_entry, ctx = extract_monomorphic (fst univs) in
+      let body = Vars.subst_univs_level_constr usubst body in
+      let typ = Vars.subst_univs_level_constr usubst typ in
       if not opaque then
         Safe_typing.DefinitionEff { Entries.definition_entry_body = body;
           definition_entry_secctx = None;

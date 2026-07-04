@@ -18,7 +18,7 @@ open Constr
 
 type universes_entry =
   | Monomorphic_entry
-  | Polymorphic_entry of UVars.UContext.t
+  | Polymorphic_entry of UVars.AbstractContext.t
 
 type inductive_universes_entry =
   | Monomorphic_ind_entry
