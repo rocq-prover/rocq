@@ -60,6 +60,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.todo',
     'sphinxcontrib.bibtex',
+    'sphinx_markdown_builder',
     'rocqrst.rocqdomain'
 ]
 

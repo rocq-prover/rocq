@@ -45,6 +45,8 @@ from sphinx.util.logging import getLogger, get_node_location
 from sphinx.util.nodes import set_source_info, set_role_source_info, make_refnode
 from sphinx.writers.latex import LaTeXTranslator
 from sphinx.builders.text import TextBuilder
+from sphinx_markdown_builder.translator import MarkdownTranslator, pushing_context
+from sphinx_markdown_builder.contexts import WrappedContext
 
 from . import rocqdoc
 from .repl import ansicolors
@@ -1261,6 +1263,39 @@ def simplify_source_code_blocks_for_latex(app, doctree, fromdocname): # pylint: 
         else:
             node.replace_self(nodes.literal_block(node.rawsource, node.rawsource, language="Coq"))
 
+class IndicesMarkdownTranslator(MarkdownTranslator):
+    @pushing_context
+    def visit_caution(self, _node):
+        self._push_box("CAUTION")
+
+    def visit_admonition(self, node):
+        self.add('\n\n')
+    def depart_admonition(self, node):
+        self.add('\n\n')
+
+    # we do not create links in markdown
+    def visit_reference(self, node):
+        pass
+    def visit_download_reference(self, node):
+        pass
+
+
+    @pushing_context
+    def visit_desc_annotation(self, node):
+        text = node.astext().strip()
+        if text == "Error":
+            self.add("*Possible error*:")
+            raise nodes.SkipNode
+        elif text == "Warning":
+            self.add("*Possible warning*:")
+            raise nodes.SkipNode
+        self._push_context(WrappedContext("_"))
+
+    def visit_subscript(self, node):
+        self.add('(')
+    def depart_subscript(self, node):
+        self.add(')')
+
 
 class IndicesBuilder(TextBuilder):
     """Custom sphinx builder to generate JSON files containing the content of our indices.
@@ -1268,7 +1303,9 @@ class IndicesBuilder(TextBuilder):
     It is based on the TextBuilder to be able to generate the content of the documentation for each object."""
     name = 'indices'
     format = 'json'
-    allow_parallel = True
+    allow_parallel = False
+
+    default_translator_class = IndicesMarkdownTranslator
 
     def init(self):
         super().init()
@@ -1289,17 +1326,19 @@ class IndicesBuilder(TextBuilder):
             if all_target_ids and content_node:
                 # translate sphinx nodes to text and associate it to all IDs
                 translator = self.create_translator(doctree, self)
-                translator.visit_document(content_node)
+                translator.visit_document(doctree)
                 content_node.walkabout(translator)
-                translator.depart_document(content_node)
-                text = translator.body.strip()
+                translator.depart_document(doctree)
+                text = translator.astext().strip()
+                # remove some leftover formatting
+                text = text.replace('\u200b', '|').replace('\\\\textquotesingle{}', "").replace('\\textquotesingle{}', "")
                 for tid in all_target_ids:
                     self.rendered[tid] = text
 
     def finish(self):
         domain = self.env.get_domain('rocq')
 
-        def write_json(index: RocqSubdomainsIndex):
+        for index in RocqDomain.indices:
             items: list[tuple[str, SubdomainItemData]] = chain(*(domain.data['objects'][subdomain].items()
                             for subdomain in index.subdomains))
 
@@ -1308,15 +1347,12 @@ class IndicesBuilder(TextBuilder):
                 output_data[name] = {
                     "documentation_path": data.docname,
                     "documentation_anchor": data.targetid,
-                    "syntax": [[x[0], x[1].asdict()] for x in data.syntax],
+                    "syntax": [[tag, notation.asdict()] for [tag, notation] in data.syntax],
                     "documentation": self.rendered.get(data.targetid, "")
                 }
 
             with open(self.outdir / f"{index.name}.json", "w") as f:
                 json.dump(output_data, f, indent=2)
-
-        for index in RocqDomain.indices:
-            write_json(index)
 
 ROCQ_ADDITIONAL_DIRECTIVES = [RocqtopDirective,
                              RocqdocDirective,
