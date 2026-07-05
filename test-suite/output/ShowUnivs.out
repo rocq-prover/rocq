@@ -1,6 +1,6 @@
 UNIVERSES:
- {w v u} |= u <= v
-            v <= w
+ {w v u} | u <= v
+           v <= w
 ALGEBRAIC UNIVERSES:
  {}
 FLEXIBLE UNIVERSES:
@@ -14,10 +14,10 @@ WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {w v u} |= u <= v
-            v <= w
+ {w v u} | u <= v
+           v <= w
 UNIVERSES:
- {ShowUnivs.28 ShowUnivs.27 ShowUnivs.26 ShowUnivs.25 ShowUnivs.24} |=
+ {ShowUnivs.28 ShowUnivs.27 ShowUnivs.26 ShowUnivs.25 ShowUnivs.24} |
    ShowUnivs.25 < ShowUnivs.26
    ShowUnivs.26 < ShowUnivs.27
    ShowUnivs.26 <= ShowUnivs.28
@@ -45,4 +45,4 @@ WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {ShowUnivs.26 ShowUnivs.25} |= ShowUnivs.25 < ShowUnivs.26
+ {ShowUnivs.26 ShowUnivs.25} | ShowUnivs.25 < ShowUnivs.26

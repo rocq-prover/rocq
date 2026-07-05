@@ -48,7 +48,7 @@ sunit may only be eliminated to produce values whose type is SProp.
 Expands to: Inductive Inductive.sunit
 Declared in library Inductive, line 38, characters 10-15
 sempty@{q ; } : Type@{q ; Set}
-(* q ;  |=  *)
+(* q ;  |  *)
 
 sempty is universe polymorphic
 sempty@{q ; } may only be eliminated to produce values whose type is in sort quality q,
@@ -60,7 +60,7 @@ Expands to: Inductive Inductive.sempty
 Declared in library Inductive, line 44, characters 22-28
 ssig@{q1 q2 q3 ; a b} :
 forall A : Type@{q1 ; a}, (A -> Type@{q2 ; b}) -> Type@{q3 ; max(a,b)}
-(* q1 q2 q3 ; a b |=  *)
+(* q1 q2 q3 ; a b |  *)
 
 ssig is universe polymorphic
 ssig@{q1 q2 q3 ; a b} may only be eliminated to produce values whose type is in sort quality q3,
@@ -72,7 +72,7 @@ Arguments ssig A%_type_scope B%_function_scope
 Expands to: Inductive Inductive.ssig
 Declared in library Inductive, line 48, characters 22-26
 BoxP@{q ; a} : Type@{q ; a} -> Prop
-(* q ; a |=  *)
+(* q ; a |  *)
 
 BoxP is universe polymorphic
 BoxP@{q ; a} may only be eliminated to produce values whose type is SProp or Prop,

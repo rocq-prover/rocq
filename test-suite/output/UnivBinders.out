@@ -1,8 +1,8 @@
 Inductive Empty@{uu} : Type@{uu} :=  .
-(* uu |=  *)
+(* uu |  *)
 Record PWrap@{uu} (A : Type@{uu}) : Type@{uu} := pwrap
   { punwrap : A }.
-(* uu |=  *)
+(* uu |  *)
 
 PWrap has primitive projections with eta conversion.
 Arguments PWrap A%_type_scope
@@ -10,7 +10,7 @@ Arguments pwrap A%_type_scope punwrap
 Arguments punwrap A%_type_scope p
 Record PWrap@{uu} (A : Type@{uu}) : Type@{uu} := pwrap
   { punwrap : A }.
-(* uu |=  *)
+(* uu |  *)
 
 PWrap has primitive projections with eta conversion.
 Arguments PWrap A%_type_scope
@@ -18,7 +18,7 @@ Arguments pwrap A%_type_scope punwrap
 Arguments punwrap A%_type_scope p
 Record RWrap@{uu} (A : Type@{uu}) : Type@{uu} := rwrap
   { runwrap : A }.
-(* uu |=  *)
+(* uu |  *)
 
 Arguments RWrap A%_type_scope
 Arguments rwrap A%_type_scope runwrap
@@ -26,38 +26,38 @@ Arguments runwrap A%_type_scope r
 runwrap@{uu} =
 fun (A : Type@{uu}) (r : RWrap@{uu} A) => let (runwrap) := r in runwrap
      : forall A : Type@{uu}, RWrap@{uu} A -> A
-(* uu |=  *)
+(* uu |  *)
 
 runwrap is a projection of RWrap
 Arguments runwrap A%_type_scope r
 Wrap@{uu} = fun A : Type@{uu} => A
      : Type@{uu} -> Type@{uu}
-(* uu |=  *)
+(* uu |  *)
 
 Arguments Wrap A%_type_scope
 wrap@{uu} =
 fun (A : Type@{uu}) (Wrap : Wrap@{uu} A) => Wrap
      : forall {A : Type@{uu}}, Wrap@{uu} A -> A
-(* uu |=  *)
+(* uu |  *)
 
 Arguments wrap {A}%_type_scope {Wrap}
 bar@{uu} = nat
      : Wrap@{uu} Set
-(* uu |= Set < uu *)
+(* uu | Set < uu *)
 foo@{uu u v} =
 Type@{u} -> Type@{v} -> Type@{uu}
      : Type@{max(uu+1,u+1,v+1)}
-(* uu u v |=  *)
+(* uu u v |  *)
 Type@{i} -> Type@{j}
      : Type@{max(i+1,j+1)}
-(* {j i} |= 
+(* {j i} | 
 Normalized constraints:
- {j i} |=  *)
+ {j i} |  *)
      = Type@{i} -> Type@{j}
      : Type@{max(i+1,j+1)}
-(* {j i} |= 
+(* {j i} | 
 Normalized constraints:
- {j i} |=  *)
+ {j i} |  *)
 mono = Type@{mono.uu}
      : Type@{mono.uu+1}
 mono
@@ -87,27 +87,27 @@ Universe uu already bound.
 foo@{E M N} =
 Type@{M} -> Type@{N} -> Type@{E}
      : Type@{max(E+1,M+1,N+1)}
-(* E M N |=  *)
+(* E M N |  *)
 foo@{uu u v} =
 Type@{u} -> Type@{v} -> Type@{uu}
      : Type@{max(uu+1,u+1,v+1)}
-(* uu u v |=  *)
+(* uu u v |  *)
 foo@{uu u IMPORTANT} =
 Type@{u} -> Type@{IMPORTANT} -> Type@{uu}
      : Type@{max(uu+1,u+1,IMPORTANT+1)}
-(* uu u IMPORTANT |=  *)
+(* uu u IMPORTANT |  *)
 Inductive Empty@{E} : Type@{E} :=  .
-(* E |=  *)
+(* E |  *)
 Record PWrap@{E} (A : Type@{E}) : Type@{E} := pwrap
   { punwrap : A }.
-(* E |=  *)
+(* E |  *)
 
 PWrap has primitive projections with eta conversion.
 Arguments PWrap A%_type_scope
 Arguments pwrap A%_type_scope punwrap
 Arguments punwrap A%_type_scope p
 punwrap@{K} : forall A : Type@{K}, PWrap@{K} A -> A
-(* K |=  *)
+(* K |  *)
 
 punwrap is universe polymorphic
 punwrap is a primitive projection of PWrap
@@ -125,7 +125,7 @@ File "./output/UnivBinders.v", line 108, characters 0-33:
 The command has indeed failed with message:
 This object does not support universe names.
 insec0@{i i0} : Type@{i} -> Type@{i} -> Type@{i0} -> Type@{i}
-(* i i0 |=  *)
+(* i i0 |  *)
 
 insec0 is universe polymorphic
 Arguments insec0 (foo bar baz)%_type_scope
@@ -137,45 +137,45 @@ The command has indeed failed with message:
 Cannot enforce v < u because u < gU < gV < v
 insec@{v} = Type@{uu} -> Type@{v}
      : Type@{max(uu+1,v+1)}
-(* v |=  *)
+(* v |  *)
 Inductive insecind@{k} : Type@{k+1} :=
     inseccstr : Type@{k} -> insecind@{k}.
-(* k |=  *)
+(* k |  *)
 
 Arguments inseccstr _%_type_scope
 insec@{uu v} = Type@{uu} -> Type@{v}
      : Type@{max(uu+1,v+1)}
-(* uu v |=  *)
+(* uu v |  *)
 Inductive insecind@{uu k} : Type@{k+1} :=
     inseccstr : Type@{k} -> insecind@{uu k}.
-(* uu k |=  *)
+(* uu k |  *)
 
 Arguments inseccstr _%_type_scope
 insec2@{u} = Prop
      : Type@{Set+1}
-(* u |=  *)
+(* u |  *)
 inmod@{uu} = Type@{uu}
      : Type@{uu+1}
-(* uu |=  *)
+(* uu |  *)
 SomeMod.inmod@{uu} = Type@{uu}
      : Type@{uu+1}
-(* uu |=  *)
+(* uu |  *)
 inmod@{uu} = Type@{uu}
      : Type@{uu+1}
-(* uu |=  *)
+(* uu |  *)
 Applied.infunct@{uu v} =
 inmod@{uu} -> Type@{v}
      : Type@{max(uu+1,v+1)}
-(* uu v |=  *)
+(* uu v |  *)
 axfoo@{i u u0} : Type@{u} -> Type@{i}
-(* i u u0 |=  *)
+(* i u u0 |  *)
 
 axfoo is universe polymorphic
 Arguments axfoo _%_type_scope
 Expands to: Constant UnivBinders.axfoo
 Declared in library UnivBinders, line 159, characters 6-11
 axbar@{i u u0} : Type@{u0} -> Type@{i}
-(* i u u0 |=  *)
+(* i u u0 |  *)
 
 axbar is universe polymorphic
 Arguments axbar _%_type_scope
@@ -194,11 +194,11 @@ Arguments axbar' _%_type_scope
 Expands to: Constant UnivBinders.axbar'
 Declared in library UnivBinders, line 160, characters 30-36
 *** [ axfoo@{i u u0} : Type@{u} -> Type@{i} ]
-(* i u u0 |=  *)
+(* i u u0 |  *)
 
 Arguments axfoo _%_type_scope
 *** [ axbar@{i u u0} : Type@{u0} -> Type@{i} ]
-(* i u u0 |=  *)
+(* i u u0 |  *)
 
 Arguments axbar _%_type_scope
 *** [ axfoo' : Type@{axfoo'.u0} -> Type@{axfoo'.i} ]
@@ -214,22 +214,22 @@ allowed to mention a universe binder (which will be shared by the whole
 block).
 foo@{i} = Type@{M.i} -> Type@{i}
      : Type@{max(M.i+1,i+1)}
-(* i |=  *)
+(* i |  *)
 Type@{u0} -> Type@{UnivBinders.86}
      : Type@{max(u0+1,UnivBinders.86+1)}
-(* {UnivBinders.86} |= 
+(* {UnivBinders.86} | 
 Normalized constraints:
- {UnivBinders.86} |=  *)
+ {UnivBinders.86} |  *)
 bind_univs.mono = Type@{bind_univs.mono.u}
      : Type@{bind_univs.mono.u+1}
 bind_univs.poly@{u} = Type@{u}
      : Type@{u+1}
-(* u |=  *)
+(* u |  *)
 Inductive MutualR1@{u} (A : Type@{u}) : Prop := Build_MutualR1
   { p1 : MutualR2@{u} A }
   with MutualR2@{u} (A : Type@{u}) : Prop := Build_MutualR2
   { p2 : MutualR1@{u} A }.
-(* u |=  *)
+(* u |  *)
 
 Arguments MutualR1 A%_type_scope
 Arguments Build_MutualR1 A%_type_scope p1
@@ -241,7 +241,7 @@ Inductive MutualI1@{u u0} (A : Type@{u}) : Type@{u0} :=
     C1 : MutualI2@{u u0} A -> MutualI1@{u u0} A
   with MutualI2@{u u0} (A : Type@{u}) : Type@{u0} :=
     C2 : MutualI1@{u u0} A -> MutualI2@{u u0} A.
-(* u u0 |=  *)
+(* u u0 |  *)
 
 Arguments MutualI1 A%_type_scope
 Arguments C1 A%_type_scope p1
@@ -251,7 +251,7 @@ CoInductive MutualR1'@{u} (A : Type@{u}) : Prop := Build_MutualR1'
   { p1' : MutualR2'@{u} A }
   with MutualR2'@{u} (A : Type@{u}) : Prop := Build_MutualR2'
   { p2' : MutualR1'@{u} A }.
-(* u |=  *)
+(* u |  *)
 
 Arguments MutualR1' A%_type_scope
 Arguments Build_MutualR1' A%_type_scope p1'
@@ -263,7 +263,7 @@ CoInductive MutualI1'@{u u0} (A : Type@{u}) : Type@{u0} :=
     C1' : MutualI2'@{u u0} A -> MutualI1'@{u u0} A
   with MutualI2'@{u u0} (A : Type@{u}) : Type@{u0} :=
     C2' : MutualI1'@{u u0} A -> MutualI2'@{u u0} A.
-(* u u0 |=  *)
+(* u u0 |  *)
 
 Arguments MutualI1' A%_type_scope
 Arguments C1' A%_type_scope p1
@@ -307,6 +307,6 @@ id@{SProp ; Set}
 id3@{s ; u} =
 fun (A : Type@{s ; u}) (a : A) => a
      : forall A : Type@{s ; u}, A -> A
-(* s ; u |= Set < u *)
+(* s ; u | Set < u *)
 
 Arguments id3 A%_type_scope a

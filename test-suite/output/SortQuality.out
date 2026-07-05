@@ -6,13 +6,13 @@ A
      : Type@{s ; _}
 A
      : Type@{s ; u}
-(* {s}; {u} |= 
+(* {s}; {u} | 
 Normalized constraints:
- {s}; {u} |=  *)
+ {s}; {u} |  *)
 A
      : Type@{s ; u}
-(* {s}; {u} |= 
+(* {s}; {u} | 
 Normalized constraints:
- {s}; {u} |=  *)
+ {s}; {u} |  *)
 A
      : Type@{s ; _}
