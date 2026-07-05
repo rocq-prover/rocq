@@ -1,5 +1,3 @@
-(* coq-prog-args: ("-async-proofs" "off") *)
-
 Definition T1 (X : Type) : Type := list X.
 Coercion C1 (X: Type) (A : T1 X) : Prop := True.
 (* Works fine. *)

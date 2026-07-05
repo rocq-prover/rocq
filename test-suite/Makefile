@@ -103,7 +103,9 @@ coqtop := $(BIN)rocq repl -q -test-mode -R prerequisite TestSuite
 
 coqidetop := $(BIN)coqidetop
 
-coqc_interactive := $(coqc) -test-mode
+# async proofs off because the output order ends up different with and without async
+coqc_interactive := $(coqc) -test-mode -async-proofs off
+
 coqdep := $(BIN)rocq dep
 
 # This is the convention for coq_makefile

@@ -1,5 +1,3 @@
-(* coq-prog-args: ("-async-proofs" "off") *)
-
 (* Unification error tests *)
 
 Module A.
