@@ -700,7 +700,7 @@ $skipped_packages"
           mkdir -p "$working_dir/html/$coq_opam_package/$(dirname "$vo")/"
           $timelog2html \
             "-o" "$working_dir/html/$coq_opam_package/${vo%%o}.html" \
-            "-raw-o" "$working_dir/html/$coq_opam_package/${vo%%o}.rocq-timediff" \
+            "-raw-instr-o" "$working_dir/html/$coq_opam_package/${vo%%o}.rocq-timediff" \
             "$new_base_path/${vo%%o}" \
             "$old_data" \
             "$new_data" \

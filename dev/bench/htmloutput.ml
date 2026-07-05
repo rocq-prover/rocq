@@ -254,19 +254,42 @@ in
 
 ()
 
-let raw_output ch ~min_diff all_data =
+
+type selection =
+| Instr of { min_diff: int }
+| Time of { min_diff: Q.t; }
+
+let raw_output ch ~selection all_data =
   all_data |> Array.iteri @@ fun j (loc,data) ->
   let d1, d2 = match data with
     | [|d1; d2|] -> d1, d2
     | _ -> die "-raw-o only supports 2 data files, got %d" (Array.length data)
   in
-  let diff = Q.(d2.time.q - d1.time.q) in
-  let ignore = Q.lt (Q.abs diff) min_diff in
-  if not ignore then begin
-    let pdiff = if Q.(equal zero d1.time.q) then Float.infinity
-      else Q.(to_float @@ ((of_int 100 * diff) / d1.time.q))
-    in
-    (* XXX %.4f makes sense for min_diff=1e-4 but should be smarter for other min_diff *)
-    Printf.fprintf ch "%s %s %.4f %3.2f%% %d\n"
+  match selection with
+  | Time {min_diff} ->
+    let diff = Q.(d2.time.q - d1.time.q) in
+    let ignore = Q.lt (Q.abs diff) min_diff in
+    if not ignore then begin
+      let pdiff = if Q.(equal zero d1.time.q) then Float.infinity
+        else Q.(to_float @@ ((of_int 100 * diff) / d1.time.q))
+      in
+      (* XXX %.4f makes sense for min_diff=1e-4 but should be smarter for other min_diff *)
+      Printf.fprintf ch "%s %s %.4f %3.2f%% %d\n"
       d1.time.str d2.time.str (Q.to_float diff) pdiff loc.line
-  end
+    end
+  | Instr {min_diff} ->
+    let i1, i2 =
+      match d1.instructions, d2.instructions with
+      | Some i1, Some i2 -> i1, i2
+      | _, _ -> exit 1
+    in
+    let diff = i2 - i1 in
+    let ignore = diff < min_diff in
+    if not ignore then begin
+      let pdiff = if i1 = 0 then Float.infinity
+          else Float.(of_int (100 * diff) /. of_int i1)
+      in
+      (* XXX %.4f makes sense for min_diff=1e-4 but should be smarter for other min_diff *)
+      Printf.fprintf ch "%i %i %i %3.2f%% %d\n"
+          (i1 / 1_000_000) (i2 / 1_000_000) (diff / 1_000_000) pdiff loc.line
+    end
