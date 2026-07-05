@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass
-from typing import Self
+from typing import TypeVar
 
 from .parsing import parse
 from .TacticNotationsParser import TacticNotationsParser
@@ -12,29 +12,33 @@ class NotationObject:
 
 TaggedNotationObject = tuple[str, NotationObject]
 
+SelfLiteral = TypeVar("Self", bound="Literal")
 @dataclass
 class Literal(NotationObject):
     value: str
     subscript: str | None
     @classmethod
-    def new(cls, value: Self) -> tuple[str, Self]:
+    def new(cls, value: SelfLiteral) -> tuple[str, SelfLiteral]:
         return ("Literal", value)
 
+SelfReference = TypeVar("Self", bound="Reference")
 @dataclass
 class Reference(NotationObject):
     value: str
     subscript: str | None
     @classmethod
-    def new(cls, value: Self) -> tuple[str, Self]:
+    def new(cls, value: SelfReference) -> tuple[str, SelfReference]:
         return ("Reference", value)
 
+SelfAlternative = TypeVar("Self", bound="Alternative")
 @dataclass
 class Alternative(NotationObject):
     children: list[TaggedNotationObject]
     @classmethod
-    def new(cls, value: Self) -> tuple[str, Self]:
+    def new(cls, value: SelfAlternative) -> tuple[str, SelfAlternative]:
         return ("Alternative", value)
 
+SelfRepeat = TypeVar("Self", bound="Repeat")
 @dataclass
 class Repeat(NotationObject):
     min: int
@@ -42,7 +46,7 @@ class Repeat(NotationObject):
     separator: str | None
     children: list[TaggedNotationObject]
     @classmethod
-    def new(cls, value: Self) -> tuple[str, Self]:
+    def new(cls, value: SelfRepeat) -> tuple[str, SelfRepeat]:
         return ("Repeat", value)
 
 class TacticNotationsToObjectVisitor(TacticNotationsVisitor):
