@@ -36,12 +36,14 @@ reference manual requires Python 3, and the following Python packages:
   - antlr4-python3-runtime >= 4.7.1 & <= 4.9.3
   - pexpect >= 4.8.0
   - sphinxcontrib-bibtex >= 2.4.2
+  - sphinx-markdown-builder >= 0.6.10
 
 To install them, you should first install pip and setuptools (for instance,
 with `apt install python3-pip python3-setuptools` on Debian / Ubuntu) then run:
 
     pip3 install sphinx sphinx_rtd_theme beautifulsoup4 \
-                 antlr4-python3-runtime==4.7.1 pexpect sphinxcontrib-bibtex
+                 antlr4-python3-runtime==4.7.1 pexpect sphinxcontrib-bibtex \
+                 sphinx-markdown-builder==0.6.10
 
 Nix users should get the correct development environment to build the
 HTML documentation from Coq's [`default.nix`](../default.nix) (note this
@@ -89,7 +91,7 @@ Each JSON index has the following shape:
     "documentation_anchor": string,
     // the grammar description
     "syntax": Syntax,
-    // a simpler, plain text documentation
+    // a simpler, markdown documentation
     "documentation": string,
   }
 }
