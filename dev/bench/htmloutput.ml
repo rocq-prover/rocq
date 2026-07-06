@@ -183,8 +183,8 @@ let () = out "<ol>\n" in
 let pp_total_instr fmt = function
   | None -> ()
   | Some total_instr ->
-    Printf.fprintf fmt "total instructions: %.3GM, "
-      Float.(of_int total_instr /. 1_000_000.0)
+    Printf.fprintf fmt "total instructions: %.3GB, "
+      Float.(of_int total_instr /. 1_000_000_000.0)
 in
 
 let () = data_files |> Array.iteri (fun i data_file ->
@@ -311,7 +311,7 @@ let raw_output ch ~selection all_data =
             else Float.(of_int (100 * diff) /. of_int i1)
         in
         (* XXX %.4f makes sense for min_diff=1e-4 but should be smarter for other min_diff *)
-        Printf.fprintf ch "%i %i %i %3.2f%% %d\n"
-            (i1 / 1_000_000) (i2 / 1_000_000) (diff / 1_000_000) pdiff loc.line
+        Printf.fprintf ch "%i %i %.4f %3.2f%% %d\n"
+            (i1 / 1_000_000_000) (i2 / 1_000_000_000) Float.(of_int diff /. 1_000_000_000.0) pdiff loc.line
       end
       ) d1.instructions d2.instructions

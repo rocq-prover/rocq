@@ -20,10 +20,12 @@ let usage () = die "Usage: rocq timelog2html [options] VFILE DATAFILES\n\n%a\n%s
      \n  -o FILE: output to FILE (default is - meaning stdout)\
      \n  -raw-time-o FILE: output machine readable timing data to FILE\
      \n                    (default off, - means stdout)\
-     \n                    (only supported with 2 data files)\
+     \n                    (only supported with 2 data files; cannot be combined with\
+     \n                     -raw-instr-o)\
      \n  -raw-instr-o FILE: output machine readable instruction data to FILE\
      \n                     (default off, - means stdout)\
-     \n                     (only supported with 2 data files)\
+     \n                     (only supported with 2 data files; cannot be combined with\
+     \n                      -raw-time-o)\
      \n  -min-diff DIFF: in -raw-o, only output lines with time diff greater than DIFF\
      \n                  (DIFF in OCaml float format, default 1e-4)"
 
@@ -69,6 +71,9 @@ let parse_min_diff d =
 
 let rec parse_args opts = function
   | "-o" :: f :: args -> parse_args { opts with output = parse_output f } args
+  | ("-raw-time-o" :: f :: args
+     | "-raw-instr-o" :: f :: args) when opts.raw_time_output != None ->
+    die "Cannot use -raw-time-o and -raw-instr-o together"
   | "-raw-time-o" :: f :: args -> parse_args { opts with raw_time_output = Some (parse_output f) } args
   | "-raw-instr-o" :: f :: args -> parse_args { opts with raw_instr_output = Some (parse_output f) } args
   | "-min-diff" :: d :: args -> parse_args { opts with min_diff = parse_min_diff d } args
@@ -103,7 +108,8 @@ let main args =
     Htmloutput.raw_output ch ~selection all_data
   in
   let () = opts.raw_instr_output |> Option.iter @@ with_output @@ fun ch ->
-    let min_diff =  Q.(to_int (opts.min_diff * of_int 6_000_000)) in
+    (* we roughly convert the specified minimal time to a minimal instruction count *)
+    let min_diff =  Q.(to_int (opts.min_diff * of_int 6_000_000_000)) in
     let selection = Htmloutput.(Instr {min_diff}) in
     Htmloutput.raw_output ch ~selection all_data
   in
