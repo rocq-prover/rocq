@@ -76,26 +76,10 @@ type ltac_sign = {
 
 val empty_ltac_sign : ltac_sign
 
-(** {6 Internalization performs interpretation of global names and notations } *)
-
-val intern_constr : env -> evar_map -> constr_expr -> glob_constr
-val intern_type : env -> evar_map -> constr_expr -> glob_constr
-
-val intern_gen : typing_constraint -> env -> evar_map ->
-  ?impls:internalization_env -> ?strict_check:bool -> ?pattern_mode:bool -> ?ltacvars:ltac_sign ->
-  constr_expr -> glob_constr
-
-val intern_unknown_if_term_or_type : env -> evar_map -> constr_expr -> glob_constr
-
-val intern_pattern : env -> cases_pattern_expr ->
-  lident list * (Id.t Id.Map.t * cases_pattern) list
-
-val intern_context : env -> bound_univs:UnivNames.universe_binders ->
-  internalization_env -> local_binder_expr list -> internalization_env * glob_decl list
-
-
 (** Open-recursion for instrumenting the internalization phase. *)
 type intern_env
+
+val intern_subscopes : intern_env -> subscopes
 
 module Interner : sig
 
@@ -136,6 +120,23 @@ module Interner : sig
 end
 
 val default : Interner.t
+
+(** {6 Internalization performs interpretation of global names and notations } *)
+
+val intern_constr : env -> evar_map -> constr_expr -> glob_constr
+val intern_type : env -> evar_map -> constr_expr -> glob_constr
+
+val intern_gen : ?self:Interner.t -> typing_constraint -> env -> evar_map ->
+  ?impls:internalization_env -> ?strict_check:bool -> ?pattern_mode:bool -> ?ltacvars:ltac_sign ->
+  constr_expr -> glob_constr
+
+val intern_unknown_if_term_or_type : env -> evar_map -> constr_expr -> glob_constr
+
+val intern_pattern : env -> cases_pattern_expr ->
+  lident list * (Id.t Id.Map.t * cases_pattern) list
+
+val intern_context : env -> bound_univs:UnivNames.universe_binders ->
+  internalization_env -> local_binder_expr list -> internalization_env * glob_decl list
 
 (** {6 Composing internalization with type inference (pretyping) } *)
 

@@ -275,6 +275,8 @@ type pattern_intern_env = {
 (**********************************************************************)
 (* Remembering the parsing scope of variables in notations            *)
 
+let intern_subscopes intenv = intenv.tmp_scope, intenv.scopes
+
 let make_current_scope tmp scopes = match tmp, scopes with
   | [], scopes -> scopes
   | [tmp_scope], (sc :: _) when String.equal sc tmp_scope -> scopes
@@ -351,7 +353,7 @@ let set_env_scopes env (scopt,subscopes) =
   {env with tmp_scope = scopt; scopes = subscopes @ env.scopes}
 
 let env_for_pattern env =
-  {pat_scopes = (env.tmp_scope, env.scopes); pat_ids = Some env.ids}
+  {pat_scopes = intern_subscopes env; pat_ids = Some env.ids}
 
 let mkGProd ?loc (na,bk,t) body = DAst.make ?loc @@ GProd (na, None, bk, t, body)
 let mkGLambda ?loc (na,bk,t) body = DAst.make ?loc @@ GLambda (na, None, bk, t, body)
@@ -1128,7 +1130,7 @@ let intern_notation intern env ntnvars loc ntn fullargs =
   (* Adjust to parsing of { } *)
   let ntn,fullargs = contract_curly_brackets ntn fullargs in
   (* Recover interpretation { } *)
-  let ((ids,c),df) = interp_notation ?loc ntn (env.tmp_scope,env.scopes) in
+  let ((ids,c),df) = interp_notation ?loc ntn (intern_subscopes env) in
   Dumpglob.dump_notation_location (ntn_loc ?loc fullargs ntn) ntn df;
   (* Dispatch parsing substitution to an interpretation substitution *)
   let subst = split_by_type ids fullargs in
@@ -1154,7 +1156,7 @@ let intern_var env (ltacvars,ntnvars) namedctx loc id us =
   (* Is [id] a notation variable *)
   if Id.Map.mem id ntnvars then
     begin
-      if not (Id.Map.mem id env.impls) then set_notation_var_scope ?loc id (env.tmp_scope,env.scopes) env.ntn_binding_ids ntnvars;
+      if not (Id.Map.mem id env.impls) then set_notation_var_scope ?loc id (intern_subscopes env) env.ntn_binding_ids ntnvars;
       gvar (loc,id) us
     end
   else
@@ -2804,7 +2806,7 @@ let generalization self genv env lvar ?loc (b, c) =
   intern_generalization intern env (snd lvar) loc b c
 
 let prim self genv env lvar ?loc p =
-  let c = Notation.interp_prim_token ?loc p (env.tmp_scope,env.scopes) in
+  let c = Notation.interp_prim_token ?loc p (intern_subscopes env) in
   apply_impargs self genv env lvar loc c []
 
 let delimiters self genv env lvar ?loc (depth, key, e) =
@@ -2847,8 +2849,8 @@ let default : Interner.t =
   ; array
   }
 
-let internalize genv env lvar c =
-  NewProfile.profile "intern" (fun () -> intern default genv env lvar c) ()
+let internalize ?(self=default) genv env lvar c =
+  NewProfile.profile "intern" (fun () -> intern self genv env lvar c) ()
 
 (**************************************************************************)
 (* Functions to translate constr_expr into glob_constr                    *)
@@ -2876,12 +2878,12 @@ let empty_ltac_sign = {
   ltac_extra = Genintern.Store.empty;
 }
 
-let intern_gen kind env sigma
+let intern_gen ?self kind env sigma
                ?(impls=empty_internalization_env) ?strict_check ?(pattern_mode=false) ?(ltacvars=empty_ltac_sign)
                c =
   let tmp_scope = Option.cata (scope_of_type_kind env sigma) [] kind in
   let k = Option.map allowed_binder_kind_of_type_kind kind in
-  internalize env {ids = extract_ids env; strict_check; pattern_mode;
+  internalize ?self env {ids = extract_ids env; strict_check; pattern_mode;
                    local_univs = { bound = bound_univs sigma; unb_univs = true };
                    tmp_scope = tmp_scope; scopes = [];
                    impls; binder_block_names = Some k; ntn_binding_ids = Id.Set.empty}
@@ -2890,8 +2892,8 @@ let intern_gen kind env sigma
 let intern_unknown_if_term_or_type env sigma c =
   intern_gen None env sigma c
 
-let intern_gen kind env sigma ?impls ?strict_check ?pattern_mode ?ltacvars c =
-  intern_gen (Some kind) env sigma ?impls ?strict_check ?pattern_mode ?ltacvars c
+let intern_gen ?self kind env sigma ?impls ?strict_check ?pattern_mode ?ltacvars c =
+  intern_gen ?self (Some kind) env sigma ?impls ?strict_check ?pattern_mode ?ltacvars c
 
 let intern_constr env sigma c = intern_gen WithoutTypeConstraint env sigma c
 let intern_type env sigma c = intern_gen IsType env sigma c
