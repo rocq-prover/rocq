@@ -278,18 +278,15 @@ let raw_output ch ~selection all_data =
       d1.time.str d2.time.str (Q.to_float diff) pdiff loc.line
     end
   | Instr {min_diff} ->
-    let i1, i2 =
-      match d1.instructions, d2.instructions with
-      | Some i1, Some i2 -> i1, i2
-      | _, _ -> exit 1
-    in
-    let diff = i2 - i1 in
-    let ignore = diff < min_diff in
-    if not ignore then begin
-      let pdiff = if i1 = 0 then Float.infinity
-          else Float.(of_int (100 * diff) /. of_int i1)
-      in
-      (* XXX %.4f makes sense for min_diff=1e-4 but should be smarter for other min_diff *)
-      Printf.fprintf ch "%i %i %i %3.2f%% %d\n"
-          (i1 / 1_000_000) (i2 / 1_000_000) (diff / 1_000_000) pdiff loc.line
-    end
+    Option.iter2 (fun i1 i2 ->
+      let diff = i2 - i1 in
+      let ignore = diff < min_diff in
+      if not ignore then begin
+        let pdiff = if i1 = 0 then Float.infinity
+            else Float.(of_int (100 * diff) /. of_int i1)
+        in
+        (* XXX %.4f makes sense for min_diff=1e-4 but should be smarter for other min_diff *)
+        Printf.fprintf ch "%i %i %i %3.2f%% %d\n"
+            (i1 / 1_000_000) (i2 / 1_000_000) (diff / 1_000_000) pdiff loc.line
+      end
+      ) d1.instructions d2.instructions
