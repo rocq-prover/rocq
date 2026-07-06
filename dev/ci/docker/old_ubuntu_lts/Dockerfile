@@ -21,7 +21,7 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
         texlive-latex-extra texlive-fonts-recommended texlive-xetex latexmk \
         python3-sphinx python3-docutils python3-sphinx-rtd-theme \
         python3-antlr4 python3-sphinxcontrib.bibtex \
-        python3-setuptools python3-pexpect python3-bs4 fonts-freefont-otf \
+        python3-pip python3-setuptools python3-pexpect python3-bs4 fonts-freefont-otf \
         # Dependency of stdlib-doc
         graphviz \
         # Dependencies of source-doc and coq-makefile
@@ -33,6 +33,11 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
         # for coq-tools
         python3-venv \
       && rm -rf /var/lib/apt/lists /usr/share/doc
+
+# More dependencies of the sphinx doc
+RUN pip3 install sphinx-markdown-builder==0.6.10 \
+      && rm -rf ~/.cache/pip
+
 
 # We need to install OPAM 2.0 manually for now.
 RUN wget https://github.com/ocaml/opam/releases/download/2.0.6/opam-2.0.6-x86_64-linux -O /usr/bin/opam && chmod 755 /usr/bin/opam
