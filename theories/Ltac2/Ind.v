@@ -67,7 +67,7 @@ Ltac2 @ external get_projections : data -> projection array option
 Ltac2 @ external constructor_nargs : data -> int array := "rocq-runtime.plugins.ltac2" "constructor_nargs".
 (** [Array.get (constructor_nargs data) n] is the number of non-parameter
     arguments accepted by the [n]th constructor of this inductive type. Add
-    [Array.get (constructor_nargs data) n] to [Ind.nparams_data] to get the total
+    [Array.get (constructor_nargs data) n] to [Ind.nparams data] to get the total
     number of arguments of the constructor. *)
 
 Ltac2 @ external constructor_ndecls : data -> int array := "rocq-runtime.plugins.ltac2" "constructor_ndecls".

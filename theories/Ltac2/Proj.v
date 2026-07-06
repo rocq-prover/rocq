@@ -18,7 +18,7 @@ Ltac2 @ external equal : t -> t -> bool := "rocq-runtime.plugins.ltac2" "project
     considered equal by this function. The unfolding boolean is not ignored. *)
 
 Ltac2 @ external ind : t -> inductive := "rocq-runtime.plugins.ltac2" "projection_ind".
-(** Get the inductive to which the projectin belongs. *)
+(** Get the inductive to which the projection belongs. *)
 
 Ltac2 @ external index : t -> int := "rocq-runtime.plugins.ltac2" "projection_index".
 (** The index of the projection indicates which field it projects. *)

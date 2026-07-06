@@ -137,7 +137,7 @@ Module Strategy.
       The tactic is applied to a single goal of type [unit] whose context
       corresponds to the context of the term to rewrite (i.e. the context of the
       goal at the start of the [rewrite_strat] call extended with the binders
-      that were traversed to attain this subterm. The tactic should return a
+      that were traversed to attain this subterm). The tactic should return a
       [rewrite_result] indicating success, failure or no progress and should
       *not* solve the goal. Solving the goal is an error that aborts the
       [rewrite_strat] call. The success record contains the chosen relation

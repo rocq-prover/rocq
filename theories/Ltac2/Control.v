@@ -61,8 +61,8 @@ Ltac2 @ external extend : (unit -> unit) list -> (unit -> unit) -> (unit -> unit
 (** extend is a more flexible variant of dispatch, where the second argument
     tactic is "repeated" enough times such that every goal has a tactic
     assigned to it. [extend b r e] applies the tactics in [b] to the first
-    [length b] goals, the tactics in [r] to the last [length r] goals, and
-    [e] to all tactics in between. Raises Internal err if [length b + length r]
+    [length b] goals, the tactics in [e] to the last [length e] goals, and
+    [r] to all tactics in between. Raises Internal err if [length b + length e]
     is greater than the number of goals under focus.*)
 
 Ltac2 @ external enter : (unit -> unit) -> unit := "rocq-runtime.plugins.ltac2" "enter".
