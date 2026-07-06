@@ -148,11 +148,11 @@ let call_compiler ?profile:(profile=false) mlf_filename =
     else
       []
   in
-  (* let flambda_args = if Sys.(backend_type = Native) then ["-Oclassic"] else [] in *)
+  let flambda_args = if Sys.(backend_type = Native) then ["-Oclassic"] else [] in
   let args =
       ["cmx"; mlf_filename] @
       profile_args @
-        (* flambda_args @ *)
+        flambda_args @
       ("-o"::link_filename
        ::"-rectypes"
        ::"-I"::(Filename.dirname mlf_filename)
