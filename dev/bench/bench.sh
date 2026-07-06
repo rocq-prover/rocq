@@ -749,7 +749,7 @@ mkdir -p $timings
 # Print line by line slow downs and speed ups
 if [ -d "$working_dir/html" ]; then # might not exist if all jobs failed
 cd "$working_dir/html"
-$render_line_results
+$render_line_results instr
 # Move line timing files to timings folder (they will become artifacts)
 mv fast_table slow_table timings_table $timings
 
