@@ -63,14 +63,30 @@ let pp_instr ch = function
   | None -> ()
   | Some i -> Printf.fprintf ch ", %d instr" i
 
+type totals = {
+  total_time: Q.t;
+  total_instr: int option;
+}
+
+
 let output ch ~vname ~data_files all_data =
 
 let out fmt = Printf.fprintf ch fmt in
 let ndata = Array.length data_files in
 
 let totals = Array.fold_left (fun acc (_,data) ->
-    Array.map2 (fun acc d -> Q.add acc d.time.q) acc data)
-    (Array.make ndata Q.zero)
+    Array.map2 (fun acc d ->
+        let total_time = Q.add acc.total_time d.time.q in
+        let total_instr =
+          match acc.total_instr, d.instructions with
+          | Some acc, Some i -> Some (acc + i)
+          | (Some _ as acc), None -> acc
+          | _, (Some _ as i) -> i
+          | None, None -> None
+        in
+        {total_time;total_instr}
+      ) acc data)
+    (Array.make ndata {total_time=Q.zero; total_instr=None})
     all_data
 in
 
@@ -164,11 +180,20 @@ let () = out "<h1>Timings for %s</h1>\n" vname in
 
 let () = out "<ol>\n" in
 
+let pp_total_instr fmt = function
+  | None -> ()
+  | Some total_instr ->
+    Printf.fprintf fmt "total instructions: %.3GM, "
+      Float.(of_int total_instr /. 1_000_000.0)
+in
+
 let () = data_files |> Array.iteri (fun i data_file ->
-    out "<li style=\"background-color: %s\">%s (total time: %.3Gs)</li>\n"
+    out "<li style=\"background-color: %s\">%s (%atotal time: %.3Gs)</li>\n"
       colors.(i)
       data_file
-      (Q.to_float totals.(i)))
+      pp_total_instr
+      totals.(i).total_instr
+      (Q.to_float totals.(i).total_time))
 in
 
 let () = out "</ol>\n" in
