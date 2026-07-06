@@ -254,7 +254,7 @@ coq_opam_packages
 
     let headers = [
       "";
-      "CPU instructions [bn]";
+      "CPU instructions [G]";
       "max resident mem [KB]";
       "user time [s]";
     ] in

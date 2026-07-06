@@ -96,7 +96,7 @@ let main args =
   let () = Printexc.record_backtrace true in
   let unit_string =
     match args with
-    | ["instr"] -> " (instructions [bn])"
+    | ["instr"] -> " (instructions [G])"
     | ["time"] -> " (seconds [s])"
     | arg :: _ -> die "invalid argument: %s" arg
     | [] -> die "missing first positional argument: \"instr\" or \"time\""
@@ -134,8 +134,8 @@ let main args =
       |> CList.map (list_timing_data ~html)
       |> CList.map (fun x -> [ x ])
     in
-    let slow_table = render_table (Printf.sprintf "TOP %d SLOW DOWNS" num) ~reverse:true num table in
-    let fast_table = render_table (Printf.sprintf "TOP %d SPEED UPS" num) num table in
+    let slow_table = render_table (Printf.sprintf "TOP %d SLOW DOWNS%s" num unit_string) ~reverse:true num table in
+    let fast_table = render_table (Printf.sprintf "TOP %d SPEED UPS%s" num unit_string) num table in
     let timings_table = render_table "Significant line time changes in bench" (CList.length table) table in
     to_file "slow_table.html" "<pre>%s</pre>\n" slow_table;
     to_file "fast_table.html" "<pre>%s</pre>\n" fast_table;
