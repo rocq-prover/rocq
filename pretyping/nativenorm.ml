@@ -197,8 +197,7 @@ let get_proj env (ind, proj_arg) =
 let rec nf_val consider_accs env sigma v typ =
   match kind_of_value v with
   | Vaccu accu ->
-    (* if not consider_accs then failwith "accumulator mysteriously appeared in a accumulator-less execution" else *)
-    nf_accu env sigma accu
+    nf_accu consider_accs env sigma accu
   | Vprod (na, dom, codom) ->
     if not consider_accs then raise NeedsAccumulators else
     fst @@ nf_prod env sigma (na, dom, codom)
@@ -225,16 +224,18 @@ let rec nf_val consider_accs env sigma v typ =
       let args = nf_bargs consider_accs env sigma b ctyp in
       mkApp(capp,args)
 
-and nf_type env sigma v =
+and nf_type consider_accs env sigma v =
   match kind_of_value v with
-  | Vaccu accu -> nf_accu env sigma accu
-  | Vprod (na, dom, codom) -> fst @@ nf_prod env sigma (na, dom, codom)
+  | Vaccu accu -> nf_accu consider_accs env sigma accu
+  | Vprod (na, dom, codom) ->
+    if not consider_accs then raise NeedsAccumulators else
+    fst @@ nf_prod env sigma (na, dom, codom)
   | _ -> assert false
 
-and nf_type_sort env sigma v =
+and nf_type_sort consider_accs env sigma v =
   match kind_of_value v with
   | Vaccu accu ->
-      let t,s = nf_accu_type env sigma accu in
+      let t,s = nf_accu_type consider_accs env sigma accu in
       let s =
         try
           destSort (whd_all env s)
@@ -242,26 +243,28 @@ and nf_type_sort env sigma v =
           CErrors.anomaly (Pp.str "Value should be a sort")
       in
       t, s
-  | Vprod (na, dom, codom) -> nf_prod env sigma (na, dom, codom)
+  | Vprod (na, dom, codom) ->
+    if not consider_accs then raise NeedsAccumulators else
+    nf_prod env sigma (na, dom, codom)
   | _ -> assert false
 
-and nf_accu env sigma accu =
+and nf_accu consider_accs env sigma accu =
   let atom = atom_of_accu accu in
-  if Int.equal (accu_nargs accu) 0 then nf_atom env sigma atom
+  if Int.equal (accu_nargs accu) 0 then nf_atom consider_accs env sigma atom
   else
-    let a,typ = nf_atom_type env sigma atom in
-    let _, args = nf_args env sigma (args_of_accu accu) typ in
+    let a,typ = nf_atom_type consider_accs env sigma atom in
+    let _, args = nf_args consider_accs env sigma (args_of_accu accu) typ in
     mkApp(a,Array.of_list args)
 
-and nf_accu_type env sigma accu =
+and nf_accu_type consider_accs env sigma accu =
   let atom = atom_of_accu accu in
-  if Int.equal (accu_nargs accu) 0 then nf_atom_type env sigma atom
+  if Int.equal (accu_nargs accu) 0 then nf_atom_type consider_accs env sigma atom
   else
-    let a,typ = nf_atom_type env sigma atom in
-    let t, args = nf_args env sigma (args_of_accu accu) typ in
+    let a,typ = nf_atom_type consider_accs env sigma atom in
+    let t, args = nf_args consider_accs env sigma (args_of_accu accu) typ in
     mkApp(a,Array.of_list args), t
 
-and nf_args env sigma args t =
+and nf_args consider_accs env sigma args t =
   let aux arg (t,l) =
     let _,dom,codom =
       try decompose_prod env t with
@@ -269,7 +272,7 @@ and nf_args env sigma args t =
         CErrors.anomaly
           (Pp.strbrk "Returned a functional value in a type not recognized as a product type.")
     in
-    let c = nf_val true env sigma arg dom in
+    let c = nf_val consider_accs env sigma arg dom in
     (subst1 c codom, c::l)
   in
   let t,l = List.fold_right aux args (t,[]) in
@@ -290,15 +293,15 @@ and nf_bargs consider_accs env sigma b t =
       t := subst1 c codom; c)
 
 and nf_prod env sigma (na, dom, codom) =
-  let dom, sdom = nf_type_sort env sigma dom in
+  let dom, sdom = nf_type_sort true env sigma dom in
   let rdom = Sorts.relevance_of_sort sdom in
   let na = make_annot na rdom in
   let vn = mk_rel_accu (nb_rel env) in
   let env = push_rel (LocalAssum (na, dom)) env in
-  let codom, scodom = nf_type_sort env sigma (apply codom vn) in
+  let codom, scodom = nf_type_sort true env sigma (apply codom vn) in
   mkProd (na, dom, codom), Typeops.sort_of_product env sdom scodom
 
-and nf_atom env sigma atom =
+and nf_atom consider_accs env sigma atom =
   match atom with
   | Arel i -> mkRel (nb_rel env - i)
   | Aconstant cst -> mkConstU cst
@@ -306,14 +309,14 @@ and nf_atom env sigma atom =
   | Asort s -> mkSort s
   | Avar id -> mkVar id
   | Aproj (p, c) ->
-      let c, cty = nf_accu_type env sigma c in
+      let c, cty = nf_accu_type consider_accs env sigma c in
       let p, r = get_proj env p in
       let (_, u), _ = find_rectype_a env sigma (EConstr.of_constr cty) in
       let r = UVars.subst_instance_relevance u r in
       mkProj(p, r, c)
-  | _ -> fst (nf_atom_type env sigma atom)
+  | _ -> fst (nf_atom_type consider_accs env sigma atom)
 
-and nf_atom_type env sigma atom =
+and nf_atom_type consider_accs env sigma atom =
   match atom with
   | Arel i ->
     let n = (nb_rel env - i) in
@@ -327,7 +330,7 @@ and nf_atom_type env sigma atom =
   | Avar id ->
     mkVar id, Typeops.type_of_variable env id
   | Acase(ans,accu,p,bs) ->
-      let a,ta = nf_accu_type env sigma accu in
+      let a,ta = nf_accu_type consider_accs env sigma accu in
       let ((mind, _ as ind), u),allargs = find_rectype_a env sigma (EConstr.of_constr ta) in
       let (mib,mip) = Inductive.lookup_mind_specif env ind in
       let nparams = mib.mind_nparams in
@@ -338,14 +341,14 @@ and nf_atom_type env sigma atom =
         let nas = List.rev_map get_annot realdecls @ [nameR (Id.of_string "c")] in
         expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
       in
-      let p, relevance = nf_predicate env sigma ind mip params p pctx in
+      let p, relevance = nf_predicate consider_accs env sigma ind mip params p pctx in
       (* Calcul du type des branches *)
       let btypes = build_branches_type env sigma mib mip (ind, EConstr.EInstance.make u) params (pctx, p) in
       (* calcul des branches *)
       let bsw = branch_of_switch (nb_rel env) ans bs in
       let mkbranch i v =
         let decl, nas, lft, codom = btypes.(i) in
-        let b = nf_val true (Termops.push_rels_assum decl env) sigma v codom in
+        let b = nf_val consider_accs (Termops.push_rels_assum decl env) sigma v codom in
         nas, exliftn lft b
       in
       let branchs = Array.mapi mkbranch bsw in
@@ -358,7 +361,8 @@ and nf_atom_type env sigma atom =
       in
       mkCase (ci, u, params, (p,relevance), iv, a, branchs), tcase
   | Afix(tt,ft,rp,s) ->
-      let tt = Array.map (fun t -> nf_type_sort env sigma t) tt in
+      if not consider_accs then raise NeedsAccumulators else
+      let tt = Array.map (fun t -> nf_type_sort consider_accs env sigma t) tt in
       let tt = Array.map fst tt and rt = Array.map snd tt in
       let name = Name (Id.of_string "Ffix") in
       let names = Array.map (fun s -> make_annot name (Sorts.relevance_of_sort s)) rt in
@@ -369,45 +373,48 @@ and nf_atom_type env sigma atom =
       let env = push_rec_types (names,tt,[||]) env in
       (* We lift here because the types of arguments (in tt) will be evaluated
          in an environment where the fixpoints have been pushed *)
-      let norm_body i v = nf_val true env sigma (napply v fargs) (lift nbfix tt.(i)) in
+      let norm_body i v = nf_val consider_accs env sigma (napply v fargs) (lift nbfix tt.(i)) in
       let ft = Array.mapi norm_body ft in
       mkFix((rp,s),(names,tt,ft)), tt.(s)
   | Acofix (tt, ft, s, args, _) ->
-      let tt = Array.map (fun t -> nf_type_sort env sigma t) tt in
+      if not consider_accs then raise NeedsAccumulators else
+      let tt = Array.map (fun t -> nf_type_sort consider_accs env sigma t) tt in
       let tt = Array.map fst tt and rt = Array.map snd tt in
       let name = Name (Id.of_string "Fcofix") in
       let lvl = nb_rel env in
       let names = Array.map (fun s -> make_annot name (Sorts.relevance_of_sort s)) rt in
       let fargs = mk_rels_accu lvl (Array.length ft) in
-      let _, args = nf_args env sigma (Array.rev_to_list args) tt.(s) in
+      let _, args = nf_args consider_accs env sigma (Array.rev_to_list args) tt.(s) in
       let env = push_rec_types (names,tt,[||]) env in
-      let ft = Array.mapi (fun i v -> nf_val true env sigma (napply v fargs) tt.(i)) ft in
+      let ft = Array.mapi (fun i v -> nf_val consider_accs env sigma (napply v fargs) tt.(i)) ft in
       mkApp (mkCoFix(s,(names,tt,ft)), Array.of_list args), tt.(s)
   | Aevar(evk,args) ->
-    nf_evar env sigma evk args
+    nf_evar consider_accs env sigma evk args
   | Aproj(p,c) ->
-      let c,tc = nf_accu_type env sigma c in
+      let c,tc = nf_accu_type consider_accs env sigma c in
       let cj = make_judge c tc in
       let p, _ = get_proj env p in
       let r, ty = Typeops.type_of_projection env p cj.uj_val cj.uj_type in
       mkProj (p, r, cj.uj_val), ty
 
 
-and nf_predicate env sigma ind mip params v pctx =
+and nf_predicate consider_accs env sigma ind mip params v pctx =
   let fold decl (k, v) = match decl with
   | LocalDef _ -> (k + 1, v)
   | LocalAssum _ ->
     match kind_of_value v with
-    | Vfun f -> (k + 1, f (mk_rel_accu k))
+    | Vfun f ->
+      if not consider_accs then raise NeedsAccumulators else
+      (k + 1, f (mk_rel_accu k))
     | _ -> assert false
   in
   let (_, v) = List.fold_right fold pctx (nb_rel env, v) in
   let env = push_rel_context pctx env in
-  let body = nf_type env sigma v in
+  let body = nf_type consider_accs env sigma v in
   let rel = Retyping.relevance_of_type env sigma (EConstr.of_constr body) in
   body, EConstr.Unsafe.to_relevance rel
 
-and nf_evar env sigma evk args =
+and nf_evar consider_accs env sigma evk args =
   let evi = try Evd.find_undefined sigma evk with Not_found -> assert false in
   let hyps = EConstr.named_context_of_val (Evd.evar_filtered_hyps evi) in
   if List.is_empty hyps then begin
@@ -423,7 +430,7 @@ and nf_evar env sigma evk args =
     let fold accu d = EConstr.mkNamedProd_or_LetIn sigma d accu in
     let t = List.fold_left fold ty hyps in
     let t = EConstr.to_constr ~abort_on_undefined_evars:false sigma t in
-    let ty, args = nf_args env sigma (Array.to_list args) t in
+    let ty, args = nf_args consider_accs env sigma (Array.to_list args) t in
     (* nf_args takes arguments in the reverse order but produces them
        in the correct one, so we have to reverse them again for the
        evar node *)
