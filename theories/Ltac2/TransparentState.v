@@ -64,7 +64,7 @@ Ltac2 @ external add_constant : constant -> t -> t :=
 Ltac2 @ external add_proj : projection -> t -> t :=
   "rocq-runtime.plugins.ltac2" "add_proj_transparent_state".
 
-(** [add_var p t] adds the local variable [v] to the transparency state [t].
+(** [add_var v t] adds the local variable [v] to the transparency state [t].
     Does nothing if the variable is already present. *)
 Ltac2 @ external add_var : ident -> t -> t :=
   "rocq-runtime.plugins.ltac2" "add_var_transparent_state".
@@ -79,7 +79,7 @@ Ltac2 @ external remove_constant : constant -> t -> t :=
 Ltac2 @ external remove_proj : projection -> t -> t :=
   "rocq-runtime.plugins.ltac2" "remove_proj_transparent_state".
 
-(** [remove_var p t] removes the local variable [v] from the transparency
+(** [remove_var v t] removes the local variable [v] from the transparency
     state [t]. Does nothing if the variable is not present. *)
 Ltac2 @ external remove_var : ident -> t -> t :=
   "rocq-runtime.plugins.ltac2" "remove_var_transparent_state".
