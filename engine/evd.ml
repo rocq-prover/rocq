@@ -389,6 +389,7 @@ module FutureGoals : sig
 
   val add : Evar.t -> stack -> stack
   val remove : Evar.t -> stack -> stack
+  val mem : Evar.t -> stack -> bool
 
   val fold : ('a -> Evar.t -> 'a) -> 'a -> stack -> 'a
 
@@ -432,6 +433,8 @@ end = struct
       { comb; revmap; uid = fgl.uid }
     in
     List.map remove stack
+
+  let mem e stack = List.exists (fun fgl -> Evar.Map.mem e fgl.revmap) stack
 
   let empty = {
     uid = 0;
@@ -1462,11 +1465,25 @@ let restrict evk filter ?candidates ?src evd =
   let evd = { evd with undf_evars = EvMap.add evk' evar_info' undf_evars;
     defn_evars; last_mods; evar_names; evar_flags; candidate_evars }
   in
-  (* Mark new evar as future goal, removing previous one,
-    circumventing Proofview.advance but making Proof.run_tactic catch these. *)
-  let evd = unshelve evd [evk] in
-  let evd = remove_future_goal evd evk in
-  let evd = declare_future_goal evk' evd in
+  (* If evk was in the shelf or future goals, replace it with evk' *)
+  let changed = ref false in
+  let shelf =
+    List.Smart.map (List.Smart.map (fun ev ->
+      if Evar.equal ev evk then
+        let () = changed := true in
+        evk'
+      else ev))
+      evd.shelf
+  in
+  let evd =
+    if !changed then { evd with shelf }
+    else if FutureGoals.mem evk evd.future_goals then
+      (* NB this moves the evar to the end of the future goals instead
+         of keeping its location as we do for shelf *)
+      let future_goals = FutureGoals.(add evk' @@ remove evk evd.future_goals) in
+      { evd with future_goals }
+    else evd
+  in
   (evd, evk')
 
 let update_source evd evk src =
