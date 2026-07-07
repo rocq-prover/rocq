@@ -636,7 +636,24 @@ module Search = struct
             str "considering goal " ++ int glid ++
             str " of status " ++ pr_goal_status status)
         in
-        let rec kont = function
+        let rec kont ~first = function
+          | Fail (NoApplicableHint, _)
+            when first && allow_out_of_order && not (List.is_empty tacs) ->
+            (* The goal has no applicable hint at this point, but it may
+               still become solvable as a side effect of resolving the
+               remaining goals, by having its evars (possibly including the
+               goal evar itself) instantiated by later unifications. Defer
+               it like a non-stuck failure instead of failing the whole
+               resolution eagerly; it is retried after further progress (see
+               the generation counter) and fails for good only once no other
+               goal can advance. Only the first failure is deferred: once
+               the goal has been successfully run, exhaustion of its
+               solutions keeps triggering backtracking as usual. *)
+            let () = ppdebug 1 (fun () ->
+                str "Goal " ++ int glid ++
+                str" has no applicable hint, deferring it after the remaining goals.")
+            in
+            fixpoint generation tacs ((glid, ev, IsNonStuckFailure, tac, generation) :: stuck) fk
           | Fail ((NonStuckFailure | StuckGoal as exn), info) when allow_out_of_order ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++
@@ -677,12 +694,12 @@ module Search = struct
                   let ie = merge_exceptions e ie in
                   begin match fst ie with
                   | NoProgress -> fk ie
-                  | _ -> kont (Fail ie)
+                  | _ -> kont ~first:false (Fail ie)
                   end
-                | _ -> kont fail
+                | _ -> kont ~first:false fail
                 end
-              | next -> kont next)
-        in tclCASE tac >>= kont
+              | next -> kont ~first:false next)
+        in tclCASE tac >>= kont ~first:true
       in
       tclEVARMAP >>= fun sigma ->
       let () = ppdebug 1 (fun () ->
