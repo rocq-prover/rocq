@@ -84,16 +84,6 @@ let with_context_set ctx (b, ctx') =
 let of_context_set env ctx =
   UState.merge_sort_context_set ~sideff:false ~src:UState.Internal UnivRigid (UState.from_env env) ctx
 
-(* Type-check a hand-built scheme so as to collect the universe
-   constraints its context set does not explicitly contain, in
-   particular the constraints relating the fresh universes substituted
-   for template universes (see [maybe_template_instance]) to the
-   universes of the other schemes the term refers to. *)
-let retype_context_set env ctx c =
-  let sigma = Evd.from_ustate (of_context_set env ctx) in
-  let sigma, _ = Typing.type_of env sigma (EConstr.of_constr c) in
-  Evd.ustate sigma
-
 let build_dependent_inductive ind (mib,mip) =
   let realargs,_ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
   applist
@@ -111,7 +101,11 @@ let build_dependent_inductive ind (mib,mip) =
    caller. Qualities are kept at their (all-QType) defaults since the
    scheme is monomorphic. This instance is only used for substitution
    into the copied contexts: occurrences of the inductive in the scheme
-   itself keep an empty instance, as required for template inductives. *)
+   itself keep an empty instance, as required for template inductives.
+   Since the schemes of an inductive type no longer share universes, a
+   scheme applying a previously declared scheme also needs constraints
+   relating its universes to those of the latter (see
+   [enforce_scheme_param_univs]). *)
 let maybe_template_instance (mib, mip) u = match mib.mind_template with
 | None -> u, UnivGen.empty_sort_context
 | Some templ ->
@@ -273,7 +267,7 @@ let build_sym_scheme env _handle ind =
             mkRel 1 (* varH *),
             [|cstr (nrealargs+1)|])))))
   in
-  c, retype_context_set env ctx c
+  c, of_context_set env ctx
 
 let sym_scheme_kind =
   declare_individual_scheme_object "sym"
@@ -295,9 +289,41 @@ let sym_scheme_kind =
 (*                                                                    *)
 (**********************************************************************)
 
-let const_of_scheme kind env handle ind ctx =
+(* The universes standing for the template universes of the inductive
+   type are local to each scheme (see [maybe_template_instance]), so
+   the parameters of two schemes of the same inductive type live at a
+   priori unrelated universes. Applying the constant [c] of a
+   previously declared scheme to the parameters of the scheme being
+   built thus requires the sorts of the parameters of the latter to fit
+   in the sorts of the corresponding binders of the type of [c]. The
+   two parameter contexts have the same shape, except that the let-ins
+   of [paramsctxt] do not appear in the kernel-inferred type of [c]. *)
+let enforce_scheme_param_univs env paramsctxt c ctx =
+  let univ_of_param t =
+    let _, s = decompose_prod_decls t in
+    if isSort s then Some (Sorts.univ_of_sort (destSort s)) else None
+  in
+  let rec fold ctx params t = match params with
+  | [] -> ctx
+  | LocalDef _ :: params -> fold ctx params t
+  | LocalAssum (_, ty) :: params ->
+    let _, cty, t = destProd t in
+    let ctx = match univ_of_param ty, univ_of_param cty with
+    | Some u, Some cu ->
+      (* trivial constraints, i.e. between global universes shared by
+         the two schemes, are dropped by enforce_leq *)
+      let qus, (qcst, ucst) = ctx in
+      qus, (qcst, UnivSubst.enforce_leq u cu ucst)
+    | _ -> ctx
+    in
+    fold ctx params t
+  in
+  fold ctx (List.rev paramsctxt) (Typeops.type_of_constant_in env (destConst c))
+
+let const_of_scheme kind env handle ind paramsctxt ctx =
   let sym_scheme = match local_lookup_scheme handle kind ind with Some cst -> cst | None -> assert false in
-  with_context_set ctx (UnivGen.fresh_global_instance env sym_scheme)
+  let c, ctx = with_context_set ctx (UnivGen.fresh_global_instance env sym_scheme) in
+  c, enforce_scheme_param_univs env paramsctxt c ctx
 
 let build_sym_involutive_scheme env handle ind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
@@ -305,7 +331,7 @@ let build_sym_involutive_scheme env handle ind =
     get_sym_eq_data env indu in
   let ctx = UnivGen.sort_context_union ctx ctx' in
   let eq,eqrefl,ctx = get_rocq_eq env ctx in
-  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind ctx in
+  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind paramsctxt ctx in
   let cstr n = mkApp (mkConstructUi (indu,1),Context.Rel.instance mkRel n paramsctxt) in
   let indr = UVars.subst_instance_relevance u mip.mind_relevance in
   let varH,_ = fresh env (default_id_of_ind ind mip) Id.Set.empty in
@@ -344,7 +370,7 @@ let build_sym_involutive_scheme env handle ind =
                NoInvert,
                mkRel 1 (* varH *),
                [|mkApp(eqrefl,[|applied_ind_C;cstr (nrealargs+1)|])|])))))
-  in (c, retype_context_set env ctx c)
+  in (c, of_context_set env ctx)
 
 let sym_involutive_scheme_kind =
   declare_individual_scheme_object "sym_involutive"
@@ -416,8 +442,8 @@ let build_l2r_rew_scheme dep env handle ind kind =
   let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
     get_sym_eq_data env indu in
   let ctx = UnivGen.sort_context_union ctx ctx' in
-  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind ctx in
-  let sym_involutive, ctx = const_of_scheme sym_involutive_scheme_kind env handle ind ctx in
+  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind paramsctxt ctx in
+  let sym_involutive, ctx = const_of_scheme sym_involutive_scheme_kind env handle ind paramsctxt ctx in
   let eq,eqrefl,ctx = get_rocq_eq env ctx in
   let cstr n p =
     mkApp (mkConstructUi(indu,1),
@@ -504,7 +530,7 @@ let build_l2r_rew_scheme dep env handle ind kind =
        [|main_body|]))
    else
      main_body))))))
-  in (c, retype_context_set env ctx c)
+  in (c, of_context_set env ctx)
 
 (**********************************************************************)
 (* Build the left-to-right rewriting lemma for hypotheses associated  *)
@@ -597,7 +623,7 @@ let build_l2r_forward_rew_scheme dep env ind kind =
           (if dep then realsign_ind_P 1 applied_ind_P' else realsign_P 2) s)
       (mkNamedLambda (make_annot varHC sr) applied_PC'
         (mkVar varHC))|]))))))
-  in c, retype_context_set env ctx c
+  in c, of_context_set env ctx
 
 (**********************************************************************)
 (* Build the right-to-left rewriting lemma for hypotheses associated  *)
@@ -684,7 +710,7 @@ let build_r2l_forward_rew_scheme dep env ind kind =
            lift (nrealargs+3) applied_PC,
            mkRel 1)|])),
     [|mkVar varHC|]))))))
-  in c, retype_context_set env ctx c
+  in c, of_context_set env ctx
 
 (**********************************************************************)
 (* This function "repairs" the non-dependent r2l forward rewriting    *)
@@ -904,7 +930,7 @@ let build_congr env (eq,refl,ctx) ind =
        [|mkApp (refl,
           [|mkVar varB;
             mkApp (mkVar varf, [|lift (mip.mind_nrealargs+3) b|])|])|])))))))
-  in c, retype_context_set env ctx c
+  in c, of_context_set env ctx
 
 let congr_scheme_kind = declare_individual_scheme_object "congr"
   (fun env _ ind ->
