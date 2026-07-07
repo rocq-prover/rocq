@@ -1,5 +1,4 @@
-(* coq-prog-args: ("-color" "on" "-diffs" "on" "-async-proofs" "off") *)
-(* Re: -async-proofs off, see https://github.com/rocq-prover/rocq/issues/9671 *)
+(* coq-prog-args: ("-color" "on" "-diffs" "on") *)
 (* Shows diffs in an error message for an "Unable to unify" error *)
 Require Import ListDef.
 
