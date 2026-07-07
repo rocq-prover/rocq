@@ -637,23 +637,38 @@ module Search = struct
             str " of status " ++ pr_goal_status status)
         in
         let rec kont ~first = function
-          | Fail (NoApplicableHint, _)
-            when first && allow_out_of_order && not (List.is_empty tacs) ->
-            (* The goal has no applicable hint at this point, but it may
-               still become solvable as a side effect of resolving the
-               remaining goals, by having its evars (possibly including the
-               goal evar itself) instantiated by later unifications. Defer
-               it like a non-stuck failure instead of failing the whole
-               resolution eagerly; it is retried after further progress (see
-               the generation counter) and fails for good only once no other
-               goal can advance. Only the first failure is deferred: once
-               the goal has been successfully run, exhaustion of its
-               solutions keeps triggering backtracking as usual. *)
+          | Fail (NoApplicableHint, info)
+            when first && best_effort && allow_out_of_order
+                 && not (List.is_empty tacs) ->
+            tclEVARMAP >>= fun sigma ->
+            let closed =
+              match Evd.find_undefined sigma ev with
+              | evi ->
+                Evar.Set.is_empty
+                  (Evarutil.undefined_evars_of_term sigma (Evd.evar_concl evi))
+              | exception Not_found -> false
+            in
+            if not closed then fk (NoApplicableHint, info) else
+            (* The goal is closed (no undefined evar in its conclusion) and
+               has no applicable hint, so running the search again can never
+               help; but the goal evar itself may still be instantiated as a
+               side effect of resolving the remaining goals, by unification
+               against the type of another instance. Defer it like a
+               non-stuck failure instead of failing the whole resolution
+               eagerly; when it is retried (after further progress, see the
+               generation counter), only check whether its evar was
+               instantiated. The deferral is restricted to closed goals
+               under best-effort mode (the final resolution of the remaining
+               evars of a term) and to the first failure of the goal:
+               deferring open goals, or re-running the search on retries,
+               exhibits exponential behavior under backtracking (e.g. stack
+               overflows in coq-ext-lib and math-classes). *)
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++
                 str" has no applicable hint, deferring it after the remaining goals.")
             in
-            fixpoint generation tacs ((glid, ev, IsNonStuckFailure, tac, generation) :: stuck) fk
+            let check_solved = focus_goal ev (tclZERO ~info NonStuckFailure) in
+            fixpoint generation tacs ((glid, ev, IsNonStuckFailure, check_solved, generation) :: stuck) fk
           | Fail ((NonStuckFailure | StuckGoal as exn), info) when allow_out_of_order ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++

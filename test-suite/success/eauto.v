@@ -231,10 +231,13 @@ Module StrictlyUnique.
 
     Class DynamicType := { dyn_type : Type }.
 
-    (* [WhatIsThis ls] cannot be resolved despite having a clear answer. The
-       fact that the [DynamicType] instance cannot be found makes Coq abandon
-       the search for [WhatIsThis] entirely. *)
-    Fail Example test := Eval lazy in (fun (ls : list dyn_type) => what_is ls _) _.
+    (* [WhatIsThis ls] used to be unresolvable despite having a clear
+       answer: the fact that the [DynamicType] instance cannot be found made
+       Coq abandon the search for [WhatIsThis] entirely. The failed
+       [DynamicType] goal is now deferred behind the remaining goals
+       (rocq-prover/rocq#22228), so [WhatIsThis] resolves; the unresolved
+       [DynamicType] evar is erased by the reduction. *)
+    Example test := Eval lazy in (fun (ls : list dyn_type) => what_is ls _) _.
   End Problem.
 
   Module Solution.
