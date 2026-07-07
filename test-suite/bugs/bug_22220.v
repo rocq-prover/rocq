@@ -31,3 +31,12 @@ Scheme Rewriting for myeq.
 Check (fun x => @myeq_sym x).
 Check (fun x => @myeq_sym_involutive x).
 Check (fun x => @myeq_rew_r_dep x).
+
+(* Also for a Type-sorted equality: the uses of eq applied to a
+   Type-sorted inductive in the sym_involutive and rew_r_dep schemes
+   must not constrain eq.u0 either. *)
+Inductive myeqT (A:Type) (x:A) : A -> Type := myeqT_refl : myeqT A x x.
+Scheme Rewriting for myeqT.
+Check (fun x => @myeqT_sym x).
+Check (fun x => @myeqT_sym_involutive x).
+Check (fun x => @myeqT_rew_r_dep x).
