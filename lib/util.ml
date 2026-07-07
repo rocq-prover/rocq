@@ -47,8 +47,9 @@ let is_blank = function
 
 module Empty =
 struct
-  type t = { abort : 'a. 'a }
-  let abort (x : t) = x.abort
+  (* See https://ocaml.org/manual/emptyvariants.html *)
+  type t = |
+  let abort (x : t) = match x with _ -> .
 end
 
 (* Strings *)
