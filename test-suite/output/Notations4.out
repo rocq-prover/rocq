@@ -248,7 +248,7 @@ Found an inductive type while a pattern was expected.
 [[2]]
      : nat * nat
 %%%
-     : Type
+     : Univ
 ## (x, _) (x = 0)
      : Prop
 File "./output/Notations4.v", line 492, characters 21-30:

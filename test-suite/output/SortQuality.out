@@ -1,18 +1,18 @@
-Type
-Type@{α1 ; SortQuality.21}
-Type@{α1 ; SortQuality.21}
-Type
+Univ
+Univ@{α1 ; SortQuality.21}
+Univ@{α1 ; SortQuality.21}
+Univ
 A
-     : Type@{s ; _}
+     : Univ@{s ; _}
 A
-     : Type@{s ; u}
+     : Univ@{s ; u}
 (* {s}; {u} |= 
 Normalized constraints:
  {s}; {u} |=  *)
 A
-     : Type@{s ; u}
+     : Univ@{s ; u}
 (* {s}; {u} |= 
 Normalized constraints:
  {s}; {u} |=  *)
 A
-     : Type@{s ; _}
+     : Univ@{s ; _}

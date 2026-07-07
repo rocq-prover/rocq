@@ -3,6 +3,7 @@ Axiom foo : forall A:Type, A -> Type.
 (* this test is about checking when Type in a notation is considered
    to match a term *)
 Notation "! x" := (foo Type x) (at level 2).
+Notation "# x" := (foo Univ x) (at level 2).
 
 (* first with Printing Universes off *)
 
@@ -21,7 +22,7 @@ Fail Check ! S.
 
 Goal True.
 Proof.
-  (* sort unification variable matches Type (and is printed as Type in the [forall] annotation) *)
+  (* sort unification variable matches Univ (and is printed as Univ in the [forall] annotation) *)
   (* NB don't use Check here as it collapses before printing (maybe this will change someday?) *)
   assert (forall A, A -> foo _ A). 2:trivial.
   Show.
@@ -38,7 +39,7 @@ Check foo _ S.
 
 Goal True.
 Proof.
-  (* sort unif variable doesn't match Type *)
+  (* sort unif variable doesn't match Type or Univ *)
   assert (forall A, A -> foo _ A). 2:trivial.
   Show.
 Abort.
