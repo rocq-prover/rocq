@@ -40,8 +40,8 @@ variables:
   # The $hash is the first 10 characters of the md5 of the Dockerfile. e.g.
   # echo $(md5sum dev/ci/docker/old_ubuntu_lts/Dockerfile | head -c 10)
   # echo $(md5sum dev/ci/docker/edge_ubuntu/Dockerfile | head -c 10)
-  BASE_CACHEKEY: "old_ubuntu_lts-V2026-07-07-3f4ccef838"
-  EDGE_CACHEKEY: "edge_ubuntu-V2026-07-07-d451657c63"
+  BASE_CACHEKEY: "old_ubuntu_lts-V2026-07-07-18e9f9da22"
+  EDGE_CACHEKEY: "edge_ubuntu-V2026-07-07-f4f3e1b64c"
   BASE_IMAGE: "$CI_REGISTRY_IMAGE:$BASE_CACHEKEY"
   EDGE_IMAGE: "$CI_REGISTRY_IMAGE:$EDGE_CACHEKEY"
 
@@ -329,6 +329,9 @@ build:base+32bit:
     OPAM_VARIANT: "+32bit"
     COQ_EXTRA_CONF: "-native-compiler yes"
     ROCQIDE: "no"
+  artifacts:
+    paths:
+      - _build
   only: *full-ci
 
 build:edge+flambda:

@@ -70,7 +70,7 @@ RUN opam init -a --disable-sandboxing --compiler="$COMPILER" default https://opa
     opam repo add archive git+https://github.com/ocaml/opam-repository-archive && \
     opam update && \
     opam install $BASE_OPAM $COQIDE_OPAM $CI_OPAM $BASE_ONLY_OPAM && \
-    opam pin add git+https://github.com/IBBXEF/malfunction#recusive_types && \
+    opam pin add git+https://github.com/IBBXEF/malfunction#5b5b625cd98e7cbd60325cc2634ee6cbab033236 && \
     opam clean -a -c && \
     find ~ '(' -name '*.cmt' -o -name '*.cmti' ')' -delete
 
@@ -82,7 +82,7 @@ RUN opam switch create "${COMPILER}+32bit" \
     opam update && \
     i386 env CC='gcc -m32' opam install zarith.1.11 && \
     opam install $BASE_OPAM && \
-    opam pin add git+https://github.com/IBBXEF/malfunction#recusive_types && \
+    opam pin add git+https://github.com/IBBXEF/malfunction#5b5b625cd98e7cbd60325cc2634ee6cbab033236 && \
     opam clean -a -c && \
     find ~ '(' -name '*.cmt' -o -name '*.cmti' ')' -delete
 
