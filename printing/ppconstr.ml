@@ -239,6 +239,7 @@ let pr_sort_expr : sort_expr -> Pp.t = function
   | None, UNamed [CProp, 0] -> tag_type (str "Prop")
   | None, UNamed [CSet, 0] -> tag_type (str "Set")
   | None, UAnonymous {rigid=UnivRigid} -> tag_type (str "Type")
+  | None, l -> hov 0 (tag_type (str "Type") ++ pr_univ_annot pr_univ l)
   | Some (CQAnon _), UAnonymous {rigid=UnivRigid} -> tag_type (str "Univ")
   | u -> hov 0 (tag_type (str "Univ") ++ pr_univ_annot pr_quality_univ u)
 

@@ -52,12 +52,12 @@ Section Foo'.
   Fail Universe secfoo.
   Universe secfoo2.
   Fail Check Type@{Foo'.secfoo2}.
-  Check Univ@{secfoo2}.
+  Check Type@{secfoo2}.
   Constraint secfoo2 < a.
 End Foo'.
 
-Check Univ@{secfoo2}.
-Fail Check eq_refl : Univ@{secfoo2} = Type@{a}.
+Check Type@{secfoo2}.
+Fail Check eq_refl : Type@{secfoo2} = Type@{a}.
 
 (** Below, u and v are global, fixed universes *)
 Module Type Arg.
