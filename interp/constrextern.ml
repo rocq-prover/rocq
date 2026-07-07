@@ -921,7 +921,7 @@ let rec extern depth0 inctx scopes (eenv:extern_env) r =
              let args = extern_args (extern depth true) eenv args in
              (* Try a "{|...|}" record notation *)
              (match extern_record ~flags ref args with
-             | Some l -> CRecord l
+             | Some l -> CRecord (None, l)
              | None ->
              (* Otherwise... *)
                extern_applied_ref ~flags inctx

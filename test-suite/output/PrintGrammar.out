@@ -127,7 +127,7 @@ Entry term is
     LIST1 (term LEVEL "200") SEP ","; ")"
   | "("; term LEVEL "200"; ","; term LEVEL "200"; ")"
   | "("; term LEVEL "200"; ")"
-  | "{|"; record_declaration; '|}'
+  | "{|"; full_record_declaration; '|}'
   | "`{"; term LEVEL "200"; "}"
   | "`("; term LEVEL "200"; ")"
   | NUMBER

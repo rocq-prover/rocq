@@ -1994,8 +1994,8 @@ let rec add_args id new_args =
     | (CHole _ | CGenarg _ | CGenargGlob _ | CPatVar _ | CEvar _ | CPrim _ | CSort _) as b -> b
     | CCast (b1, k, b2) ->
       CCast (add_args id new_args b1, k, add_args id new_args b2)
-    | CRecord pars ->
-      CRecord (List.map (fun (e, o) -> (e, add_args id new_args o)) pars)
+    | CRecord (def,pars) ->
+      CRecord (Option.map (add_args id new_args) def, List.map (fun (e, o) -> (e, add_args id new_args o)) pars)
     | CNotation _ -> CErrors.anomaly ~label:"add_args " (Pp.str "CNotation.")
     | CGeneralization _ ->
       CErrors.anomaly ~label:"add_args " (Pp.str "CGeneralization.")

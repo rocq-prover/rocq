@@ -92,6 +92,13 @@ let test_sort_qvar =
     lk_ident >> lk_list lk_field >> lk_kw ";"
   end
 
+let test_record_nowith =
+  let open Procq.Lookahead in
+  to_entry "test_record_nowith" begin
+    lk_kw "}" <+> lk_kw "|}" <+> (lk_ident >> lk_list lk_field >> lk_except_kws ["with"; ".("])
+  end
+
+
 let warn_old_sort_syntax =
   CWarnings.create ~name:"deprecated-sort-poly-syntax" ~category:Deprecation.Version.v9_1
     Pp.(fun () -> fmt "Separating sorts from universes with \"|\" is deprecated.@ Use \";\" instead.")
@@ -280,7 +287,7 @@ GRAMMAR EXTEND Gram
             | CPrim (Number (NumTok.SPlus,n)) ->
                 CAst.make ~loc @@ CNotation(None,(InConstrEntry,"( _ )"),([c],[],[],[]))
             | _ -> c) }
-      | "{|"; c = record_declaration; bar_cbrace -> { c }
+      | "{|"; c = full_record_declaration; bar_cbrace -> { c }
       | "`{"; c = term LEVEL "200"; "}" ->
         { CAst.make ~loc @@ CGeneralization (MaxImplicit, c) }
       | test_array_opening; "["; "|"; ls = array_elems; "|"; def = lconstr; ty = type_cstr; test_array_closing; "|"; "]"; u = univ_annot ->
@@ -303,11 +310,15 @@ GRAMMAR EXTEND Gram
   array_elems:
     [ [ fs = LIST0 lconstr SEP ";" -> { fs } ]]
   ;
-  record_declaration:
-    [ [ fs = fields_def -> { CAst.make ~loc @@ CRecord fs } ] ]
+  full_record_declaration:
+    [ [ test_record_nowith; fs = record_declaration ->
+        { CAst.make ~loc @@ CRecord (None,fs) }
+      | def = term LEVEL "1"; "with"; fs = record_declaration ->
+        { CAst.make ~loc @@ CRecord (Some def,fs) }
+    ] ]
   ;
-  fields_def:
-    [ RIGHTA [ f = field_def; ";"; fs = fields_def -> { f :: fs }
+  record_declaration:
+    [ RIGHTA [ f = field_def; ";"; fs = record_declaration -> { f :: fs }
       | f = field_def -> { [f] }
       | -> { [] } ] ]
   ;

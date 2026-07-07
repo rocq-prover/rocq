@@ -46,8 +46,8 @@ val pr_guard_annot
   -> fixpoint_order_expr option
   -> Pp.t
 
-val pr_record : string -> string -> ('a -> Pp.t) -> 'a list -> Pp.t
-val pr_record_body : string -> string -> ('a -> Pp.t) -> (Libnames.qualid * 'a) list -> Pp.t
+val pr_record : string -> string -> Pp.t option -> ('a -> Pp.t) -> 'a list -> Pp.t
+val pr_record_body : string -> string -> ('a -> Pp.t) -> Pp.t option -> (Libnames.qualid * 'a) list -> Pp.t
 val pr_binders : flags:flags -> Environ.env -> Evd.evar_map -> local_binder_expr list -> Pp.t
 val pr_constr_pattern_expr : flags:flags -> Environ.env -> Evd.evar_map -> constr_pattern_expr -> Pp.t
 val pr_lconstr_pattern_expr : flags:flags -> Environ.env -> Evd.evar_map -> constr_pattern_expr -> Pp.t

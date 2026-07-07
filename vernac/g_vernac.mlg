@@ -912,7 +912,7 @@ GRAMMAR EXTEND Gram
       | IDENT "Instance"; namesup = instance_name; ":";
          t = term LEVEL "200";
          info = hint_info ;
-         props = [ ":="; "{"; r = record_declaration; "}" -> { Some (true,r) } |
+         props = [ ":="; "{"; r = record_declaration; "}" -> { Some (true,CAst.make ~loc @@ CRecord (None, r)) } |
              ":="; c = lconstr -> { Some (false,c) } | -> { None } ] ->
            { VernacSynPure (VernacInstance (fst namesup,snd namesup,t,props,info)) }
 

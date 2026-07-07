@@ -390,13 +390,17 @@ term1: [
 | MOVETO term_projection term1 ".(" "@" global univ_annot LIST0 ( term9 ) ")"
 ]
 
+full_record_declaration: [
+| DELETE test_record_nowith record_declaration
+| REPLACE term1 "with" record_declaration
+| WITH OPT [ term1 "with" ] record_declaration
+]
+
 term0: [
 | DELETE reference univ_annot
-| REPLACE "{|" record_declaration bar_cbrace
-| WITH "{|" OPT [ LIST1 field_def SEP ";" OPT ";" ] bar_cbrace
 | MOVETO number_or_string NUMBER
 | MOVETO number_or_string string
-| MOVETO term_record "{|" OPT [ LIST1 field_def SEP ";" OPT ";" ] bar_cbrace
+| MOVETO term_record "{|" full_record_declaration bar_cbrace
 | MOVETO term_generalizing "`{" term200 "}"
 | MOVETO term_generalizing "`(" term200 ")"
 | MOVETO term_ltac "ltac" ":" "(" ltac_expr5 ")"
@@ -416,8 +420,8 @@ cofix_decls: [
 | WITH cofix_body OPT ( LIST1 ( "with" cofix_body ) "for" identref )
 ]
 
-fields_def: [
-| REPLACE field_def ";" fields_def
+record_declaration: [
+| REPLACE field_def ";" record_declaration
 | WITH LIST1 field_def SEP ";"
 | DELETE field_def
 ]
@@ -1626,13 +1630,6 @@ tac2type_body: [
 | DELETE "::=" tac2typ_knd      (* Ltac2 plugin *)
 ]
 
-record_declaration: [
-| DELETE fields_def
-| LIST0 field_def
-]
-
-fields_def: [ | DELETENT ]
-
 scheme: [
 | DELETE scheme_kind
 | REPLACE identref ":=" scheme_kind
@@ -2315,7 +2312,7 @@ SPLICE: [
 | mode
 | mult_pattern
 | open_constr
-| record_declaration
+| full_record_declaration
 | tactic
 | uconstr
 | impl_ident_head

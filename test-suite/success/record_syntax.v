@@ -53,3 +53,18 @@ Record Foo := { foo : nat * nat -> nat -> nat }.
 Definition foo_ := {| foo '(x,y) n := x+y+n |}.
 
 End F.
+
+Module RecordWith.
+
+  Record R A := { x : nat; y : A; z := x; e : z = 0 }.
+
+  Definition atunit : R (unit -> unit) :=
+    {| x := 0; y (_:match tt with tt => unit end) := tt; e := eq_refl |}.
+
+  Definition bli (a:R (R unit)) := {| a.(y _) with y := true |}.
+
+  Fail Check fun (a:R (R unit)) => {| a.(y _) with y := true; z := _ |}.
+
+  Fail Check {| atunit with x := 0; y := 0; e := eq_refl |}.
+
+End RecordWith.
