@@ -636,39 +636,7 @@ module Search = struct
             str "considering goal " ++ int glid ++
             str " of status " ++ pr_goal_status status)
         in
-        let rec kont ~first = function
-          | Fail (NoApplicableHint, info)
-            when first && best_effort && allow_out_of_order
-                 && not (List.is_empty tacs) ->
-            tclEVARMAP >>= fun sigma ->
-            let closed =
-              match Evd.find_undefined sigma ev with
-              | evi ->
-                Evar.Set.is_empty
-                  (Evarutil.undefined_evars_of_term sigma (Evd.evar_concl evi))
-              | exception Not_found -> false
-            in
-            if not closed then fk (NoApplicableHint, info) else
-            (* The goal is closed (no undefined evar in its conclusion) and
-               has no applicable hint, so running the search again can never
-               help; but the goal evar itself may still be instantiated as a
-               side effect of resolving the remaining goals, by unification
-               against the type of another instance. Defer it like a
-               non-stuck failure instead of failing the whole resolution
-               eagerly; when it is retried (after further progress, see the
-               generation counter), only check whether its evar was
-               instantiated. The deferral is restricted to closed goals
-               under best-effort mode (the final resolution of the remaining
-               evars of a term) and to the first failure of the goal:
-               deferring open goals, or re-running the search on retries,
-               exhibits exponential behavior under backtracking (e.g. stack
-               overflows in coq-ext-lib and math-classes). *)
-            let () = ppdebug 1 (fun () ->
-                str "Goal " ++ int glid ++
-                str" has no applicable hint, deferring it after the remaining goals.")
-            in
-            let check_solved = focus_goal ev (tclZERO ~info NonStuckFailure) in
-            fixpoint generation tacs ((glid, ev, IsNonStuckFailure, check_solved, generation) :: stuck) fk
+        let rec kont = function
           | Fail ((NonStuckFailure | StuckGoal as exn), info) when allow_out_of_order ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++
@@ -709,12 +677,12 @@ module Search = struct
                   let ie = merge_exceptions e ie in
                   begin match fst ie with
                   | NoProgress -> fk ie
-                  | _ -> kont ~first:false (Fail ie)
+                  | _ -> kont (Fail ie)
                   end
-                | _ -> kont ~first:false fail
+                | _ -> kont fail
                 end
-              | next -> kont ~first:false next)
-        in tclCASE tac >>= kont ~first:true
+              | next -> kont next)
+        in tclCASE tac >>= kont
       in
       tclEVARMAP >>= fun sigma ->
       let () = ppdebug 1 (fun () ->
@@ -784,7 +752,47 @@ module Search = struct
          (succ i, ev, IsInitial, focus_goal ev tac, 0))
       0 gls tacs
     in
-    fixpoint 0 tacs [] (fun (e, info) -> tclZERO ~info e) <*>
+    let run tacs = fixpoint 0 tacs [] (fun (e, info) -> tclZERO ~info e) in
+    let run tacs =
+      if not best_effort then run tacs
+      else
+        (* Second-chance pass for failed best-effort resolutions: a goal
+           whose conclusion has no undefined evars (a "closed" goal) cannot
+           be affected by the resolution of the other goals except through
+           the instantiation of its own evar, by unification against the
+           type of another instance (see e.g. #22227, where an instance is
+           reachable only that way, its own hint being unusable). When such
+           a goal fails, letting the remaining goals run first can thus
+           recover a solution. We do this in a separate pass, keeping the
+           failing pass untouched, because changing the failure behavior
+           inside a resolution perturbs the backtracking of resolutions
+           that currently succeed (leading e.g. to exponential blowups);
+           a resolution that fails in the first pass has by definition no
+           behavior to preserve. *)
+        tclORELSE (run tacs)
+          (fun (e, ie) ->
+            tclEVARMAP >>= fun sigma ->
+            let closed (_, ev, _, _, _) =
+              match Evd.find_undefined sigma ev with
+              | evi ->
+                Evar.Set.is_empty
+                  (Evarutil.undefined_evars_of_term sigma (Evd.evar_concl evi))
+              | exception Not_found -> false
+            in
+            let opens, closeds = List.partition (fun g -> not (closed g)) tacs in
+            let reordered = opens @ closeds in
+            let order gs = List.map (fun (glid, _, _, _, _) -> glid) gs in
+            if List.is_empty closeds || List.is_empty opens
+               || List.equal Int.equal (order reordered) (order tacs)
+            then tclZERO ~info:ie e
+            else
+              let () = ppdebug 1 (fun () ->
+                  str "Best-effort resolution failed; retrying with closed goals last: " ++
+                  prlist_with_sep spc int (order reordered))
+              in
+              run reordered)
+    in
+    run tacs <*>
     pr_goals (str "Result goals after fixpoint: ")
 
 
