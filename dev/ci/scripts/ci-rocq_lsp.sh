@@ -20,6 +20,7 @@ fi
   _build/install/default/bin/coq-lsp --version
   dune runtest --root . test/serlib
   dune runtest --root . test/compiler
+  dune runtest --root . petanque/test
   # It was needed by coq-serapi in CI, we keep it for now
   dune install -p coq-lsp --prefix="$CI_INSTALL_DIR"
 )
