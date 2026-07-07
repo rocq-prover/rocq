@@ -12,6 +12,8 @@ open Names
 open Constrexpr
 open Libnames
 
+type discharge = DoDischarge | NoDischarge
+
 (** Vernac expressions, produced by the parser *)
 type coercion_class = FunClass | SortClass | RefClass of qualid or_by_notation
 
@@ -84,7 +86,7 @@ type glob_search_where = InHyp | InConcl | Anywhere
 type search_item =
   | SearchSubPattern of (glob_search_where * bool) * constr_pattern_expr
   | SearchString of (glob_search_where * bool) * string * scope_delimiter option
-  | SearchKind of Decls.logical_kind
+  | SearchKind of (discharge * Decls.logical_kind)
 
 type search_request =
   | SearchLiteral of search_item
@@ -348,8 +350,6 @@ type extend_name = {
   (* Index of the extension in the VERNAC EXTEND statement. Each parsing branch
      is given an offset, starting from zero. *)
 }
-
-type discharge = DoDischarge | NoDischarge
 
 type hint_info_expr = Constrexpr.constr_pattern_expr Typeclasses.hint_info_gen
 

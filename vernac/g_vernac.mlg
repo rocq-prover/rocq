@@ -1300,12 +1300,12 @@ GRAMMAR EXTEND Gram
       ] ]
   ;
   logical_kind:
-    [ [ k = thm_token -> { IsProof k }
-      | k = assumption_token -> { IsAssumption (snd k) }
-      | k = IDENT "Context" -> { IsAssumption Context }
-      | k = extended_def_token -> { IsDefinition k }
-      | IDENT "Primitive" -> { IsPrimitive }
-      | IDENT "Symbol" -> { IsSymbol } ] ]
+    [ [ k = thm_token -> { (NoDischarge, IsProof k) }
+      | k = assumption_token -> { (fst k, IsAssumption (snd k)) }
+      | k = IDENT "Context" -> { (NoDischarge, IsAssumption Context) }
+      | k = extended_def_token -> { (NoDischarge, IsDefinition k) }
+      | IDENT "Primitive" -> { (NoDischarge, IsPrimitive) }
+      | IDENT "Symbol" -> { (NoDischarge, IsSymbol) } ] ]
   ;
   extended_def_token:
     [ [ k = def_token -> { snd k }
