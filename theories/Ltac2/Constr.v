@@ -648,3 +648,27 @@ Ltac2 is_case(c: constr) :=
   | Unsafe.Case _ _ _ _ _ => true
   | _ => false
   end.
+
+(** [is_prop c] returns [true] iff [c] is the sort [Prop]. *)
+Ltac2 is_prop (c : constr) : bool := equal c constr:(Prop).
+
+(** [is_set c] returns [true] iff [c] is the sort [Set]. *)
+Ltac2 is_set (c : constr) : bool := equal c constr:(Set).
+
+(** [is_sprop c] returns [true] iff [c] is the sort [SProp]. *)
+Ltac2 is_sprop (c : constr) : bool := equal c constr:(SProp).
+
+(** [is_type c] returns [true] iff [c] is a sort of the form
+    [Type@{u}], i.e. a sort other than [Prop], [Set] and [SProp]. *)
+Ltac2 is_type (c : constr) : bool :=
+  if is_sort c
+  then if is_prop c then false
+       else if is_set c then false
+       else if is_sprop c then false
+       else true
+  else false.
+
+(** [is_type_or_set c] returns [true] iff [c] is [Set] or a sort of
+    the form [Type@{u}]. *)
+Ltac2 is_type_or_set (c : constr) : bool :=
+  if is_type c then true else is_set c.
