@@ -76,16 +76,10 @@
 }
 
 let space = [' ' '\t' '\n' '\r']
-let lowercase = ['a'-'z']
-let uppercase = ['A'-'Z']
-let identchar = ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9']
-let caml_up_ident = uppercase identchar*
-let caml_low_ident = lowercase identchar*
 
 (* This is an overapproximation, we check correctness afterwards *)
 let coq_ident = ['A'-'Z' 'a'-'z' '_' '\128'-'\255'] ['A'-'Z' 'a'-'z' '_' '\'' '0'-'9' '\128'-'\255']*
 let coq_field = '.' coq_ident
-let coq_qual_id_rex = coq_ident coq_field+
 
 let dot = '.' ( space+ | eof)
 
