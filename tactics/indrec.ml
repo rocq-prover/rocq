@@ -239,7 +239,7 @@ let make_type_ctor cache kn u mib ind_bodies pos_list (pos_ind, ind, dep, sort)
   make_pred rec_hyp key_preds pos_list dep inst_nuparams inst_indices cst
 
 (** Closure assumptions functions over all the ctors *)
-let closure_ctors cache rec_hyp kn mib u ind_bodies binder key_uparams nuparams key_nuparams_opt key_preds =
+let closure_ctors cache kn mib u ind_bodies binder key_uparams nuparams key_nuparams_opt key_preds =
   fold_right_state (fun a l -> a :: l) ind_bodies (
     fun pos_list (pos_ind, ind, dep, sort) cc ->
     iterate_ctors mib ind u (
@@ -278,11 +278,19 @@ let make_return_type kn u ind_bodies focus key_uparams nuparams key_nuparams_opt
 
 (** Generate the type of the recursor *)
 let gen_elim_type cache print_constr rec_hyp kn u mib uparams nuparams ind_bodies focus =
+
+  (* Non-uniform parameters are quantified in predicates if and only if
+     recursion hypotheses are requiered and needed. *)
+  let need_rec_hyp =
+    let (_, ind, _, _) = List.hd ind_bodies in
+    rec_hyp && Inductiveops.mis_is_recursive ind
+  in
+
   let t =
     let@ key_uparams = closure_uparams Prod naming_hd_fresh uparams in
-    let@ key_nuparams_opt = closure_nuparams_opt ~quantify:(not rec_hyp) Prod naming_hd_fresh nuparams in
+    let@ key_nuparams_opt = closure_nuparams_opt ~quantify:(not need_rec_hyp) Prod naming_hd_fresh nuparams in
     let@ key_preds = closure_preds kn u ind_bodies Prod key_uparams nuparams key_nuparams_opt in
-    let@ key_ctors = closure_ctors cache rec_hyp kn mib u ind_bodies Prod key_uparams nuparams key_nuparams_opt key_preds in
+    let@ key_ctors = closure_ctors cache kn mib u ind_bodies Prod key_uparams nuparams key_nuparams_opt key_preds in
     make_return_type kn u ind_bodies focus key_uparams nuparams key_nuparams_opt key_preds
   in
   (* DEBUG *)
@@ -369,24 +377,32 @@ let compute_args_fix cache rec_hyp kn pos_ind mib ind_bodies pos_list key_preds 
 
 let gen_elim_term cache print_constr rec_hyp kn u mib uparams nuparams ind_bodies focus =
 
+  (* Non-uniform parameters are quantified in predicates if and only if
+     recursion hypotheses are requiered and needed. *)
+  let need_rec_hyp =
+    let (_, ind, _, _) = List.hd ind_bodies in
+    rec_hyp && Inductiveops.mis_is_recursive ind
+  in
+  dbg Pp.(fun () -> str "need_rec_hyp is " ++ bool need_rec_hyp);
+  (* A fixpoint is needed if recursion hypotheses are needed, or there is
+      more than one inductive body *)
+  let need_fix = List.length ind_bodies > 1 || need_rec_hyp in
+  dbg Pp.(fun () -> str "need_fix is " ++ bool need_fix);
+
   let t =
 
   (* 1. Closure Uparams / preds / ctors *)
   let@ key_uparams = closure_uparams Lambda naming_hd_fresh uparams in
-  let@ key_nuparams_opt = closure_nuparams_opt ~quantify:(not rec_hyp) Lambda naming_hd_fresh nuparams in
+  let@ key_nuparams_opt = closure_nuparams_opt ~quantify:(not need_rec_hyp) Lambda naming_hd_fresh nuparams in
   let@ key_preds = closure_preds kn u ind_bodies Lambda key_uparams nuparams key_nuparams_opt in
-  let@ key_ctors = closure_ctors cache rec_hyp kn mib u ind_bodies Lambda key_uparams nuparams key_nuparams_opt key_preds in
+  let@ key_ctors = closure_ctors cache kn mib u ind_bodies Lambda key_uparams nuparams key_nuparams_opt key_preds in
   (* 2. Fixpoint *)
   let fix_name pos_list (_,_,_,sort) = make_annot (Name (Id.of_string "F")) (relevance_of_sort sort) in
   let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_nuparams_opt key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mib.mind_nparams - mib.mind_nparams_rec) + ind.mind_nrealargs in
-  let is_rec =
-    let (_, ind, _, _) = List.hd ind_bodies in
-    List.length ind_bodies > 1 || (rec_hyp && Inductiveops.mis_is_recursive ind) in
-  (* dbg Pp.(fun () -> str "isrec:=" ++ bool is_rec); *)
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
     (* Doe not create a fix if it is not-recursive and only has one inductive body *)
-    if is_rec
+    if need_fix
     then make_fix ind_bodies focus fix_rarg fix_name fix_type
     else fun cc -> cc ([], 0, List.hd ind_bodies) in
   (* 3. Closure Nuparams / Indices / Var *)
@@ -399,7 +415,7 @@ let gen_elim_term cache print_constr rec_hyp kn u mib uparams nuparams ind_bodie
   let ccl =
   (* 4 Match to prove P ... x *)
     let* inst_params = get_terms (key_uparams @ key_nuparams )in
-    let case_pred = make_ccl rec_hyp key_preds pos_list dep key_nuparams in
+    let case_pred = make_ccl need_rec_hyp key_preds pos_list dep key_nuparams in
     let* var_match = get_term key_VarMatch in
     let* inst_indices = get_terms key_indices in
     let@ (key_args, _, _, pos_ctor) =
@@ -409,7 +425,7 @@ let gen_elim_term cache print_constr rec_hyp kn u mib uparams nuparams ind_bodie
     let* hyp = getij_term key_ctors pos_list pos_ctor in
     let* inst_nuparams = get_terms key_nuparams in
     let* cfix = compute_args_fix cache rec_hyp kn pos_ind mib ind_bodies pos_list key_preds key_fixs key_args in
-    if is_rec then
+    if need_fix then
       typing_checked_appvect hyp (Array.concat [inst_nuparams; Array.of_list cfix])
     else
       typing_checked_appvect hyp (Array.of_list cfix)
@@ -417,10 +433,10 @@ let gen_elim_term cache print_constr rec_hyp kn u mib uparams nuparams ind_bodie
     (* 6. If it is not-recursive, has primitive projections and is dependent => add a cast *)
     let* env = get_env in
     let projs = Environ.get_projections env (kn, pos_ind) in
-  if is_rec || Option.is_empty projs || not dep then
+  if need_fix || Option.is_empty projs || not dep then
     ccl
   else
-    let* arg_type = make_ccl rec_hyp key_preds pos_list dep key_nuparams key_indices key_VarMatch in
+    let* arg_type = make_ccl need_rec_hyp key_preds pos_list dep key_nuparams key_indices key_VarMatch in
     let* ccl = ccl in
     return @@ mkCast (ccl, DEFAULTcast, arg_type)
 
