@@ -255,7 +255,7 @@ let leave ?time name ?(args=[]) ?last () =
    through [profile] and I'm too lazy to make them conditional *)
 let components = ref CString.Pred.empty
 
-let profile name ?args f () =
+let profile name ?args ?post_args f () =
   if not (is_profiling ()) then f ()
   else if CString.Pred.mem name !components then begin
     let args = Option.map (fun f -> f()) args in
@@ -264,11 +264,15 @@ let profile name ?args f () =
     let v = try f ()
       with e ->
         let e = Exninfo.capture e in
-        let args = Counters.make_diffs ~start ~stop:(Counters.get()) in
+        let counter_args = Counters.make_diffs ~start ~stop:(Counters.get()) in
+        let post_args = Option.cata (fun f -> f @@ Error e) [] post_args in
+        let args = List.append counter_args post_args in
         leave name ~args ();
         Exninfo.iraise e
     in
-    let args = Counters.make_diffs ~start ~stop:(Counters.get()) in
+    let counter_args = Counters.make_diffs ~start ~stop:(Counters.get()) in
+    let post_args = Option.cata (fun f -> f @@ Ok v) [] post_args in
+    let args = List.append counter_args post_args in
     leave name ~args ();
     v
   end
