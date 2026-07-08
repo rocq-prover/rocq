@@ -10,6 +10,7 @@ There are several Rocq commands:
   several other IDEs such as Proof General, vsCoq and Coqtail that are not
   included with the Coq installation.
 + ``rocq``: the main entry point for the Rocq prover
++ ``rocq find``: queries installed Rocq packages and prints their load-path information
 + ``rocqchk``: the Rocq checker (validation of compiled libraries) (also available through ``rocq check``)
 
 Many of the parameters to start these tools are shared and are described below.
@@ -72,6 +73,45 @@ See :ref:`rocq_makefile` and :ref:`building_dune`.
 
       .. rocqdoc::
          -R <PATH> Mod1
+
+.. _rocqfind:
+
+Rocq package lookup (rocq find)
+-------------------------------
+
+The ``rocq find`` command queries Rocq packages installed through
+OCamlfind.  A Rocq package is an OCamlfind package whose ``META`` file
+contains a ``rocqpath`` field; this field gives the Rocq logical path
+provided by the package.  Package names passed to ``rocq find`` are
+OCamlfind package names, not Rocq logical paths.  Its command-line syntax is
+``rocq find [-Q] [-I] [package ...]``.
+
+With no package argument, ``rocq find`` lists all installed Rocq packages.
+With one or more package arguments, it lists those packages and their
+transitive dependencies.  Its default output contains one line per Rocq
+theory package, with the physical theory directory followed by the logical
+path, for example::
+
+   $ rocq find rocq-stdlib
+   /path/to/lib/rocq-stdlib/rocq.d Stdlib
+
+The ``-Q`` and ``-I`` options make ``rocq find`` print command-line
+arguments instead.  ``-Q`` prints the load-path bindings for Rocq theory
+packages, and ``-I`` prints OCaml include path arguments for OCamlfind
+packages needed by the requested packages, such as plugin dependencies.
+They can be combined::
+
+   $ rocq find -Q -I my-package
+   -Q '/path/to/lib/my-package/rocq.d' MyPackage
+   -I '/path/to/lib/my-package'
+
+For direct invocation of Rocq tools, the ``-package`` option is usually
+more convenient; see :ref:`command-line-options`.  ``rocq find`` is useful
+for inspecting an installation and for build systems that need to obtain
+explicit ``-Q`` and ``-I`` arguments.
+
+See :ref:`rocq_package_layout` for the installation layout assumed by
+``rocq find``.
 
 .. _system_config:
 
@@ -308,6 +348,11 @@ and ``rocq repl``, unless stated otherwise:
 
 :-R *directory dirpath*: Similar to ``-Q`` *directory dirpath*, but allows using
   :cmd:`Require` with a partially qualified name (i.e. without a `From` clause).
+
+:-package *dependency*: automatically adds the necessary ``-Q`` and ``-I``
+  arguments to be able to work with the Rocq package *dependency* (defined in
+  terms of an ``ocamlfind`` package) and its transitive dependencies.  See
+  :ref:`rocqfind` and :ref:`rocq_package_layout`.
 
 :-top *dirpath*: Set the logical module name to :n:`@dirpath` for the
   `rocq repl` interactive session. If no module name is specified,

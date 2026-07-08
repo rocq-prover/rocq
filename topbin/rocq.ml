@@ -35,6 +35,7 @@ type subcommand =
   | Votour
   | PpMlg
   | Dep
+  | Find
   | Doc
   | Wc
   | Workmgr
@@ -55,6 +56,7 @@ let subcommands = [
   ("preprocess-mlg", "Preprocess Rocq grammar files (.mlg) to produce OCaml sources", PpMlg);
   ("pp-mlg", "Alias for preprocess-mlg", PpMlg);
   ("dep", "Print dependencies for compiling Rocq files", Dep);
+  ("find", "Print load-path information for Rocq findlib packages", Find);
   ("doc", "Generate documentation from a Rocq source file", Doc);
   ("wc", "Count lines of code in a Rocq source file", Wc);
   ("workmgr", "Control the number of parallel workers used by Rocq", Workmgr);
@@ -94,6 +96,7 @@ let run_subcommand opts args = function
   | Votour -> with_sibling_exe opts "votour" args
   | PpMlg -> Coqpp_main.main args
   | Dep -> Coqdeplib.Rocqdep_main.main args
+  | Find -> Rocqfind.main ~prog:(Sys.argv.(0) ^ " find") args
   | Doc -> Coqdoclib.Rocqdoc_main.main ~prog:(Sys.argv.(0) ^ " doc") args
   | Wc -> Rocqwc.main args
   | Workmgr -> Rocqworkmgr.main ~prog:(Sys.argv.(0) ^ " workmgr") args

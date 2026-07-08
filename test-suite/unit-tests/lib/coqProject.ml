@@ -20,6 +20,11 @@ let t () =
       project_file = Some project_file_path;
       makefile = None;
       native_compiler = None;
+      rocq_package = None;
+      package_version = None;
+      package_description = None;
+      legacy_support = false;
+      warn_missing_rocq_package = true;
       docroot = None;
 
       files = [];
@@ -29,6 +34,7 @@ let t () =
       ml_includes = [];
       r_includes = [];
       q_includes = [];
+      packages = [];
       extra_args = [];
       defs = [];
 
@@ -48,6 +54,11 @@ let t () =
       project_file = Some project_file_path;
       makefile = None;
       native_compiler = None;
+      rocq_package = None;
+      package_version = None;
+      package_description = None;
+      legacy_support = false;
+      warn_missing_rocq_package = true;
       docroot = None;
 
       files = [];
@@ -57,6 +68,7 @@ let t () =
       ml_includes = [];
       r_includes = [];
       q_includes = [];
+      packages = [];
       extra_args = List.map sourced_file ["-w"; "default"; "-w"; "foo"; "-set"; "Default Goal Selector=!"];
       defs = [];
 
@@ -65,5 +77,16 @@ let t () =
     assert_equal expected (read_project_file ~warning_fn project_file_path)
   ) ()
 let _ = add_test "-arg separation" t
+
+let t () =
+  let project_file_contents = "--no-rocq-package-warning" in
+  bracket_tmpfile
+  (fun (project_file_path, project_file_channel) ->
+    output_string project_file_channel project_file_contents;
+    flush project_file_channel;
+    let project = read_project_file ~warning_fn project_file_path in
+    assert_equal false project.warn_missing_rocq_package
+  ) ()
+let _ = add_test "disable missing --rocq-package warning" t
 
 let _ = run_tests __FILE__ (open_log_out_ch __FILE__) (List.rev !tests)

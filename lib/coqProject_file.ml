@@ -23,6 +23,11 @@ type 'a project = {
   project_file  : string option;
   makefile : string option;
   native_compiler : native_compiler option;
+  rocq_package : string option;
+  package_version : string option;
+  package_description : string option;
+  legacy_support : bool;
+  warn_missing_rocq_package : bool;
   docroot : string option;
 
   files : string sourced list; (* .v, .ml, .mlg, .mli, .mllib, .mlpack files *)
@@ -32,6 +37,7 @@ type 'a project = {
   ml_includes : path sourced list;
   r_includes  : (path * logic_path) sourced list;
   q_includes  : (path * logic_path) sourced list;
+  packages : string list;
   extra_args : string sourced list;
   defs : (string * string) sourced list;
 
@@ -49,6 +55,11 @@ let mk_project project_file makefile native_compiler extra_data = {
   project_file;
   makefile;
   native_compiler;
+  rocq_package = None;
+  package_version = None;
+  package_description = None;
+  legacy_support = false;
+  warn_missing_rocq_package = true;
   docroot = None;
 
   files = [];
@@ -57,6 +68,7 @@ let mk_project project_file makefile native_compiler extra_data = {
   meta_file = Absent;
   r_includes = [];
   q_includes = [];
+  packages = [];
   extra_args = [];
   defs = [];
 
@@ -236,6 +248,9 @@ let process_cmd_line ~warning_fn orig_dir parse_extra proj args =
        updated version of Dune. *)
     aux { proj with r_includes = proj.r_includes @ [sourced (mk_path d,lp)] } r
 
+  | "-package" :: p :: r ->
+    aux { proj with packages = p :: proj.packages } r
+
   | "-native-compiler" :: flag :: r ->
     let proj = parse_native ~warning_fn ~error proj flag in
     aux proj r
@@ -273,6 +288,28 @@ let process_cmd_line ~warning_fn orig_dir parse_extra proj args =
       error "Option -generate-meta-for-package cannot be repeated";
     aux { proj with meta_file = Generate m } r
 
+  | "--rocq-package" :: p :: r ->
+    if proj.rocq_package <> None then
+      error "Option --rocq-package given more than once";
+    if String.equal p "" then
+      error "Option --rocq-package requires a non-empty package name";
+    aux { proj with rocq_package = Some p } r
+
+  | "--package-version" :: v :: r ->
+    if proj.package_version <> None then
+      error "Option --package-version given more than once";
+    aux { proj with package_version = Some v } r
+
+  | "--description" :: d :: r ->
+    if proj.package_description <> None then
+      error "Option --description given more than once";
+    aux { proj with package_description = Some d } r
+
+  | "--legacy-support" :: r ->
+    aux { proj with legacy_support = true } r
+
+  | "--no-rocq-package-warning" :: r ->
+    aux { proj with warn_missing_rocq_package = false } r
 
   | v :: "=" :: def :: r ->
     aux { proj with defs = proj.defs @ [sourced (v,def)] } r
@@ -310,8 +347,15 @@ let process_cmd_line ~warning_fn orig_dir parse_extra proj args =
           end else
               raise (Parsing_error ("Unknown option " ^ f)) in
       aux proj r
- in
+  in
   let proj = aux proj args in
+  let proj =
+    let packages_incs =
+      let get Rocq_package.{dir; logpath} = sourced (mk_path dir, logpath) in
+      List.map get (Rocq_package.resolve proj.packages)
+    in
+    {proj with q_includes = proj.q_includes @ packages_incs}
+  in
   (* Short-circuit -native-compiler options passed via -args *)
   let rec filter_extra proj = function
   | [] -> { proj with extra_args = [] }

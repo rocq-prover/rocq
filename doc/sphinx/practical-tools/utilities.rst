@@ -55,25 +55,86 @@ While this is the easiest way to install packages, it is not the only way.
 You will then need to find the :term:`logical name` used to refer to the package
 in :cmd:`Require` commands.  There are a couple ways to do this:
 
+- For packages using the Findlib-backed Rocq package layout, use
+  :n:`rocq find <package-name>` to show the logical path provided by a package,
+  or :n:`rocq find` to list all installed Rocq packages.  See :ref:`rocqfind`.
+
 - If you installed with opam, use :n:`opam show --list-files rocq-bignums | head -n1` -
   the last component of the filename is the logical name (`Bignums`).
 
-- On Linux, :n:`ls $(rocq c -where)/user-contrib` shows the logical names of all
-  installed user-contributed packages.  You should be able to guess which one you
+- On Linux, :n:`ls $(rocq c -where)/user-contrib` shows the logical names of
+  legacy user-contributed packages.  You should be able to guess which one you
   need.
 
 - Use the :cmd:`Print LoadPath` command when running Rocq, which shows the mapping
   from :term:`logical path`\s to directories.  Again, you should be able to guess.
 
-The last two methods work even if you didn't install with opam.  Perhaps in the
-future the package name to logical name mapping will be more readily available.
-
 Once you know the logical name of the package, use it to load compiled
 files from the package with the :cmd:`Require` command.
 
-A :gdef:`package` is a group of files in a top directory and its subdirectories
-that's installed as a unit.  Packages are compiled from *projects*.  These terms
-are virtually interchangeable.
+A :gdef:`package` is an installable unit of Rocq code and metadata.  A
+package is compiled from a source *project*, which may provide one or more
+installed packages.  In the legacy installation scheme, the files of all
+user-contributed packages are installed together under ``user-contrib``.  In the
+Findlib-backed installation layout, a Rocq package is an OCamlfind package with
+Rocq-specific metadata; commands such as ``rocq find`` and the ``-package``
+option use these OCamlfind package names.  An opam package may provide one or
+more such OCamlfind packages.
+
+.. _rocq_package_layout:
+
+Findlib-backed Rocq package layout
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Rocq packages can be installed using OCamlfind metadata.  This layout keeps the
+files of each package under its own Findlib package directory instead of mixing
+all user libraries under ``coq/user-contrib``.  It is the layout used by the
+``-package`` command-line option (see :ref:`command-line-options`) and by
+:ref:`rocqfind`.
+
+A Rocq theory package is an OCamlfind package whose ``META`` file contains a
+``rocqpath`` field.  The package name is the OCamlfind package name used with
+``-package`` and ``rocq find``; the ``rocqpath`` is the Rocq logical path used in
+:cmd:`Require` commands.  These names need not coincide.  For example, a
+package named ``rocq-stdlib`` may provide the logical path ``Stdlib``.
+
+The important fields of a Rocq theory package are:
+
+``rocqpath``
+  The logical path provided by the package, for example ``Foo`` or
+  ``Stdlib``.  Its presence identifies the Findlib package as a Rocq theory
+  package.
+
+``directory``
+  The package directory, as for any OCamlfind package.
+
+``requires``
+  The package dependencies, written as OCamlfind package names.  Dependencies
+  may be other Rocq theory packages or OCaml packages, including Rocq plugins.
+
+Theory source files and compiled artifacts are installed under a ``rocq.d``
+subdirectory of the package directory.  For example, with a Findlib root
+``$LIB``, a package directory ``$LIB/foo``, and this metadata::
+
+   directory = "."
+   rocqpath = "Foo"
+   requires = "bar foo.plugin"
+
+Rocq theory files for the package are installed below
+``$LIB/foo/rocq.d``.  The command-line option ``-package foo`` expands this
+metadata into the corresponding load path for ``Foo`` and into the paths needed
+by the transitive dependencies.  Equivalently, ``rocq find -Q -I foo`` prints
+explicit ``-Q`` and ``-I`` arguments for use by build systems.
+
+Packages containing both theories and plugins usually express the plugin as a
+Findlib subpackage and list it in ``requires``.  The plugin files remain
+ordinary OCamlfind-installed files; they are not installed under ``rocq.d``.
+
+The legacy installation scheme under ``$(rocq c -where)/user-contrib`` is kept
+for compatibility while packages are ported.  New projects should prefer the
+Findlib-backed layout.  Projects built with ``rocq makefile`` can opt into it
+with ``--rocq-package`` and can additionally request a legacy copy with
+``--legacy-support``.
 
 Setup for working on your own projects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -395,8 +456,10 @@ separated by whitespace:
 * Selected options of `rocq compile`, which are forwarded directly to it. Currently these
   are ``-Q``, ``-I``, ``-R`` and ``-native-compiler``.
 * ``-arg`` options for other options of `rocq compile` that don’t fall in the above set.
-* Options specific to ``rocq makefile``. Currently there are two options:
-  ``-generate-meta-for-package`` (see below for details), and ``-docroot``.
+* Options specific to ``rocq makefile``. Currently these include ``-docroot``,
+  ``-generate-meta-for-package`` (see below for details), ``--rocq-package``,
+  ``--package-version``, ``--description``, ``--legacy-support``, and
+  ``--no-rocq-package-warning``.
 * Directory names, which include all appropriate files in the directory and
   its subdirectories.
 * Comments, started with an unquoted ``#`` and continuing to the end of the
@@ -439,6 +502,19 @@ includes a ``.mlg`` file (to be pre-processed by ``rocq pp-mlg``) that
 declares a plugin, then the given name must match the ``findlib`` plugin
 name, e.g. ``DECLARE PLUGIN "my-package.plugin"``.
 
+Passing ``--rocq-package my-package`` enables the newer Findlib-backed Rocq
+package installation scheme described in :ref:`rocq_package_layout`. In that
+mode, the project must declare exactly one ``-Q`` or exactly one ``-R``
+directive, whose logical path becomes the package ``rocqpath``. Theory files
+are installed under the Findlib package's ``rocq.d`` directory, and
+``-package`` entries declare package dependencies. The ``--package-version``
+and ``--description`` options fill in the corresponding fields of the generated
+``META`` file. The ``--legacy-support`` option also installs a copy of the
+theories under the global ``user-contrib`` directory. Because the legacy
+installation scheme is deprecated, ``rocq makefile`` warns by default when
+``--rocq-package`` is omitted; pass ``--no-rocq-package-warning`` to silence
+that warning.
+
 The ``-native-compiler`` option given in the ``_RocqProject`` file overrides
 the global one passed at configure time.
 
@@ -459,8 +535,9 @@ This command generates the following files:
 RocqMakefile
   is a makefile for ``GNU Make`` with targets to build the project
   (e.g. generate .vo or .html files from .v or compile .ml* files)
-  and install it in the ``user-contrib`` directory where the Rocq
-  library is installed.
+  and install it. Depending on the project options, installation uses either
+  the legacy ``user-contrib`` directory or the Findlib-backed Rocq package
+  layout.
 
 RocqMakefile.conf
   contains make variables assignments that reflect
