@@ -183,7 +183,7 @@ let () = out "<ol>\n" in
 let pp_total_instr fmt = function
   | None -> ()
   | Some total_instr ->
-    Printf.fprintf fmt "total instructions: %.3GB, "
+    Printf.fprintf fmt "total instructions: %.3GG, "
       Float.(of_int total_instr /. 1_000_000_000.0)
 in
 
