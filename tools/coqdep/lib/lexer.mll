@@ -37,7 +37,9 @@
     lexbuf.lex_curr_p <- lexbuf.lex_start_p
 
   let syntax_error lexbuf =
-    raise (Syntax_error (Lexing.lexeme_start lexbuf, Lexing.lexeme_end lexbuf))
+    (* abs_pos is position of the start of the buffer in the file
+       start/curr_pos are positions in the buffer *)
+    raise (Syntax_error (lexbuf.lex_abs_pos + lexbuf.lex_start_pos, lexbuf.lex_abs_pos + lexbuf.lex_curr_pos))
 
   let check_valid lexbuf s =
     match Unicode.ident_refutation s with

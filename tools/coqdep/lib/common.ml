@@ -152,12 +152,6 @@ let coq_to_stdlib from strl =
   | Some from -> Some (tr_qualid from), strl
   | None -> None, List.map tr_qualid strl
 
-let with_in_channel ~fname f =
-  let chan = try open_in fname
-    with Sys_error msg -> Error.cannot_open fname msg
-  in
-  Util.try_finally f chan close_in chan
-
 let with_in_descr ~fname f =
   let descr =
     try Unix.openfile fname [O_RDONLY] 0o000
@@ -176,8 +170,6 @@ module State = struct
   }
   let loadpath x = x.loadpath
 end
-
-exception SyntaxErrorInFile of string
 
 (* recursive because of Load *)
 let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basename =
@@ -203,19 +195,16 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
   let f = basename ^ ".v" in
   with_in_descr ~fname:f @@ fun chan ->
   (* For lexing efficiency purposes, we ignore the positions in this function.
-     This will force us to reparse the file in case of error to get a proper
-     location, but in practice such errors should be exceedingly rare with
-     rocqdep. This lexer is indeed basically able to handle random nonsense
-     thrown at it. *)
+     We can still get accurate character counts, we're just missing newline info. *)
   let buf = lexbuf_from_descr ~with_positions:false chan in
   let open Lexer in
   let rec loop () =
     match coq_action buf with
     | exception Fin_fichier ->
       DepSet.elements !dependencies
-    | exception Syntax_error _ ->
+    | exception Syntax_error (i,j) ->
       (* The locations are garbage due to with_positions:false, ignore them *)
-      raise (SyntaxErrorInFile f)
+      Error.cannot_parse f (i, j)
     | tok ->  match tok with
       | Require (from, strl) ->
         let from, strl = coq_to_stdlib from strl in
@@ -287,25 +276,6 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
         loop ()
   in
   loop ()
-
-(* Reparse the file to get the error location *)
-let get_parse_error f =
-  with_in_channel ~fname:f @@ fun chan ->
-  let buf = Lexing.from_channel chan in
-  let rec loop () = match Lexer.coq_action buf with
-  | _tok -> loop ()
-  | exception Lexer.Syntax_error (i, j) -> (i, j)
-  | exception Lexer.Fin_fichier ->
-    (* may technically happen due to race conditions, return a dummy value *)
-    (0, 0)
-  in
-  loop ()
-
-let find_dependencies st basename =
-  try find_dependencies st basename
-  with SyntaxErrorInFile f ->
-    let (i, j) = get_parse_error f in
-    Error.cannot_parse f (i, j)
 
 let compute_deps st =
   let mk_dep name = Dep_info.make ~name ~deps:(find_dependencies st name) in
