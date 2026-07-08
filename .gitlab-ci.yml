@@ -1247,6 +1247,7 @@ plugin:ci-vsrocq:
 
 plugin:ci-smtcoq:
   extends: .ci-template-flambda
+  stage: build-3+
   needs:
   - build:edge+flambda
   - library:ci-stdlib+flambda
