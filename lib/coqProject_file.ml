@@ -349,14 +349,13 @@ let process_cmd_line ~warning_fn orig_dir parse_extra proj args =
       aux proj r
   in
   let proj = aux proj args in
-  let resolve_packages proj =
-    let ps = Rocq_package.resolve proj.packages in
-    List.fold_left (fun proj Rocq_package.{dir; logpath} ->
-      let inc = sourced (mk_path dir, logpath) in
-      { proj with q_includes = proj.q_includes @ [inc] }
-    ) proj ps
+  let proj =
+    let packages_incs =
+      let get Rocq_package.{dir; logpath} = sourced (mk_path dir, logpath) in
+      List.map get (Rocq_package.resolve proj.packages)
+    in
+    {proj with q_includes = proj.q_includes @ packages_incs}
   in
-  let proj = resolve_packages proj in
   (* Short-circuit -native-compiler options passed via -args *)
   let rec filter_extra proj = function
   | [] -> { proj with extra_args = [] }

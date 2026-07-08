@@ -35,6 +35,7 @@ type 'a project = {
 
   ml_includes : path sourced list;
   r_includes  : (path * logic_path) sourced list;
+  (* Field [q_includes] includes -Q infered from -package arguments. *)
   q_includes  : (path * logic_path) sourced list;
   packages : string list;
   extra_args : string sourced list;
