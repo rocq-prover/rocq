@@ -20,7 +20,22 @@ open Tactypes
 
 (** {6 The Type of Constructions clausale environments.} *)
 
-type clausenv
+type meta_arg = {
+  marg_meta : metavariable;
+  marg_chain : metavariable list option;
+  marg_dep : bool;
+  marg_templ : (rel_context * Univ.Level.t) option;
+}
+
+type clausenv = {
+  env      : env;
+  evd      : evar_map;
+  metam    : Unification.Meta.t;
+  metas    : meta_arg list;
+  templval : constr;
+  metaset : Metaset.t;
+  templtyp : (constr * Metaset.t);
+}
 
 val clenv_evd : clausenv -> Evd.evar_map
 val clenv_meta_list : clausenv -> Meta.t

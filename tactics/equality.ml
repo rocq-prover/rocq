@@ -529,7 +529,7 @@ let leibniz_rewrite_ebindings_clause cls lft2rgt tac c ((_, hdcncl, _) as t) l w
   let type_of_cls = match cls with
   | None -> Proofview.Goal.concl gl
   | Some id -> Tacmach.pf_get_hyp_typ id gl in
-  let dep = dep_proof_ok && dependent_no_evar evd c type_of_cls in
+  let dep = dep_proof_ok && dependent evd c type_of_cls in
   let inccl = Option.is_empty cls in
   find_elim lft2rgt dep inccl type_of_cls t >>= fun (elim, indarg) ->
       general_elim_clause with_evars frzevars tac cls c t l

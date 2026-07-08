@@ -187,3 +187,19 @@ Proof.
   try rewrite H.
   rewrite ?H.
 Abort.
+
+(* Check that rewrite rewrites in evar contexts *)
+Goal forall (n m : nat) (e : n = m /\ n = n), exists k, k = m.
+Proof.
+eexists.
+destruct e as [e e0].
+(* N.B. I do not know how to assert that the evar stays well-typed, but it should stay well-typed. *)
+rewrite e.
+Abort.
+
+(* Check that rewrite finds the right dependent occurence of the equality to replace with erefl. *)
+Goal forall (f : forall n, S n = S n -> nat) (n : nat) (e : S n = S n), f n e = n.
+Proof.
+intros f n e.
+rewrite e.
+Abort.
