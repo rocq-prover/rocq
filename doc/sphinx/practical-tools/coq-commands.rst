@@ -309,6 +309,10 @@ and ``rocq repl``, unless stated otherwise:
 :-R *directory dirpath*: Similar to ``-Q`` *directory dirpath*, but allows using
   :cmd:`Require` with a partially qualified name (i.e. without a `From` clause).
 
+:-package *dependency*: automatically adds the necessary ``-Q`` and ``-I``
+  arguments to be able to work with the Rocq package *dependency* (defined in
+  terms of an ``ocamlfind`` package) and its transitive dependencies.
+
 :-top *dirpath*: Set the logical module name to :n:`@dirpath` for the
   `rocq repl` interactive session. If no module name is specified,
   `rocq repl` will default to ``Top``. `rocq compile` does not accept this option
