@@ -1,4 +1,3 @@
-version = "dev"
 description = "The Rocq Prover's Core library (including Prelude)."
 rocqpath = "Corelib"
 requires = "rocq-runtime.plugins.ltac"
@@ -18,7 +17,6 @@ requires += "rocq-runtime.plugins.derive"
 
 package "ltac2" (
   directory = "ltac2"
-  version = "dev"
   description = "The Rocq Prover's Ltac2 standard library."
   rocqpath = "Ltac2"
   requires = "rocq-core"
