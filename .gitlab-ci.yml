@@ -1250,6 +1250,7 @@ plugin:ci-smtcoq:
   needs:
   - build:edge+flambda
   - library:ci-stdlib+flambda
+  - plugin:ci-elpi_hb
   - library:ci-trakt
 
 plugin:ci-stalmarck:
