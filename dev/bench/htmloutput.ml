@@ -61,7 +61,7 @@ let pp_memory ch = function
 
 let pp_instr ch = function
   | None -> ()
-  | Some i -> Printf.fprintf ch ", %d instr" i
+  | Some i -> Printf.fprintf ch ", %#d instr" i
 
 type totals = {
   total_time: Q.t;
