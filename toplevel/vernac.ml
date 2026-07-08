@@ -111,7 +111,16 @@ let load_vernac_core ~beautify ~check ~state ?source file =
   let rec loop state =
     let tstart = System.get_time () in
     match
-      NewProfile.profile "parse_command" (fun () ->
+      NewProfile.profile "parse_command" ~post_args:(function
+          | Error _ | Ok None -> []
+          | Ok (Some ast) ->
+            let lnum = match ast.CAst.loc with
+              | None -> "unknown"
+              | Some loc -> string_of_int loc.line_nb
+            in
+            [("cmd", `String (Pp.string_of_ppcmds (Topfmt.pr_cmd_header ast)));
+             ("line", `String lnum)]
+        ) (fun () ->
           Stm.parse_sentence
             ~doc:state.doc ~entry:Pvernac.main_entry state.sid in_pa)
         ()

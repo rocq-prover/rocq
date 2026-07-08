@@ -28,7 +28,7 @@ let rec find_cmds acc (lstate,lex as ch) =
   let is_last = try YB.read_comma lstate lex; false with Yojson.Json_error _ -> true in
   let acc = match v with
     | `Assoc l -> begin match assoc "name" l with
-        | `String "command" -> (lnum,l) :: acc
+        | `String "command" | `String "parse_command" -> (lnum,l) :: acc
         | _ -> acc
       end
     | _ -> die "File %S line %d: unrecognised value" fname lnum
