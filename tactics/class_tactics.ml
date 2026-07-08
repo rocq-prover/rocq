@@ -752,7 +752,47 @@ module Search = struct
          (succ i, ev, IsInitial, focus_goal ev tac, 0))
       0 gls tacs
     in
-    fixpoint 0 tacs [] (fun (e, info) -> tclZERO ~info e) <*>
+    let run tacs = fixpoint 0 tacs [] (fun (e, info) -> tclZERO ~info e) in
+    let run tacs =
+      if not best_effort then run tacs
+      else
+        (* Second-chance pass for failed best-effort resolutions: a goal
+           whose conclusion has no undefined evars (a "closed" goal) cannot
+           be affected by the resolution of the other goals except through
+           the instantiation of its own evar, by unification against the
+           type of another instance (see e.g. #22227, where an instance is
+           reachable only that way, its own hint being unusable). When such
+           a goal fails, letting the remaining goals run first can thus
+           recover a solution. We do this in a separate pass, keeping the
+           failing pass untouched, because changing the failure behavior
+           inside a resolution perturbs the backtracking of resolutions
+           that currently succeed (leading e.g. to exponential blowups);
+           a resolution that fails in the first pass has by definition no
+           behavior to preserve. *)
+        tclORELSE (run tacs)
+          (fun (e, ie) ->
+            tclEVARMAP >>= fun sigma ->
+            let closed (_, ev, _, _, _) =
+              match Evd.find_undefined sigma ev with
+              | evi ->
+                Evar.Set.is_empty
+                  (Evarutil.undefined_evars_of_term sigma (Evd.evar_concl evi))
+              | exception Not_found -> false
+            in
+            let opens, closeds = List.partition (fun g -> not (closed g)) tacs in
+            let reordered = opens @ closeds in
+            let order gs = List.map (fun (glid, _, _, _, _) -> glid) gs in
+            if List.is_empty closeds || List.is_empty opens
+               || List.equal Int.equal (order reordered) (order tacs)
+            then tclZERO ~info:ie e
+            else
+              let () = ppdebug 1 (fun () ->
+                  str "Best-effort resolution failed; retrying with closed goals last: " ++
+                  prlist_with_sep spc int (order reordered))
+              in
+              run reordered)
+    in
+    run tacs <*>
     pr_goals (str "Result goals after fixpoint: ")
 
 
