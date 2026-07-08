@@ -47,3 +47,17 @@ Ltac2 ge (x : int) (y : int) :=
   | true => true
   | false => gt x y
   end.
+
+(** [min x y] returns the smaller of [x] and [y]. *)
+Ltac2 min (x : int) (y : int) : int :=
+  match le x y with
+  | true => x
+  | false => y
+  end.
+
+(** [max x y] returns the larger of [x] and [y]. *)
+Ltac2 max (x : int) (y : int) : int :=
+  match le x y with
+  | true => y
+  | false => x
+  end.
