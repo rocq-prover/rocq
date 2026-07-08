@@ -10,7 +10,6 @@ git_download smtcoq
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 ( cd "${CI_BUILD_DIR}/smtcoq"
-  make -C src .merlin
   make
   make install
 )

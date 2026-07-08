@@ -428,7 +428,7 @@ project lean_importer "https://github.com/coq-community/rocq-lean-import" "maste
 ########################################################################
 # SMTCoq
 ########################################################################
-project smtcoq "https://github.com/smtcoq/smtcoq" "coq-master"
+project smtcoq "https://github.com/smtcoq/smtcoq" "rocq-master"
 # Contact @ckeller on github
 
 ########################################################################

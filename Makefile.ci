@@ -158,7 +158,7 @@ ci-rocq_lsp: ci-stdlib
 
 ci-sf: ci-stdlib
 
-ci-smtcoq: ci-stdlib
+ci-smtcoq: ci-stdlib ci-trakt
 
 ci-stalmarck: ci-stdlib
 
