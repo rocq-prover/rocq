@@ -166,6 +166,14 @@ described elsewhere
         put it between single quotes or explicitly provide a scope.
         See :ref:`this example <search-disambiguate-notation>`.
 
+     .. opt:: Fuzzy Search
+
+        Objects whose name contains a string differing by at most the
+        value of this option (default 2) are also included in the
+        search output. Set to 0 to search for only exact matches. To
+        avoid overly verbose results exact matching is always used
+        when the searched string has length 4 or less.
+
    :n:`hyp:`
       The provided pattern or reference is matched against any subterm
       of an hypothesis of the type of the objects.  See :ref:`this
