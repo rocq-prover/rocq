@@ -430,6 +430,138 @@ Ltac2 map_with_binders (lift : 'a -> binder -> 'a) (f : 'a -> constr -> constr) 
       make (Array u t def ty)
   end.
 
+(** Destructors for each constructor of [kind].  [destX c] returns the
+    arguments of the [X] node at the head of [c], and throws [DestKO]
+    otherwise. *)
+
+Ltac2 Type exn ::= [ DestKO (string, constr) ].
+
+Ltac2 destRel (c : constr) : int :=
+  match kind c with
+  | Rel n => n
+  | _ => Control.throw (DestKO "Rel" c)
+  end.
+
+Ltac2 destVar (c : constr) : ident :=
+  match kind c with
+  | Var id => id
+  | _ => Control.throw (DestKO "Var" c)
+  end.
+
+Ltac2 destMeta (c : constr) : meta :=
+  match kind c with
+  | Meta m => m
+  | _ => Control.throw (DestKO "Meta" c)
+  end.
+
+Ltac2 destEvar (c : constr) : evar * constr array :=
+  match kind c with
+  | Evar ev args => (ev, args)
+  | _ => Control.throw (DestKO "Evar" c)
+  end.
+
+Ltac2 destSort (c : constr) : sort :=
+  match kind c with
+  | Sort s => s
+  | _ => Control.throw (DestKO "Sort" c)
+  end.
+
+Ltac2 destCast (c : constr) : constr * cast * constr :=
+  match kind c with
+  | Cast v k ty => (v, k, ty)
+  | _ => Control.throw (DestKO "Cast" c)
+  end.
+
+Ltac2 destProd (c : constr) : binder * constr :=
+  match kind c with
+  | Prod b body => (b, body)
+  | _ => Control.throw (DestKO "Prod" c)
+  end.
+
+Ltac2 destLambda (c : constr) : binder * constr :=
+  match kind c with
+  | Lambda b body => (b, body)
+  | _ => Control.throw (DestKO "Lambda" c)
+  end.
+
+Ltac2 destLetIn (c : constr) : binder * constr * constr :=
+  match kind c with
+  | LetIn b v body => (b, v, body)
+  | _ => Control.throw (DestKO "LetIn" c)
+  end.
+
+Ltac2 destApp (c : constr) : constr * constr array :=
+  match kind c with
+  | App f args => (f, args)
+  | _ => Control.throw (DestKO "App" c)
+  end.
+
+Ltac2 destConstant (c : constr) : constant * instance :=
+  match kind c with
+  | Constant cst inst => (cst, inst)
+  | _ => Control.throw (DestKO "Constant" c)
+  end.
+
+Ltac2 destInd (c : constr) : inductive * instance :=
+  match kind c with
+  | Ind ind inst => (ind, inst)
+  | _ => Control.throw (DestKO "Ind" c)
+  end.
+
+Ltac2 destConstructor (c : constr) : constructor * instance :=
+  match kind c with
+  | Constructor cstr inst => (cstr, inst)
+  | _ => Control.throw (DestKO "Constructor" c)
+  end.
+
+Ltac2 destCase (c : constr) : case * (constr * Relevance.t) * case_invert * constr * constr array :=
+  match kind c with
+  | Case ci p iv scrut branches => (ci, p, iv, scrut, branches)
+  | _ => Control.throw (DestKO "Case" c)
+  end.
+
+Ltac2 destFix (c : constr) : int array * int * binder array * constr array :=
+  match kind c with
+  | Fix structs which tl bl => (structs, which, tl, bl)
+  | _ => Control.throw (DestKO "Fix" c)
+  end.
+
+Ltac2 destCoFix (c : constr) : int * binder array * constr array :=
+  match kind c with
+  | CoFix which tl bl => (which, tl, bl)
+  | _ => Control.throw (DestKO "CoFix" c)
+  end.
+
+Ltac2 destProj (c : constr) : projection * Relevance.t * constr :=
+  match kind c with
+  | Proj p r v => (p, r, v)
+  | _ => Control.throw (DestKO "Proj" c)
+  end.
+
+Ltac2 destUint63 (c : constr) : uint63 :=
+  match kind c with
+  | Uint63 n => n
+  | _ => Control.throw (DestKO "Uint63" c)
+  end.
+
+Ltac2 destFloat (c : constr) : float :=
+  match kind c with
+  | Float f => f
+  | _ => Control.throw (DestKO "Float" c)
+  end.
+
+Ltac2 destString (c : constr) : pstring :=
+  match kind c with
+  | String s => s
+  | _ => Control.throw (DestKO "String" c)
+  end.
+
+Ltac2 destArray (c : constr) : instance * constr array * constr * constr :=
+  match kind c with
+  | Array inst vals def ty => (inst, vals, def, ty)
+  | _ => Control.throw (DestKO "Array" c)
+  end.
+
 End Unsafe.
 
 Module Cast.
