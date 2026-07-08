@@ -8,6 +8,27 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+(* count newlines to get a nice error location instead of raw chars *)
+let get_loc f start end_ =
+  let ch = open_in f in
+  let rec loop lnum bol read =
+    if read = start then lnum, bol
+    else match input_char ch with
+      | '\n' -> loop (lnum+1) (read+1) (read+1)
+      | _ -> loop lnum bol (read+1)
+  in
+  let lnum, bol = loop 1 0 0 in
+  { Loc.fname = InFile { dirpath=None; file=f };
+    line_nb = lnum;
+    bol_pos = bol;
+    bp = start;
+    ep = end_;
+
+    (* not used by printing *)
+    line_nb_last = 0;
+    bol_pos_last = 0;
+  }
+
 (** Rocq files specifies on the command line:
     - first string is the full filename, with only its extension removed
     - second string is the absolute version of the previous (via getcwd)
@@ -204,7 +225,7 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
       DepSet.elements !dependencies
     | exception Syntax_error (i,j) ->
       (* The locations are garbage due to with_positions:false, ignore them *)
-      Error.cannot_parse f (i, j)
+      Error.cannot_parse ~loc:(get_loc f i j)
     | tok ->  match tok with
       | Require (from, strl) ->
         let from, strl = coq_to_stdlib from strl in
