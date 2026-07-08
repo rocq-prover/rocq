@@ -601,7 +601,7 @@ let update_delta_resolver resolver1 resolver2 =
   in
   let kn_apply_rslv kkey hint1 rslv =
     let hint = match hint1 with
-      | Equiv kequ -> solve_delta_kn resolver2 kequ
+      | Equiv kequ -> Equiv (kn_of_delta resolver2 kequ)
       | Inline (_,Some _) -> hint1
       | Inline (_,None) ->
         (try Deltamap.find_kn kkey resolver2 with Not_found -> hint1)
