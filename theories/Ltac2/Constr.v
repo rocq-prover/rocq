@@ -648,3 +648,11 @@ Ltac2 is_case(c: constr) :=
   | Unsafe.Case _ _ _ _ _ => true
   | _ => false
   end.
+
+(** [is_prod_nd c] returns [true] iff [c] is a non-dependent product,
+    i.e. a product whose codomain does not use the bound variable. *)
+Ltac2 is_prod_nd(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.Prod _ body => Unsafe.noccurn 1 body
+  | _ => false
+  end.
