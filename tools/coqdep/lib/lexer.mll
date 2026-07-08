@@ -13,18 +13,20 @@
   open Filename
   open Lexing
 
+  type loc = { loc_start : int; loc_end : int }
+
   type qualid = string list
 
   type load = Logical of string | Physical of string
 
   type coq_token =
-    | Require of qualid option * qualid list
+    | Require of qualid option * (loc * qualid) list
     | Declare of string list
     | Load of load
-    | External of qualid * string
+    | External of loc * qualid * string
 
   exception Fin_fichier
-  exception Syntax_error of int*int
+  exception Syntax_error of loc
 
   let unquote_string s =
     String.sub s 1 (String.length s - 2)
@@ -36,10 +38,18 @@
   let backtrack lexbuf = lexbuf.lex_curr_pos <- lexbuf.lex_start_pos;
     lexbuf.lex_curr_p <- lexbuf.lex_start_p
 
+  let loc_start lexbuf = lexbuf.lex_abs_pos + lexbuf.lex_start_pos
+  let loc_end lexbuf = lexbuf.lex_abs_pos + lexbuf.lex_curr_pos
+
+  let loc lexbuf = { loc_start=loc_start lexbuf; loc_end=loc_end lexbuf}
+
   let syntax_error lexbuf =
     (* abs_pos is position of the start of the buffer in the file
        start/curr_pos are positions in the buffer *)
-    raise (Syntax_error (lexbuf.lex_abs_pos + lexbuf.lex_start_pos, lexbuf.lex_abs_pos + lexbuf.lex_curr_pos))
+    raise (Syntax_error ({
+        loc_start = loc_start lexbuf;
+        loc_end = loc_end lexbuf;
+      }))
 
   let check_valid lexbuf s =
     match Unicode.ident_refutation s with
@@ -144,8 +154,9 @@ and extra_dep_rule from = parse
   | eof
       { syntax_error lexbuf }
   | '"' ([^ '"']+ as f) '"' (*'"'*)
-      { skip_to_dot lexbuf;
-        External (from,f) }
+      { let loc = loc lexbuf in
+        skip_to_dot lexbuf;
+        External (loc,from,f) }
 
 and require_modifiers from = parse
   | "(*"
@@ -220,8 +231,10 @@ and require_file from = parse
   | space+
       { require_file from lexbuf }
   | coq_ident
-      { let name = coq_qual_id_tail [get_ident lexbuf] lexbuf in
-        let qid = coq_qual_id_list [name] lexbuf in
+      { let loc_start = loc_start lexbuf in
+        let name = coq_qual_id_tail [get_ident lexbuf] lexbuf in
+        let loc_end = loc_end lexbuf in
+        let qid = coq_qual_id_list [{loc_start;loc_end},name] lexbuf in
         parse_dot lexbuf;
         Require (from, qid) }
   | eof
@@ -268,8 +281,10 @@ and coq_qual_id_list module_names = parse
   | space+
       { coq_qual_id_list module_names lexbuf }
   | coq_ident
-      { let name = coq_qual_id_tail [get_ident lexbuf] lexbuf in
-        coq_qual_id_list (name :: module_names) lexbuf
+      { let loc_start = loc_start lexbuf in
+        let name = coq_qual_id_tail [get_ident lexbuf] lexbuf in
+        let loc_end = loc_end lexbuf in
+        coq_qual_id_list (({loc_start;loc_end},name) :: module_names) lexbuf
       }
   | eof
       { syntax_error lexbuf }
