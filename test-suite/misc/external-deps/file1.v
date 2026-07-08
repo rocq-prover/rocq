@@ -1,1 +1,2 @@
-Comments From foo.bar Extra Dependency "d1".
+(* a
+ comment *) Comments From foo.bar Extra Dependency "d1".

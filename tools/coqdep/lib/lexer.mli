@@ -12,13 +12,15 @@ type qualid = string list
 
 type load = Logical of string | Physical of string
 
+type loc = { loc_start : int; loc_end : int }
+
 type coq_token =
-  | Require of qualid option * qualid list
+  | Require of qualid option * (loc * qualid) list
   | Declare of string list
   | Load of load
-  | External of qualid * string
+  | External of loc * qualid * string
 
 exception Fin_fichier
-exception Syntax_error of int * int
+exception Syntax_error of loc
 
 val coq_action : Lexing.lexbuf -> coq_token
