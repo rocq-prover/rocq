@@ -36,12 +36,14 @@ reference manual requires Python 3, and the following Python packages:
   - antlr4-python3-runtime >= 4.7.1 & <= 4.9.3
   - pexpect >= 4.8.0
   - sphinxcontrib-bibtex >= 2.4.2
+  - sphinx-markdown-builder >= 0.6.10
 
 To install them, you should first install pip and setuptools (for instance,
 with `apt install python3-pip python3-setuptools` on Debian / Ubuntu) then run:
 
     pip3 install sphinx sphinx_rtd_theme beautifulsoup4 \
-                 antlr4-python3-runtime==4.7.1 pexpect sphinxcontrib-bibtex
+                 antlr4-python3-runtime==4.7.1 pexpect sphinxcontrib-bibtex \
+                 sphinx-markdown-builder==0.6.10
 
 Nix users should get the correct development environment to build the
 HTML documentation from Coq's [`default.nix`](../default.nix) (note this
@@ -70,6 +72,71 @@ Or if you want to use less disk space:
 
     apt install texlive-latex-extra texlive-fonts-recommended texlive-xetex \
                 latexmk fonts-freefont-otf
+
+### JSON indices
+
+The documentation generator can also produce computer-readable JSON files for individual indices
+with `make refman-indices`. These files are meant to be useful for tool developers, for instance
+to power autocompletion in editors. They output files are found in `doc/refman-indices/*.json`.
+
+Each JSON index has the following shape:
+
+```typescript
+{
+  // a key is the name of the index entry
+  [string]: {
+    // the refman documentation page path for that entry
+    "documentation_path": string.
+    // the anchor on that page that leads to the documentation entry
+    "documentation_anchor": string,
+    // the grammar description
+    "syntax": Syntax,
+    // a simpler, markdown documentation
+    "documentation": string,
+  }
+}
+```
+
+Where `Syntax` can be used to match some text against the index entry or to propose the
+user a code snippet. It is of the following shape:
+
+```ts
+type Syntax =
+  | ["Literal", Literal]
+  | ["Reference", Reference]
+  | ["Alternative", Alternative]
+  | ["Repeat", Repeat]
+
+// the literal string
+type Literal = {
+  value: string
+  // an optional subscript, for example "1" which should be rendered as "₁"
+  subscript: string | null
+}
+
+// a reference to a different entry in the documentation
+type Reference = {
+  value: string
+  // an optional subscript, for example "1" which should be rendered as "₁"
+  subscript: string | null
+}
+
+// an alternative between a list of options
+type Alternative = {
+  children: Syntax[]
+}
+
+// repetition of a list of syntax nodes
+type Repeat = {
+  // nodes have to repeat at least this many times
+  min: number
+  // nodes can repeat up to and including this many times
+  max: number | null
+  // each repetition has to be separated with this
+  separator: string | null
+  children: Syntax[]
+}
+```
 
 ### Setting the locale for Python
 
@@ -105,6 +172,9 @@ The current documentation targets are:
 
 - `make corelib-html`
   Build Rocq core library documentation into `_build/default/doc/corelib/html`
+
+- `make refman-indices`
+  Build the JSON indices into `doc/refman-indices`
 
 - `make apidoc`
   Build the ML API's documentation into `_build/default/_doc/_html`

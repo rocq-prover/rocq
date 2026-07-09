@@ -36,7 +36,7 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
 
 # More dependencies of the sphinx doc
 RUN pip3 install --break-system-packages docutils==0.21.2 sphinx==8.2.3 sphinx_rtd_theme==3.0.2 \
-        antlr4-python3-runtime==4.7.1 sphinxcontrib-bibtex==2.6.3 \
+        antlr4-python3-runtime==4.7.1 sphinxcontrib-bibtex==2.6.3 sphinx-markdown-builder==0.6.10 \
       && rm -rf ~/.cache/pip
 
 # We need to install OPAM 2.0 manually for now.
