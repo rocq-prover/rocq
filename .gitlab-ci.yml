@@ -1246,10 +1246,13 @@ plugin:ci-vsrocq:
   extends: .ci-template-flambda
 
 plugin:ci-smtcoq:
-  extends: .ci-template
+  extends: .ci-template-flambda
+  stage: build-3+
   needs:
-  - build:base
-  - library:ci-stdlib
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
+  - plugin:ci-elpi_hb
+  - library:ci-trakt
 
 plugin:ci-stalmarck:
   extends: .ci-template
