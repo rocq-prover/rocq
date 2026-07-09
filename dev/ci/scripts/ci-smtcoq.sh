@@ -10,6 +10,6 @@ git_download smtcoq
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 ( cd "${CI_BUILD_DIR}/smtcoq"
-  make
-  make install
+  dune build -p rocq-smtcoq
+  dune install rocq-smtcoq
 )
