@@ -91,11 +91,32 @@ let build_dependent_inductive ind (mib,mip) =
        Context.Rel.instance_list mkRel mip.mind_nrealdecls mib.mind_params_ctxt
        @ Context.Rel.instance_list mkRel 0 realargs)
 
+(* For a template polymorphic inductive, generate an instance to
+   substitute into the contexts copied from the inductive declaration.
+   Using the default template levels (e.g. eq.u0) would make the type of
+   the scheme mention global template universes, so that each use of the
+   scheme would in turn constrain them (see the bad-template-constraint
+   warning and #22220). We thus use fresh levels, which become universes
+   of the scheme; the accompanying context set must be declared by the
+   caller. Qualities are kept at their (all-QType) defaults since the
+   scheme is monomorphic. This instance is only used for substitution
+   into the copied contexts: occurrences of the inductive in the scheme
+   itself keep an empty instance, as required for template inductives.
+   Since the schemes of an inductive type no longer share universes, a
+   scheme applying a previously declared scheme also needs constraints
+   relating its universes to those of the latter (see
+   [enforce_scheme_param_univs]). *)
 let maybe_template_instance (mib, mip) u = match mib.mind_template with
-| None -> u
+| None -> u, UnivGen.empty_sort_context
 | Some templ ->
   let () = assert (UVars.Instance.is_empty u) in
-  templ.template_defaults
+  let qdefaults, _ = UVars.Instance.to_array templ.template_defaults in
+  let _, ulen = UVars.AbstractContext.size templ.template_context in
+  let uinst = Array.init ulen (fun _ -> UnivGen.fresh_level ()) in
+  let inst = UVars.Instance.of_array (qdefaults, uinst) in
+  let us = Array.fold_right Univ.Level.Set.add uinst Univ.Level.Set.empty in
+  let csts = UVars.AbstractContext.instantiate inst templ.template_context in
+  inst, ((Sorts.QVar.Set.empty, us), csts)
 
 let named_hd env t na = named_hd env (Evd.from_env env) (EConstr.of_constr t) na
 let name_assumption env = function
@@ -145,7 +166,7 @@ let error msg = user_err Pp.(str msg)
 
 let get_sym_eq_data env (ind,u) =
   let (mib,mip as specif) = lookup_mind_specif env ind in
-  let u = maybe_template_instance specif u in
+  let u, ctx = maybe_template_instance specif u in
   if not (Int.equal (Array.length mib.mind_packets) 1) ||
     not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
@@ -167,7 +188,7 @@ let get_sym_eq_data env (ind,u) =
   if not (List.equal Constr.equal params2 constrargs) then
     error "Constructors arguments must repeat the parameters.";
   (* nrealargs_ctxt and nrealargs are the same here *)
-  (specif,mip.mind_nrealargs,realsign,paramsctxt,paramsctxt1)
+  (specif,mip.mind_nrealargs,realsign,paramsctxt,paramsctxt1,ctx)
 
 (**********************************************************************)
 (* Check if an inductive type [ind] has the form                      *)
@@ -181,7 +202,7 @@ let get_sym_eq_data env (ind,u) =
 
 let get_non_sym_eq_data env (ind,u) =
   let (mib,mip as specif) = lookup_mind_specif env ind in
-  let u = maybe_template_instance specif u in
+  let u, ctx = maybe_template_instance specif u in
   if not (Int.equal (Array.length mib.mind_packets) 1) ||
     not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
@@ -196,7 +217,7 @@ let get_non_sym_eq_data env (ind,u) =
   let _,constrargs = List.chop mib.mind_nparams constrargs in
   let constrargs = List.map (Vars.subst_instance_constr u) constrargs in
   let paramsctxt = Vars.subst_instance_context u mib.mind_params_ctxt in
-  (specif,constrargs,realsign,paramsctxt,mip.mind_nrealargs)
+  (specif,constrargs,realsign,paramsctxt,mip.mind_nrealargs,ctx)
 
 (**********************************************************************)
 (* Build the symmetry lemma associated to an inductive type           *)
@@ -214,8 +235,9 @@ let get_non_sym_eq_data env (ind,u) =
 
 let build_sym_scheme env _handle ind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
+  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
     get_sym_eq_data env indu in
+  let ctx = UnivGen.sort_context_union ctx ctx' in
   let cstr n =
     mkApp (mkConstructUi(indu,1),Context.Rel.instance mkRel n mib.mind_params_ctxt) in
   let varH,_ = fresh env (default_id_of_ind ind mip) Id.Set.empty in
@@ -267,16 +289,49 @@ let sym_scheme_kind =
 (*                                                                    *)
 (**********************************************************************)
 
-let const_of_scheme kind env handle ind ctx =
+(* The universes standing for the template universes of the inductive
+   type are local to each scheme (see [maybe_template_instance]), so
+   the parameters of two schemes of the same inductive type live at a
+   priori unrelated universes. Applying the constant [c] of a
+   previously declared scheme to the parameters of the scheme being
+   built thus requires the sorts of the parameters of the latter to fit
+   in the sorts of the corresponding binders of the type of [c]. The
+   two parameter contexts have the same shape, except that the let-ins
+   of [paramsctxt] do not appear in the kernel-inferred type of [c]. *)
+let enforce_scheme_param_univs env paramsctxt c ctx =
+  let univ_of_param t =
+    let _, s = decompose_prod_decls t in
+    if isSort s then Some (Sorts.univ_of_sort (destSort s)) else None
+  in
+  let rec fold ctx params t = match params with
+  | [] -> ctx
+  | LocalDef _ :: params -> fold ctx params t
+  | LocalAssum (_, ty) :: params ->
+    let _, cty, t = destProd t in
+    let ctx = match univ_of_param ty, univ_of_param cty with
+    | Some u, Some cu ->
+      (* trivial constraints, i.e. between global universes shared by
+         the two schemes, are dropped by enforce_leq *)
+      let qus, (qcst, ucst) = ctx in
+      qus, (qcst, UnivSubst.enforce_leq u cu ucst)
+    | _ -> ctx
+    in
+    fold ctx params t
+  in
+  fold ctx (List.rev paramsctxt) (Typeops.type_of_constant_in env (destConst c))
+
+let const_of_scheme kind env handle ind paramsctxt ctx =
   let sym_scheme = match local_lookup_scheme handle kind ind with Some cst -> cst | None -> assert false in
-  with_context_set ctx (UnivGen.fresh_global_instance env sym_scheme)
+  let c, ctx = with_context_set ctx (UnivGen.fresh_global_instance env sym_scheme) in
+  c, enforce_scheme_param_univs env paramsctxt c ctx
 
 let build_sym_involutive_scheme env handle ind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
+  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
     get_sym_eq_data env indu in
+  let ctx = UnivGen.sort_context_union ctx ctx' in
   let eq,eqrefl,ctx = get_rocq_eq env ctx in
-  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind ctx in
+  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind paramsctxt ctx in
   let cstr n = mkApp (mkConstructUi (indu,1),Context.Rel.instance mkRel n paramsctxt) in
   let indr = UVars.subst_instance_relevance u mip.mind_relevance in
   let varH,_ = fresh env (default_id_of_ind ind mip) Id.Set.empty in
@@ -384,10 +439,11 @@ let sym_involutive_scheme_kind =
 
 let build_l2r_rew_scheme dep env handle ind kind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
+  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
     get_sym_eq_data env indu in
-  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind ctx in
-  let sym_involutive, ctx = const_of_scheme sym_involutive_scheme_kind env handle ind ctx in
+  let ctx = UnivGen.sort_context_union ctx ctx' in
+  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind paramsctxt ctx in
+  let sym_involutive, ctx = const_of_scheme sym_involutive_scheme_kind env handle ind paramsctxt ctx in
   let eq,eqrefl,ctx = get_rocq_eq env ctx in
   let cstr n p =
     mkApp (mkConstructUi(indu,1),
@@ -504,8 +560,9 @@ let build_l2r_rew_scheme dep env handle ind kind =
 
 let build_l2r_forward_rew_scheme dep env ind kind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1 =
+  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
     get_sym_eq_data env indu in
+  let ctx = UnivGen.sort_context_union ctx ctx' in
   let cstr n p =
     mkApp (mkConstructUi(indu,1),
       Array.concat [Context.Rel.instance mkRel n paramsctxt1;
@@ -600,8 +657,9 @@ let build_l2r_forward_rew_scheme dep env ind kind =
 
 let build_r2l_forward_rew_scheme dep env ind kind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let ((mib,mip as specif),constrargs,realsign,paramsctxt,nrealargs) =
+  let ((mib,mip as specif),constrargs,realsign,paramsctxt,nrealargs,ctx') =
     get_non_sym_eq_data env indu in
+  let ctx = UnivGen.sort_context_union ctx ctx' in
   let cstr n =
     mkApp (mkConstructUi(indu,1),Context.Rel.instance mkRel n mib.mind_params_ctxt) in
   let constrargs_cstr = constrargs@[cstr 0] in
@@ -810,7 +868,8 @@ let build_congr env (eq,refl,ctx) ind =
   let (ind,u as indu), ctx = with_context_set ctx
     (UnivGen.fresh_inductive_instance env ind) in
   let (mib,mip) = lookup_mind_specif env ind in
-  let u = maybe_template_instance (mib, mip) u in
+  let u, ctx' = maybe_template_instance (mib, mip) u in
+  let ctx = UnivGen.sort_context_union ctx ctx' in
   if not (Int.equal (Array.length mib.mind_packets) 1) || not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
   if not (Int.equal mip.mind_nrealargs 1) then
