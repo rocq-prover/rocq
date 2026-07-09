@@ -108,32 +108,3 @@ value rocq_tcode_array(value tcodes) {
   }
   CAMLreturn(res);
 }
-
-/* Keep the compile-time checks in sync with rocq_configure.c */
-
-#ifdef NO_NATIVE_COMPUTE
-
-value rocq_curry2_1_addr(value v) {
-  return Val_unit;
-}
-
-#elif defined(NO_NAKED_POINTERS)
-
-__attribute__((weak))
-void caml_curry2_1() {
-  abort();
-}
-
-value rocq_curry2_1_addr(value v) {
-  extern void caml_curry2_1() __attribute__((weak));
-  return (value)&caml_curry2_1;
-}
-
-#else // not NO_NAKED_POINTERS
-
-value rocq_curry2_1_addr(value v) {
-  extern void caml_curry2_1() __attribute__((weak));
-  return (value)&caml_curry2_1;
-}
-
-#endif
