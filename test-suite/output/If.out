@@ -1,8 +1,8 @@
 if true then 1 else 0
      : nat
 File "./output/If.v", line 3, characters 6-24:
-Warning: The "if <c> then _" syntax for non boolean guard is deprecated. Use
-"if <c> is <first_constructor> then _" instead.
+Warning: The "if <c> then _" syntax for non boolean guard is deprecated.
+Use "if <c> is O then _" instead.
 [non-boolean-if,deprecated-since-9.3,deprecated,default]
 Quickfix:
 Replace File "./output/If.v", line 3, characters 10-10 with  is O
