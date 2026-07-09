@@ -10,6 +10,6 @@ git_download smtcoq
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 ( cd "${CI_BUILD_DIR}/smtcoq"
-  dune build -p rocq-smtcoq
-  dune install rocq-smtcoq
+  dune build --root . -only-packages=rocq-smtcoq @install
+  dune install -root . rocq-smtcoq --prefix="$CI_INSTALL_DIR"
 )
