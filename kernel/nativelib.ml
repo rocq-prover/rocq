@@ -180,9 +180,9 @@ let call_compiler ?profile:(profile=false) mlf_filename =
     match res with
     | Unix.WEXITED 0 -> ()
     | Unix.WEXITED _n | Unix.WSIGNALED _n | Unix.WSTOPPED _n ->
-      error_native_compiler_failed (Inl res) "During .mlf compilation: "
+      error_native_compiler_failed (Inl res) "During .native compilation: "
   with Unix.Unix_error (e,_,_) ->
-    error_native_compiler_failed (Inr e) "During .mlf compilation: "
+    error_native_compiler_failed (Inr e) "During .native compilation: "
   end; begin try
     debug_native_compiler (fun () -> Pp.str (ocamlfind ^ " " ^ (String.concat " " ocamlopt_args)));
     let res = if Dynlink.is_native then CUnix.sys_command ocamlfind ocamlopt_args else Unix.WEXITED 0 in
