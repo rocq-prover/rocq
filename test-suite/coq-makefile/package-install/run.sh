@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -ex
+
 . ../template/path-init.sh
 
 rm -rf _test
@@ -9,6 +11,7 @@ cd _test
 
 testdir=$PWD
 
+# foo: a package with both findlib and legacy install
 cd foo || exit 1
 rocq makefile -f _CoqProject.legacy -o Makefile.legacy 2> legacy.err
 grep -q 'Omitting --rocq-package is deprecated' legacy.err
@@ -31,21 +34,28 @@ make
 make install DSTROOT="$testdir/tmp"
 
 pkgdir="$(find "$testdir/tmp" -type d -name foo | head -n 1)"
+libdir="$(dirname "$pkgdir")"
+user_contrib_dir=$(find "$testdir/tmp" -type d -name user-contrib)
 test -n "$pkgdir"
 test -f "$pkgdir/META"
 test -f "$pkgdir/rocq.d/A.vo"
 grep -q 'rocqpath = "Foo"' "$pkgdir/META"
 grep -q 'directory = "."' "$pkgdir/META"
-test -f "$(find "$testdir/tmp" -path '*/user-contrib/Foo/A.vo' | head -n 1)"
+test -f "$user_contrib_dir/Foo/A.vo"
 
+# plug: a plugin (and Loader.v) with only findlib install
 cd ../plug || exit 1
 rocq makefile -f _CoqProject -o Makefile
 grep -q 'rocqpath = "Plug"' src/META.plug
 grep -q 'directory = "."' src/META.plug
 grep -q 'requires = "plug.plugin"' src/META.plug
 grep -q 'package "plugin"' src/META.plug
+make
+make install DSTROOT="$testdir/tmp"
 
-libdir="$(dirname "$pkgdir")"
+# installed in findlib but not user-contrib
+test "$libdir/plug/rocq.d/Loader.vo" = "$(find "$testdir/tmp" -name Loader.vo)"
+
 cd ../use || exit 1
 
 if which cygpath 2>/dev/null; then
@@ -55,7 +65,9 @@ else
 fi
 
 rocq makefile -f _CoqProject -o Makefile
-grep -q 'COQMF_PACKAGES = foo' Makefile.conf
+grep -q 'COQMF_PACKAGES = foo plug' Makefile.conf ||
+  grep -q 'COQMF_PACKAGES = plug foo' Makefile.conf
+
 if grep -q 'rocq\.d' Makefile.conf; then
   echo 'package dependency was baked into Makefile.conf'
   exit 1
