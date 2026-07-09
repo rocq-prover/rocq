@@ -148,9 +148,17 @@ let get_instr (lnum, l) =
 let rec process_cmds acc = function
   | [] -> acc
   | end_event :: start_event :: rest ->
-    let hdr, line = get_src_info start_event in
     let start_ts = get_ts start_event in
     let end_ts = get_ts end_event in
+    let hdr, line =
+      (* TRANSITIONARY: The src info is either in the start or end event
+         depending on the exact commit that generated the profiles. *)
+      try
+        get_src_info start_event
+      with
+      | Not_found ->
+        get_src_info end_event
+    in
     let src_chars = get_src_chars ~lnum:(fst start_event) hdr in
     let time = mk_time start_ts end_ts in
     let memory = mk_memory end_event in
