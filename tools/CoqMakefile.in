@@ -29,8 +29,8 @@ MLLIBFILES        := $(COQMF_MLLIBFILES)
 METAFILE          := $(COQMF_METAFILE)
 ROCQPACKAGE       := $(COQMF_ROCQPACKAGE)
 LEGACYSUPPORT     := $(COQMF_LEGACY_SUPPORT)
-HASROCQPATH       := $(COQMF_HAS_ROCQPATH)
-ROCQPATH          := $(COQMF_ROCQPATH)
+HAS_PACKAGE_LOGICAL_PATH := $(COQMF_HAS_PACKAGE_LOGICAL_PATH)
+PACKAGE_LOGICAL_PATH   := $(COQMF_PACKAGE_LOGICAL_PATH)
 CMDLINE_VFILES    := $(COQMF_CMDLINE_VFILES)
 INSTALLCOQDOCROOT := $(COQMF_INSTALLCOQDOCROOT)
 OTHERFLAGS        := $(COQMF_OTHERFLAGS)
@@ -596,8 +596,8 @@ install: META
 	$(call findlib_remove)
 	$(call findlib_install, META $(FINDLIBFILESTOINSTALL))
 	$(HIDE)if [ "$(ROCQPACKAGE)" ]; then \
-	 if [ "$(HASROCQPATH)" != "true" ]; then echo "Error: $(METAFILE) has no top-level rocqpath field"; exit 1; fi; \
-	 root="$(subst .,/,$(ROCQPATH))"; \
+	 if [ "$(HAS_PACKAGE_LOGICAL_PATH)" != "true" ]; then echo "Error: $(METAFILE) has no top-level rocqpath field"; exit 1; fi; \
+	 root="$(subst .,/,$(PACKAGE_LOGICAL_PATH))"; \
 	 for f in $$(cat .filestoinstall); do\
 	   df="`$(COQMKFILE) -destination-of "$$f" $(COQLIBS)`"; rc="$$?";\
 	   if [ "$$rc" != "0" -o -z "$$df" ]; then\
@@ -609,7 +609,7 @@ install: META
 	       case "$$df" in \
 	         "$$root") rel="" ;; \
 	         "$$root"/*) rel="$${df#$$root/}" ;; \
-	         *) echo SKIP "$$f" since it is outside rocqpath "$(ROCQPATH)"; continue ;; \
+	         *) echo SKIP "$$f" since it is outside rocqpath "$(PACKAGE_LOGICAL_PATH)"; continue ;; \
 	       esac; \
 	     else \
 	       case "$$rel" in /*) rel="$${rel#/}" ;; esac; \

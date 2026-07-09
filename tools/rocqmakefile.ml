@@ -435,8 +435,8 @@ let generate_conf_files oc p =
     | Some _, Present x -> read_meta_rocqpath x
     | _ -> None
   in
-  fprintf oc "COQMF_HAS_ROCQPATH = %s\n" (if Option.has_some rocqpath then "true" else "false");
-  fprintf oc "COQMF_ROCQPATH = %s\n" (Option.default "" rocqpath)
+  fprintf oc "COQMF_HAS_PACKAGE_LOGICAL_PATH = %s\n" (if Option.has_some rocqpath then "true" else "false");
+  fprintf oc "COQMF_PACKAGE_LOGICAL_PATH = %s\n" (Option.default "" rocqpath)
 
 let rec all_start_with prefix = function
   | [] -> true
