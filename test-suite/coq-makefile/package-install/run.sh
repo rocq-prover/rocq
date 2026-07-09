@@ -3,37 +3,13 @@
 . ../template/path-init.sh
 
 rm -rf _test
-mkdir -p _test/foo/theories _test/use _test/tmp
+mkdir _test
+find . -maxdepth 1 -not -name . -not -name _test -exec cp -r '{}' -t _test ';'
+cd _test
 
-testdir=$PWD/_test
+testdir=$PWD
 
-cd _test/foo || exit 1
-cat > theories/A.v <<'EOT'
-Definition x := 0.
-EOT
-cat > _CoqProject <<'EOT'
---rocq-package foo
---package-version 1.2.3
---description "Test package"
---legacy-support
--R theories Foo
-theories/A.v
-EOT
-cat > _CoqProject.bad <<'EOT'
---rocq-package bad
--Q theories Foo
--R theories Foo
-theories/A.v
-EOT
-cat > _CoqProject.legacy <<'EOT'
--R theories Foo
-theories/A.v
-EOT
-cat > _CoqProject.silent <<'EOT'
---no-rocq-package-warning
--R theories Foo
-theories/A.v
-EOT
+cd foo || exit 1
 rocq makefile -f _CoqProject.legacy -o Makefile.legacy 2> legacy.err
 grep -q 'Omitting --rocq-package is deprecated' legacy.err
 rocq makefile -f _CoqProject.silent -o Makefile.silent 2> silent.err
@@ -62,43 +38,15 @@ grep -q 'rocqpath = "Foo"' "$pkgdir/META"
 grep -q 'directory = "."' "$pkgdir/META"
 test -f "$(find "$testdir/tmp" -path '*/user-contrib/Foo/A.vo' | head -n 1)"
 
-cd .. || exit 1
-mkdir -p plug/theories plug/src
-cat > plug/theories/Loader.v <<'EOT'
-Declare ML Module "plug.plugin".
-EOT
-cat > plug/src/plug.mlpack <<'EOT'
-Dummy
-EOT
-cat > plug/src/dummy.ml <<'EOT'
-let () = ()
-EOT
-cat > plug/_CoqProject <<'EOT'
---rocq-package plug
--Q theories Plug
--I src
-theories/Loader.v
-src/dummy.ml
-src/plug.mlpack
-EOT
-(cd plug && rocq makefile -f _CoqProject -o Makefile)
-grep -q 'rocqpath = "Plug"' plug/src/META.plug
-grep -q 'directory = "."' plug/src/META.plug
-grep -q 'requires = "plug.plugin"' plug/src/META.plug
-grep -q 'package "plugin"' plug/src/META.plug
+cd ../plug || exit 1
+rocq makefile -f _CoqProject -o Makefile
+grep -q 'rocqpath = "Plug"' src/META.plug
+grep -q 'directory = "."' src/META.plug
+grep -q 'requires = "plug.plugin"' src/META.plug
+grep -q 'package "plugin"' src/META.plug
 
 libdir="$(dirname "$pkgdir")"
-cd use || exit 1
-cat > B.v <<'EOT'
-From Foo Require A.
-Definition y := A.x.
-EOT
-cat > _CoqProject <<'EOT'
---rocq-package bar
--package foo
--Q . Bar
-B.v
-EOT
+cd ../use || exit 1
 
 if which cygpath 2>/dev/null; then
   export OCAMLPATH="$(cygpath -m "$libdir");$OCAMLPATH"

@@ -1,0 +1,4 @@
+--rocq-package bar
+-package foo
+-Q . Bar
+B.v

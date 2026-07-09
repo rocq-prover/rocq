@@ -1,0 +1,3 @@
+--no-rocq-package-warning
+-R theories Foo
+theories/A.v
