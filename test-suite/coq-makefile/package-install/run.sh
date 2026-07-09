@@ -5,6 +5,8 @@
 rm -rf _test
 mkdir -p _test/foo/theories _test/use _test/tmp
 
+testdir=$PWD/_test
+
 cd _test/foo || exit 1
 cat > theories/A.v <<'EOT'
 Definition x := 0.
@@ -50,15 +52,15 @@ grep -q 'directory = "."' META.foo
 grep -q 'version = "1.2.3"' META.foo
 grep -q 'description = "Test package"' META.foo
 make
-make install DSTROOT="$PWD/../tmp"
+make install DSTROOT="$testdir/tmp"
 
-pkgdir="$(find ../tmp -type d -name foo | head -n 1)"
+pkgdir="$(find "$testdir/tmp" -type d -name foo | head -n 1)"
 test -n "$pkgdir"
 test -f "$pkgdir/META"
 test -f "$pkgdir/rocq.d/A.vo"
 grep -q 'rocqpath = "Foo"' "$pkgdir/META"
 grep -q 'directory = "."' "$pkgdir/META"
-test -f "$(find ../tmp -path '*/user-contrib/Foo/A.vo' | head -n 1)"
+test -f "$(find "$testdir/tmp" -path '*/user-contrib/Foo/A.vo' | head -n 1)"
 
 cd .. || exit 1
 mkdir -p plug/theories plug/src
@@ -99,9 +101,9 @@ B.v
 EOT
 
 if which cygpath 2>/dev/null; then
-  export OCAMLPATH="$OCAMLPATH;$(cygpath -m "$libdir")"
+  export OCAMLPATH="$(cygpath -m "$libdir");$OCAMLPATH"
 else
-  export OCAMLPATH="$OCAMLPATH:$libdir"
+  export OCAMLPATH="$libdir:$OCAMLPATH"
 fi
 
 rocq makefile -f _CoqProject -o Makefile
@@ -111,9 +113,10 @@ if grep -q 'rocq\.d' Makefile.conf; then
   exit 1
 fi
 make
+test -e B.vo
 
 cd ../foo || exit 1
-make uninstall DSTROOT="$PWD/../tmp"
+make uninstall DSTROOT="$testdir/tmp"
 test ! -e "$pkgdir/META"
 test ! -d "$pkgdir/rocq.d"
 test -z "$(find ../tmp -path '*/user-contrib/Foo/A.vo' | head -n 1)"
