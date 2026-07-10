@@ -10,7 +10,8 @@
 (rule
  (targets test_suite_config.inc)
  (mode (promote (until-clean)))
- (action (with-stdout-to %{targets} (run tools/coq_config_to_make.exe %{bin:rocq}))))
+ (deps (package rocq-runtime))
+ (action (with-stdout-to %{targets} (run tools/coq_config_to_make.exe rocq))))
 
 (rule
  (targets summary.log)
