@@ -102,13 +102,9 @@ let msg_debug   ?loc x = feedback_logger ?loc Debug x
 (* Helper for tools willing to understand only the messages *)
 let console_feedback_listener fmt =
   let open Format in
-  let pp_loc fmt loc = let open Loc in match loc with
-    | None     -> fprintf fmt ""
-    | Some loc ->
-      let where =
-        match loc.fname with InFile { file } -> file | ToplevelInput -> "Toplevel input" in
-      fprintf fmt "\"%s\", line %d, characters %d-%d:@\n"
-        where loc.line_nb (loc.bp-loc.bol_pos) (loc.ep-loc.bol_pos) in
+  let pp_loc fmt = function
+    | None     -> ()
+    | Some loc -> Pp.pp_with fmt Pp.(Loc.pr loc ++ str ":" ++ fnl()) in
   let checker_feed (fb : feedback) =
   match fb.contents with
   | Processed   -> ()

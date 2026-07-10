@@ -56,5 +56,7 @@ let main args =
   try
     coqdep args
   with exn ->
-    Format.eprintf "*** Error: @[%a@]@\n%!" Pp.pp_with (CErrors.print exn);
+    let exn = Exninfo.capture exn in
+    let loc = Loc.get_loc (snd exn) in
+    Feedback.msg_notice ?loc Pp.(str "Error: " ++ CErrors.iprint exn);
     exit 1

@@ -8,7 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-exception CannotParseFile of string * (int * int)
+exception CannotParseFile
 exception CannotParseProjectFile of string * string
 
 exception CannotOpenFile of string * string
@@ -16,9 +16,8 @@ exception CannotOpenProjectFile of string
 
 
 let () = CErrors.register_handler @@ function
-  | CannotParseFile (s,(i,j)) ->
-    Some Pp.(str "File \"" ++ str s ++ str "\"," ++ str "characters" ++ spc ()
-      ++ int i ++ str "-" ++ int j ++ str ":" ++ spc () ++ str "Syntax error")
+  | CannotParseFile ->
+    Some Pp.(str "Syntax error")
 
   | CannotParseProjectFile (file, msg) ->
     Some Pp.(str "Project file" ++ spc () ++ str  "\"" ++ str file ++ str "\":" ++ spc ()
@@ -33,7 +32,7 @@ let () = CErrors.register_handler @@ function
 
   | _ -> None
 
-let cannot_parse s ij = raise @@ CannotParseFile (s, ij)
+let cannot_parse ~loc = Loc.raise ~loc @@ CannotParseFile
 let cannot_open_project_file msg = raise @@ CannotOpenProjectFile msg
 let cannot_parse_project_file file msg = raise @@ CannotParseProjectFile (file, msg)
 let cannot_open s msg = raise @@ CannotOpenFile (s, msg)
