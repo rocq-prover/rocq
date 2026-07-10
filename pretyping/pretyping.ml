@@ -1405,14 +1405,20 @@ struct
     Cases.compile_cases ?loc ~program_mode:flags.program_mode sty (pretype, sigma) tycon env (po,tml,eqns)
 
   let warn_nonbool_if =
-    let quickfix ~loc (cloc, pp) =
-      let qf loc = let loc = Loc.after loc 0 0 in [Quickfix.make ~loc pp] in
-      Option.cata qf [] cloc in
+    let quickfix ~loc:_ (cloc, ctor) =
+      match cloc with
+      | None -> []
+      | Some cloc ->
+        let loc = Loc.after cloc 0 0 in
+        let pp = Pp.(str " is " ++ Nametab.pr_global_env Id.Set.empty (ConstructRef ctor)) in
+        [Quickfix.make ~loc pp]
+    in
     CWarnings.create ~name:"non-boolean-if" ~category:Deprecation.Version.v9_3
       ~quickfix
-      (fun _ ->
-         strbrk "The \"if <c> then _\" syntax for non boolean guard is deprecated. "
-         ++ strbrk "Use \"if <c> is <first_constructor> then _\" instead.")
+      (fun (_,ctor) ->
+         str "The \"if <c> then _\" syntax for non boolean guard is deprecated." ++ spc() ++
+         fmt "Use \"if <c> is %t then _\" instead."
+           (fun () -> Nametab.pr_global_env Id.Set.empty (ConstructRef ctor)))
 
   let pretype_if self (c, (na, po), b1, b2) =
     fun ?loc ~flags tycon env sigma ->
@@ -1436,7 +1442,7 @@ struct
           | Some bool -> GlobRef.CanOrd.equal (IndRef ind) bool in
       if not indf_is_bool then
         let cloc = loc_of_glob_constr c in
-        warn_nonbool_if ?loc (cloc, Pp.str " is " ++ Id.print cstrs.(0).cs_name) in
+        warn_nonbool_if ?loc (cloc, fst cstrs.(0).cs_cstr) in
     let arsgn, indr =
       let arsgn = get_arity !!env indf in
       (* Make dependencies from arity signature impossible *)
