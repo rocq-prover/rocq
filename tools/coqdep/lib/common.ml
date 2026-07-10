@@ -8,6 +8,27 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+(* count newlines to get a nice error location instead of raw chars *)
+let get_loc f { Lexer.loc_start = start; loc_end = end_ } =
+  let ch = open_in f in
+  let rec loop lnum bol read =
+    if read = start then lnum, bol
+    else match input_char ch with
+      | '\n' -> loop (lnum+1) (read+1) (read+1)
+      | _ -> loop lnum bol (read+1)
+  in
+  let lnum, bol = loop 1 0 0 in
+  { Loc.fname = InFile { dirpath=None; file=f };
+    line_nb = lnum;
+    bol_pos = bol;
+    bp = start;
+    ep = end_;
+
+    (* not used by printing *)
+    line_nb_last = 0;
+    bol_pos_last = 0;
+  }
+
 (** Rocq files specifies on the command line:
     - first string is the full filename, with only its extension removed
     - second string is the absolute version of the previous (via getcwd)
@@ -45,9 +66,8 @@ type what = Library | External
 let str_of_what = function Library -> "library" | External -> "external file"
 
 let warning_module_notfound =
-  let warn (what, from, f, s) =
+  let warn (what, from, s) =
     let open Pp in
-    str "in file " ++ str f ++ str ", " ++
     str (str_of_what what) ++ spc () ++ str (String.concat "." s) ++ str " is required" ++
     pr_opt (fun pth -> str "from root " ++ str (String.concat "." pth)) from ++
     str " and has not been found in the loadpath!"
@@ -150,13 +170,7 @@ let coq_to_stdlib from strl =
     | l -> l in
   match from with
   | Some from -> Some (tr_qualid from), strl
-  | None -> None, List.map tr_qualid strl
-
-let with_in_channel ~fname f =
-  let chan = try open_in fname
-    with Sys_error msg -> Error.cannot_open fname msg
-  in
-  Util.try_finally f chan close_in chan
+  | None -> None, List.map (Util.on_snd tr_qualid) strl
 
 let with_in_descr ~fname f =
   let descr =
@@ -176,8 +190,6 @@ module State = struct
   }
   let loadpath x = x.loadpath
 end
-
-exception SyntaxErrorInFile of string
 
 (* recursive because of Load *)
 let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basename =
@@ -203,23 +215,20 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
   let f = basename ^ ".v" in
   with_in_descr ~fname:f @@ fun chan ->
   (* For lexing efficiency purposes, we ignore the positions in this function.
-     This will force us to reparse the file in case of error to get a proper
-     location, but in practice such errors should be exceedingly rare with
-     rocqdep. This lexer is indeed basically able to handle random nonsense
-     thrown at it. *)
+     We can still get accurate character counts, we're just missing newline info. *)
   let buf = lexbuf_from_descr ~with_positions:false chan in
   let open Lexer in
   let rec loop () =
     match coq_action buf with
     | exception Fin_fichier ->
       DepSet.elements !dependencies
-    | exception Syntax_error _ ->
+    | exception Syntax_error loc ->
       (* The locations are garbage due to with_positions:false, ignore them *)
-      raise (SyntaxErrorInFile f)
+      Error.cannot_parse ~loc:(get_loc f loc)
     | tok ->  match tok with
       | Require (from, strl) ->
         let from, strl = coq_to_stdlib from strl in
-        let decl str =
+        let decl (loc, str) =
           if should_visit_v_and_mark from str then begin
             let files = safe_assoc loadpath from f str in
             let files = match from, files with
@@ -232,7 +241,7 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
                   add_dep (Dep_info.Dep.Require file_str)) files
             | None ->
               if not (Loadpath.is_in_coqlib loadpath ?from str) then
-                warning_module_notfound (Library, from, f, str)
+                warning_module_notfound ~loc:(get_loc f loc) (Library, from, str)
           end
         in
         List.iter decl strl;
@@ -276,36 +285,17 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
            in
            List.iter decl l);
         loop ()
-      | External(from,str) ->
+      | External(loc,from,str) ->
         begin match safe_assoc loadpath ~what:External (Some from) f [str] with
         | Some (file :: _) -> add_dep (Dep_info.Dep.Other (canonize ~separator_hack vAccu file))
         | Some [] -> assert false
         | None ->
           if not (Loadpath.is_other_in_coqlib loadpath ~from [str]) then
-            warning_module_notfound (External, Some from, f, [str])
+            warning_module_notfound ~loc:(get_loc f loc) (External, Some from, [str])
         end;
         loop ()
   in
   loop ()
-
-(* Reparse the file to get the error location *)
-let get_parse_error f =
-  with_in_channel ~fname:f @@ fun chan ->
-  let buf = Lexing.from_channel chan in
-  let rec loop () = match Lexer.coq_action buf with
-  | _tok -> loop ()
-  | exception Lexer.Syntax_error (i, j) -> (i, j)
-  | exception Lexer.Fin_fichier ->
-    (* may technically happen due to race conditions, return a dummy value *)
-    (0, 0)
-  in
-  loop ()
-
-let find_dependencies st basename =
-  try find_dependencies st basename
-  with SyntaxErrorInFile f ->
-    let (i, j) = get_parse_error f in
-    Error.cannot_parse f (i, j)
 
 let compute_deps st =
   let mk_dep name = Dep_info.make ~name ~deps:(find_dependencies st name) in
@@ -366,7 +356,7 @@ let sort {State.vAccu; separator_hack; loadpath} =
           match Lexer.coq_action lb with
           | Lexer.Require (from, sl) ->
                 List.iter
-                  (fun s ->
+                  (fun (_,s) ->
                     match safe_assoc loadpath from ~warn_clashes:false file s with
                     | None -> ()
                     | Some l -> List.iter loop l)

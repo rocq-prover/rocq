@@ -1,3 +1,4 @@
-Warning: in file fA.v, library
+File "fA.v", line 2, characters 50-61:
+Warning: library
          nonexistent is required and has not been found in the loadpath!
          [module-not-found,filesystem,default]

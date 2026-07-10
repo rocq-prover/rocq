@@ -1,1 +1,2 @@
-Require Import Prelude(something(..)) nonexistent.
+(* a
+ comment *) Require Import Prelude(something(..)) nonexistent.
