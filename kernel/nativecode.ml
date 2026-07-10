@@ -269,7 +269,6 @@ type primitive =
   | Mk_uint
   | Mk_float
   | Mk_string
-  | Mk_int
   | Val_to_int
   | Mk_evar
   | MLand
@@ -312,7 +311,6 @@ let eq_primitive p1 p2 =
   | Mk_uint, Mk_uint
   | Mk_float, Mk_float
   | Mk_string, Mk_string
-  | Mk_int, Mk_int
   | Val_to_int, Val_to_int
   | Mk_evar, Mk_evar
   | MLand, MLand
@@ -364,7 +362,6 @@ let eq_primitive p1 p2 =
     | Mk_uint
     | Mk_float
     | Mk_string
-    | Mk_int
     | Val_to_int
     | Mk_evar
     | MLand
@@ -410,7 +407,6 @@ let primitive_hash = function
   | Array_get -> 13
   | Force_cofix -> 14
   | Mk_uint -> 15
-  | Mk_int -> 16
   | Val_to_int -> 17
   | Mk_evar -> 18
   | MLand -> 19
@@ -1540,7 +1536,7 @@ let rec ml_of_lam env l t =
       let knot = push_global_cofix env.env_cenv knot fv_params (Array.mapi map t_norm_f) in
       MLprimitive (Array_get, [|MLint start; MLapp (MLglobal knot, fv_args)|]) (* in malfunction, the index is first *)
 
-  | Lint tag -> MLprimitive (Mk_int, [|MLint tag|])
+  | Lint tag -> MLint tag
 
   | Lmakeblock (cn,tag,args) ->
      let prefix = env.env_mind_prefix (fst cn) in
@@ -1964,7 +1960,6 @@ let pp_mllam fmt l =
     | Mk_uint -> Format.fprintf fmt "(global $Nativevalues $mk_uint)"
     | Mk_float -> Format.fprintf fmt "(global $Nativevalues $mk_float)"
     | Mk_string -> Format.fprintf fmt "(global $Nativevalues $mk_string)"
-    | Mk_int -> Format.fprintf fmt "(global $Nativevalues $mk_int)"
     | Val_to_int -> Format.fprintf fmt "(global $Nativevalues $val_to_int)"
     | Mk_evar -> Format.fprintf fmt "(global $Nativevalues $mk_evar_accu)"
     | MLsubst_instance_instance -> Format.fprintf fmt "(global $UVars $subst_instance_instance)"
