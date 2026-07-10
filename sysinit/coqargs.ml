@@ -172,16 +172,6 @@ let add_vo_include opts unix_path rocq_path implicit =
 let add_package opts p =
   { opts with pre = { opts.pre with packages = p :: opts.pre.packages }}
 
-let resolve_packages args =
-  let packages = Rocq_package.resolve args.pre.packages in
-  let add p vo_includes =
-    let unix_path = p.Rocq_package.dir in
-    let rocq_path = p.Rocq_package.logpath in
-    { unix_path; rocq_path; implicit = false } :: vo_includes
-  in
-  let vo_includes = List.fold_right add packages args.pre.vo_includes in
-  { args with pre = { args.pre with vo_includes } }
-
 let add_vo_require opts d ?(allow_failure=false) p export =
   { opts with pre = { opts.pre with injections = RequireInjection {lib=d; prefix=p; export; allow_failure} :: opts.pre.injections }}
 
@@ -273,7 +263,7 @@ let parse_args ~init arglist : t * string list =
   let extras = ref [] in
   let rec parse oval = match !args with
   | [] ->
-    (resolve_packages oval, List.rev !extras)
+    (oval, List.rev !extras)
   | opt :: rem ->
     args := rem;
     let next () = match !args with

@@ -97,6 +97,16 @@ let to_vo_path (x:Coqargs.vo_path) : Loadpath.vo_path = {
   installed = false;
   }
 
+(* NB implicit means -R vs -Q,
+   installed means explicitly added path (for warning about ambiguous requires) *)
+let package_vo_path (x:Rocq_package.t) : Loadpath.vo_path = {
+  implicit = false;
+  unix_path = x.dir;
+  coq_path = Libnames.dirpath_of_string x.logpath;
+  recursive = true;
+  installed = false;
+}
+
 let boot_env usage opts =
   let open Coqargs in
   let with_err = function
@@ -172,6 +182,8 @@ let init_document opts =
   (* this isn't in init_load_paths because processes (typically
      vscoqtop) are allowed to have states with differing vo paths (but
      not with differing -boot or ml paths) *)
+  let packages = Rocq_package.resolve opts.pre.packages in
+  List.iter (fun p -> Loadpath.add_vo_path (package_vo_path p)) packages;
   List.iter (fun x -> Loadpath.add_vo_path @@ to_vo_path x) opts.pre.vo_includes;
 
   (* Kernel configuration *)

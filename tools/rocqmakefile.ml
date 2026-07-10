@@ -324,24 +324,10 @@ let generate_meta_file p =
     Printf.eprintf "Error: %s\n" e;
     exit 1
 
-let remove_package_includes p =
-  let packages =
-    List.map (fun (Rocq_package.{ dir; logpath; _ }) ->
-      CUnix.canonical_path_name dir, logpath)
-      (Rocq_package.resolve p.packages)
-  in
-  let is_package_include { thing = ({ canonical_path; _ }, logic); _ } =
-    List.exists (fun (dir, logpath) ->
-      String.equal canonical_path dir && String.equal logic logpath) packages
-  in
-  { p with q_includes = List.filter (fun inc -> not (is_package_include inc)) p.q_includes }
-
 let setup_rocq_package project = match project.rocq_package with
-  | None -> project
+  | None -> ()
   | Some _ ->
-      let project = remove_package_includes project in
-      ignore (single_package_rocqpath project);
-      project
+    ignore (single_package_rocqpath project)
 
 let section oc s =
   let pad = String.make (76 - String.length s) ' ' in
@@ -375,8 +361,7 @@ let generate_conf_includes oc { ml_includes; r_includes; q_includes; packages; r
     (S.concat " " (map_cmdline (fun { path } -> dash1 "I" path) ml_includes))
     (S.concat " " (map_cmdline (fun ({ path },l) -> dash2 "Q" path l) q_includes))
     (S.concat " " (map_cmdline (fun ({ path },l) -> dash2 "R" path l) r_includes));
-  fprintf oc "COQMF_PACKAGES = %s\n"
-    (match rocq_package with None -> "" | Some _ -> S.concat " " packages);
+  fprintf oc "COQMF_PACKAGES = %s\n" (S.concat " " packages);
 ;;
 
 let windrive s =
@@ -617,7 +602,7 @@ let normal_mode ~coqlib project prog args =
 
   let project = ensure_root_dir project in
 
-  let project = setup_rocq_package project in
+  setup_rocq_package project;
 
   check_overlapping_include project;
 

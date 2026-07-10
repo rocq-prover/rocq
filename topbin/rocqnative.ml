@@ -4,6 +4,24 @@ open Util
 open Names
 open Pp
 
+type opts = {
+  boot : bool;
+  coqlib : string option;
+  vo_path : (string * DirPath.t) list;
+  ocamlfind_path : string list;
+  ml_path : string list;
+  packages : string list;
+}
+
+let default_opts = {
+  boot = false;
+  coqlib = None;
+  vo_path = [];
+  ocamlfind_path = [];
+  ml_path = [];
+  packages = [];
+}
+
 module Loadpath :
 sig
   val add_load_path : string * DirPath.t -> unit
@@ -245,10 +263,29 @@ let init_load_path_std env ~default_ml () =
   (* then directories in ROCQPATH *)
   List.iter (fun s -> add_rec_path ~unix_path:s ~rocq_root:Loadpath.default_root_prefix) (rocqpath())
 
-let init_load_path ~boot ~coqlib ~vo_path ~ml_path =
+let make_ocamlpath envopt ocamlfind_path =
+  let boot_ml_path = match envopt with
+    | Boot.Env.Boot -> []
+    | Boot.Env.Env coqenv ->
+      Boot.Env.Path.[to_string (relative (Boot.Env.runtimelib coqenv) "..")]
+  in
+  let env_ocamlpath =
+    try [Sys.getenv "OCAMLPATH"]
+    with Not_found -> []
+  in
+  let path = List.concat [ocamlfind_path; boot_ml_path; env_ocamlpath] in
+  let ocamlpathsep = if Sys.unix then ":" else ";" in
+  String.concat ocamlpathsep path
+
+let init_load_path { boot; coqlib; vo_path; ocamlfind_path; ml_path; packages } =
+  let ml_path = List.rev ml_path in
   let default_ml = CList.is_empty ml_path in
   let coqenv = Boot.Env.maybe_init ~boot ~coqlib
       ~warn_ignored_coqlib:CWarnings.warn_ignored_coqlib
+  in
+  let () =
+    let env_ocamlpath = make_ocamlpath coqenv ocamlfind_path in
+    Findlib.init ~env_ocamlpath ()
   in
   let () = match coqenv with
     | Boot -> ()
@@ -258,10 +295,14 @@ let init_load_path ~boot ~coqlib ~vo_path ~ml_path =
   let () = if not default_ml then Nativelib.include_dirs := ml_path in
   (* always add current directory *)
   add_path ~unix_path:"." ~rocq_root:Loadpath.default_root_prefix;
-  (* additional loadpath, given with -R/-Q options *)
+  (* additional loadpath, given with -R/-Q/-package options *)
+  let packages = Rocq_package.resolve packages in
+  List.iter (fun (p:Rocq_package.t) ->
+      add_rec_path ~unix_path:p.dir ~rocq_root:(Loadpath.dirpath_of_string p.logpath))
+    packages;
   List.iter
     (fun (unix_path, rocq_root) -> add_rec_path ~unix_path ~rocq_root)
-    (List.rev vo_path)
+    vo_path
 
 let fb_handler = function
   | Feedback.{ contents; _ } ->
@@ -334,14 +375,6 @@ let usage () =
 
 end
 
-type opts = {
-  boot : bool;
-  coqlib : string option;
-  vo_path : (string * DirPath.t) list;
-  ml_path : string list;
-  packages : string list;
-}
-
 let rec parse_args (args : string list) accu =
   match args with
   | [] -> CErrors.user_err (Pp.str "parse args error: missing argument")
@@ -361,9 +394,8 @@ let rec parse_args (args : string list) accu =
   | "-package" :: p :: rem ->
     let accu = { accu with packages = p :: accu.packages } in
     parse_args rem accu
-  | "-I" :: _d :: rem ->
-    (* Ignore *)
-    parse_args rem accu
+  | "-I" :: d :: rem ->
+    parse_args rem { accu with ocamlfind_path = d :: accu.ocamlfind_path }
   | "-nI" :: dir :: rem ->
     let accu =  { accu with ml_path = dir :: accu.ml_path } in
     parse_args rem accu
@@ -378,23 +410,12 @@ let rec parse_args (args : string list) accu =
     let args_msg = String.concat " " args in
     CErrors.user_err Pp.(str "parse args error, too many arguments: " ++ str args_msg)
 
-let resolve_packages opts =
-  List.fold_left (fun opts p ->
-    let logpath = Loadpath.dirpath_of_string p.Rocq_package.logpath in
-    { opts with vo_path = (p.Rocq_package.dir, logpath) :: opts.vo_path }
-  ) opts (Rocq_package.resolve opts.packages)
-
 let () =
   let _ = Feedback.add_feeder fb_handler in
   try
-    let opts = { boot = false; coqlib = None; vo_path = []; ml_path = []; packages = [] } in
+    let opts = default_opts in
     let opts, in_file = parse_args (List.tl @@ Array.to_list Sys.argv) opts in
-    let opts = resolve_packages opts in
-    let () = init_load_path ~boot:opts.boot
-        ~coqlib:opts.coqlib
-        ~vo_path:(List.rev opts.vo_path)
-        ~ml_path:(List.rev opts.ml_path)
-    in
+    let () = init_load_path opts in
     let senv = init_rocq () in
     compile senv ~in_file
   with exn ->
