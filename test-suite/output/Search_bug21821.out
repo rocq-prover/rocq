@@ -1,4 +1,10 @@
 X: Type
 X2: Type
+Nat.Of_uint.locked: Decimal.uint -> nat
+Nat.Of_hex_uint.locked: Hexadecimal.uint -> nat
+Nat.Of_hex_uint.unlock:
+  forall d : Hexadecimal.uint, Nat.Of_hex_uint.locked d = Nat.of_hex_uint d
+Nat.Of_uint.unlock:
+  forall d : Decimal.uint, Nat.Of_uint.locked d = Nat.of_uint d
 Y: Type
 Y2: Type

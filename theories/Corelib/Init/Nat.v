@@ -218,6 +218,186 @@ Definition of_num_uint (d:Number.uint) :=
   | Number.UIntHexadecimal d => of_hex_uint d
   end.
 
+Definition uint_le_1_digit (d : Decimal.uint) : bool :=
+  match d with
+  | Decimal.Nil => true
+  | Decimal.D0 d0
+  | Decimal.D1 d0
+  | Decimal.D2 d0
+  | Decimal.D3 d0
+  | Decimal.D4 d0
+  | Decimal.D5 d0
+  | Decimal.D6 d0
+  | Decimal.D7 d0
+  | Decimal.D8 d0
+  | Decimal.D9 d0 => match d0 with Decimal.Nil => true | _ => false end
+  end.
+
+Definition uint_le_2_digits (d : Decimal.uint) : bool :=
+  match d with
+  | Decimal.Nil => true
+  | Decimal.D0 d0
+  | Decimal.D1 d0
+  | Decimal.D2 d0
+  | Decimal.D3 d0
+  | Decimal.D4 d0
+  | Decimal.D5 d0
+  | Decimal.D6 d0
+  | Decimal.D7 d0
+  | Decimal.D8 d0
+  | Decimal.D9 d0 => uint_le_1_digit d0
+  end.
+
+Definition uint_le_3_digits (d : Decimal.uint) : bool :=
+  match d with
+  | Decimal.Nil => true
+  | Decimal.D0 d0
+  | Decimal.D1 d0
+  | Decimal.D2 d0
+  | Decimal.D3 d0
+  | Decimal.D4 d0
+  | Decimal.D5 d0
+  | Decimal.D6 d0
+  | Decimal.D7 d0
+  | Decimal.D8 d0
+  | Decimal.D9 d0 => uint_le_2_digits d0
+  end.
+
+Definition uint_le5000 (d : Decimal.uint) : bool :=
+  match d with
+  | Decimal.Nil => true
+  | Decimal.D0 d0
+  | Decimal.D1 d0
+  | Decimal.D2 d0
+  | Decimal.D3 d0
+  | Decimal.D4 d0 => uint_le_3_digits d0
+  | Decimal.D5 d0 =>
+      uint_le_2_digits d0
+      || match Decimal.nzhead d0 with Decimal.Nil => true | _ => false end
+  | Decimal.D6 d0
+  | Decimal.D7 d0
+  | Decimal.D8 d0
+  | Decimal.D9 d0 => uint_le_2_digits d0
+  end.
+
+Definition hex_uint_le_1_hdigit (d : Hexadecimal.uint) : bool :=
+  match d with
+  | Hexadecimal.Nil => true
+  | Hexadecimal.D0 d0
+  | Hexadecimal.D1 d0
+  | Hexadecimal.D2 d0
+  | Hexadecimal.D3 d0
+  | Hexadecimal.D4 d0
+  | Hexadecimal.D5 d0
+  | Hexadecimal.D6 d0
+  | Hexadecimal.D7 d0
+  | Hexadecimal.D8 d0
+  | Hexadecimal.D9 d0
+  | Hexadecimal.Da d0
+  | Hexadecimal.Db d0
+  | Hexadecimal.Dc d0
+  | Hexadecimal.Dd d0
+  | Hexadecimal.De d0
+  | Hexadecimal.Df d0 => match d0 with Hexadecimal.Nil => true | _ => false end
+  end.
+
+Definition hex_uint_le_2_hdigits (d : Hexadecimal.uint) : bool :=
+  match d with
+  | Hexadecimal.Nil => true
+  | Hexadecimal.D0 d0
+  | Hexadecimal.D1 d0
+  | Hexadecimal.D2 d0
+  | Hexadecimal.D3 d0
+  | Hexadecimal.D4 d0
+  | Hexadecimal.D5 d0
+  | Hexadecimal.D6 d0
+  | Hexadecimal.D7 d0
+  | Hexadecimal.D8 d0
+  | Hexadecimal.D9 d0
+  | Hexadecimal.Da d0
+  | Hexadecimal.Db d0
+  | Hexadecimal.Dc d0
+  | Hexadecimal.Dd d0
+  | Hexadecimal.De d0
+  | Hexadecimal.Df d0 => hex_uint_le_1_hdigit d0
+  end.
+
+Definition hex_uint_le_3_hdigits (d : Hexadecimal.uint) : bool :=
+  match d with
+  | Hexadecimal.Nil => true
+  | Hexadecimal.D0 d0
+  | Hexadecimal.D1 d0
+  | Hexadecimal.D2 d0
+  | Hexadecimal.D3 d0
+  | Hexadecimal.D4 d0
+  | Hexadecimal.D5 d0
+  | Hexadecimal.D6 d0
+  | Hexadecimal.D7 d0
+  | Hexadecimal.D8 d0
+  | Hexadecimal.D9 d0
+  | Hexadecimal.Da d0
+  | Hexadecimal.Db d0
+  | Hexadecimal.Dc d0
+  | Hexadecimal.Dd d0
+  | Hexadecimal.De d0
+  | Hexadecimal.Df d0 => hex_uint_le_2_hdigits d0
+  end.
+
+Definition hex_uint_le5000 (d : Hexadecimal.uint) : bool :=
+  match d with
+  | Hexadecimal.Nil => true
+  | Hexadecimal.D0 d0
+  | Hexadecimal.D1 d0
+  | Hexadecimal.D2 d0
+  | Hexadecimal.D3 d0
+  | Hexadecimal.D4 d0 => hex_uint_le_3_hdigits d0
+  | Hexadecimal.D5 d0 =>
+      hex_uint_le_2_hdigits d0
+      || match Hexadecimal.nzhead d0 with Hexadecimal.Nil => true | _ => false end
+  | Hexadecimal.D6 d0
+  | Hexadecimal.D7 d0
+  | Hexadecimal.D8 d0
+  | Hexadecimal.D9 d0
+  | Hexadecimal.Da d0
+  | Hexadecimal.Db d0
+  | Hexadecimal.Dc d0
+  | Hexadecimal.Dd d0
+  | Hexadecimal.De d0
+  | Hexadecimal.Df d0 => hex_uint_le_2_hdigits d0
+  end.
+
+Module Type Of_uint_locked.
+Parameter locked : Decimal.uint -> nat.
+Parameter unlock : forall d, locked d = Nat.of_uint d.
+End Of_uint_locked.
+
+Module Of_uint : Of_uint_locked.
+Definition locked := Nat.of_uint.
+Definition unlock d : locked d = Nat.of_uint d := eq_refl.
+End Of_uint.
+
+Definition abstract5000_of_uint (d : Decimal.uint) :=
+  if uint_le5000 d then of_uint d else Of_uint.locked d.
+
+Module Type Of_hex_uint_locked.
+Parameter locked : Hexadecimal.uint -> nat.
+Parameter unlock : forall d, locked d = Nat.of_hex_uint d.
+End Of_hex_uint_locked.
+
+Module Of_hex_uint : Of_hex_uint_locked.
+Definition locked := of_hex_uint.
+Definition unlock d : locked d = Nat.of_hex_uint d := eq_refl.
+End Of_hex_uint.
+
+Definition abstract5000_of_hex_uint (d : Hexadecimal.uint) :=
+  if hex_uint_le5000 d then of_hex_uint d else Of_hex_uint.locked d.
+
+Definition abstract5000_of_num_uint (d : Number.uint) :=
+match d with
+| Number.UIntDecimal d0 => abstract5000_of_uint d0
+| Number.UIntHexadecimal d0 => abstract5000_of_hex_uint d0
+end.
+
 Fixpoint to_little_uint n acc :=
   match n with
   | O => acc
@@ -432,6 +612,6 @@ Arguments of_uint d%_dec_uint_scope.
 Arguments of_int d%_dec_int_scope.
 
 Module Export NumberNotations.
-  Number Notation nat of_num_uint to_num_hex_uint (abstract after 5000) : hex_nat_scope.
-  Number Notation nat of_num_uint to_num_uint (abstract after 5000) : nat_scope.
+  Number Notation nat abstract5000_of_num_uint to_num_hex_uint : hex_nat_scope.
+  Number Notation nat abstract5000_of_num_uint to_num_uint : nat_scope.
 End NumberNotations.
