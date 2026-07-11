@@ -115,6 +115,7 @@ type numnot_option =
   | Nop
   | Warning of NumTok.UnsignedNat.t
   | Abstract of NumTok.UnsignedNat.t
+  | HalfAbstract of NumTok.UnsignedNat.t * GlobRef.t * GlobRef.t
 
 type int_ty =
   { dec_uint : Names.inductive;
@@ -848,6 +849,15 @@ let interp o ?loc n =
      warn_abstract_large_num (o.ty_name,o.to_ty);
      assert (Array.length o.to_post = 0);
      glob_of_constr "number" o.ty_name ?loc env sigma o.to_post (mkApp (to_ty,[|c|]))
+  | HalfAbstract (threshold, f1, f2), Direct when NumTok.Signed.is_bigger_int_than n threshold ->
+     warn_abstract_large_num (o.ty_name,f2);
+     assert (Array.length o.to_post = 0);
+     let sigma, f1 = Evd.fresh_global env sigma f1 in
+     let f1 = EConstr.Unsafe.to_constr f1 in
+     let arg = TokenValue.repr (eval_constr_app env sigma f1 c) in
+     let sigma, f2 = Evd.fresh_global env sigma f2 in
+     let f2 = EConstr.Unsafe.to_constr f2 in
+     glob_of_constr "number" o.ty_name ?loc env sigma o.to_post (mkApp (f2,[|arg|]))
   | _ ->
      let res = eval_constr_app env sigma to_ty c in
      match snd o.to_kind with

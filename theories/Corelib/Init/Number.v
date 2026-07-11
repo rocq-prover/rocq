@@ -37,6 +37,14 @@ Register number as num.number.type.
 Definition uint_of_uint (i:uint) := i.
 Definition int_of_int (i:int) := i.
 
+(** Reverse the digits of an unsigned int, switching between big-endian
+    and little-endian representations. *)
+Definition rev_uint (d:uint) : uint :=
+  match d with
+  | UIntDecimal d => UIntDecimal (Decimal.rev d)
+  | UIntHexadecimal d => UIntHexadecimal (Hexadecimal.rev d)
+  end.
+
 Module NumberNotations.
   Number Notation Number.uint Number.uint_of_uint Number.uint_of_uint
     : hex_uint_scope.

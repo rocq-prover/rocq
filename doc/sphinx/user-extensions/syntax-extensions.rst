@@ -2051,6 +2051,7 @@ Number notations
    .. prodn::
       number_modifier ::= warning after @bignat
       | abstract after @bignat
+      | half abstract after @bignat via @qualid @qualid
       | @number_string_via
       number_string_via ::= via @qualid mapping [ {+, {| @qualid => @qualid | [ @qualid ] => @qualid } } ]
 
@@ -2178,6 +2179,25 @@ Number notations
             Typically, this indicates that the fully computed representation
             of numbers can be so large that non-tail-recursive OCaml
             functions run out of stack space when trying to walk them.
+
+      :n:`half abstract after @bignat via @qualid__abstract @qualid__reduce`
+         is a more targeted variant of :n:`abstract after @bignat`: when
+         parsing a literal :n:`m` greater than :n:`@bignat`, it returns
+         :n:`(@qualid__abstract v)` where :n:`v` is the normal form of
+         :n:`(@qualid__reduce m)`, rather than either reducing
+         :n:`(@qualid__parse m)` to a normal form or keeping it fully
+         unreduced.  The function :n:`@qualid__reduce` must be cheap to
+         compute (e.g. reversing the digits of the literal into a
+         little-endian representation) and
+         :n:`(@qualid__abstract (@qualid__reduce m))` must be
+         convertible to :n:`(@qualid__parse m)`, which is checked at
+         declaration time up to unification.  This allows large literals
+         to be parsed to a compact application of :n:`@qualid__abstract`
+         whose argument is in a shape that reduction-averse tactics can
+         process.  Parsing of literals below the threshold, and printing,
+         are unaffected.  Like :n:`abstract after`, it emits a warning
+         when a literal above the threshold is parsed, and it has no
+         effect when :n:`@qualid__parse` lands in an :g:`option` type.
 
          .. warn:: The 'abstract after' directive has no effect when the parsing function (@qualid__parse) targets an option type.
 

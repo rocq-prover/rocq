@@ -2706,6 +2706,7 @@ number_string_via: [
 number_modifier: [
 | "warning" "after" bignat
 | "abstract" "after" bignat
+| "half" "abstract" "after" bignat "via" reference reference
 | number_string_via
 ]
 

@@ -1320,6 +1320,7 @@ field_mod: [
 number_modifier: [
 | "warning" "after" bignat
 | "abstract" "after" bignat
+| "half" "abstract" "after" bignat "via" qualid qualid
 | number_string_via
 ]
 

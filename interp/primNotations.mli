@@ -48,6 +48,12 @@ type numnot_option =
   | Nop
   | Warning of NumTok.UnsignedNat.t
   | Abstract of NumTok.UnsignedNat.t
+  | HalfAbstract of NumTok.UnsignedNat.t * GlobRef.t * GlobRef.t
+  (** [HalfAbstract (threshold, f1, f2)]: above [threshold], instead of
+      fully reducing the application of the parsing function, reduce
+      only [f1] applied to the raw numeral and keep [f2] applied on top
+      unreduced.  [f2 (f1 n)] must be convertible to the parsing
+      function applied to [n]. *)
 
 type int_ty =
   { dec_uint : Names.inductive;

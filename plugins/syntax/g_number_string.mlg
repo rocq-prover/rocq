@@ -22,6 +22,10 @@ let pr_number_after = function
   | Nop -> mt ()
   | Warning n -> str "warning after " ++ NumTok.UnsignedNat.print n
   | Abstract n -> str "abstract after " ++ NumTok.UnsignedNat.print n
+  | HalfAbstract (n, f1, f2) ->
+    str "half abstract after " ++ NumTok.UnsignedNat.print n ++ str " via "
+    ++ Nametab.pr_global_env Names.Id.Set.empty f2 ++ spc ()
+    ++ Nametab.pr_global_env Names.Id.Set.empty f1
 
 let pr_number_string_mapping (b, n, n') =
   if b then
@@ -37,6 +41,9 @@ let pr_number_string_via (n, l) =
 
 let pr_number_modifier = function
   | After a -> pr_number_after a
+  | HalfAfter (n, f1, f2) ->
+    str "half abstract after " ++ NumTok.UnsignedNat.print n
+    ++ str " via " ++ Libnames.pr_qualid f2 ++ spc () ++ Libnames.pr_qualid f1
   | Via nl -> pr_number_string_via nl
 
 let pr_number_options l =
@@ -62,6 +69,8 @@ VERNAC ARGUMENT EXTEND number_modifier
   PRINTED BY { pr_number_modifier }
 | [ "warning" "after" bignat(waft) ] -> { After (Warning (NumTok.UnsignedNat.of_string waft)) }
 | [ "abstract" "after" bignat(n) ] -> { After (Abstract (NumTok.UnsignedNat.of_string n)) }
+| [ "half" "abstract" "after" bignat(n) "via" reference(f2) reference(f1) ] ->
+  { HalfAfter (NumTok.UnsignedNat.of_string n, f1, f2) }
 | [ number_string_via(v) ] -> { Via v }
 END
 

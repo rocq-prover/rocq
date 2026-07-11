@@ -30,6 +30,7 @@ let gref q = DAst.make (GRef (q,None))
 type number_string_via = qualid * (bool * qualid * qualid) list
 type number_option =
   | After of numnot_option
+  | HalfAfter of NumTok.UnsignedNat.t * Libnames.qualid * Libnames.qualid
   | Via of number_string_via
 
 let warn_abstract_large_num_no_op =
@@ -468,20 +469,23 @@ let intern_cref env sigma r =
 
 let vernac_number_notation local ty f g opts scope =
   let rec parse_opts = function
-    | [] -> None, Nop
+    | [] -> None, None
     | h :: opts ->
-       let via, opts = parse_opts opts in
+       let via, after = parse_opts opts in
        let via = match h, via with
          | Via _, Some _ -> multiple_via_error ()
          | Via v, None -> Some v
          | _ -> via in
-       let opts = match h, opts with
-         | After _, (Warning _ | Abstract _) -> multiple_after_error ()
-         | After a, Nop -> a
-         | _ -> opts in
-       via, opts in
-  let via, opts = parse_opts opts in
-  (match via, opts with Some _, Abstract _ -> via_abstract_error () | _ -> ());
+       let after = match h with
+         | After Nop -> after
+         | After _ | HalfAfter _ ->
+           (match after with Some _ -> multiple_after_error () | None -> Some h)
+         | Via _ -> after in
+       via, after in
+  let via, after = parse_opts opts in
+  (match via, after with
+   | Some _, Some (After (Abstract _) | HalfAfter _) -> via_abstract_error ()
+   | _ -> ());
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let targets = List.concat [
@@ -501,10 +505,37 @@ let vernac_number_notation local ty f g opts scope =
   let f_name, f = f, intern_cref env sigma f in
   let g_name, g = g, intern_cref env sigma g in
   (* Check the type of f *)
-  let to_kind =
-    match List.find_map (fun target -> is_to_target env sigma f cty target) targets with
+  let to_kind, raw_typ =
+    match List.find_map (fun target ->
+        Option.map (fun k -> k, target.typ) (is_to_target env sigma f cty target)) targets with
     | Some v -> v
     | None -> type_error_to f_name ty
+  in
+  (* Globalize and check the 'half abstract' functions [f1] and [f2]:
+     [fun x => f2 (f1 x)] must have the type of [f] (restricted to the
+     Direct kind) *)
+  let opts = match after with
+    | None -> Nop
+    | Some (After a) -> a
+    | Some (HalfAfter (n, f1, f2)) ->
+       let f1_ref = Smartlocate.global_with_alias f1 in
+       let f2_ref = Smartlocate.global_with_alias f2 in
+       let f1c = intern_cref env sigma f1 in
+       let f2c = intern_cref env sigma f2 in
+       let xid = Names.Id.of_string "x" in
+       let arrow x y =
+         DAst.make @@ GProd (Anonymous,None,Glob_term.Explicit, x, y) in
+       let comp =
+         DAst.make @@ GLambda (Name xid, None, Glob_term.Explicit, raw_typ,
+           DAst.make @@ GApp (f2c, [DAst.make @@ GApp (f1c, [DAst.make @@ GVar xid])])) in
+       if not (has_type env sigma comp (arrow raw_typ cty)) then
+         CErrors.user_err
+           Pp.(str "Composing " ++ Libnames.pr_qualid f2 ++ str " with "
+               ++ Libnames.pr_qualid f1
+               ++ str " should produce a function of the same type as "
+               ++ Libnames.pr_qualid f_name ++ str ".");
+       HalfAbstract (n, f1_ref, f2_ref)
+    | Some (Via _) -> assert false
   in
   (* Check the type of g *)
   let cty = match tyc_params with TargetPrim (c, _, _) -> gref c | TargetInd _ -> cty in
@@ -525,7 +556,7 @@ let vernac_number_notation local ty f g opts scope =
             warning = opts }
   in
   (match opts, to_kind with
-   | Abstract _, (_, Option) -> warn_abstract_large_num_no_op o.to_ty
+   | (Abstract _ | HalfAbstract _), (_, Option) -> warn_abstract_large_num_no_op o.to_ty
    | _ -> ());
   let i =
        { pt_local = local;

@@ -218,6 +218,20 @@ Definition of_num_uint (d:Number.uint) :=
   | Number.UIntHexadecimal d => of_hex_uint d
   end.
 
+(** Interpret the digits as a little-endian number
+    (least significant digit first).  Defined by reversal so that
+    [of_little_uint (Decimal.rev d)] is convertible to [of_uint d] at
+    the cost of reversing the digits, without computing the numbers. *)
+Definition of_little_uint (d:Decimal.uint) : nat := of_uint (Decimal.rev d).
+
+Definition of_little_hex_uint (d:Hexadecimal.uint) : nat := of_hex_uint (Hexadecimal.rev d).
+
+Definition of_num_little_uint (d:Number.uint) :=
+  match d with
+  | Number.UIntDecimal d => of_little_uint d
+  | Number.UIntHexadecimal d => of_little_hex_uint d
+  end.
+
 Fixpoint to_little_uint n acc :=
   match n with
   | O => acc
@@ -432,6 +446,8 @@ Arguments of_uint d%_dec_uint_scope.
 Arguments of_int d%_dec_int_scope.
 
 Module Export NumberNotations.
-  Number Notation nat of_num_uint to_num_hex_uint (abstract after 5000) : hex_nat_scope.
-  Number Notation nat of_num_uint to_num_uint (abstract after 5000) : nat_scope.
+  Number Notation nat of_num_uint to_num_hex_uint
+    (half abstract after 5000 via of_num_little_uint Number.rev_uint) : hex_nat_scope.
+  Number Notation nat of_num_uint to_num_uint
+    (half abstract after 5000 via of_num_little_uint Number.rev_uint) : nat_scope.
 End NumberNotations.

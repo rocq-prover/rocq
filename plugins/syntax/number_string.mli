@@ -17,6 +17,8 @@ type number_string_via = qualid * (bool * qualid * qualid) list
 
 type number_option =
   | After of PrimNotations.numnot_option
+  | HalfAfter of NumTok.UnsignedNat.t * qualid * qualid
+  (** parsed but not yet globalized [HalfAbstract] *)
   | Via of number_string_via
 
 val vernac_number_notation : locality_flag ->

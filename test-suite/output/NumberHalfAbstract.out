@@ -1,0 +1,50 @@
+File "./output/NumberHalfAbstract.v", line 5, characters 0-11:
+Warning: To avoid stack overflow, large numbers in nat are interpreted as
+applications of Nat.of_num_little_uint.
+[abstract-large-number,numbers,default]
+Nat.of_num_little_uint
+  (Number.UIntDecimal
+     (Decimal.D0 (Decimal.D0 (Decimal.D0 (Decimal.D6 Decimal.Nil)))))
+     : nat
+File "./output/NumberHalfAbstract.v", line 6, characters 0-23:
+Warning: To avoid stack overflow, large numbers in nat are interpreted as
+applications of Nat.of_num_little_uint.
+[abstract-large-number,numbers,default]
+big =
+Nat.of_num_little_uint
+  (Number.UIntDecimal
+     (Decimal.D0 (Decimal.D0 (Decimal.D0 (Decimal.D6 Decimal.Nil)))))
+     : nat
+File "./output/NumberHalfAbstract.v", line 9, characters 0-19:
+Warning: To avoid stack overflow, large numbers in nat are interpreted as
+applications of Nat.of_num_little_uint.
+[abstract-large-number,numbers,default]
+     = 1
+     : nat
+File "./output/NumberHalfAbstract.v", line 10, characters 0-29:
+Warning: To avoid stack overflow, large numbers in nat are interpreted as
+applications of Nat.of_num_little_uint.
+[abstract-large-number,numbers,default]
+eq_refl
+:
+big =
+Nat.of_num_little_uint
+  (Number.UIntDecimal
+     (Decimal.D0 (Decimal.D0 (Decimal.D0 (Decimal.D6 Decimal.Nil)))))
+     : big =
+       Nat.of_num_little_uint
+         (Number.UIntDecimal
+            (Decimal.D0 (Decimal.D0 (Decimal.D0 (Decimal.D6 Decimal.Nil)))))
+File "./output/NumberHalfAbstract.v", line 13, characters 0-20:
+Warning: To avoid stack overflow, large numbers in nat are interpreted as
+applications of Nat.of_num_little_uint.
+[abstract-large-number,numbers,default]
+     = 1
+     : nat
+small = 42
+     : nat
+big =
+Nat.of_num_little_uint
+  (Number.UIntDecimal
+     (Decimal.D0 (Decimal.D0 (Decimal.D0 (Decimal.D6 Decimal.Nil)))))
+     : nat
