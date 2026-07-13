@@ -47,6 +47,7 @@ module LNord =
   end
 module LNmap = Map.Make(LNord)
 module LNset = Set.Make(LNord)
+module Strset = Set.Make(String)
 
 let rec is_lazy env t =
   match Constr.kind t with
@@ -2536,6 +2537,79 @@ let mk_open s = Gopen s
 
 let mk_internal_let s code =
   Glet(Ginternal s, code)
+
+let check_accu_need_for_evaluation g =
+  let g = List.rev g in (* now the dependencies are after the dependent *)
+
+  let rec check_lambda returned l =
+    match l with
+    | MLmatch_noaccu (v, br) ->
+      let returned = check_lambda returned v in
+      Array.fold_left
+      (fun acc br ->
+        check_lambda acc (snd br)
+      )
+      returned br
+    | MLlet (_, br1, br2)
+    | MLif (_, br1, br2) ->
+      let returned = check_lambda returned br1 in
+      check_lambda returned br2 
+    | MLsetref (_, l)
+    | MLsequence (_, l) -> check_lambda returned l
+    | MLapp (_, args) -> (* we currently do not inverstigate closure creation from curryfication for the sake of simplicity *)
+      Array.fold_left check_lambda returned args
+    | MLconstruct (_, arr)
+    | MLarray arr -> Array.fold_left check_lambda returned arr
+    | MLprimitive (Mk_prod, _)
+    | MLletrec _
+    | MLisaccu _
+    | MLmatch _
+    | MLlam _ -> raise NeedsAccumulators
+    | MLglobal g -> Strset.add (string_of_gname g) returned
+    | MLlocal _
+    | MLfloat _
+    | MLuint _
+    | MLprimitive _
+    | MLstring _
+    | MLint _ -> returned
+  in
+  let rec check_globals g returned =
+    match g with
+    | [] -> ()
+    | x::q ->
+      let returned = match x with
+      | Gtblfixtype (n, [||], arr)
+      | Gtblnorm (n, [||], arr) ->
+        let n = string_of_gname n in
+        if Strset.mem n returned then
+          Array.fold_left check_lambda returned arr
+        else returned
+      | Gletcase_noaccu (n, [||], v, brs) ->
+        let n = string_of_gname n in
+        if Strset.mem n returned then
+          let returned = check_lambda returned v in
+          Array.fold_left
+          (fun acc br ->
+            check_lambda acc (snd br)
+          )
+          returned brs
+        else returned
+      | Gtblnorm _
+      | Gtblfixtype _
+      | Gletcase _
+      | Gtblcofix _
+      | Gletcase_noaccu _ -> raise NeedsAccumulators (* is a function *)
+      | Glet (n, v) ->
+        let n = string_of_gname n in
+        if Strset.mem n returned then
+          check_lambda returned v
+        else returned
+      | Gopen _
+      | Gcomment _ -> returned
+      in
+      check_globals q returned
+  in
+  check_globals g Strset.empty
 
 (* ML Code for conversion function *)
 let mk_conv_code consider_accs env sigma prefix t1 t2 =

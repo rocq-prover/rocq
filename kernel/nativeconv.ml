@@ -200,6 +200,7 @@ let native_conv_gen (type err) pb sigma env (state, check) t1 t2 =
     let code, symbols, upds =
       try mk_conv_code consider_accs env sigma prefix t1 t2
       with | NeedsAccumulators -> generates_accs := true; raise NeedsAccumulators in
+    if not consider_accs then check_accu_need_for_evaluation code;
     let fn = Nativelib.compile (consider_accs, !generates_accs) mlf_filename code ~profile:false in
     if consider_accs then
       debug_native_compiler (fun () -> Pp.str "Running test with accumulators...")

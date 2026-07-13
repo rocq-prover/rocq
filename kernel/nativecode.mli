@@ -82,6 +82,9 @@ val compile_mind_field : bool -> cenv -> ModPath.t -> Id.t ->
 val compile_rewrite_rules : env -> Id.t ->
   global list -> rewrite_rules_body -> global list
 
+(** this function may raise the errror NeedsAccumulators when accumulators are needed*)
+val check_accu_need_for_evaluation: global list -> unit
+
 (** this function may raise the errror NeedsAccumulators when compiling without them *)
 val mk_conv_code : bool -> env -> Genlambda.evars -> string -> constr -> constr -> linkable_code
 (** this function may raise the errror NeedsAccumulators when compiling without them *)

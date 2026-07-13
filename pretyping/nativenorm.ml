@@ -516,6 +516,7 @@ let native_norm env sigma c ty =
     let code, symbols, upd =
       try mk_norm_code consider_accs env (evars_of_evar_map sigma) prefix c with
       | NeedsAccumulators -> generates_accs := true; raise NeedsAccumulators in
+    if not consider_accs then check_accu_need_for_evaluation code;
     let tnc1 = Unix.gettimeofday () in
     let time_info = Format.sprintf "native_compute: Conversion to native code done in %.5f" (tnc1 -. tnc0) in
     if print_timing then Feedback.msg_info (Pp.str time_info);
