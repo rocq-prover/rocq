@@ -1056,3 +1056,20 @@ Arguments option {_}.
 Number Notation positive Zto_pos_opt Zpos : mypos_scope2. (* was failing *)
 
 End Bug10878.
+
+(* Test Corelib parser/printer for (hexa)decimal values *)
+Set Printing All.
+Check 12%duint.
+Check 0x1a%huint.
+Check 12%uint.
+Check 0x1a%uint.
+Unset Printing All.
+Check 12%duint.
+Check 0x1a%huint.
+Check 12%uint.
+Check 0x1a%uint.
+(* and check that scopes are correctly binded to types *)
+Check Nat.of_uint 12.
+Check Nat.of_hex_uint 0x1a.
+Check Nat.of_num_uint 12.
+Check Nat.of_num_uint 0x1a.
