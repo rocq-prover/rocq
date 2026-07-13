@@ -186,8 +186,12 @@ type hint_pattern =
 | ConstrPattern of constr_pattern
 | SyntacticPattern of constr_pattern
 
+type hint_prio =
+  | Implicit of int             (* computed by Rocq *)
+  | Explicit of int             (* Specified by user *)
+
 type ('a,'db) with_metadata =
-  { pri     : int
+  { pri     : hint_prio
   (** A number lower is higher priority *)
   ; pat     : hint_pattern option
   (** A pattern for the concl of the Goal *)
@@ -230,8 +234,12 @@ type 'a hints_transparency_target =
 
 let hint_as_term h = (h.hint_uctx, mkRef h.hint_term)
 
-let pri_order_int (id1, {pri=pri1}) (id2, {pri=pri2}) =
-  let d = Int.compare pri1 pri2 in
+let hint_prio h : int =
+  match h.pri with
+  | Implicit prio | Explicit prio -> prio
+
+let pri_order_int (id1, h1) (id2, h2) =
+  let d = Int.compare (hint_prio h1) (hint_prio h2) in
     if Int.equal d 0 then Int.compare id2 id1
     else d
 
@@ -973,7 +981,7 @@ let make_exact_entry env sigma info gr =
           try head_bound env sigma cty
           with Bound -> failwith "make_exact_entry"
         in
-        let pri = match info.hint_priority with None -> 0 | Some p -> p in
+        let pri = match info.hint_priority with None -> Implicit 0 | Some p -> Explicit p in
         let pat = match info.hint_pattern with
         | Some pat -> ConstrPattern (snd pat)
         | None -> DefaultPattern
@@ -999,7 +1007,7 @@ let make_apply_entry env sigma hnf info gr =
     let miss, hyps = Clenv.clenv_missing ce in
     let nmiss = List.length miss in
     let secvars = secvars_of_global env (fst c) in
-    let pri = match info.hint_priority with None -> hyps + nmiss | Some p -> p in
+    let pri = match info.hint_priority with None -> Implicit (hyps + nmiss) | Some p -> Explicit p in
     let pat = match info.hint_pattern with
     | Some p -> ConstrPattern (snd p)
     | None -> DefaultPattern
@@ -1055,7 +1063,7 @@ let make_resolve_hyp env sigma hname =
 let make_unfold env eref =
   let g = global_of_evaluable_reference env eref in
   (Some g,
-   { pri = 4;
+   { pri = Implicit 4;
      pat = None;
      name = Some g;
      db = ();
@@ -1098,7 +1106,7 @@ let make_trivial env sigma r =
   let hd = head_constr env sigma t in
   let h = { rhint_term = c; rhint_type = t; rhint_uctx = ctx; rhint_arty = 0 } in
   (Some hd,
-   { pri=1;
+   { pri=Implicit 1;
      pat = Some DefaultPattern;
      name = Some r;
      db = ();
@@ -1512,7 +1520,7 @@ let add_extern info tacast ~locality dbname =
   | Some (_, pat) -> Some pat
   in
   let hint = make_hint ~locality dbname
-                       (AddHints [make_extern (Option.get info.hint_priority) pat tacast]) in
+                       (AddHints [make_extern (Explicit (Option.get info.hint_priority)) pat tacast]) in
   Lib.add_leaf (inAutoHint hint)
 
 let add_externs info tacast ~locality dbnames =
@@ -1669,7 +1677,7 @@ let pr_id_hint env sigma (id, v) =
   | Some (ConstrPattern p | SyntacticPattern p) -> str", pattern " ++ pr_lconstr_pattern_env env sigma p
   | Some DefaultPattern -> str", pattern " ++ (pr_default_pattern env sigma v.code.obj)
   in
-  (pr_hint env sigma v.code ++ str" (cost " ++ int v.pri ++ pr_pat v
+  (pr_hint env sigma v.code ++ str" (cost " ++ int (hint_prio v) ++ pr_pat v
    ++ str", id " ++ int id ++ str ")")
 
 let pr_hint_list env sigma hintlist =
@@ -1767,7 +1775,7 @@ let pr_hint_db_env env sigma db =
       in
       (* sort because db.hintdb_nopat isn't kept in priority sorted order;
          "auto" sorts on priority before using the hintdb *)
-      let sorted = List.stable_sort (fun a b -> Int.compare a.pri b.pri) hintlist in
+      let sorted = List.stable_sort (fun a b -> Int.compare (hint_prio a) (hint_prio b)) hintlist in
       (* always prints "id 0" in Print HintDb *)
       let hints = pr_hint_list env sigma (List.map (fun x -> (0, x)) sorted) in
       hov 0 (goal_descr ++ str " -> " ++ hints)
@@ -1831,7 +1839,7 @@ let to_user_ast = function
 module FullHint =
 struct
   type t = full_hint
-  let priority (h : t) = h.pri
+  let priority (h : t) = hint_prio h
   let database (h : t) = h.db
   let pattern (h : t) = match h.pat with
   | None -> None
