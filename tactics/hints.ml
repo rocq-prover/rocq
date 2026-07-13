@@ -201,9 +201,11 @@ type ('a,'db) with_metadata =
   (** The database from which the hint comes *)
   ; secvars : Id.Pred.t
   (** The set of section variables the hint depends on *)
+  ; hnf : bool
+  (** The value of the hnf flag used for building the hint *)
   ; code    : 'a
   (** the tactic to apply when the concl matches pat *)
-  }
+  } [@@warning "-unused-field"]
 
 type hint_db_name = string
 
@@ -988,7 +990,7 @@ let make_exact_entry env sigma info gr =
         in
         let h = { rhint_term = c; rhint_type = cty; rhint_uctx = ctx; rhint_arty = 0 } in
         (Some hd,
-         { pri; pat = Some pat; name = Some gr;
+         { pri; pat = Some pat; name = Some gr; hnf = false;
            db = (); secvars;
            code = with_uid (Give_exact h); })
 
@@ -1015,13 +1017,13 @@ let make_apply_entry env sigma hnf info gr =
     let h = { rhint_term = c; rhint_type = cty; rhint_uctx = ctx; rhint_arty = hyps; } in
     if Int.equal nmiss 0 then
       (Some hd,
-       { pri; pat = Some pat; name = Some gr;
+       { pri; pat = Some pat; name = Some gr; hnf;
          db = ();
          secvars;
          code = with_uid (Res_pf h); })
     else
       (Some hd,
-       { pri; pat = Some pat; name = Some gr;
+       { pri; pat = Some pat; name = Some gr; hnf;
          db = (); secvars;
          code = with_uid (ERes_pf h); })
   | _ -> failwith "make_apply_entry"
@@ -1064,6 +1066,7 @@ let make_unfold env eref =
   let g = global_of_evaluable_reference env eref in
   (Some g,
    { pri = Implicit 4;
+     hnf = false;
      pat = None;
      name = Some g;
      db = ();
@@ -1081,6 +1084,7 @@ let make_extern pri pat tacast =
   in
   (hdconstr,
    { pri = pri;
+     hnf = false;
      pat = Option.map (fun p -> SyntacticPattern p) pat;
      name = None;
      db = ();
@@ -1106,7 +1110,8 @@ let make_trivial env sigma r =
   let hd = head_constr env sigma t in
   let h = { rhint_term = c; rhint_type = t; rhint_uctx = ctx; rhint_arty = 0 } in
   (Some hd,
-   { pri=Implicit 1;
+   { pri = Implicit 1;
+     hnf = true;
      pat = Some DefaultPattern;
      name = Some r;
      db = ();
