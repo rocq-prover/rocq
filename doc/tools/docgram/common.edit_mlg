@@ -2156,13 +2156,13 @@ starredidentref: [
 ssexpr0: [
 | DELETE "(" LIST0 starredidentref ")"
 | DELETE "(" LIST0 starredidentref ")" "*"
-| DELETE "(" ssexpr35 ")"
-| DELETE "(" ssexpr35 ")" "*"
+| DELETE "(" ssexpr2 ")"
+| DELETE "(" ssexpr2 ")" "*"
 | "(" section_subset_expr ")" OPT "*"
 ]
 
-ssexpr35: [
-| EDIT ADD_OPT "-" ssexpr50
+ssexpr2: [
+| EDIT ADD_OPT "-" ssexpr1
 ]
 
 simple_binding: [
@@ -2414,7 +2414,7 @@ SPLICE: [
 | with_names
 | eauto_search_strategy_name
 | simple_binding
-| ssexpr35 (* strange in mlg, ssexpr50 is after this *)
+| ssexpr2
 | number_string_mapping
 | number_options
 | string_option
@@ -2467,7 +2467,7 @@ RENAME: [
 | term200 term
 | pattern100 pattern
 (*| impl_ident_tail impl_ident*)
-| ssexpr50 section_var_expr50
+| ssexpr1 section_var_expr50
 | ssexpr0 section_var_expr0
 | section_subset_expr section_var_expr
 | fun_scheme_arg func_scheme_def

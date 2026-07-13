@@ -1302,7 +1302,7 @@ module_type: [
 
 section_subset_expr: [
 | test_only_starredidentrefs LIST0 starredidentref
-| ssexpr35
+| ssexpr2
 ]
 
 starredidentref: [
@@ -1312,12 +1312,12 @@ starredidentref: [
 | "Type" "*"
 ]
 
-ssexpr35: [
-| "-" ssexpr50
-| ssexpr50
+ssexpr2: [
+| "-" ssexpr1
+| ssexpr1
 ]
 
-ssexpr50: [
+ssexpr1: [
 | ssexpr0 "-" ssexpr0
 | ssexpr0 "+" ssexpr0
 | ssexpr0
@@ -1328,8 +1328,8 @@ ssexpr0: [
 | "()"
 | "(" test_only_starredidentrefs LIST0 starredidentref ")"
 | "(" test_only_starredidentrefs LIST0 starredidentref ")" "*"
-| "(" ssexpr35 ")"
-| "(" ssexpr35 ")" "*"
+| "(" ssexpr2 ")"
+| "(" ssexpr2 ")" "*"
 ]
 
 args_modifier: [

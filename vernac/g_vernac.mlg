@@ -850,9 +850,9 @@ GRAMMAR EXTEND Gram
       | "Type"; "*" -> { SsFwdClose SsType } ]]
   ;
   ssexpr:
-    [ "35"
+    [ "2"
       [ "-"; e = ssexpr -> { SsCompl e } ]
-    | "50"
+    | "1"
       [ e1 = ssexpr; "-"; e2 = ssexpr-> { SsSubstr(e1,e2) }
       | e1 = ssexpr; "+"; e2 = ssexpr-> { SsUnion(e1,e2) } ]
     | "0"
