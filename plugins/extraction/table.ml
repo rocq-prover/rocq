@@ -591,6 +591,14 @@ let type_expand = my_bool_option "TypeExpand" true
 
 let keep_singleton = my_bool_option "KeepSingleton" false
 
+(*s Extraction Prefix *)
+
+let { Goptions.get = prefix } =
+  declare_string_option_and_ref
+    ~key:["Extraction"; "Prefix"]
+    ~value:"Rocq"
+    ()
+
 (*s Extraction Optimize *)
 
 type opt_flag =
