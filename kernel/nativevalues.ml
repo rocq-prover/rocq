@@ -110,7 +110,7 @@ type accu_val = { acc_atm : atom; acc_arg : t list }
 (** an accumulator is a closure of the [accumulate] function created by the [build_accu] function. *)
 
 (** it is important to always use this function and never directly [accumulate] to prevent inlining of the accumulate function (which would mess up accumulator recognition) *)
-let rec build_accu dat =
+let [@inline never] [@local never] rec build_accu dat =
   let [@inline never] [@local never]
     accumulate data x =
     if Obj.repr x == ret_accu then Obj.repr data
