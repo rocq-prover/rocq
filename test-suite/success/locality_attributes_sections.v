@@ -191,7 +191,7 @@ Section Bar.
   (* A Hint *)
   Parameter (secret : nat).
   Axiom secret_42 : secret = 42.
-  Fail #[export]
+  #[export]
   Hint Resolve secret_42 : plop.
 End Bar.
 
@@ -231,7 +231,7 @@ Section Bar.
   #[global]
   Set Universe Polymorphism.
   (* A Hint *)
-  Fail #[global]
+  #[global]
   Hint Resolve secret_is_42 : plop.
 End Bar.
 

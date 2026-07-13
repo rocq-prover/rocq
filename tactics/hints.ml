@@ -205,7 +205,7 @@ type ('a,'db) with_metadata =
   (** The value of the hnf flag used for building the hint *)
   ; code    : 'a
   (** the tactic to apply when the concl matches pat *)
-  } [@@warning "-unused-field"]
+  }
 
 type hint_db_name = string
 
@@ -1227,6 +1227,7 @@ type hint_obj = {
   hint_local : hint_locality;
   hint_name : string;
   hint_action : hint_action;
+  hint_rebuild : bool;          (* only ever true between discharge and rebuild *)
 }
 
 let is_trivial_action = function
@@ -1380,7 +1381,7 @@ let classify_autohint obj =
 let discharge_autohint obj =
   if is_hint_local obj.hint_local then None
   else
-    let action = match obj.hint_action with
+    let hint_action, hint_rebuild = match obj.hint_action with
     | AddTransparency { grefs; state } ->
       let grefs = match grefs with
       | HintsVariables | HintsConstants | HintsProjections -> grefs
@@ -1396,24 +1397,48 @@ let discharge_autohint obj =
         let grs = List.filter_map filter grs in
         HintsReferences grs
       in
-      AddTransparency { grefs; state }
-    | AddHints _ | RemoveHints _ ->
+      AddTransparency { grefs; state }, false
+    | AddHints hints ->
+      AddHints hints, true
+    | RemoveHints _ ->
       (* not supported yet *)
       assert false
     | AddCut path ->
-      if is_section_path path then AddHints [] (* dummy *) else obj.hint_action
+      if is_section_path path then AddHints [], false (* dummy *) else obj.hint_action, false
     | AddMode { gref; mode } ->
       if Global.is_in_section gref then
-        if isVarRef gref then AddHints [] (* dummy *)
+        if isVarRef gref then AddHints [], false (* dummy *)
         else
           let inst = Global.section_instance gref in
           (* Default mode for discharged parameters is output *)
           let mode = Array.append (Array.make (Array.length inst) ModeOutput) mode in
-          AddMode { gref; mode }
-      else obj.hint_action
+          AddMode { gref; mode }, false
+      else obj.hint_action, false
     in
-    if is_trivial_action action then None
-    else Some { obj with hint_action = action }
+    if is_trivial_action hint_action then None
+    else Some { obj with hint_action; hint_rebuild }
+
+let rebuild_hint_entry (k, hint) =
+  match hint.code.obj with
+  | Res_pf h | ERes_pf h | Give_exact h ->
+    assert (match hint.pat with None | Some DefaultPattern -> true | _ -> false);
+    let hint_priority =
+      match hint.pri with
+      | Explicit p -> Some p
+      | Implicit _ -> None
+    in
+    let info = { hint_priority; hint_pattern=None } in
+    make_resolves (Global.env()) Evd.empty (true, hint.hnf) info ~check:true @@ Option.get hint.name
+  | _ -> assert false
+
+let rebuild_autohint obj =
+  match obj.hint_action with
+  | AddHints hints when obj.hint_rebuild ->
+    let hints = List.concat_map rebuild_hint_entry hints in
+    let hint_action = AddHints hints in
+    let hint_rebuild = false in
+    {obj with hint_action; hint_rebuild }
+  | _ -> obj
 
 let hint_cat = create_category "hints"
 
@@ -1426,6 +1451,7 @@ let inAutoHint : hint_obj -> obj =
      subst_function = subst_autohint;
      classify_function = classify_autohint;
      discharge_function = discharge_autohint;
+     rebuild_function = rebuild_autohint;
     }
 
 let check_locality locality =
@@ -1440,11 +1466,41 @@ let check_locality locality =
     | SuperGlobal -> not_local "global"
     | Export -> not_local "export"
 
+
+let check_resolve_locality locality (entries : (hint_info * _ * _) list) =
+  let pp_attr locality =
+    Pp.str @@ match locality with
+    | Local -> "local"
+    | SuperGlobal -> "global"
+    | Export -> "export"
+  in
+  let not_supported why =
+    CErrors.user_err
+        Pp.(str "Hint Resolve does not the " ++
+            pp_attr locality ++
+            str " attribute in sections for hints " ++ why)
+  in
+
+  let check (info, _, gr) =
+    match locality with
+    | Local -> ()
+    | SuperGlobal | Export ->
+      if Option.has_some info.hint_pattern then
+        not_supported Pp.(str "that have explicit patterns");
+      match gr with
+      | Names.GlobRef.VarRef v when Termops.is_section_variable_env (Global.env()) v ->
+        not_supported Pp.(str "that are section variables")
+      | _ -> ()
+  in
+  if Lib.sections_are_opened () then
+    List.iter check entries
+
 let make_hint ~locality name action =
   {
   hint_local = locality;
   hint_name = name;
   hint_action = action;
+  hint_rebuild = false;
 }
 
 let remove_hints ~locality dbnames grs =
@@ -1562,7 +1618,9 @@ let is_notlocal = function
 
 let add_hints ~locality dbnames h =
   let () = match h with
-  | HintsResolveEntry _ | HintsImmediateEntry _ | HintsUnfoldEntry _ | HintsExternEntry _ ->
+  | HintsResolveEntry entries ->
+    check_resolve_locality locality entries
+  | HintsImmediateEntry _ | HintsUnfoldEntry _ | HintsExternEntry _ ->
     check_locality locality
   | HintsTransparencyEntry ((HintsVariables | HintsConstants | HintsProjections), _) -> ()
   | HintsTransparencyEntry (HintsReferences grs, _) ->
