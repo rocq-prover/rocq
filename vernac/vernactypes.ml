@@ -63,19 +63,27 @@ module Proof = struct
     | None -> CErrors.user_err (Pp.str "Command not supported (No proof-editing in progress).")
     | Some stack -> LStack.pop stack
 
-  let quickfix_missing_proof ~loc () =
+  let quickfix_missing_proof ~loc _ =
     (* quickfix is purely additive so the loc is 0 characters long, at the beginning of the command. *)
     let loc = { loc with Loc.ep = loc.Loc.bp } in
     [Quickfix.make ~loc Pp.(str "Proof." ++ fnl())]
 
   let warn_missing_proof = CWarnings.create ~name:"missing-proof-command" ~category:CWarnings.CoreCategories.fragile
       ~quickfix:quickfix_missing_proof
-      Pp.(fun () -> str "This interactive proof is not started by the \"Proof\" command.")
+      Pp.(fun default_using ->
+          str "This interactive proof is not started by the \"Proof\" command." ++
+          (match default_using with
+           | None -> mt()
+           | Some using ->
+             spc() ++ str "Default Proof Using " ++ quote (Ppvernac.pr_using using) ++ str " will be ignored."))
 
   let check_late_init ?loc p =
     if Option.has_some @@ Declare.Proof.has_late_init p then p
     else begin
-      warn_missing_proof ?loc ();
+      let missing_using =
+        if Global.sections_are_opened() then Proof_using.get_default_proof_using() else None
+      in
+      warn_missing_proof ?loc missing_using;
       Declare.Proof.finish_late_init p Implicit
     end
 
