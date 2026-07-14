@@ -582,7 +582,7 @@ struct
 
   let get_blocked _env evd e =
     match EConstr.kind evd e with
-    | PBlock (_, _, t) -> Some t
+    | PBlock (_, _, entries, t) -> Some (EConstr.expand_pblock entries t)
     | _ -> None
 
   let mkInt env i =
@@ -1006,17 +1006,11 @@ let rec whd_state_gen flags ?metas env sigma =
         |_ -> fold ()
       else fold ()
 
-    | PUnblock (_ty,b) ->
-      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
-      begin match EConstr.kind sigma b' with
-      | PBlock (_, _, t) -> whrec (t, stack)
-      | _ -> fold ()
-      end
-
     | PRun (_ty,_k,b,cont) ->
       let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
       begin match EConstr.kind sigma b' with
-      | PBlock (_, _, t) -> whrec (mkApp (cont, [|t|]), stack)
+      | PBlock (_, _, entries, t) ->
+        whrec (mkApp (cont, [|EConstr.expand_pblock entries t|]), stack)
       | _ -> fold ()
       end
 
@@ -1108,17 +1102,11 @@ let local_whd_state_gen flags ?metas env sigma =
         |_ -> s
       else s
 
-    | PUnblock (_ty,b) ->
-      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
-      begin match EConstr.kind sigma b' with
-      | PBlock (_, _, t) -> whrec (t, stack)
-      | _ -> s
-      end
-
     | PRun (_ty,_k,b,cont) ->
       let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
       begin match EConstr.kind sigma b' with
-      | PBlock (_, _, t) -> whrec (mkApp (cont, [|t|]), stack)
+      | PBlock (_, _, entries, t) ->
+        whrec (mkApp (cont, [|EConstr.expand_pblock entries t|]), stack)
       | _ -> s
       end
 
@@ -1218,7 +1206,7 @@ let shrink_eta sigma c =
       else x
     | Meta _ | App _ | Case _ | Fix _ | Construct _ | CoFix _ | Evar _ | Rel _ | Var _ | Sort _ | Prod _
     | LetIn _ | Const _  | Ind _ | Proj _ | Int _ | Float _ | String _ | Array _
-    | PBlock _ | PUnblock _ | PRun _ -> x
+    | PBlock _ | PRun _ -> x
   in
   whrec c
 
