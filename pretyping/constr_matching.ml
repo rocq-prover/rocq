@@ -614,15 +614,10 @@ let sub_match ?(closed=true) env sigma pat c =
     in
     let sub = (env,def) :: (env,ty) :: subargs env t in
     try_aux sub next_mk_ctx next
-  | PBlock (u,ty,t) ->
+  | PBlock (u,ty,entries,t) ->
+    let t = EConstr.expand_pblock entries t in
     let next_mk_ctx = function
-    | [ty; t] -> mk_ctx (mkPBlock (u, ty, t))
-    | _ -> assert false
-    in
-    try_aux [(env,ty); (env,t)] next_mk_ctx next
-  | PUnblock (ty,t) ->
-    let next_mk_ctx = function
-    | [ty; t] -> mk_ctx (mkPUnblock (ty, t))
+    | [ty; t] -> mk_ctx (mkPBlock (u, ty, [||], t))
     | _ -> assert false
     in
     try_aux [(env,ty); (env,t)] next_mk_ctx next
@@ -714,7 +709,6 @@ let rec hash_top n sigma c =
   | Meta i -> combinesmall 20 i
   | Evar _ -> 21
   | PBlock _ -> 22
-  | PUnblock _ -> 23
   | PRun _ -> 24
 
 let hash_top sigma c = hash_top 3 sigma c
@@ -781,8 +775,8 @@ let sub_match_cached cache env sigma pat c =
     | Array(u, t, def, ty) ->
       let sub = (env,def) :: (env,ty) :: subargs env t in
       try_aux sub
-    | PBlock (_, ty, body) | PUnblock (ty, body) ->
-      try_aux [env, ty; env, body]
+    | PBlock (_, ty, entries, body) ->
+      try_aux [env, ty; env, EConstr.expand_pblock entries body]
     | PRun (ty, kty, body, cont) ->
       try_aux [env, ty; env, kty; env, body; env, cont]
     | Construct _|Ind _|Evar _|Const _|Rel _|Meta _|Var _|Sort _|Int _|Float _|String _ -> false

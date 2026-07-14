@@ -940,7 +940,7 @@ let is_rigid_head sigma flags t =
   | Fix _ | CoFix _ -> true
   | Rel _ | Var _ | Meta _ | Evar _ | Sort _ | Cast (_, _, _) | Prod _
     | Lambda _ | LetIn _ | App (_, _) | Case _
-    | Proj _ | PUnblock _ | PRun _ -> false (* Why aren't Prod, Sort rigid heads ? *)
+    | Proj _ | PRun _ -> false (* Why aren't Prod, Sort rigid heads ? *)
 
 let constr_cmp pb env sigma flags ?nargs t u =
   let cstrs =
@@ -1040,7 +1040,7 @@ let rec is_neutral env sigma ts t =
     | Case (_, _, _, _, _, c, _) -> is_neutral env sigma ts c
     | Proj (p, _, c) -> is_neutral env sigma ts c
     | Lambda _ | LetIn _ | Construct _ | CoFix _ | Int _ | Float _ | String _ | Array _
-    | PBlock _ | PUnblock _ | PRun _ -> false
+    | PBlock _ | PRun _ -> false
     | Sort _ | Cast (_, _, _) | Prod (_, _, _) | Ind _ -> false (* Really? *)
     | Fix _ -> false (* This is an approximation *)
     | App _ -> assert false
@@ -2374,11 +2374,11 @@ struct
     Glob_ops.cast_kind_eq k1 k2
   | Case (ci1, u1, pms1, (p1, _), iv1, c1, bl1), Case (ci2, u2, pms2, (p2, _), iv2, c2, bl2) ->
     Ind.UserOrd.equal ci1.ci_ind ci2.ci_ind && UVars.Instance.equal u1 u2
-  | PBlock (u1, _, _), PBlock (u2, _, _) -> UVars.Instance.equal u1 u2
-  | PUnblock _, PUnblock _ | PRun _, PRun _ -> true
+  | PBlock (u1, _, _, _), PBlock (u2, _, _, _) -> UVars.Instance.equal u1 u2
+  | PRun _, PRun _ -> true
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _ | Cast _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Int _ | Float _ | String _ | Array _ | PBlock _ | PUnblock _ | PRun _), _ -> false
+    | CoFix _ | Int _ | Float _ | String _ | Array _ | PBlock _ | PRun _), _ -> false
 
   let equal_kind k1 k2 = match k1, k2 with
   | ACast c1, ACast c2 -> Int.equal c1.tuid c2.tuid
@@ -2392,11 +2392,12 @@ struct
   | Cast (_, _, t1), Cast (_, _, t2) -> Constr.equal t1 t2
   | LetIn (_, _, t1, _), LetIn (_, _, t2, _) -> Constr.equal t1 t2
   | Evar (_, l1), Evar (_, l2) -> SList.equal Constr.equal l1 l2
+  | PBlock _, PBlock _ -> Constr.equal t1 t2
   | Case (_, _, pms1, (p1, _), _, _, _), Case (_, _, pms2, (p2, _), _, _, _) ->
     Constr.equal (snd p1) (snd p2) && Array.equal Constr.equal pms1 pms2
   | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _ | Cast _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
-    | CoFix _ | Int _ | Float _ | String _ | Array _ | PBlock _ | PUnblock _ | PRun _), _ -> true
+    | CoFix _ | Int _ | Float _ | String _ | Array _ | PBlock _ | PRun _), _ -> true
 
   let equal c1 c2 =
     equal0 (EConstr.Unsafe.to_constr c1.proj) (EConstr.Unsafe.to_constr c2.proj) &&
@@ -2538,13 +2539,9 @@ let rec make0 table atyp sigma c0 = match EConstr.kind sigma c0 with
   let ty = make table sigma ty in
   let data = max td (max def.data ty.data) in
   node ~table ~proj:c0 ~self:(AOther (Array.append [|def;ty|] t)) ~data ~atyp
-| PBlock (_u,ty,t) ->
+| PBlock (_u,ty,entries,t) ->
   let ty = make table sigma ty in
-  let t = make table sigma t in
-  node ~table ~proj:c0 ~self:(AOther [|ty; t|]) ~data:(max ty.data t.data) ~atyp
-| PUnblock (ty,t) ->
-  let ty = make table sigma ty in
-  let t = make table sigma t in
+  let t = make table sigma (EConstr.expand_pblock entries t) in
   node ~table ~proj:c0 ~self:(AOther [|ty; t|]) ~data:(max ty.data t.data) ~atyp
 | PRun (ty,k,b,cont) ->
   let ty = make table sigma ty in
@@ -2761,11 +2758,8 @@ let w_unify_to_subterm_all ~metas env evd ?(flags=default_unify_flags ()) (op,cl
             | Array(_u,t,def,ty) ->
               bind (bind (bind_iter matchrec t) (matchrec def)) (matchrec ty)
 
-            | PBlock (_u,ty,t) ->
-              bind (matchrec ty) (matchrec t)
-
-            | PUnblock (ty,t) ->
-              bind (matchrec ty) (matchrec t)
+            | PBlock (_u,ty,entries,t) ->
+              bind (matchrec ty) (matchrec (EConstr.expand_pblock entries t))
 
             | PRun (ty,k,b,cont) ->
               bind (bind (bind (matchrec ty) (matchrec k)) (matchrec b)) (matchrec cont)
