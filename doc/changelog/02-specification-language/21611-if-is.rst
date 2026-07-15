@@ -1,6 +1,0 @@
-- **Added:**
-  new syntactic sugar `if g is c then t else e`
-  for `match g with c => t | _ => e end`. This adds the
-  new reserved keyword `is`
-  (`#21478 <https://github.com/rocq-prover/rocq/pull/21478>`_,
-  by Pierre Roux).
