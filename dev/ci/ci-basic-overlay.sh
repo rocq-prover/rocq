@@ -368,7 +368,7 @@ project atbr 'https://github.com/coq-community/atbr' '1806f95dd68b953312cbee4422
 ########################################################################
 # metarocq
 ########################################################################
-project metarocq 'https://github.com/MetaRocq/metarocq' '2d501a9787ff3560f9872340bf0c3628edc58ed4'
+project metarocq 'https://github.com/MetaRocq/metarocq' '9242c14bc377611a56d45283977ea754fd499c47'
 # Contact @mattam82, @yforster on github
 
 ########################################################################
