@@ -10,7 +10,6 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
   - [Non fixed bugs](#non-fixed-bugs)
       - [buffer overflow on large records and closures (infinite loop with OCaml 5)](#buffer-overflow-on-large-records-and-closures-infinite-loop-with-ocaml-5)
       - [memory corruption by evaluating on ill-typed terms (obtained from unsafe tactics)](#memory-corruption-by-evaluating-on-ill-typed-terms-obtained-from-unsafe-tactics)
-      - [kernel and checker accept incorrect name aliasing information](#kernel-and-checker-accept-incorrect-name-aliasing-information)
       - [coqchk checks too little about primitive declarations](#coqchk-checks-too-little-about-primitive-declarations)
       - [Print Assumptions + Parameter Inline fails to report some inconsistent flags](#print-assumptions-parameter-inline-fails-to-report-some-inconsistent-flags)
       - [Print Assumptions does not report Unset Universe Checking used during functor application](#print-assumptions-does-not-report-unset-universe-checking-used-during-functor-application)
@@ -29,7 +28,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker does not check for correct recursive calls when passed as uniform argument in a nested fixpoint](#guard-checker-does-not-check-for-correct-recursive-calls-when-passed-as-uniform-argument-in-a-nested-fixpoint)
       - [guard checker does not count argument-less recursive calls to compute uniform arguments of a nested mutual fixpoint](#guard-checker-does-not-count-argument-less-recursive-calls-to-compute-uniform-arguments-of-a-nested-mutual-fixpoint)
       - [guard checker does not check arguments of recursive calls in uniformity analysis](#guard-checker-does-not-check-arguments-of-recursive-calls-in-uniformity-analysis)
-      - [guard checker sometimes does reduction in the wrong context, accepting wrong fixpoints](#guard-checker-sometimes-does-reduction-in-the-wrong-context-accepting-wrong-fixpoints)
+      - [guard checker sometimes does reduction in the wrong context accepting wrong fixpoints](#guard-checker-sometimes-does-reduction-in-the-wrong-context-accepting-wrong-fixpoints)
       - [guard checker sometimes forgets to check lambda domains in nested fixpoints](#guard-checker-sometimes-forgets-to-check-lambda-domains-in-nested-fixpoints)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
@@ -41,6 +40,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Missing substitution when strengthening aliased functors](#missing-substitution-when-strengthening-aliased-functors)
       - [Incorrect subtyping rule for universe polymorphic "with Definition".](#incorrect-subtyping-rule-for-universe-polymorphic-with-definition)
       - [Subtyping ignored elimination constraints](#subtyping-ignored-elimination-constraints)
+      - [kernel and checker accept incorrect name aliasing information](#kernel-and-checker-accept-incorrect-name-aliasing-information)
     - [Universes](#universes)
       - [issue with two parameters in the same universe level](#issue-with-two-parameters-in-the-same-universe-level)
       - [universe polymorphism can capture global universes](#universe-polymorphism-can-capture-global-universes)
@@ -124,18 +124,6 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
 - exploit: requires a memory corruption to craft something that doesn't just SIGSEV
 - risk: could be activated by chance but unlikely to produce anything
         other than SIGSEV outside a deliberate attack
-
-#### kernel and checker accept incorrect name aliasing information
-
-- component: name handling / typechecker
-- introduced: a long time ago
-- impacted versions: -NOW
-- impacted coqchk versions: same
-- fixed in: NONE
-- found by: Pierre-Marie Pédrot
-- GH issue number: rocq-prover/rocq#7609
-- exploit: see issue (requires a plugin or hand crafted .vo file)
-- risk: low
 
 #### coqchk checks too little about primitive declarations
 
@@ -458,6 +446,18 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit: see issue
 - risk: high when combining module subyping with sort polymorphism
   (but not possible in non-rc version)
+
+#### kernel and checker accept incorrect name aliasing information
+
+- component: name handling / typechecker
+- introduced: a long time ago
+- impacted versions: until 9.2.0
+- impacted coqchk versions: same
+- fixed in: 9.2.0
+- found by: Pierre-Marie Pédrot
+- GH issue number: rocq-prover/rocq#7609
+- exploit: see issue (requires a plugin or hand crafted .vo file)
+- risk: low
 
 ### Universes
 
