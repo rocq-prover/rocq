@@ -454,6 +454,21 @@ Requests to the environment
    The message "Closed under the global context" indicates that all the theorems and
    definitions have no dependencies.
 
+.. flag:: Printing All Assumptions
+
+   Turn this :term:`flag` on to make :cmd:`Print Assumptions` report
+   theory assumptions (impredicativity of :g:`Set`, rewrite rules,
+   disabled universe checking, indices not mattering) according to the
+   typing flags each dependency was typechecked with, in addition to
+   the settings of the current environment.  For instance, a definition
+   typechecked with ``-impredicative-set`` is reported as assuming the
+   impredicativity of :g:`Set` even when it is imported into a
+   predicative environment, and an inductive type relying on indices
+   not mattering is reported even when :flag:`Indices Matter` is off in
+   the current environment (without this flag, such inductive types are
+   reported only when :flag:`Indices Matter` is currently on, since an
+   environment where indices do not matter subsumes that assumption).
+
 .. cmd:: Print Opaque Dependencies {+ @reference }
 
    Displays the assumptions and opaque constants that :n:`@reference` depends on.
