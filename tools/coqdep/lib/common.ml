@@ -17,7 +17,7 @@ let get_loc f { Lexer.loc_start = start; loc_end = end_ } =
       | '\n' -> loop (lnum+1) (read+1) (read+1)
       | _ -> loop lnum bol (read+1)
   in
-  let lnum, bol = loop 1 0 0 in
+  let lnum, bol = Fun.protect ~finally:(fun () -> close_in ch) (fun () -> loop 1 0 0) in
   { Loc.fname = InFile { dirpath=None; file=f };
     line_nb = lnum;
     bol_pos = bol;
