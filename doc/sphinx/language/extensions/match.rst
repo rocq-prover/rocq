@@ -66,6 +66,8 @@ can be alternatively written
 
    Definition not (b:bool) := if b then false else true.
 
+See also :ref:`SSReflect documentation <pattern_conditional_ssr>` for more examples.
+
 .. deprecated:: 9.3
 
    More generally, for an inductive type with constructors :n:`@ident__1`
