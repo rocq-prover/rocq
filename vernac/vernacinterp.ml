@@ -71,7 +71,7 @@ and interp_expr_core ?loc ~atts ~st c =
 
   | VernacSynterp EVernacLoad (verbosely, fname) ->
     Attributes.unsupported_attributes atts;
-    vernac_load ~verbosely fname
+    vernac_load ~verbosely ~st fname
 
   | v ->
     let fv = Vernacentries.translate_vernac ?loc ~atts v in
@@ -85,13 +85,19 @@ and interp_expr_core ?loc ~atts ~st c =
     in
     proof, prog
 
-and vernac_load ~verbosely entries =
-  (* Note that no proof should be open here, so the state here is just token for now *)
-  let st = Vernacstate.freeze_full_state () in
+and vernac_load ~verbosely ~st entries =
   let v_mod = if verbosely then Flags.verbosely else Flags.silently in
   let interp_entry (stack, pm) (CAst.{ loc; v = cmd }, synterp_st) =
     Vernacstate.Synterp.unfreeze synterp_st;
-    let st = Vernacstate.{ synterp = synterp_st; interp = { st.interp with Interp.lemmas = stack; program = pm }} in
+    let st = Vernacstate.{
+        synterp = synterp_st;
+        interp = {
+          (Vernacstate.Interp.freeze_interp_state()) with
+          lemmas = stack;
+          program = pm;
+        };
+      }
+    in
     v_mod (interp_control ~st) (CAst.make ?loc cmd)
   in
   let pm = st.Vernacstate.interp.program in
