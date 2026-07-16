@@ -15,5 +15,9 @@ type vm_flags = {
   vm_normalize_params : bool;
 }
 
+type readback_check = Environ.env -> Evd.evar_map -> types -> Vmvalues.kind -> unit
+
+val no_readback_check : readback_check
+
 (** {6 Reduction functions } *)
-val cbv_vm : ?flags:vm_flags -> env -> Evd.evar_map -> constr -> types -> constr
+val cbv_vm : ?flags:vm_flags -> ?readback_check:readback_check -> env -> Evd.evar_map -> constr -> types -> constr
