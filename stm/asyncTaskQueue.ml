@@ -282,6 +282,20 @@ module Make(T : Task) () = struct
   let slave_handshake () =
     Pool.worker_handshake (Option.get !slave_ic) (Option.get !slave_oc)
 
+  (* The master going away while we read from or write to it is not
+     always observed as [End_of_file]: reads can fail with a connection
+     reset (in particular on Windows, where the master closing the
+     socket resets it) and writes with a broken pipe, both showing up
+     as [Sys_error] with the corresponding strerror text. *)
+  let connection_lost msg =
+    let contains what = CString.string_contains ~where:msg ~what in
+    contains "Connection reset by peer" ||
+    contains "Broken pipe" ||
+    (* WSAECONNRESET *)
+    contains "forcibly closed by the remote host" ||
+    (* WSAECONNABORTED *)
+    contains "aborted by the software in your host machine"
+
   let pp_pid pp = Pp.(str (Spawned.process_id () ^ " ") ++ pp)
 
   let debug_with_pid = Feedback.(function
@@ -309,9 +323,13 @@ module Make(T : Task) () = struct
         marshal_response (Option.get !slave_oc) response;
         CEphemeron.clean ()
       with
+      | MarshalError s when connection_lost s ->
+        stm_prerr_endline "connection lost"; flush_all (); exit 2
       | MarshalError s ->
         stm_pr_err Pp.(prlist str ["Fatal marshal error: "; s]); flush_all (); exit 2
       | End_of_file ->
+        stm_prerr_endline "connection lost"; flush_all (); exit 2
+      | Sys_error s when connection_lost s ->
         stm_prerr_endline "connection lost"; flush_all (); exit 2
       | e ->
         stm_pr_err Pp.(seq [str "Slave: critical exception: "; print e]);
