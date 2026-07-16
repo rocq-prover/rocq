@@ -117,3 +117,22 @@ make uninstall DSTROOT="$PWD/../tmp"
 test ! -e "$pkgdir/META"
 test ! -d "$pkgdir/rocq.d"
 test -z "$(find ../tmp -path '*/user-contrib/Foo/A.vo' | head -n 1)"
+
+echo 'Print LoadPath.' > Empty.v
+
+rocq c -boot -noinit Empty.v
+
+if rocq c -boot Empty.v; then
+  >&2 echo -boot without -noinit should have failed
+  exit 1
+fi
+
+rocq c -boot -package rocq-core Empty.v > loadpaths.package
+grep -q "Corelib" loadpaths.package
+grep -qv "user-contrib" loadpaths.package
+grep -qv "Ltac2" loadpaths.package
+
+rocq c Empty.v > loadpaths.legacy
+grep -q "Corelib" loadpaths.legacy
+grep -q "user-contrib" loadpaths.legacy
+grep -q "Ltac2" loadpaths.legacy
