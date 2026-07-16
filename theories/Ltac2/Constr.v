@@ -600,3 +600,51 @@ Ltac2 is_sort(c: constr) :=
   | Unsafe.Sort _ => true
   | _ => false
   end.
+
+Ltac2 is_rel(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.Rel _ => true
+  | _ => false
+  end.
+
+Ltac2 is_meta(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.Meta _ => true
+  | _ => false
+  end.
+
+Ltac2 is_cast(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.Cast _ _ _ => true
+  | _ => false
+  end.
+
+Ltac2 is_prod(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.Prod _ _ => true
+  | _ => false
+  end.
+
+Ltac2 is_lambda(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.Lambda _ _ => true
+  | _ => false
+  end.
+
+Ltac2 is_letin(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.LetIn _ _ _ => true
+  | _ => false
+  end.
+
+Ltac2 is_app(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.App _ _ => true
+  | _ => false
+  end.
+
+Ltac2 is_case(c: constr) :=
+  match Unsafe.kind c with
+  | Unsafe.Case _ _ _ _ _ => true
+  | _ => false
+  end.
