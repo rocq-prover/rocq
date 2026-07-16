@@ -645,6 +645,7 @@ struct
     hintdb_nopat : UID.Set.t;
     hintdb_name : string option;
     hintdb_data : stored_data UID.Map.t; (* insertion index, hint with uid = key *)
+    hintdb_names : UID.Set.t GlobRef.Map_env.t;
   }
 
   let next_hint_id db =
@@ -659,7 +660,8 @@ struct
                           hintdb_map = GlobRef.Map_env.empty;
                           hintdb_nopat = UID.Set.empty;
                           hintdb_name = name;
-                          hintdb_data = UID.Map.empty; }
+                          hintdb_data = UID.Map.empty;
+                          hintdb_names = GlobRef.Map_env.empty; }
 
   let dn_ts db = if db.use_dn then (Some db.hintdb_state) else None
 
@@ -762,7 +764,7 @@ struct
     | _ -> false
 
   (* gr must be canonical *)
-  let addkv gr id v db =
+  let addkv env gr id v db =
     let idv = { v with db = db.hintdb_name } in
     let hintdb_data =
       (* XXX this is a hack for backwards compatibility, we should refresh the
@@ -770,10 +772,21 @@ struct
       if UID.Map.mem v.code.uid db.hintdb_data then db.hintdb_data
       else UID.Map.add v.code.uid (id, idv) db.hintdb_data
     in
+    let hintdb_names = match v.name with
+    | None -> db.hintdb_names
+    | Some name ->
+      let name = QGlobRef.canonize env name in
+      let old = match GlobRef.Map_env.find_opt name db.hintdb_names with
+      | None -> UID.Set.empty
+      | Some old -> old
+      in
+      let map = UID.Set.add v.code.uid old in
+      GlobRef.Map_env.add name map db.hintdb_names
+    in
     match gr with
     | None ->
       if not (UID.Set.mem v.code.uid db.hintdb_nopat) then
-        { db with hintdb_nopat = UID.Set.add v.code.uid db.hintdb_nopat; hintdb_data }
+        { db with hintdb_nopat = UID.Set.add v.code.uid db.hintdb_nopat; hintdb_data; hintdb_names }
       else db
     | Some gr ->
       let pat =
@@ -781,7 +794,7 @@ struct
         else v.pat
       in
       let oval = find0 gr db in
-      { db with hintdb_map = GlobRef.Map_env.add gr (add_tac pat idv oval) db.hintdb_map; hintdb_data }
+      { db with hintdb_map = GlobRef.Map_env.add gr (add_tac pat idv oval) db.hintdb_map; hintdb_data; hintdb_names }
 
   let rebuild_db st' db =
     let db' =
@@ -820,7 +833,7 @@ struct
     in
     let db, id = next_hint_id db in
     let k = Option.map (fun gr -> QGlobRef.canonize env gr) k in
-    addkv k id v db
+    addkv env k id v db
 
   let add_list env sigma l db = List.fold_left (fun db k -> add_one env sigma k db) db l
 
@@ -839,18 +852,28 @@ struct
       rebuild_dn st data se
 
   let remove_list env grs db =
-    let fold accu gr = GlobRef.Set_env.add (Environ.QGlobRef.canonize env gr) accu in
-    let grs = List.fold_left fold GlobRef.Set_env.empty grs in
+    let fold (grs, uids) gr =
+      let gr = Environ.QGlobRef.canonize env gr in
+      let uids  = match GlobRef.Map_env.find_opt gr db.hintdb_names with
+      | None -> uids
+      | Some uids' -> UID.Set.union uids' uids
+      in
+      (GlobRef.Set_env.add gr grs, uids)
+    in
+    let (grs, uids) = List.fold_left fold (GlobRef.Set_env.empty, UID.Set.empty) grs in
     let filter uid =
       let (_, h) = UID.Map.get uid db.hintdb_data in
       match h.name with
       | Some gr -> not (GlobRef.Set_env.mem (Environ.QGlobRef.canonize env gr) grs)
       | None -> true
     in
-    let hintmap = GlobRef.Map_env.map (fun se -> remove env (dn_ts db) grs db.hintdb_data se) db.hintdb_map in
-    let hintnopat = UID.Set.filter filter db.hintdb_nopat in
-    (* FIXME: we should also remove the associated data from hintdb_data *)
-    { db with hintdb_map = hintmap; hintdb_nopat = hintnopat }
+    let hintdb_map = GlobRef.Map_env.map (fun se -> remove env (dn_ts db) grs db.hintdb_data se) db.hintdb_map in
+    let hintdb_nopat = UID.Set.filter filter db.hintdb_nopat in
+    let fold uid accu = UID.Map.remove uid accu in
+    let hintdb_data = UID.Set.fold fold uids db.hintdb_data in
+    let fold gr accu = GlobRef.Map_env.remove gr accu in
+    let hintdb_names = GlobRef.Set_env.fold fold grs db.hintdb_names in
+    { db with hintdb_map; hintdb_nopat; hintdb_data; hintdb_names }
 
   let remove_one env gr db = remove_list env [gr] db
 
