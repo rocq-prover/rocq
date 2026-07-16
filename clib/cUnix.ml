@@ -153,7 +153,7 @@ let mktemp_dir ?(temp_dir=Filename.get_temp_dir_name()) prefix suffix =
     let name = temp_file_name temp_dir prefix suffix in
     match Unix.mkdir name 0o700 with
     | () -> name
-    | exception (Sys_error _ as e) ->
+    | exception (Unix.Unix_error _ as e) ->
       if counter >= 1000 then raise e else try_name (counter + 1)
   in
   try_name 0
