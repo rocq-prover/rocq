@@ -120,14 +120,16 @@ test -z "$(find ../tmp -path '*/user-contrib/Foo/A.vo' | head -n 1)"
 
 echo 'Print LoadPath.' > Empty.v
 
-rocq c -boot -noinit Empty.v
+# -native-compiler no: with -boot, native compilation would additionally
+# require -nI pointing to the kernel, which is beside the point here
+rocq c -native-compiler no -boot -noinit Empty.v
 
-if rocq c -boot Empty.v; then
+if rocq c -native-compiler no -boot Empty.v; then
   >&2 echo -boot without -noinit should have failed
   exit 1
 fi
 
-rocq c -boot -package rocq-core Empty.v > loadpaths.package
+rocq c -native-compiler no -boot -package rocq-core Empty.v > loadpaths.package
 grep -q "Corelib" loadpaths.package
 grep -qv "user-contrib" loadpaths.package
 grep -qv "Ltac2" loadpaths.package
