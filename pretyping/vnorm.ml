@@ -79,15 +79,25 @@ let find_rectype_a env sigma c =
   | Ind ind -> (ind, l)
   | _ -> raise Not_found
 
-type readback_check = Environ.env -> Evd.evar_map -> EConstr.types -> Vmvalues.kind -> unit
+type readback_info = {
+  readback_depth : int;
+}
 
-let no_readback_check _ _ _ _ = ()
+type readback_check = readback_info -> Environ.env -> Evd.evar_map -> EConstr.types -> Vmvalues.kind -> unit
+
+let no_readback_check _ _ _ _ _ = ()
 
 type env = {
   env : Environ.env;
   norm_params : bool;
   readback_check : readback_check;
+  readback_info : readback_info;
 }
+
+let descend_readback env =
+  { env with
+    readback_info =
+      { readback_depth = env.readback_info.readback_depth + 1 } }
 
 let push_rel decl env =
   { env with env = Environ.push_rel decl env.env }
@@ -191,8 +201,8 @@ let rec nf_val ?readback_check (env : env) sigma v t =
   | Some readback_check -> { env with readback_check }
   in
   let whd = Vmvalues.whd_val v in
-  env.readback_check env.env sigma (EConstr.of_constr t) whd;
-  nf_whd env sigma whd t
+  env.readback_check env.readback_info env.env sigma (EConstr.of_constr t) whd;
+  nf_whd (descend_readback env) sigma whd t
 
 and nf_vtype env sigma v =  nf_val env sigma v crazy_type
 
@@ -510,5 +520,8 @@ let cbv_vm ?(flags = default_vm_flags) ?readback_check env sigma c t  =
     env;
     norm_params = flags.vm_normalize_params;
     readback_check = no_readback_check;
+    readback_info = {
+      readback_depth = 0;
+    };
   } in
   EConstr.of_constr (nf_val ?readback_check env sigma v t)
