@@ -130,7 +130,6 @@ type hints_path = GlobRef.t hints_path_gen
 module UID :
 sig
 type t
-val equal : t -> t -> bool
 val compare : t -> t -> int
 val fresh_key : unit -> t
 val subst : Mod_subst.substitution -> t -> t
@@ -643,7 +642,7 @@ struct
     use_dn : bool;
     hintdb_map : search_entry GlobRef.Map_env.t;
     (* A list of unindexed entries with no associated pattern. *)
-    hintdb_nopat : UID.t list;
+    hintdb_nopat : UID.Set.t;
     hintdb_name : string option;
     hintdb_data : stored_data UID.Map.t; (* insertion index, hint with uid = key *)
   }
@@ -658,7 +657,7 @@ struct
                           hintdb_max_id = 0;
                           use_dn = use_dn;
                           hintdb_map = GlobRef.Map_env.empty;
-                          hintdb_nopat = [];
+                          hintdb_nopat = UID.Set.empty;
                           hintdb_name = name;
                           hintdb_data = UID.Map.empty; }
 
@@ -725,8 +724,8 @@ struct
       Option.map (fun x -> WithMode x) (List.find_map (matches_mode sigma args) modes)
 
   let merge_entry secvars db nopat pat =
-    let map uid = UID.Map.get uid db.hintdb_data in
-    let h = List.sort pri_order_int (List.map map db.hintdb_nopat) in
+    let fold uid accu = UID.Map.get uid db.hintdb_data :: accu in
+    let h = List.sort pri_order_int (UID.Set.fold fold db.hintdb_nopat []) in
     let h = List.merge pri_order_int h nopat in
     let h = List.merge pri_order_int h pat in
     List.map_filter (realize_tac secvars) h
@@ -737,8 +736,8 @@ struct
   let map_all env ~secvars k db =
     let se = find env k db in
     let data = db.hintdb_data in
-    let map uid = UID.Map.get uid data in
-    let h = List.sort pri_order_int (List.map map db.hintdb_nopat) in
+    let fold uid accu = UID.Map.get uid db.hintdb_data :: accu in
+    let h = List.sort pri_order_int (UID.Set.fold fold db.hintdb_nopat []) in
     let h = merge_set data (StoredData.elements se.sentry_nopat) h in
     let h = merge_set data (StoredData.elements se.sentry_pat) h in
     List.map_filter (realize_tac secvars) h
@@ -773,9 +772,8 @@ struct
     in
     match gr with
     | None ->
-      if not (List.mem_f UID.equal v.code.uid db.hintdb_nopat) then
-        (* FIXME: inefficient *)
-        { db with hintdb_nopat = v.code.uid :: db.hintdb_nopat; hintdb_data }
+      if not (UID.Set.mem v.code.uid db.hintdb_nopat) then
+        { db with hintdb_nopat = UID.Set.add v.code.uid db.hintdb_nopat; hintdb_data }
       else db
     | Some gr ->
       let pat =
@@ -788,14 +786,14 @@ struct
   let rebuild_db st' db =
     let db' =
       let map se = rebuild_dn (Some st') db.hintdb_data se in
-      { db with hintdb_map = GlobRef.Map_env.map map db.hintdb_map; hintdb_state = st'; hintdb_nopat = [] }
+      { db with hintdb_map = GlobRef.Map_env.map map db.hintdb_map; hintdb_state = st'; hintdb_nopat = UID.Set.empty }
     in
-    let fold db id =
-      if not (List.mem_f UID.equal id db.hintdb_nopat) then (* FIXME: inefficient *)
-        { db with hintdb_nopat = id :: db.hintdb_nopat }
+    let fold id db =
+      if not (UID.Set.mem id db.hintdb_nopat) then
+        { db with hintdb_nopat = UID.Set.add id db.hintdb_nopat }
       else db
     in
-    List.fold_left fold db' db.hintdb_nopat
+    UID.Set.fold fold db.hintdb_nopat db'
 
   let add_one env sigma (k, v) db =
     let v = instantiate_hint env sigma v in
@@ -850,7 +848,7 @@ struct
       | None -> true
     in
     let hintmap = GlobRef.Map_env.map (fun se -> remove env (dn_ts db) grs db.hintdb_data se) db.hintdb_map in
-    let hintnopat = List.filter filter db.hintdb_nopat in
+    let hintnopat = UID.Set.filter filter db.hintdb_nopat in
     (* FIXME: we should also remove the associated data from hintdb_data *)
     { db with hintdb_map = hintmap; hintdb_nopat = hintnopat }
 
@@ -862,13 +860,13 @@ struct
 
   let iter f db =
     let iter_se k se = f (Some k) se.sentry_mode (get_entry db.hintdb_data se) in
-    let map uid = snd (UID.Map.get uid db.hintdb_data) in
-    let () = f None [] (List.map map db.hintdb_nopat) in
+    let fold uid accu = snd (UID.Map.get uid db.hintdb_data) :: accu in
+    let () = f None [] (UID.Set.fold fold db.hintdb_nopat []) in
     GlobRef.Map_env.iter iter_se db.hintdb_map
 
   let fold f db accu =
-    let map uid = snd (UID.Map.get uid db.hintdb_data) in
-    let accu = f None [] (List.map map db.hintdb_nopat) accu in
+    let fold uid accu = snd (UID.Map.get uid db.hintdb_data) :: accu in
+    let accu = f None [] (UID.Set.fold fold db.hintdb_nopat []) accu in
     GlobRef.Map_env.fold (fun k se -> f (Some k) se.sentry_mode (get_entry db.hintdb_data se)) db.hintdb_map accu
 
   let transparent_state db = db.hintdb_state
