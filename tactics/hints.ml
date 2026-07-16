@@ -325,7 +325,7 @@ sig
   val empty : t
   val mem : UID.t -> t -> bool
   val add : UID.t -> t -> t
-  val filter : (UID.t -> bool) -> t -> t
+  val remove : UID.t -> t -> t
   val elements : t -> UID.Set.t
 end =
 struct
@@ -342,11 +342,9 @@ let add t sd = {
   data = UID.Set.add t sd.data;
 }
 
-let filter keep sd =
-  let fold h accu = if keep h then accu else UID.Set.remove h accu in
-  let data = UID.Set.fold fold sd.data sd.data in
-  if data == sd.data then sd
-  else { data }
+let remove uid sd = {
+  data = UID.Set.remove uid sd.data;
+}
 
 let elements v = v.data
 
@@ -837,15 +835,10 @@ struct
 
   let add_list env sigma l db = List.fold_left (fun db k -> add_one env sigma k db) db l
 
-  let remove env st grs data se =
-    let filter uid =
-      let (_, h) = UID.Map.get uid data in
-      match h.name with
-      | Some gr -> not (GlobRef.Set_env.mem (Environ.QGlobRef.canonize env gr) grs)
-      | None -> true
-    in
-    let nopat = StoredData.filter filter se.sentry_nopat in
-    let pat = StoredData.filter filter se.sentry_pat in
+  let remove env st uids data se =
+    let fold uid accu = StoredData.remove uid accu in
+    let nopat = UID.Set.fold fold uids se.sentry_nopat in
+    let pat = UID.Set.fold fold uids se.sentry_pat in
     if pat == se.sentry_pat && nopat == se.sentry_nopat then se
     else
       let se = { se with sentry_nopat = nopat; sentry_pat = pat } in
@@ -861,14 +854,8 @@ struct
       (GlobRef.Set_env.add gr grs, uids)
     in
     let (grs, uids) = List.fold_left fold (GlobRef.Set_env.empty, UID.Set.empty) grs in
-    let filter uid =
-      let (_, h) = UID.Map.get uid db.hintdb_data in
-      match h.name with
-      | Some gr -> not (GlobRef.Set_env.mem (Environ.QGlobRef.canonize env gr) grs)
-      | None -> true
-    in
-    let hintdb_map = GlobRef.Map_env.map (fun se -> remove env (dn_ts db) grs db.hintdb_data se) db.hintdb_map in
-    let hintdb_nopat = UID.Set.filter filter db.hintdb_nopat in
+    let hintdb_map = GlobRef.Map_env.map (fun se -> remove env (dn_ts db) uids db.hintdb_data se) db.hintdb_map in
+    let hintdb_nopat = UID.Set.diff db.hintdb_nopat uids in
     let fold uid accu = UID.Map.remove uid accu in
     let hintdb_data = UID.Set.fold fold uids db.hintdb_data in
     let fold gr accu = GlobRef.Map_env.remove gr accu in
