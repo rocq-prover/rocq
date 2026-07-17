@@ -29,9 +29,11 @@ val max_peek_loc : ('e,'a) t -> Loc.t
     been peeked yet *)
 val interval_loc : int -> int -> ('e,'a) t -> Loc.t
 
-(** Return location of an already peeked element at some position counting from 0;
-    fails if the element has not been peeked yet *)
-val get_loc : int -> ('e,'a) t -> Loc.t
+(** Return location of an already peeked element at some position counting from
+    {!count}; fails if the element has not been peeked yet. That is,
+    [get_loc 0 s] is the first location after {!current_loc}. The position must
+    be positive. *)
+val get_relative_loc : int -> ('e,'a) t -> Loc.t
 
 (** Lifted usual function on streams *)
 

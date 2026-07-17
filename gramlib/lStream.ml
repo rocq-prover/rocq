@@ -51,8 +51,10 @@ let interval_loc bp ep strm =
     let loc2 = strm.fun_loc ep in
     Loc.merge loc1 loc2
 
-let get_loc n strm =
-  strm.fun_loc (n + 1)
+let get_relative_loc n strm =
+  let () = assert (0 <= n) in
+  let pos = Stream.count strm.strm in
+  strm.fun_loc (pos + n + 1)
 
 let peek e strm =
   let a = Stream.peek e strm.strm in
