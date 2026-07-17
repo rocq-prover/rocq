@@ -18,6 +18,8 @@ type ('e,'a) t = {
   mutable max_peek : int;
 }
 
+type position = int * (int -> Loc.t)
+
 let from ?(loc=Loc.(initial ToplevelInput)) f =
   let loct = Hashtbl.create 207 in
   let loct_func loct i = Hashtbl.find loct i in
@@ -35,21 +37,13 @@ let from ?(loc=Loc.(initial ToplevelInput)) f =
 
 let count strm = Stream.count strm.strm
 
+let current strm = (count strm, strm.fun_loc)
+
 let current_loc strm =
   strm.fun_loc (Stream.count strm.strm)
 
 let max_peek_loc strm =
   strm.fun_loc strm.max_peek
-
-let interval_loc bp ep strm =
-  assert (bp <= ep);
-  if ep > strm.max_peek then failwith "Not peeked position";
-  if bp == ep then
-    Loc.after (strm.fun_loc bp) 0 0
-  else
-    let loc1 = strm.fun_loc (bp + 1) in
-    let loc2 = strm.fun_loc ep in
-    Loc.merge loc1 loc2
 
 let get_relative_loc n strm =
   let () = assert (0 <= n) in
@@ -74,3 +68,7 @@ let junk e strm = Stream.junk e strm.strm
 let njunk e len strm = Stream.njunk e len strm.strm
 
 let next e strm = Stream.next e strm.strm
+
+let pos_offset (i, _) = i
+let pos_current (i, loct) = try loct i with Not_found -> assert false
+let pos_next (i, loct) = try loct (i + 1) with Not_found -> assert false
