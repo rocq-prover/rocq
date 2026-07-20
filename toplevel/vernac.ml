@@ -113,7 +113,7 @@ let load_vernac_core ~beautify ~check ~state ?source file =
 
     let result = NewProfile.profile "command"
         ~post_args:(function
-          | Error _ | Ok None -> []
+          | Error _ | Ok None -> [("skip", `Intlit "1")]
           | Ok (Some (ast, _)) ->
             let lnum = match ast.CAst.loc with
               | None -> "unknown"
