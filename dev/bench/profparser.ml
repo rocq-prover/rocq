@@ -15,6 +15,15 @@ module YBU = YB.Util
 
 let assoc a b : YB.t = CList.assoc_f String.equal a b
 
+let rec assocs keys (obj : YB.t) =
+  match keys, obj with
+  | [], _ -> obj
+  | k :: keys, `Assoc entries ->
+    let obj = assoc k entries in
+    assocs keys obj
+  | _, _ ->
+    die "Not an object"
+
 (* Profile files can be large, we want to parse 1 record at a time and
    only keep the info we're interested in (ie the "command" events).
 
@@ -28,7 +37,7 @@ let rec find_cmds acc (lstate,lex as ch) =
   let is_last = try YB.read_comma lstate lex; false with Yojson.Json_error _ -> true in
   let acc = match v with
     | `Assoc l -> begin match assoc "name" l with
-        | `String "command" | `String "parse_command" -> (lnum,l) :: acc
+        | `String "command" -> (lnum,l) :: acc
         | _ -> acc
       end
     | _ -> die "File %S line %d: unrecognised value" fname lnum
@@ -150,20 +159,36 @@ let rec process_cmds acc = function
   | end_event :: start_event :: rest ->
     let start_ts = get_ts start_event in
     let end_ts = get_ts end_event in
-    let hdr, line =
+    let hdr_line =
       (* TRANSITIONARY: The src info is either in the start or end event
-         depending on the exact commit that generated the profiles. *)
+         depending on the exact commit that generated the profiles.
+      *)
       try
-        get_src_info start_event
+        Some (get_src_info start_event)
       with
       | Not_found ->
-        get_src_info end_event
+        try
+          Some (get_src_info end_event)
+        with
+        | Not_found ->
+          (* TRANSITIONARY: new versions produce command spans even for commands
+             without src info. They must have [skip:1] in the end event. *)
+          match assocs ["args"; "skip"] (`Assoc (snd end_event)) with
+          | `Int 1 ->
+            None
+          | _ | exception _ ->
+          die "Could not find src info in either start (ts=%i) or end (ts=%i) event and the end event does not have [skip:1]" start_ts end_ts
     in
-    let src_chars = get_src_chars ~lnum:(fst start_event) hdr in
-    let time = mk_time start_ts end_ts in
-    let memory = mk_memory end_event in
-    let instructions = get_instr end_event in
-    process_cmds ((src_chars, { time; memory; instructions; }) :: acc) rest
+    begin
+      match hdr_line with
+      | None -> process_cmds acc rest
+      | Some (hdr, line) ->
+      let src_chars = get_src_chars ~lnum:(fst start_event) hdr in
+      let time = mk_time start_ts end_ts in
+      let memory = mk_memory end_event in
+      let instructions = get_instr end_event in
+      process_cmds ((src_chars, { time; memory; instructions; }) :: acc) rest
+    end
   | [_] -> die "ill parenthesized events"
 
 let parse ~file =
