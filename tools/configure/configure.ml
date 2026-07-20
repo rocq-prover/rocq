@@ -32,7 +32,7 @@ let pr_patch = function
 
 let major = 9
 let minor = 3
-let patch = Alpha
+let patch = Rc 1
 
 let coq_version = Printf.sprintf "%d.%d%s" major minor (pr_patch patch)
 
@@ -46,7 +46,7 @@ let vo_magic =
 
 (* NB: not the same as checking patch = Release,
    because post release commits still get patch = Release *)
-let is_a_released_version = false
+let is_a_released_version = true
 
 (** Default OCaml binaries *)
 
