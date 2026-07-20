@@ -48,7 +48,7 @@ let cbv_native env sigma c =
     (warn_native_compute_disabled ();
      cbv_vm env sigma c)
 
-let vm_compute_no_stuck_readback_check _ env _ _ whd =
+let vm_readback_is_stuck env whd =
   let stuck_stack =
     List.exists (function
       | Vmvalues.Zfix _ | Vmvalues.Zswitch _ -> true
@@ -69,19 +69,30 @@ let vm_compute_no_stuck_readback_check _ env _ _ whd =
       Vmvalues.EvarKey _), _
   | Vmvalues.Aind _, _ | Vmvalues.Asort _, _ -> false
   in
-  let is_stuck = match whd with
+  match whd with
   | Values.Vfix _ | Values.Vcofix _ -> true
   | Values.Vaccu (atom, stack) ->
     stuck_stack stack || fully_applied_primitive atom stack
   | Values.Vfun _ | Values.Vprod _ | Values.Vconst _ | Values.Vblock _
   | Values.Vint64 _ | Values.Vfloat64 _ | Values.Vstring _ | Values.Varray _ -> false
-  in
-  if is_stuck then
+
+let vm_compute_no_stuck_readback_check _ env _ _ whd =
+  if vm_readback_is_stuck env whd then
     user_err (str "vm_compute_no_stuck reduction encountered a stuck term.")
 
-let cbv_vm_no_stuck env sigma c =
+let vm_compute_whnf_readback_check info env _ _ whd =
+  if Int.equal info.Vnorm.readback_depth 0 && vm_readback_is_stuck env whd then
+    user_err (str "vm_compute_whnf reduction did not reach weak head normal form.")
+
+let cbv_vm_with_readback_check readback_check env sigma c =
   let ctyp = Retyping.get_type_of env sigma c in
-  Vnorm.cbv_vm ~readback_check:vm_compute_no_stuck_readback_check env sigma c ctyp
+  Vnorm.cbv_vm ~readback_check env sigma c ctyp
+
+let cbv_vm_no_stuck =
+  cbv_vm_with_readback_check vm_compute_no_stuck_readback_check
+
+let cbv_vm_compute_whnf =
+  cbv_vm_with_readback_check vm_compute_whnf_readback_check
 
 let { Goptions.get = simplIsCbn } =
   Goptions.declare_bool_option_and_ref
@@ -284,7 +295,9 @@ let declare_reduction s f =
     (str "There is already a reduction expression of name " ++ str s ++ str ".")
   else reduction_tab := String.Map.add s f !reduction_tab
 
-let () = declare_reduction "vm_compute_no_stuck" cbv_vm_no_stuck
+let () =
+  declare_reduction "vm_compute_no_stuck" cbv_vm_no_stuck;
+  declare_reduction "vm_compute_whnf" cbv_vm_compute_whnf
 
 let check_custom = function
   | ExtraRedExpr s ->
