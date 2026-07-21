@@ -174,6 +174,40 @@ log_anomaly = "==========> FAILURE <=========="
 log_failure = "==========> FAILURE <=========="
 log_intro = "==========> TESTING $(1) <=========="
 
+# An output test's reference is normally the single file $*.out. Some
+# tests, however, have output that legitimately varies between runs or
+# platforms in ways that are not worth (or not possible to) normalise away
+# in the post-processing pipeline -- for instance output/Partac.v, whose
+# STM par: workers may on Windows CI race a "connection lost" teardown
+# message into the captured output. For such tests, alternative accepted
+# references can be provided as sibling files named $*.out.variant-<name>
+# (any suffix). The produced output is compared against the primary $*.out
+# first and then, only if that differs, against each variant in shell glob
+# order; the test passes as soon as one candidate matches (first match
+# wins). If none matches, we report every candidate that was tried and
+# show the diff against the primary $*.out. `approve-output` only ever
+# writes the primary $*.out (see below); variants are hand-authored data.
+#
+# $(call diff_against_candidates,<primary .out>,<produced output>)
+# Emits the diff/times output and leaves the result in $$R (0 = a
+# candidate matched). Must be used inside a recipe's shell block.
+define diff_against_candidates
+  primary="$(1)"; produced="$(2)"; R=1; tried=""; \
+  for candidate in "$$primary" "$$primary".variant-*; do \
+    [ -e "$$candidate" ] || continue; \
+    tried="$$tried $$candidate"; \
+    if diff -a -u --strip-trailing-cr "$$candidate" "$$produced" > /dev/null 2>&1; then \
+      R=0; break; \
+    fi; \
+  done; \
+  if [ $$R = 0 ]; then times; else \
+    diff -a -u --strip-trailing-cr "$$primary" "$$produced" 2>&1; times; \
+    if [ "$$tried" != " $$primary" ]; then \
+      echo "(no accepted output matched; tried:$$tried)"; \
+    fi; \
+  fi
+endef
+
 FAIL = >&2 echo 'FAILED    $@'
 FAIL_CHK = >&2 echo 'FAILED    $(patsubst %.v.log,%.chk.log,$@)'
 
@@ -443,7 +477,7 @@ $(addsuffix .log,$(wildcard output/*.v)): %.v.log: %.v %.out $(PREREQUISITELOG)
 	    | grep -a -v "^<W>" \
 	    $(CLEANUP_WINPATH) \
 	    > $$output; \
-	  diff -a -u --strip-trailing-cr $*.out $$output 2>&1; R=$$?; times; \
+	  $(call diff_against_candidates,$*.out,$$output); \
 	  if [ $$R = 0 ]; then \
 	    echo $(log_success); \
 	    echo "    $< ... Ok"; \
@@ -517,6 +551,11 @@ $(addsuffix .log,$(wildcard output-coqchk/*.v)): %.v.log: %.v %.out $(PREREQUISI
 	$(HIDE)$(call REPORT_TIMER,$(patsubst %.v.log,%.chk.log,$@))
 
 .PHONY: approve-output
+# This approves the produced output as the primary reference $*.out only.
+# Alternative references ($*.out.variant-*, see diff_against_candidates
+# above) are hand-authored and never touched here: a produced output is
+# only ever saved as $*.out.real, so approving it necessarily updates the
+# primary. To add or update a variant, edit the variant file by hand.
 approve-output: output output-coqtop output-coqchk
 	$(HIDE)for f in $(addsuffix /*.out.real,$^); do if [ -f "$$f" ]; then \
 	  mv "$$f" "$${f%.real}"; \
