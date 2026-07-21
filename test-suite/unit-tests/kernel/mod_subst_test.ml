@@ -120,21 +120,19 @@ let () = add_test "join substitutes inline bodies after expansion" (fun () ->
   | None, None -> assert_failure "the inline hint was not exercised"
   | _ -> assert_failure "join changed whether the constant is inlined")
 
-let () = add_test "joined substitutions act sequentially on resolver domains" (fun () ->
+let () = add_test "resolver domain substitutions compose sequentially" (fun () ->
   let a = mp "A" and b = mp "B" and c = mp "C" in
   let resolver =
     empty_delta_resolver a
     |> add_mp_delta_resolver (dot a "Inner") (dot a "Canonical")
     |> add_kn_delta_resolver (kn a "value") (kn (dot a "Canonical") "value")
   in
-  let subst1 = empty_map a b in
-  let subst2 = empty_map b c in
   let expected =
     resolver
-    |> subst_dom_delta_resolver subst1
-    |> subst_dom_delta_resolver subst2
+    |> subst_dom_delta_resolver a b
+    |> subst_dom_delta_resolver b c
   in
-  assert_delta expected (subst_dom_delta_resolver (join subst1 subst2) resolver))
+  assert_delta expected (subst_dom_delta_resolver a c resolver))
 
 let () = add_test "joined substitutions act sequentially on resolver codomains" (fun () ->
   let root = mp "Root" and a = mp "A" and b = mp "B" and c = mp "C" in
@@ -152,6 +150,35 @@ let () = add_test "joined substitutions act sequentially on resolver codomains" 
   in
   assert_delta expected (subst_codom_delta_resolver (join subst1 subst2) resolver))
 
+let () = add_test "joined substitutions act sequentially on resolver domains and codomains" (fun () ->
+  let a = mp "A" and b = mp "B" and c = mp "C" in
+  let resolver =
+    empty_delta_resolver a
+    |> add_mp_delta_resolver (dot a "Inner") (dot a "Canonical")
+    |> add_kn_delta_resolver (kn a "value") (kn (dot a "Canonical") "value")
+  in
+  let subst1 = empty_map a b in
+  let subst2 = empty_map b c in
+  let expected =
+    resolver
+    |> subst_dom_codom_delta_resolver subst1
+    |> subst_dom_codom_delta_resolver subst2
+  in
+  assert_delta expected
+    (subst_dom_codom_delta_resolver (join subst1 subst2) resolver))
+
+let () = add_test "direct extensions preserve an already composed substitution" (fun () ->
+  let a = mp "A" and b = mp "B" and c = mp "C" in
+  let d = mp "D" and e = mp "E" in
+  let composed = join (empty_map a b) (empty_map b c) in
+  let extended = add_mp d e (empty_delta_resolver e) composed in
+  assert_mp c (subst_mp extended a);
+  assert_mp e (subst_mp extended d);
+  let mbid = MBId.make DirPath.empty (id "Arg") in
+  let extended = add_mbid mbid d (empty_delta_resolver d) composed in
+  assert_mp c (subst_mp extended a);
+  assert_mp d (subst_mp extended (ModPath.MPbound mbid)))
+
 let () = add_test "joined substitutions survive marshal round trips" (fun () ->
   let a = mp "A" and b = mp "B" and c = mp "C" in
   let joined = join (empty_map a b) (empty_map b c) in
@@ -162,7 +189,7 @@ let () = add_test "joined substitutions survive marshal round trips" (fun () ->
 
 let () = add_test "long join chains preserve sequential behavior" (fun () ->
   let rec build index current subst =
-    if Int.equal index 200 then current, subst
+    if Int.equal index 10000 then current, subst
     else
       let next = mp ("M" ^ string_of_int (index + 1)) in
       build (index + 1) next (join subst (empty_map current next))
@@ -171,5 +198,51 @@ let () = add_test "long join chains preserve sequential behavior" (fun () ->
   let expected, subst = build 0 start empty_subst in
   assert_mp expected (subst_mp subst start);
   assert_mp (dot expected "Field") (subst_mp subst (dot start "Field")))
+
+let () = add_test "right-associated join chains preserve sequential behavior" (fun () ->
+  let rec build index =
+    if Int.equal index 256 then empty_subst
+    else
+      let current = mp ("R" ^ string_of_int index) in
+      let next = mp ("R" ^ string_of_int (index + 1)) in
+      join (empty_map current next) (build (index + 1))
+  in
+  let start = mp "R0" and expected = mp "R256" in
+  let subst = build 0 in
+  assert_mp expected (subst_mp subst start);
+  assert_mp (dot expected "Field") (subst_mp subst (dot start "Field")))
+
+let () = add_test "bounded normalization preserves inline resolver semantics" (fun () ->
+  let first = mp "N0" and second = mp "N1" in
+  let source_name = kn first "value" and mapped_name = kn second "value" in
+  let body_constant = Constant.make2 second (id "body") in
+  let body = {
+    UVars.univ_abstracted_value =
+      Constr.mkConstU (body_constant, UVars.Instance.empty);
+    univ_abstracted_binder = UVars.AbstractContext.empty;
+  } in
+  let first_resolver =
+    empty_delta_resolver second
+    |> add_inline_delta_resolver mapped_name (0, Some body)
+  in
+  let rec extend index subst =
+    if Int.equal index 65 then subst
+    else
+      let current = mp ("N" ^ string_of_int index) in
+      let next = mp ("N" ^ string_of_int (index + 1)) in
+      extend (index + 1) (join subst (empty_map current next))
+  in
+  let subst = extend 1 (map_mp first second first_resolver) in
+  let expected_path = mp "N65" in
+  let _, inline_body = subst_con subst (Constant.make1 source_name) in
+  match inline_body with
+  | None -> assert_failure "normalization discarded an inline resolver hint"
+  | Some body ->
+    let expected =
+      Constr.mkConstU
+        (Constant.make2 expected_path (id "body"), UVars.Instance.empty)
+    in
+    assert_bool "normalization did not substitute the inline body"
+      (Constr.equal expected body.UVars.univ_abstracted_value))
 
 let () = run_tests __FILE__ (open_log_out_ch __FILE__) (List.rev !tests)
