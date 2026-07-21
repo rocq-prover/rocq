@@ -24,6 +24,28 @@ let assert_constant ?msg expected actual =
   in
   assert_equal ?msg ~cmp ~printer:Constant.debug_to_string expected actual
 
+let assert_mind ?msg expected actual =
+  assert_equal ?msg ~cmp:MutInd.CanOrd.equal ~printer:MutInd.debug_to_string
+    expected actual
+
+let assert_ind ?msg expected actual =
+  let printer (mind, index) =
+    MutInd.debug_to_string mind ^ "," ^ string_of_int index
+  in
+  assert_equal ?msg ~cmp:Ind.CanOrd.equal ~printer expected actual
+
+let assert_constructor ?msg expected actual =
+  let printer ((mind, ind_index), cstr_index) =
+    MutInd.debug_to_string mind ^ "," ^ string_of_int ind_index ^ "," ^
+    string_of_int cstr_index
+  in
+  assert_equal ?msg ~cmp:Construct.CanOrd.equal ~printer expected actual
+
+let assert_projection ?msg expected actual =
+  assert_equal ?msg ~cmp:Projection.CanOrd.equal
+    ~printer:Projection.debug_to_string
+    expected actual
+
 let assert_delta ?msg expected actual =
   assert_equal ?msg ~printer:(fun x -> x)
     (debug_string_of_delta expected) (debug_string_of_delta actual)
@@ -89,6 +111,38 @@ let () = add_test "join preserves kernel-name and constant substitution" (fun ()
   let constant = Constant.make1 name in
   let sequential = subst_constant subst2 (subst_constant subst1 constant) in
   assert_constant sequential (subst_constant joined constant))
+
+let () = add_test "join preserves inductive, projection, and term substitution" (fun () ->
+  let a = mp "A" and b = mp "B" and c = mp "C" in
+  let subst1 = empty_map a b in
+  let subst2 = empty_map b c in
+  let joined = join subst1 subst2 in
+  let mind =
+    MutInd.make (kn a "record") (kn (dot a "Canonical") "record")
+  in
+  let ind = mind, 0 in
+  let cstr = ind, 1 in
+  let projection =
+    Projection.Repr.make ind ~proj_npars:0 ~proj_arg:0
+    |> fun repr -> Projection.make repr false
+  in
+  let term = Constr.mkIndU (ind, UVars.Instance.empty) in
+  assert_mind
+    (subst_mind subst2 (subst_mind subst1 mind))
+    (subst_mind joined mind);
+  assert_ind
+    (subst_ind subst2 (subst_ind subst1 ind))
+    (subst_ind joined ind);
+  assert_constructor
+    (subst_constructor subst2 (subst_constructor subst1 cstr))
+    (subst_constructor joined cstr);
+  assert_projection
+    (subst_proj subst2 (subst_proj subst1 projection))
+    (subst_proj joined projection);
+  assert_bool "joined term substitution differs from sequential application"
+    (Constr.equal
+      (subst_mps subst2 (subst_mps subst1 term))
+      (subst_mps joined term)))
 
 let () = add_test "join substitutes inline bodies after expansion" (fun () ->
   let a = mp "A" and b = mp "B" and c = mp "C" in
