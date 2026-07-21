@@ -108,4 +108,22 @@ When an output test `output/foo.v` fails, the output is stored in
 `approve-output` will do this for all failing output tests
 automatically.
 
-Don't forget to check the updated `.out` files into git!
+`approve-output` supports two modes, selected by the `APPROVE` variable:
+
+- `make approve-output APPROVE=replace` replaces the primary reference
+  `foo.out` with the produced output, leaving any variants untouched.
+- `make approve-output APPROVE=add` *adds* the produced output as a new
+  accepted reference instead of replacing anything: it is written to the
+  next free numeric variant `foo.out.variant-<N>`. If the produced output
+  is byte-identical to the primary or to an existing variant, it is a
+  no-op (deduplicated).
+
+With no `APPROVE` set, the mode is chosen per test: `replace` when the
+test has a single expectation (just `foo.out`), and `add` when it already
+has one or more `foo.out.variant-*` files (so approving a multi-expectation
+test never clobbers the primary or drops existing variants). Set `APPROVE`
+explicitly to override, e.g. `APPROVE=replace` to overwrite the primary of
+a multi-expectation test, or `APPROVE=add` to start a variant set from a
+single-expectation test.
+
+Don't forget to check the updated `.out`/`.out.variant-*` files into git!
