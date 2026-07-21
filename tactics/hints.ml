@@ -127,9 +127,43 @@ type 'a hints_path_gen =
 type pre_hints_path = Libnames.qualid hints_path_gen
 type hints_path = GlobRef.t hints_path_gen
 
+module UID :
+sig
+type t
+val compare : t -> t -> int
+val fresh_key : unit -> t
+val subst : Mod_subst.substitution -> t -> t
+
+module Set : CSig.USetS with type elt = t
+module Map : Map.UExtS with type key = t and module Set := Set
+
+end =
+struct
+
+include KerName
+
+let fresh_key =
+  let id = Summary.ref ~name:"HINT-COUNTER" 0 in
+  fun () ->
+    let cur = incr id; !id in
+    let lbl = Id.of_string ("_" ^ string_of_int cur) in
+    let kn = Lib.make_kn lbl in
+    let (mp, _) = KerName.repr kn in
+    (* We embed the full path of the kernel name in the label so that
+       the identifier should be unique. This ensures that including
+       two modules together won't confuse the corresponding labels. *)
+    let lbl = Id.of_string_soft (Printf.sprintf "%s#%i"
+      (ModPath.to_string mp) cur)
+    in
+    KerName.make mp lbl
+
+let subst = subst_kn
+
+end
+
 type 'a with_uid = {
   obj : 'a;
-  uid : KerName.t;
+  uid : UID.t;
 }
 
 type raw_hint = {
@@ -196,21 +230,6 @@ type 'a hints_transparency_target =
 
 let hint_as_term h = (h.hint_uctx, mkRef h.hint_term)
 
-let fresh_key =
-  let id = Summary.ref ~name:"HINT-COUNTER" 0 in
-  fun () ->
-    let cur = incr id; !id in
-    let lbl = Id.of_string ("_" ^ string_of_int cur) in
-    let kn = Lib.make_kn lbl in
-    let (mp, _) = KerName.repr kn in
-    (* We embed the full path of the kernel name in the label so that
-       the identifier should be unique. This ensures that including
-       two modules together won't confuse the corresponding labels. *)
-    let lbl = Id.of_string_soft (Printf.sprintf "%s#%i"
-      (ModPath.to_string mp) cur)
-    in
-    KerName.make mp lbl
-
 let pri_order_int (id1, {pri=pri1}) (id2, {pri=pri2}) =
   let d = Int.compare pri1 pri2 in
     if Int.equal d 0 then Int.compare id2 id1
@@ -242,33 +261,23 @@ let get_default_pattern (h : hint hint_ast) = match h with
 type stored_data = int * full_hint
     (* First component is the index of insertion in the table, to keep most recent first semantics. *)
 
-module Stored =
-struct
-  type t = stored_data
-  let compare = pri_order_int
-end
-
-module StoredSet = Set.Make(Stored)
-
-let merge_set s l = List.merge Stored.compare (StoredSet.elements s) l
-
 module Bounded_net :
 sig
   type t
   val empty : TransparentState.t option -> t
-  val build : TransparentState.t option -> StoredSet.t -> t
-  val add : t -> hint_pattern -> stored_data -> t
-  val lookup : Environ.env -> Evd.evar_map -> t -> EConstr.constr -> stored_data list
+  val build : TransparentState.t option -> UID.Set.t -> stored_data UID.Map.t -> t
+  val add : t -> hint_pattern -> full_hint -> t
+  val lookup : Environ.env -> Evd.evar_map -> t -> EConstr.constr -> UID.t list
 end =
 struct
-  module Bnet = Btermdn.Make(Stored)
+  module Bnet = Btermdn.Make(UID)
 
-  type diff = hint_pattern * stored_data
+  type diff = hint_pattern * full_hint
 
   type data =
   | Bnet of (TransparentState.t option * Bnet.t)
   | Diff of diff * data ref
-  | Build of TransparentState.t option * StoredSet.t
+  | Build of TransparentState.t option * UID.Set.t * stored_data UID.Map.t
 
   type t = data ref
 
@@ -276,7 +285,7 @@ struct
 
   let add net p v = ref (Diff ((p, v), net))
 
-  let build st data = ref (Build (st, data))
+  let build st uids data = ref (Build (st, uids, data))
 
   let add0 env sigma st p v dn =
     (* Feedback.msg_debug (let v1 = v in Pp.(str "add0: " ++ Pp.pr_opt Names.GlobRef.print (snd v1).name)); *)
@@ -284,10 +293,10 @@ struct
     | ConstrPattern p -> Bnet.pattern env st p
     | SyntacticPattern p -> Bnet.pattern_syntactic env p
     | DefaultPattern ->
-      let c = get_default_pattern (snd v).code.obj in
+      let c = get_default_pattern v.code.obj in
       Bnet.constr_pattern env sigma st c
     in
-    Bnet.add dn p v
+    Bnet.add dn p v.code.uid
 
   let rec force env sigma net = match !net with
   | Bnet dn -> dn
@@ -296,9 +305,12 @@ struct
     let dn = add0 env sigma st p v dn in
     let () = net := (Bnet (st, dn)) in
     st, dn
-  | Build (st, data) ->
-    let fold v dn = add0 env sigma st (Option.get (snd v).pat) v dn in
-    let ans = StoredSet.fold fold data Bnet.empty in
+  | Build (st, uids, data) ->
+    let fold uid dn =
+      let _, v = UID.Map.get uid data in
+      add0 env sigma st (Option.get v.pat) v dn
+    in
+    let ans = UID.Set.fold fold uids Bnet.empty in
     let () = net := Bnet (st, ans) in
     st, ans
 
@@ -311,38 +323,28 @@ module StoredData :
 sig
   type t
   val empty : t
-  val mem : KerName.t -> t -> bool
-  val add : stored_data -> t -> t
-  val remove : Environ.env -> GlobRef.Set_env.t -> t -> t
-  val elements : t -> StoredSet.t
+  val mem : UID.t -> t -> bool
+  val add : UID.t -> t -> t
+  val remove : UID.t -> t -> t
+  val elements : t -> UID.Set.t
 end =
 struct
 
 type t = {
-  data : StoredSet.t;
-  set : KerName.Set.t;
+  data : UID.Set.t;
 }
 
-let empty = { data = StoredSet.empty; set = KerName.Set.empty }
+let empty = { data = UID.Set.empty; }
 
-let mem kn sd = KerName.Set.mem kn sd.set
+let mem kn sd = UID.Set.mem kn sd.data
 
 let add t sd = {
-  data = StoredSet.add t sd.data;
-  set = KerName.Set.add (snd t).code.uid sd.set;
+  data = UID.Set.add t sd.data;
 }
 
-let remove env grs sd =
-  let fold ((_, h) as v) (accu, ans) =
-    let keep = match h.name with
-    | Some gr -> not (GlobRef.Set_env.mem (Environ.QGlobRef.canonize env gr) grs)
-    | None -> true
-    in
-    if keep then (accu, StoredSet.add v ans) else (KerName.Set.remove h.code.uid accu, ans)
-  in
-  let set, data = StoredSet.fold fold sd.data (sd.set, StoredSet.empty) in
-  if set == sd.set then sd
-  else { data = data; set }
+let remove uid sd = {
+  data = UID.Set.remove uid sd.data;
+}
 
 let elements v = v.data
 
@@ -365,24 +367,32 @@ let empty_se st = {
 let add_tac pat t se =
   match pat with
   | None ->
-    let uid = (snd t).code.uid in
+    let uid = t.code.uid in
     if StoredData.mem uid se.sentry_nopat then se
-    else { se with sentry_nopat = StoredData.add t se.sentry_nopat }
+    else { se with sentry_nopat = StoredData.add uid se.sentry_nopat }
   | Some pat ->
-    let uid = (snd t).code.uid in
+    let uid = t.code.uid in
     if StoredData.mem uid se.sentry_pat then se
     else { se with
-        sentry_pat = StoredData.add t se.sentry_pat;
+        sentry_pat = StoredData.add uid se.sentry_pat;
         sentry_bnet = Bounded_net.add se.sentry_bnet pat t; }
 
-let rebuild_dn st se =
-  let dn' = Bounded_net.build st (StoredData.elements se.sentry_pat) in
+let rebuild_dn st data se =
+  let dn' = Bounded_net.build st (StoredData.elements se.sentry_pat) data in
   { se with sentry_bnet = dn' }
 
-let lookup_tacs env sigma concl se =
+let merge_set data s l =
+  let map uid = UID.Map.get uid data in
+  let elt = List.map map (UID.Set.elements s) in
+  let elt = List.stable_sort pri_order_int elt in
+  List.merge pri_order_int elt l
+
+let lookup_tacs env sigma concl data se =
   let l' = Bounded_net.lookup env sigma se.sentry_bnet concl in
+  let map uid = UID.Map.get uid data in
+  let l' = List.map map l' in
   let sl' = List.stable_sort pri_order_int l' in
-  merge_set (StoredData.elements se.sentry_nopat) sl'
+  merge_set data (StoredData.elements se.sentry_nopat) sl'
 
 let merge_context_set_opt sigma ctx = match ctx with
 | None -> sigma
@@ -630,8 +640,10 @@ struct
     use_dn : bool;
     hintdb_map : search_entry GlobRef.Map_env.t;
     (* A list of unindexed entries with no associated pattern. *)
-    hintdb_nopat : stored_data list;
+    hintdb_nopat : UID.Set.t;
     hintdb_name : string option;
+    hintdb_data : stored_data UID.Map.t; (* insertion index, hint with uid = key *)
+    hintdb_names : UID.Set.t GlobRef.Map_env.t;
   }
 
   let next_hint_id db =
@@ -644,8 +656,10 @@ struct
                           hintdb_max_id = 0;
                           use_dn = use_dn;
                           hintdb_map = GlobRef.Map_env.empty;
-                          hintdb_nopat = [];
-                          hintdb_name = name; }
+                          hintdb_nopat = UID.Set.empty;
+                          hintdb_name = name;
+                          hintdb_data = UID.Map.empty;
+                          hintdb_names = GlobRef.Map_env.empty; }
 
   let dn_ts db = if db.use_dn then (Some db.hintdb_state) else None
 
@@ -710,7 +724,8 @@ struct
       Option.map (fun x -> WithMode x) (List.find_map (matches_mode sigma args) modes)
 
   let merge_entry secvars db nopat pat =
-    let h = List.sort pri_order_int db.hintdb_nopat in
+    let fold uid accu = UID.Map.get uid db.hintdb_data :: accu in
+    let h = List.sort pri_order_int (UID.Set.fold fold db.hintdb_nopat []) in
     let h = List.merge pri_order_int h nopat in
     let h = List.merge pri_order_int h pat in
     List.map_filter (realize_tac secvars) h
@@ -720,15 +735,17 @@ struct
 
   let map_all env ~secvars k db =
     let se = find env k db in
-    let h = List.sort pri_order_int db.hintdb_nopat in
-    let h = merge_set (StoredData.elements se.sentry_nopat) h in
-    let h = merge_set (StoredData.elements se.sentry_pat) h in
+    let data = db.hintdb_data in
+    let fold uid accu = UID.Map.get uid db.hintdb_data :: accu in
+    let h = List.sort pri_order_int (UID.Set.fold fold db.hintdb_nopat []) in
+    let h = merge_set data (StoredData.elements se.sentry_nopat) h in
+    let h = merge_set data (StoredData.elements se.sentry_pat) h in
     List.map_filter (realize_tac secvars) h
 
   (* Precondition: concl has no existentials *)
   let map_auto env sigma ~secvars (k,args) concl db =
     let se = find env k db in
-    let pat = lookup_tacs env sigma concl se in
+    let pat = lookup_tacs env sigma concl db.hintdb_data se in
     merge_entry secvars db [] pat
 
   (* [c] contains an existential *)
@@ -736,7 +753,7 @@ struct
     let se = find env k db in
       match matches_modes sigma args se.sentry_mode with
       | Some m ->
-        let pat = lookup_tacs env sigma concl se in
+        let pat = lookup_tacs env sigma concl db.hintdb_data se in
         ModeMatch (m, merge_entry secvars db [] pat)
       | None -> ModeMismatch
 
@@ -745,29 +762,49 @@ struct
     | _ -> false
 
   (* gr must be canonical *)
-  let addkv gr id v db =
-    let idv = id, { v with db = db.hintdb_name } in
-      match gr with
-      | None ->
-          let is_present (_, v') = KerName.equal v.code.uid v'.code.uid in
-          if not (List.exists is_present db.hintdb_nopat) then
-            (* FIXME *)
-            { db with hintdb_nopat = idv :: db.hintdb_nopat }
-          else db
-      | Some gr ->
-        let pat =
-          if not db.use_dn && is_exact v.code.obj then None
-          else v.pat
-        in
-          let oval = find0 gr db in
-            { db with hintdb_map = GlobRef.Map_env.add gr (add_tac pat idv oval) db.hintdb_map }
+  let addkv env gr id v db =
+    let idv = { v with db = db.hintdb_name } in
+    let hintdb_data =
+      (* XXX this is a hack for backwards compatibility, we should refresh the
+         insertion order to implement a properly scoped Import behaviour *)
+      if UID.Map.mem v.code.uid db.hintdb_data then db.hintdb_data
+      else UID.Map.add v.code.uid (id, idv) db.hintdb_data
+    in
+    let hintdb_names = match v.name with
+    | None -> db.hintdb_names
+    | Some name ->
+      let name = QGlobRef.canonize env name in
+      let old = match GlobRef.Map_env.find_opt name db.hintdb_names with
+      | None -> UID.Set.empty
+      | Some old -> old
+      in
+      let map = UID.Set.add v.code.uid old in
+      GlobRef.Map_env.add name map db.hintdb_names
+    in
+    match gr with
+    | None ->
+      if not (UID.Set.mem v.code.uid db.hintdb_nopat) then
+        { db with hintdb_nopat = UID.Set.add v.code.uid db.hintdb_nopat; hintdb_data; hintdb_names }
+      else db
+    | Some gr ->
+      let pat =
+        if not db.use_dn && is_exact v.code.obj then None
+        else v.pat
+      in
+      let oval = find0 gr db in
+      { db with hintdb_map = GlobRef.Map_env.add gr (add_tac pat idv oval) db.hintdb_map; hintdb_data; hintdb_names }
 
   let rebuild_db st' db =
     let db' =
-      { db with hintdb_map = GlobRef.Map_env.map (rebuild_dn (Some st')) db.hintdb_map;
-        hintdb_state = st'; hintdb_nopat = [] }
+      let map se = rebuild_dn (Some st') db.hintdb_data se in
+      { db with hintdb_map = GlobRef.Map_env.map map db.hintdb_map; hintdb_state = st'; hintdb_nopat = UID.Set.empty }
     in
-      List.fold_left (fun db (id, v) -> addkv None id v db) db' db.hintdb_nopat
+    let fold id db =
+      if not (UID.Set.mem id db.hintdb_nopat) then
+        { db with hintdb_nopat = UID.Set.add id db.hintdb_nopat }
+      else db
+    in
+    UID.Set.fold fold db.hintdb_nopat db'
 
   let add_one env sigma (k, v) db =
     let v = instantiate_hint env sigma v in
@@ -794,41 +831,53 @@ struct
     in
     let db, id = next_hint_id db in
     let k = Option.map (fun gr -> QGlobRef.canonize env gr) k in
-    addkv k id v db
+    addkv env k id v db
 
   let add_list env sigma l db = List.fold_left (fun db k -> add_one env sigma k db) db l
 
-  let remove env st grs se =
-    let nopat = StoredData.remove env grs se.sentry_nopat in
-    let pat = StoredData.remove env grs se.sentry_pat in
+  let remove env st uids data se =
+    let fold uid accu = StoredData.remove uid accu in
+    let nopat = UID.Set.fold fold uids se.sentry_nopat in
+    let pat = UID.Set.fold fold uids se.sentry_pat in
     if pat == se.sentry_pat && nopat == se.sentry_nopat then se
     else
       let se = { se with sentry_nopat = nopat; sentry_pat = pat } in
-      rebuild_dn st se
+      rebuild_dn st data se
 
   let remove_list env grs db =
-    let fold accu gr = GlobRef.Set_env.add (Environ.QGlobRef.canonize env gr) accu in
-    let grs = List.fold_left fold GlobRef.Set_env.empty grs in
-    let filter (_, h) =
-      match h.name with Some gr -> not (GlobRef.Set_env.mem gr grs) | None -> true in
-    let hintmap = GlobRef.Map_env.map (fun e -> remove env (dn_ts db) grs e) db.hintdb_map in
-    let hintnopat = List.filter filter db.hintdb_nopat in
-      { db with hintdb_map = hintmap; hintdb_nopat = hintnopat }
+    let fold (grs, uids) gr =
+      let gr = Environ.QGlobRef.canonize env gr in
+      let uids  = match GlobRef.Map_env.find_opt gr db.hintdb_names with
+      | None -> uids
+      | Some uids' -> UID.Set.union uids' uids
+      in
+      (GlobRef.Set_env.add gr grs, uids)
+    in
+    let (grs, uids) = List.fold_left fold (GlobRef.Set_env.empty, UID.Set.empty) grs in
+    let hintdb_map = GlobRef.Map_env.map (fun se -> remove env (dn_ts db) uids db.hintdb_data se) db.hintdb_map in
+    let hintdb_nopat = UID.Set.diff db.hintdb_nopat uids in
+    let fold uid accu = UID.Map.remove uid accu in
+    let hintdb_data = UID.Set.fold fold uids db.hintdb_data in
+    let fold gr accu = GlobRef.Map_env.remove gr accu in
+    let hintdb_names = GlobRef.Set_env.fold fold grs db.hintdb_names in
+    { db with hintdb_map; hintdb_nopat; hintdb_data; hintdb_names }
 
   let remove_one env gr db = remove_list env [gr] db
 
-  let get_entry se =
-    let h = merge_set (StoredData.elements se.sentry_nopat) (merge_set (StoredData.elements se.sentry_pat) []) in
+  let get_entry data se =
+    let h = merge_set data (StoredData.elements se.sentry_nopat) (merge_set data (StoredData.elements se.sentry_pat) []) in
     List.map snd h
 
   let iter f db =
-    let iter_se k se = f (Some k) se.sentry_mode (get_entry se) in
-    f None [] (List.map snd db.hintdb_nopat);
+    let iter_se k se = f (Some k) se.sentry_mode (get_entry db.hintdb_data se) in
+    let fold uid accu = snd (UID.Map.get uid db.hintdb_data) :: accu in
+    let () = f None [] (UID.Set.fold fold db.hintdb_nopat []) in
     GlobRef.Map_env.iter iter_se db.hintdb_map
 
   let fold f db accu =
-    let accu = f None [] (List.map snd db.hintdb_nopat) accu in
-    GlobRef.Map_env.fold (fun k se -> f (Some k) se.sentry_mode (get_entry se)) db.hintdb_map accu
+    let fold uid accu = snd (UID.Map.get uid db.hintdb_data) :: accu in
+    let accu = f None [] (UID.Set.fold fold db.hintdb_nopat []) accu in
+    GlobRef.Map_env.fold (fun k se -> f (Some k) se.sentry_mode (get_entry db.hintdb_data se)) db.hintdb_map accu
 
   let transparent_state db = db.hintdb_state
 
@@ -892,7 +941,7 @@ let error_no_such_hint_database x =
 
 (* adding and removing tactics in the search table *)
 
-let with_uid c = { obj = c; uid = fresh_key () }
+let with_uid c = { obj = c; uid = UID.fresh_key () }
 
 (* if [x] is a local variable sharing a name with a cleared section
    variable, [secvars_of_global _ (VarRef x)] should return the empty set *)
@@ -1273,7 +1322,7 @@ let subst_autohint (subst, obj) =
           if pat==pat' && tac==tac' then data.code.obj else Extern (pat', tac')
     in
     let name' = Option.Smart.map (subst_global_reference subst) data.name in
-    let uid' = subst_kn subst data.code.uid in
+    let uid' = UID.subst subst data.code.uid in
     let data' =
       if data.code.uid == uid' && data.pat == pat' &&
         data.name == name' && data.code.obj == code' then data
