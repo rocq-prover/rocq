@@ -76,3 +76,6 @@ let unsafe_of_string : string -> t = fun s -> s
 
 let compile : t -> string =
   Printf.sprintf "Pstring.unsafe_of_string %S"
+
+let compile_mlf : t -> string =
+  Printf.sprintf "(apply (global $Pstring $unsafe_of_string) %S)"

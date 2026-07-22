@@ -269,13 +269,11 @@ type primitive =
   | Mk_uint
   | Mk_float
   | Mk_string
-  | Mk_int
   | Val_to_int
   | Mk_evar
   | MLand
   | MLnot
   | MLland
-  | MLmagic
   | MLsubst_instance_instance
   | MLsubst_instance_sort
   | MLparray_of_array
@@ -290,8 +288,10 @@ type primitive =
   | Get_proj
   | Get_symbols
   | Lazy
+  | Force
   | Coq_primitive of CPrimitives.t * bool (* check for accu *)
   | Mk_empty_instance
+  | Str_decode
 
 let eq_primitive p1 p2 =
   match p1, p2 with
@@ -311,13 +311,11 @@ let eq_primitive p1 p2 =
   | Mk_uint, Mk_uint
   | Mk_float, Mk_float
   | Mk_string, Mk_string
-  | Mk_int, Mk_int
   | Val_to_int, Val_to_int
   | Mk_evar, Mk_evar
   | MLand, MLand
   | MLnot, MLnot
   | MLland, MLland
-  | MLmagic, MLmagic
   | MLsubst_instance_instance, MLsubst_instance_instance
   | MLsubst_instance_sort, MLsubst_instance_sort
   | MLparray_of_array, MLparray_of_array
@@ -332,7 +330,9 @@ let eq_primitive p1 p2 =
   | Get_proj, Get_proj
   | Get_symbols, Get_symbols
   | Lazy, Lazy
+  | Force, Force
   | Mk_empty_instance, Mk_empty_instance
+  | Str_decode, Str_decode
     -> true
 
   | Mk_fix (rp1, i1), Mk_fix (rp2, i2) -> Int.equal i1 i2 && eq_rec_pos rp1 rp2
@@ -362,13 +362,11 @@ let eq_primitive p1 p2 =
     | Mk_uint
     | Mk_float
     | Mk_string
-    | Mk_int
     | Val_to_int
     | Mk_evar
     | MLand
     | MLnot
     | MLland
-    | MLmagic
     | MLsubst_instance_instance
     | MLsubst_instance_sort
     | MLparray_of_array
@@ -383,8 +381,10 @@ let eq_primitive p1 p2 =
     | Get_proj
     | Get_symbols
     | Lazy
+    | Force
     | Coq_primitive _
-    | Mk_empty_instance), _
+    | Mk_empty_instance
+    | Str_decode), _
     -> false
 
 let primitive_hash = function
@@ -407,35 +407,35 @@ let primitive_hash = function
   | Array_get -> 13
   | Force_cofix -> 14
   | Mk_uint -> 15
-  | Mk_int -> 16
   | Val_to_int -> 17
   | Mk_evar -> 18
   | MLand -> 19
   | MLland -> 20
-  | MLmagic -> 21
-  | Coq_primitive (prim, b) -> combinesmall 22 (combine (CPrimitives.hash prim) (Hashtbl.hash b))
-  | Mk_proj -> 23
-  | MLsubst_instance_instance -> 24
-  | MLsubst_instance_sort -> 25
-  | Mk_float -> 26
-  | Is_float -> 27
-  | Is_string -> 28
-  | Is_parray -> 29
-  | MLnot -> 30
-  | MLparray_of_array -> 31
-  | Get_value -> 32
-  | Get_sort -> 33
-  | Get_name -> 34
-  | Get_const -> 35
-  | Get_match -> 36
-  | Get_ind -> 37
-  | Get_evar -> 38
-  | Get_instance -> 39
-  | Get_proj -> 40
-  | Get_symbols -> 41
-  | Lazy -> 42
+  | Coq_primitive (prim, b) -> combinesmall 21 (combine (CPrimitives.hash prim) (Hashtbl.hash b))
+  | Mk_proj -> 22
+  | MLsubst_instance_instance -> 23
+  | MLsubst_instance_sort -> 24
+  | Mk_float -> 25
+  | Is_float -> 26
+  | Is_string -> 27
+  | Is_parray -> 28
+  | MLnot -> 29
+  | MLparray_of_array -> 30
+  | Get_value -> 31
+  | Get_sort -> 32
+  | Get_name -> 33
+  | Get_const -> 34
+  | Get_match -> 35
+  | Get_ind -> 36
+  | Get_evar -> 37
+  | Get_instance -> 38
+  | Get_proj -> 39
+  | Get_symbols -> 40
+  | Lazy -> 41
+  | Force -> 42
   | Mk_empty_instance -> 43
   | Mk_string -> 44
+  | Str_decode -> 45
 
 type mllambda =
   | MLlocal        of lname
@@ -446,7 +446,7 @@ type mllambda =
   | MLlet          of lname * mllambda * mllambda
   | MLapp          of mllambda * mllambda array
   | MLif           of mllambda * mllambda * mllambda
-  | MLmatch        of annot_sw * mllambda * mllambda * mllam_branches
+  | MLmatch        of mllambda * mllambda * mllam_branches
                               (* argument, prefix, accu branch, branches *)
   | MLconstruct    of string * inductive * int * mllambda array
                    (* prefix, inductive name, tag, arguments *)
@@ -513,8 +513,7 @@ let rec eq_mllambda gn1 gn2 n env1 env2 t1 t2 =
       eq_mllambda gn1 gn2 n env1 env2 cond1 cond2 &&
       eq_mllambda gn1 gn2 n env1 env2 br1 br2 &&
       eq_mllambda gn1 gn2 n env1 env2 br'1 br'2
-  | MLmatch (annot1, c1, accu1, br1), MLmatch (annot2, c2, accu2, br2) ->
-      eq_annot_sw annot1 annot2 &&
+  | MLmatch (c1, accu1, br1), MLmatch (c2, accu2, br2) ->
       eq_mllambda gn1 gn2 n env1 env2 c1 c2 &&
       eq_mllambda gn1 gn2 n env1 env2 accu1 accu2 &&
       eq_mllam_branches gn1 gn2 n env1 env2 br1 br2
@@ -607,11 +606,10 @@ let rec hash_mllambda gn n env t =
       let hbr = hash_mllambda gn n env br in
       let hbr' = hash_mllambda gn n env br' in
       combinesmall 8 (combine3 hcond hbr hbr')
-  | MLmatch (annot, c, accu, br) ->
-      let hannot = hash_annot_sw annot in
+  | MLmatch (c, accu, br) ->
       let hc = hash_mllambda gn n env c in
       let haccu = hash_mllambda gn n env accu in
-      combinesmall 9 (hash_mllam_branches gn n env (combine3 hannot hc haccu) br)
+      combinesmall 9 (hash_mllam_branches gn n env (combine hc haccu) br)
   | MLconstruct (pf, ind, tag, args) ->
       let hpf = String.hash pf in
       let hcs = Ind.UserOrd.hash ind in
@@ -691,7 +689,7 @@ let fv_lam l =
         Array.fold_right fv_arg args (aux f bind fv)
     | MLif(t,b1,b2) ->
         aux t bind (aux b1 bind (aux b2 bind fv))
-    | MLmatch(_,a,p,bs) ->
+    | MLmatch(a,p,bs) ->
       let fv = aux a bind (aux p bind fv) in
       let fv_bs (cargs, body) fv =
         let bind =
@@ -746,7 +744,7 @@ type global =
   | Gtblfixtype of gname * lname array * mllambda array
   | Glet of gname * mllambda
   | Gletcase of
-      gname * lname array * annot_sw * mllambda * mllambda * mllam_branches
+      gname * lname array * mllambda * mllambda * mllam_branches
   | Gopen of string
   | Gtype of inductive * (tag * int) array
     (* ind name, tag and arities of constructors *)
@@ -765,13 +763,13 @@ let eq_global g1 g2 =
       Array.for_all2 (eq_mllambda gn1 gn2 (Array.length lns1) env1 env2) mls1 mls2
   | Glet (gn1, def1), Glet (gn2, def2) ->
       eq_mllambda gn1 gn2 0 LNmap.empty LNmap.empty def1 def2
-  | Gletcase (gn1,lns1,annot1,c1,accu1,br1),
-      Gletcase (gn2,lns2,annot2,c2,accu2,br2) ->
+  | Gletcase (gn1,lns1,c1,accu1,br1),
+      Gletcase (gn2,lns2,c2,accu2,br2) ->
       Int.equal (Array.length lns1) (Array.length lns2) &&
       let env1 = push_lnames 0 LNmap.empty lns1 in
       let env2 = push_lnames 0 LNmap.empty lns2 in
-      let t1 = MLmatch (annot1,c1,accu1,br1) in
-      let t2 = MLmatch (annot2,c2,accu2,br2) in
+      let t1 = MLmatch (c1,accu1,br1) in
+      let t2 = MLmatch (c2,accu2,br2) in
       eq_mllambda gn1 gn2 (Array.length lns1) env1 env2 t1 t2
   | Gopen s1, Gopen s2 -> String.equal s1 s2
   | Gtype (ind1, arr1), Gtype (ind2, arr2) ->
@@ -802,10 +800,10 @@ let hash_global g =
       combinesmall 3 hmls
   | Glet (gn, def) ->
       combinesmall 4 (hash_mllambda gn 0 LNmap.empty def)
-  | Gletcase (gn,lns,annot,c,accu,br) ->
+  | Gletcase (gn,lns,c,accu,br) ->
       let nlns = Array.length lns in
       let env = push_lnames 0 LNmap.empty lns in
-      let t = MLmatch (annot,c,accu,br) in
+      let t = MLmatch (c,accu,br) in
       combinesmall 5 (combine nlns (hash_mllambda gn nlns env t))
   | Gopen s -> combinesmall 5 (String.hash s)
   | Gtype (ind, arr) ->
@@ -898,8 +896,8 @@ let push_global_norm cenv gn params body =
 let push_global_cofix cenv gn params self =
   push_global cenv gn (Gtblcofix (gn, params, self))
 
-let push_global_case cenv gn params annot a accu bs =
-  push_global cenv gn (Gletcase (gn, params, annot, a, accu, bs))
+let push_global_case cenv gn params a accu bs =
+  push_global cenv gn (Gletcase (gn, params, a, accu, bs))
 
 let push_symbol cenv x =
   try HashtblSymbol.find cenv.symb_tbl x
@@ -1071,7 +1069,7 @@ let fv_args env fvn fvr =
       args
     end
 
-let symbols_tbl_name = Ginternal "symbols_tbl"
+let symbols_tbl_name = Ginternal "$symbols_tbl"
 
 let get_value_code i =
   MLprimitive (Get_value,
@@ -1214,13 +1212,13 @@ let ml_of_instance env u =
       let u_code =
         if has_variable then
           (* if there are variables then [instance] guaranteed non-None *)
-          let univ = MLprimitive (MLmagic, [|MLlocal (Option.get instance)|]) in
+          let univ = MLlocal (Option.get instance) in
           MLprimitive (MLsubst_instance_instance, [|univ; u_code|])
         else u_code
       in
     u_code
     in
-    [|MLprimitive (MLmagic, [|u_code|])|]
+    [|u_code|]
 
 let ml_of_sort env s =
   let i = push_symbol env.env_cenv (SymbSort s) in
@@ -1229,7 +1227,7 @@ let ml_of_sort env s =
   | UGlobal | ULocal None -> s_code
   | ULocal (Some u) ->
     (* FIXME: use a dedicated cast function *)
-    let u = MLprimitive (MLmagic, [|MLlocal u|]) in
+    let u = MLlocal u in
     MLprimitive (MLsubst_instance_sort, [|u; s_code|])
   in
   MLprimitive (Mk_sort, [|s_code|])
@@ -1269,7 +1267,7 @@ let compile_prim env decl cond paux =
           List.fold_left
             (fun ml (_, c) -> app_prim MLland [| ml; cast_to_int c|])
             (MLint 0) ci in
-        app_prim MLmagic [|cond|] in
+        cond in
       let condo = match co with
         | [] -> MLint 0
         | (CPrimitives.PTE ty, c1) :: condo ->
@@ -1302,7 +1300,7 @@ let compile_prim env decl cond paux =
   else
     add_decl decl (compile_cond cond paux)
 
- let rec ml_of_lam env l t =
+let rec ml_of_lam env l t =
   match node t with
   | Lrel(id ,i) -> get_rel env id i
   | Lvar id -> get_var env id
@@ -1331,7 +1329,7 @@ let compile_prim env decl cond paux =
      let prefix = env.env_const_prefix c in
      let args = ml_of_instance env u in
      let ans = mkMLapp (MLglobal(Gconstant (prefix, c))) args in
-     if env.env_const_lazy c then MLapp (MLglobal (Ginternal "Lazy.force"), [|ans|])
+     if env.env_const_lazy c then MLprimitive (Force, [|ans|])
      else ans
   | Lproj (p, c) ->
     let ind = Projection.Repr.inductive p in
@@ -1394,7 +1392,7 @@ let compile_prim env decl cond paux =
 (*      let body = MLlam([|a_uid|], MLmatch(annot, la_uid, accu, bs)) in
       let case = generalize_fv env_c body in *)
       let cn = push_global_case env.env_cenv cn (Array.append (fv_params env_c) [|a_uid|])
-        annot la_uid accu (merge_branches br)
+        la_uid accu (merge_branches br)
       in
       (* Final result *)
       let arg = ml_of_lam env l a in
@@ -1525,20 +1523,20 @@ let compile_prim env decl cond paux =
         let unit = fresh_lname env.env_cenv Anonymous in
         let args = Array.map (fun id -> MLlocal id) t_params.(i) in
         let mk_let i lname cont =
-          MLlet (lname, MLprimitive (Array_get, [|MLglobal knot; MLint i|]), cont)
+          MLlet (lname, MLprimitive (Array_get, [|MLint i; MLglobal knot|]), cont) (* in malfunction, the index is first *)
         in
         let self = Array.map (fun id -> MLlocal id) lf in
         let body = mkMLapp (MLglobal g) (Array.concat [fv_args'; self; args]) in
-        let body = MLprimitive (MLmagic, [|MLlam ([|unit|], Array.fold_right_i mk_let lf body)|]) in
+        let body = MLlam ([|unit|], Array.fold_right_i mk_let lf body) in
         let typs = mk_type in
         let self = mk_norm in
         mkMLlam t_params.(i) (MLprimitive ((Mk_cofix i), [| typs; self; body; MLarray args |]))
       in
       (* Tie the knot *)
       let knot = push_global_cofix env.env_cenv knot fv_params (Array.mapi map t_norm_f) in
-      MLprimitive (Array_get, [|MLapp (MLglobal knot, fv_args); MLint start|])
+      MLprimitive (Array_get, [|MLint start; MLapp (MLglobal knot, fv_args)|]) (* in malfunction, the index is first *)
 
-  | Lint tag -> MLprimitive (Mk_int, [|MLint tag|])
+  | Lint tag -> MLint tag
 
   | Lmakeblock (cn,tag,args) ->
      let prefix = env.env_mind_prefix (fst cn) in
@@ -1602,9 +1600,9 @@ let subst s l =
       | MLlet(id,def,body) -> MLlet(id,aux def, aux body)
       | MLapp(f,args) -> MLapp(aux f, Array.map aux args)
       | MLif(t,b1,b2) -> MLif(aux t, aux b1, aux b2)
-      | MLmatch(annot,a,accu,bs) ->
+      | MLmatch(a,accu,bs) ->
           let auxb (cargs,body) = (cargs,aux body) in
-          MLmatch(annot,a,aux accu, Array.map auxb bs)
+          MLmatch(a,aux accu, Array.map auxb bs)
       | MLconstruct(prefix,c,tag,args) -> MLconstruct(prefix,c,tag,Array.map aux args)
       | MLsetref(s,l1) -> MLsetref(s,aux l1)
       | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
@@ -1652,13 +1650,13 @@ let all_lam n bs =
     | _ -> false in
   Array.for_all f bs
 
-let commutative_cut annot a accu bs args =
+let commutative_cut a accu bs args =
   let mkb (c,b) =
      match b with
      | MLlam(params, body) ->
          (c, Array.fold_left2 (fun body x v -> MLlet(x,v,body)) body params args)
      | _ -> assert false in
-  MLmatch(annot, a, mkMLapp accu args, Array.map mkb bs)
+  MLmatch( a, mkMLapp accu args, Array.map mkb bs)
 
 let optimize gdef l =
   let rec optimize s l =
@@ -1695,9 +1693,9 @@ let optimize gdef l =
         | _ ->
             let f = optimize s f in
             match f with
-            | MLmatch (annot,a,accu,bs) ->
+            | MLmatch (a,accu,bs) ->
               if all_lam (Array.length args) bs then
-                commutative_cut annot a accu bs args
+                commutative_cut a accu bs args
               else MLapp(f, args)
             | _ -> MLapp(f, args)
 
@@ -1709,13 +1707,13 @@ let optimize gdef l =
         let b1 = optimize s b1 in
         let b2 = optimize s b2 in
         begin match t, b2 with
-        | MLisaccu (_, _, l1), MLmatch(annot, l2, _, bs)
-            when eq_mllambda l1 l2 -> MLmatch(annot, l1, b1, bs)
+        | MLisaccu (_, _, l1), MLmatch(l2, _, bs)
+            when eq_mllambda l1 l2 -> MLmatch(l1, b1, bs)
         | _, _ -> MLif(t, b1, b2)
         end
-    | MLmatch(annot,a,accu,bs) ->
+    | MLmatch(a,accu,bs) ->
         let opt_b (cargs,body) = (cargs,optimize s body) in
-        MLmatch(annot, optimize s a, subst s accu, Array.map opt_b bs)
+        MLmatch(optimize s a, subst s accu, Array.map opt_b bs)
     | MLconstruct(prefix,c,tag,args) ->
         MLconstruct(prefix,c,tag,Array.map (optimize s) args)
     | MLsetref(r,l) -> MLsetref(r, optimize s l)
@@ -1731,9 +1729,9 @@ let optimize_stk stk =
     | Glet (Gnorm (_,i), body) ->
         let (gnorm, gcase) = gdef in
         (Int.Map.add i (decompose_MLlam body) gnorm, gcase)
-    | Gletcase(Gcase (_,i), params, annot,a,accu,bs) ->
+    | Gletcase(Gcase (_,i), params,a,accu,bs) ->
         let (gnorm,gcase) = gdef in
-        (gnorm, Int.Map.add i (params,MLmatch(annot,a,accu,bs)) gcase)
+        (gnorm, Int.Map.add i (params,MLmatch(a,accu,bs)) gcase)
     | Gletcase _ -> assert false
     | _ -> gdef in
   let gdef = List.fold_left add_global empty_gdef stk in
@@ -1792,39 +1790,45 @@ let string_of_mind mind = string_of_kn (MutInd.user mind)
 let string_of_ind (mind,i) = string_of_kn (MutInd.user mind) ^ "_" ^ string_of_int i
 
 let string_of_gname g =
-  match g with
-  | Gind (prefix, (mind, i)) ->
-      Format.sprintf "%sindaccu_%s_%i" prefix (string_of_mind mind) i
-  | Gconstant (prefix, c) ->
-      Format.sprintf "%sconst_%s" prefix (string_of_con c)
-  | Gproj (prefix, (mind, n), i) ->
-      Format.sprintf "%sproj_%s_%i_%i" prefix (string_of_mind mind) n i
-  | Gcase (l,i) ->
-      Format.sprintf "case_%s_%i" (string_of_label_def l) i
-  | Gpred (l,i) ->
-      Format.sprintf "pred_%s_%i" (string_of_label_def l) i
-  | Gfixtype (l,i) ->
-      Format.sprintf "fixtype_%s_%i" (string_of_label_def l) i
-  | Gnorm (l,i) ->
-      Format.sprintf "norm_%s_%i" (string_of_label_def l) i
-  | Ginternal s -> Format.sprintf "%s" s
-  | Gnormtbl (l,i) ->
-      Format.sprintf "normtbl_%s_%i" (string_of_label_def l) i
-  | Grel i ->
-      Format.sprintf "rel_%i" i
-  | Gnamed id ->
-      Format.sprintf "named_%s" (string_of_id id)
+  let ret = match g with
+    | Gind (prefix, (mind, i)) ->
+        Format.sprintf "$%sindaccu_%s_%i" prefix (string_of_mind mind) i
+    | Gconstant (prefix, c) ->
+        Format.sprintf "$%sconst_%s" prefix (string_of_con c)
+    | Gproj (prefix, (mind, n), i) ->
+        Format.sprintf "$%sproj_%s_%i_%i" prefix (string_of_mind mind) n i
+    | Gcase (l,i) ->
+        Format.sprintf "$case_%s_%i" (string_of_label_def l) i
+    | Gpred (l,i) ->
+        Format.sprintf "$pred_%s_%i" (string_of_label_def l) i
+    | Gfixtype (l,i) ->
+        Format.sprintf "$fixtype_%s_%i" (string_of_label_def l) i
+    | Gnorm (l,i) ->
+        Format.sprintf "$norm_%s_%i" (string_of_label_def l) i
+    | Ginternal s -> Format.sprintf "%s" s
+    | Gnormtbl (l,i) ->
+        Format.sprintf "$normtbl_%s_%i" (string_of_label_def l) i
+    | Grel i ->
+        Format.sprintf "$rel_%i" i
+    | Gnamed id ->
+        Format.sprintf "$named_%s" (string_of_id id) in
+  if String.contains ret '.' then (* the global name comes from a module *)
+    let ret = String.split_on_char '.' ret in
+    let ret = String.concat " $" ret in 
+    Format.sprintf "(global %s)" ret
+  else ret
 
 let pp_gname fmt g =
   Format.fprintf fmt "%s" (string_of_gname g)
 
 let pp_lname fmt ln =
-  Format.fprintf fmt "x_%s_%i" (string_of_name ln.lname) ln.luid
+  Format.fprintf fmt "$x_%s_%i" (string_of_name ln.lname) ln.luid
 
 let pp_ldecls fmt ids =
   let len = Array.length ids in
+  if len = 0 then Format.fprintf fmt "$_" else (* argument list cannot be empty in malfunction *)
   for i = 0 to len - 1 do
-    Format.fprintf fmt " (%a : Nativevalues.t)" pp_lname ids.(i)
+    Format.fprintf fmt " %a" pp_lname ids.(i)
   done
 
 let string_of_construct prefix ~constant ind tag =
@@ -1834,278 +1838,290 @@ let string_of_construct prefix ~constant ind tag =
 let string_of_accu_construct prefix ind =
   Format.sprintf "%sAccu_%s" prefix (string_of_ind ind)
 
-let pp_int fmt i =
-  if i < 0 then Format.fprintf fmt "(%i)" i else Format.fprintf fmt "%i" i
-
 let pp_mllam fmt l =
 
   let rec pp_mllam fmt l =
     match l with
+    | MLint i when i >= 0 -> Format.fprintf fmt "%i" i
+    | MLint i -> Format.fprintf fmt "(neg %i)" (-i) (* i < 0 *)
+    | MLuint i -> Format.fprintf fmt "%s" (Uint63.compile_mlf i)
+    | MLfloat f -> Format.fprintf fmt "%s" (Float64.compile_mlf f)
+    | MLstring s -> Format.fprintf fmt "%s" (Pstring.compile_mlf s)
+    | MLlam(ids,body) ->
+        Format.fprintf fmt "@[<2>(lambda (%a) @ %a)@]"
+          pp_ldecls ids pp_mllam body
+    | MLsequence(l1,l2) ->
+        Format.fprintf fmt "@[(seq (%a) (%a))@]" pp_mllam l1 pp_mllam l2
+    | MLprimitive (MLland, args) -> (* malfunction has a special operator for bitwise and *)
+      Format.fprintf fmt "(& %a)" pp_args args
+    | MLprimitive (MLnot, args) ->
+      Format.fprintf fmt "(== 0 %a)" pp_args args
+    | MLprimitive (Lazy, args) -> (* lazy values must be treated separately *)
+      Format.fprintf fmt "@[<2>(lazy%a)@]" pp_args args
+    | MLprimitive (Force, args) ->
+      Format.fprintf fmt "@[<2>(force%a)@]" pp_args args
+    | MLprimitive (Array_get, args) ->
+      Format.fprintf fmt "@[<2>(field%a)@]" pp_args args (* we compile arrays as classical blocks, so array_get is just a field access (we do not mutate arrays) *)
+    | MLprimitive (MLand, [|a; b|]) -> (* a and b are booleans *)
+      Format.fprintf fmt "(if %a %a 0)" pp_mllam a pp_mllam b
+    | MLprimitive (p, [||]) -> (* not a function and just a value *)
+      Format.fprintf fmt "%a" pp_primitive p
+    | MLprimitive (p, args) ->
+      Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_primitive p pp_args args
     | MLlocal ln -> Format.fprintf fmt "@[%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
-    | MLprimitive (p, args) ->
-      Format.fprintf fmt "@[<2>%a@ %a@]" pp_primitive p (pp_args true) args
-    | MLlam(ids,body) ->
-        Format.fprintf fmt "@[(fun%a ->@ %a)@]"
-          pp_ldecls ids pp_mllam body
-    | MLletrec(defs, body) ->
-        Format.fprintf fmt "@[(%a@ in@\n%a)@]" pp_letrec defs
-          pp_mllam body
-    | MLlet(id,def,body) ->
-        Format.fprintf fmt "@[(@[let@ %a@ =@ %a@ in@]@\n%a)@]"
-          pp_lname id pp_mllam def pp_mllam body
+    | MLapp(f, [||]) -> (* not an application and instead simply a function *)
+        Format.fprintf fmt "%a" pp_mllam f
     | MLapp(f, args) ->
-        Format.fprintf fmt "@[<2>%a@ %a@]" pp_mllam f (pp_args true) args
+        Format.fprintf fmt "@[<2>(apply %a%a)@]" pp_mllam f pp_args args
+    | MLlet(id,def,body) ->
+        Format.fprintf fmt "@[(let@ (%a@ %a)@\n@[<2>%a@])@]"
+          pp_lname id pp_mllam def pp_mllam body
     | MLif(t,l1,l2) ->
-        Format.fprintf fmt "@[(if %a then@\n  %a@\nelse@\n  %a)@]"
+        Format.fprintf fmt "@[(if %a@\n  %a@\n  %a)@]"
           pp_mllam t pp_mllam l1 pp_mllam l2
-    | MLmatch (annot, c, accu_br, br) ->
-      let ind = annot.asw_ind in
-      let prefix = annot.asw_prefix in
-      let accu = string_of_accu_construct prefix ind in
-      Format.fprintf fmt
-        "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  %a@\n%aend@]"
-        pp_mllam c accu pp_mllam accu_br (pp_branches prefix ind) br
-
-    | MLconstruct(prefix,ind,tag,args) ->
-        Format.fprintf fmt "@[<2>(Obj.magic@ @[<2>(%s%a)@] : Nativevalues.t)@]"
-          (string_of_construct prefix ~constant:false ind tag) pp_cargs args
-    | MLint i -> pp_int fmt i
-    | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile i)
-    | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile f)
-    | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile s)
-    | MLsetref (s, body) ->
-        Format.fprintf fmt "@[%s@ :=@\n Some (%a)@]" s pp_mllam body
-    | MLsequence(l1,l2) ->
-        Format.fprintf fmt "@[%a;@\n%a@]" pp_mllam l1 pp_mllam l2
+    | MLletrec(defs, body) ->
+        Format.fprintf fmt "@[<2>(let (rec @[<2>%a@])@\n%a)@]" pp_letrec defs
+          pp_mllam body
     | MLarray arr ->
-      (* We need to ensure that the array does not use the flat representation
-          if ever the first argument is a float *)
-      let len = Array.length arr in
-      if Int.equal len 0 then begin
-        Format.fprintf fmt "@[(Obj.magic [||])@]"
-      end else if Int.equal len 1 then begin
-        (* We have to emulate a 1-uplet *)
-        Format.fprintf fmt "@[(Obj.magic (ref (%a)))@]" pp_mllam arr.(0)
-      end else begin
-        Format.fprintf fmt "@[(Obj.magic (";
-        for i = 0 to len - 2 do
-          Format.fprintf fmt "%a,@ " pp_mllam arr.(i)
-        done;
-        pp_mllam fmt arr.(len-1);
-        Format.fprintf fmt "))@]"
-      end;
-    | MLisaccu (prefix, ind, c) ->
-        let accu = string_of_accu_construct prefix ind in
+      Format.fprintf fmt "@[(block (tag 0)";
+      Array.iter (Format.fprintf fmt "@ %a" pp_mllam) arr;
+      Format.fprintf fmt ")@]"
+    | MLsetref (s, body) ->
+        Format.fprintf fmt "@[(store %s@ 0 @ @\n (apply (global $Option $some) %a ) )@]" s pp_mllam body
+    | MLmatch (c, accu_br, br) ->
+      Format.fprintf fmt (* accumulator is always tag 0 *)
+        "@[(let ($matched_value %a) (switch $matched_value @\n@ @ ((tag 0)@\n    %a)@\n  @[%a@]))@]"
+        pp_mllam c pp_mllam accu_br pp_branches br
+    | MLconstruct(_,_,tag,[||]) -> (* not a construct but a constant *)
+        Format.fprintf fmt "%i"
+          tag
+    | MLconstruct(_,_,tag,args) ->
+        Format.fprintf fmt "@[<2>(block (tag %i)%a)@]"
+          tag pp_args args
+    | MLisaccu (_, _, c) ->
         Format.fprintf fmt
-          "@[begin match Obj.magic (%a) with@\n| %s _ ->@\n  true@\n| _ ->@\n  false@\nend@]"
-        pp_mllam c accu
-
-  and pp_letrec fmt defs =
-    let len = Array.length defs in
-    let pp_one_rec (fn, argsn, body) =
-      Format.fprintf fmt "%a%a =@\n  %a"
-        pp_lname fn
-        pp_ldecls argsn pp_mllam body in
-    Format.fprintf fmt "@[let rec ";
-    pp_one_rec defs.(0);
-    for i = 1 to len - 1 do
-      Format.fprintf fmt "@\nand ";
-      pp_one_rec defs.(i)
-    done
-
-  and pp_blam fmt l =
-    match l with
-    | MLprimitive (_, _) | MLlam _ | MLletrec _ | MLlet _ | MLapp _ | MLif _ ->
-        Format.fprintf fmt "(%a)" pp_mllam l
-    | MLconstruct(_,_,_,args) when Array.length args > 0 ->
-        Format.fprintf fmt "(%a)" pp_mllam l
-    | _ -> pp_mllam fmt l
-
-  and pp_args sep fmt args =
-    let sep = if sep then "" else "," in
-    let len = Array.length args in
-    if len > 0 then begin
-      Format.fprintf fmt "%a" pp_blam args.(0);
-      for i = 1 to len - 1 do
-        Format.fprintf fmt "%s@ %a" sep pp_blam args.(i)
-      done
-    end
-
-  and pp_cargs fmt args =
-    let len = Array.length args in
-    match len with
-    | 0 -> ()
-    | 1 -> Format.fprintf fmt "@ %a" pp_blam args.(0)
-    | _ -> Format.fprintf fmt "@ @[<2>(%a)@]" (pp_args false) args
-
-  and pp_cparam fmt param =
-    match param with
-    | Some l -> pp_mllam fmt (MLlocal l)
-    | None -> Format.fprintf fmt "_"
-
+          "@[(switch %a@\n  ((tag 0) 1)@\n  (_ (tag _) 0))@]"
+        pp_mllam c
   and pp_cparams fmt params =
     let len = Array.length params in
-    match len with
-    | 0 -> ()
-    | 1 -> Format.fprintf fmt " %a" pp_cparam params.(0)
-    | _ ->
-        let aux fmt params =
-          Format.fprintf fmt "%a" pp_cparam params.(0);
-          for i = 1 to len - 1 do
-            Format.fprintf fmt ",%a" pp_cparam params.(i)
-          done in
-        Format.fprintf fmt "(%a)" aux params
-
-  and pp_branches prefix ind fmt bs =
-    let pp_branch (cargs,body) =
-      let pp_pat fmt = function
-        | ConstPattern i ->
-          Format.fprintf fmt "| %s "
-            (string_of_construct prefix ~constant:true ind i)
-        | NonConstPattern (tag,args) ->
-          Format.fprintf fmt "| %s%a "
-            (string_of_construct prefix ~constant:false ind tag) pp_cparams args in
-      let rec pp_pats fmt pats =
-        match pats with
-        | [] -> ()
-        | pat::pats ->
-          Format.fprintf fmt "%a%a" pp_pat pat pp_pats pats
-      in
-      Format.fprintf fmt "%a ->@\n  %a@\n" pp_pats cargs pp_mllam body
+    for i = 0 to len - 1 do
+      match params.(i) with
+      | None -> ()
+      | Some param ->
+        Format.fprintf fmt " (%a (field %i $matched_value))" pp_mllam (MLlocal param) i
+    done
+  and pp_branches fmt bs =
+    let rec pp_branch fmt (cargs,body) =
+      let pp_pat_and_block fmt = function
+        | ConstPattern i, body ->
+          Format.fprintf fmt "%i %a" i pp_mllam body
+        | NonConstPattern (tag,args), body ->
+          Format.fprintf fmt "@[<2>(tag %i) (let%a@\n%a)@]"
+            tag pp_cparams args pp_mllam body in
+      match cargs with
+      | [] -> ()
+      | pat::pats -> (* we duplicate the branches because there is no simpler alternative to due to match bindings *)
+        Format.fprintf fmt "(%a)@\n%a" pp_pat_and_block (pat, body) pp_branch (pats, body)
     in
-    Array.iter pp_branch bs
-
+    Array.iter (pp_branch fmt) bs
+  and pp_letrec fmt defs =
+    let pp_one_rec (fn, argsn, body) =
+      Format.fprintf fmt "(%a@ %a)@\n"
+        pp_lname fn
+        pp_mllam (MLlam(argsn, body)) in
+    Array.iter pp_one_rec defs
+  and pp_args fmt args =
+    if args <> [||] then
+      Array.iter (Format.fprintf fmt "@ %a" pp_mllam) args
+    else Format.fprintf fmt "@ 0" (* 0 is () in malfunction *)
   and pp_primitive fmt = function
-    | Mk_prod -> Format.fprintf fmt "mk_prod"
-    | Mk_sort -> Format.fprintf fmt "mk_sort_accu"
-    | Mk_ind -> Format.fprintf fmt "mk_ind_accu"
-    | Mk_const -> Format.fprintf fmt "mk_constant_accu"
-    | Mk_sw -> Format.fprintf fmt "mk_sw_accu"
+    | Mk_prod -> Format.fprintf fmt "(global $Nativevalues $mk_prod)"
+    | Mk_sort -> Format.fprintf fmt "(global $Nativevalues $mk_sort_accu)"
+    | Mk_ind -> Format.fprintf fmt "(global $Nativevalues $mk_ind_accu)"
+    | Mk_const -> Format.fprintf fmt "(global $Nativevalues $mk_constant_accu)"
+    | Mk_sw -> Format.fprintf fmt "(global $Nativevalues $mk_sw_accu)"
     | Mk_fix(rec_pos,start) ->
-        let pp_rec_pos fmt rec_pos =
-          Format.fprintf fmt "@[[| %i" rec_pos.(0);
-          for i = 1 to Array.length rec_pos - 1 do
-            Format.fprintf fmt ";@ %i" rec_pos.(i)
-          done;
-          Format.fprintf fmt " |]@]" in
-        Format.fprintf fmt "mk_fix_accu %a %i" pp_rec_pos rec_pos start
-    | Mk_cofix(start) -> Format.fprintf fmt "mk_cofix_accu %i" start
-    | Mk_rel i -> Format.fprintf fmt "mk_rel_accu %i" i
+        Format.fprintf fmt "@[<2>(apply (global $Nativevalues $mk_fix_accu) (block (tag 0)";
+        Array.iter (fun i -> Format.fprintf fmt "@\n%a" pp_mllam (MLint i)) rec_pos;
+        Format.fprintf fmt ")@]@\n %i)" start
+    | Mk_cofix(start) -> Format.fprintf fmt "(apply (global $Nativevalues $mk_cofix_accu) %i)" start
+    | Mk_rel i -> Format.fprintf fmt "(apply (global $Nativevalues $mk_rel_accu) %i)" i
     | Mk_var id ->
-        Format.fprintf fmt "mk_var_accu (Names.Id.of_string \"%s\")" (string_of_id id)
-    | Mk_proj -> Format.fprintf fmt "mk_proj_accu"
-    | Mk_empty_instance -> Format.fprintf fmt "UVars.Instance.empty"
-    | Is_int -> Format.fprintf fmt "is_int"
-    | Is_float -> Format.fprintf fmt "is_float"
-    | Is_string -> Format.fprintf fmt "is_string"
-    | Is_parray -> Format.fprintf fmt "is_parray"
-    | Cast_accu -> Format.fprintf fmt "cast_accu"
-    | Array_get -> Format.fprintf fmt "Array.get"
-    | Force_cofix -> Format.fprintf fmt "force_cofix"
-    | Mk_uint -> Format.fprintf fmt "mk_uint"
-    | Mk_float -> Format.fprintf fmt "mk_float"
-    | Mk_string -> Format.fprintf fmt "mk_string"
-    | Mk_int -> Format.fprintf fmt "mk_int"
-    | Val_to_int -> Format.fprintf fmt "val_to_int"
-    | Mk_evar -> Format.fprintf fmt "mk_evar_accu"
-    | MLand -> Format.fprintf fmt "(&&)"
-    | MLnot -> Format.fprintf fmt "not"
-    | MLland -> Format.fprintf fmt "(land)"
-    | MLmagic -> Format.fprintf fmt "Obj.magic"
-    | MLsubst_instance_instance -> Format.fprintf fmt "UVars.subst_instance_instance"
-    | MLsubst_instance_sort -> Format.fprintf fmt "UVars.subst_instance_sort"
-    | MLparray_of_array -> Format.fprintf fmt "parray_of_array"
+        Format.fprintf fmt "(apply (global $Nativevalues $mk_var_accu) (apply (global $Names $Id $of_string) \"%s\"))" (string_of_id id)
+    | Mk_proj -> Format.fprintf fmt "(global $Nativevalues $mk_proj_accu)"
+    | Mk_empty_instance -> Format.fprintf fmt "(global $UVars $Instance $empty)"
+    | Is_int -> Format.fprintf fmt "(global $Nativevalues $is_int)"
+    | Is_float -> Format.fprintf fmt "(global $Nativevalues $is_float)"
+    | Is_string -> Format.fprintf fmt "(global $Nativevalues $is_string)"
+    | Is_parray -> Format.fprintf fmt "(global $Nativevalues $is_parray)"
+    | Cast_accu -> Format.fprintf fmt "(global $Nativevalues $cast_accu)"
+    | Force_cofix -> Format.fprintf fmt "(global $Nativevalues $force_cofix)"
+    | Mk_uint -> Format.fprintf fmt "(global $Nativevalues $mk_uint)"
+    | Mk_float -> Format.fprintf fmt "(global $Nativevalues $mk_float)"
+    | Mk_string -> Format.fprintf fmt "(global $Nativevalues $mk_string)"
+    | Val_to_int -> Format.fprintf fmt "(global $Nativevalues $val_to_int)"
+    | Mk_evar -> Format.fprintf fmt "(global $Nativevalues $mk_evar_accu)"
+    | MLsubst_instance_instance -> Format.fprintf fmt "(global $UVars $subst_instance_instance)"
+    | MLsubst_instance_sort -> Format.fprintf fmt "(global $UVars $subst_instance_sort)"
+    | MLparray_of_array -> Format.fprintf fmt "(global $Nativevalues $parray_of_array)"
     | Coq_primitive (op, false) ->
-       Format.fprintf fmt "no_check_%s" (CPrimitives.to_string op)
-    | Coq_primitive (op, true) -> Format.fprintf fmt "%s" (CPrimitives.to_string op)
-    | Get_value -> Format.fprintf fmt "get_value"
-    | Get_sort -> Format.fprintf fmt "get_sort"
-    | Get_name -> Format.fprintf fmt "get_name"
-    | Get_const -> Format.fprintf fmt "get_const"
-    | Get_match -> Format.fprintf fmt "get_match"
-    | Get_ind -> Format.fprintf fmt "get_ind"
-    | Get_evar -> Format.fprintf fmt "get_evar"
-    | Get_instance -> Format.fprintf fmt "get_instance"
-    | Get_proj -> Format.fprintf fmt "get_proj"
-    | Get_symbols -> Format.fprintf fmt "get_symbols"
-    | Lazy -> Format.fprintf fmt "lazy"
+       Format.fprintf fmt "(global $Nativevalues $no_check_%s)" (CPrimitives.to_string op)
+    | Coq_primitive (op, true) -> Format.fprintf fmt "(global $Nativevalues $%s)" (CPrimitives.to_string op)
+    | Get_value -> Format.fprintf fmt "(global $Nativecode $get_value)"
+    | Get_sort -> Format.fprintf fmt "(global $Nativecode $get_sort)"
+    | Get_name -> Format.fprintf fmt "(global $Nativecode $get_name)"
+    | Get_const -> Format.fprintf fmt "(global $Nativecode $get_const)"
+    | Get_match -> Format.fprintf fmt "(global $Nativecode $get_match)"
+    | Get_ind -> Format.fprintf fmt "(global $Nativecode $get_ind)"
+    | Get_evar -> Format.fprintf fmt "(global $Nativecode $get_evar)"
+    | Get_instance -> Format.fprintf fmt "(global $Nativecode $get_instance)"
+    | Get_proj -> Format.fprintf fmt "(global $Nativecode $get_proj)"
+    | Get_symbols -> Format.fprintf fmt "(global $Nativelib $get_symbols)"
+    | Str_decode -> Format.fprintf fmt "(global $Nativevalues $str_decode)"
+    | MLand
+    | Array_get
+    | MLnot
+    | MLland
+    | Force
+    | Lazy -> assert false (* theses cases has been treated separately in pp_mllam *)
   in
   Format.fprintf fmt "@[%a@]" pp_mllam l
 
 let pp_array fmt t =
-  let len = Array.length t in
-  Format.fprintf fmt "@[<2>[|";
-  for i = 0 to len - 2 do
-    Format.fprintf fmt "%a;@ " pp_mllam t.(i)
-  done;
-  if len > 0 then
-    Format.fprintf fmt "%a" pp_mllam t.(len - 1);
-  Format.fprintf fmt "|]@]"
+  Format.fprintf fmt "(block (tag 0)";
+  Array.iter (Format.fprintf fmt "@ %a" pp_mllam) t;
+  Format.fprintf fmt ")"
 
 let pp_cofix fmt (gn, s) =
-  let pp_dummy fmt len =
-    let dummy = String.concat "; " (List.make len "0") in
-    Format.fprintf fmt "@[(Obj.magic [|%s|] : Nativevalues.t array)@]" dummy
-  in
-  let pp_knot fmt n =
-    for i = 0 to n - 1 do
-      Format.fprintf fmt "@[<2>let () = (%a).(%i) <-@ Obj.magic @[<2>(%a)@] in@]@\n" pp_gname gn i pp_mllam s.(i)
-    done
-  in
-  let len = Array.length s in
-  Format.fprintf fmt "@[let %a = %a in@\n%a%a@]" pp_gname gn pp_dummy len pp_knot len pp_gname gn
+  let subst_gname gn v l =
+    let rec aux l =
+      match l with
+      | MLglobal id when eq_gname gn id -> v
+      | MLglobal _ | MLlocal _ | MLint _ | MLuint _ | MLfloat _ | MLstring _ -> l
+      | MLprimitive (p, args) -> MLprimitive (p, Array.map aux args)
+      | MLlam(params,body) -> MLlam(params, aux body)
+      | MLletrec(defs,body) ->
+        let arec (f,params,body) = (f,params,aux body) in
+        MLletrec(Array.map arec defs, aux body)
+      | MLlet(id,def,body) -> MLlet(id,aux def, aux body)
+      | MLapp(f,args) -> MLapp(aux f, Array.map aux args)
+      | MLif(t,b1,b2) -> MLif(aux t, aux b1, aux b2)
+      | MLmatch(a,accu,bs) ->
+          let auxb (cargs,body) = (cargs,aux body) in
+          MLmatch(a,aux accu, Array.map auxb bs)
+      | MLconstruct(prefix,c,tag,args) -> MLconstruct(prefix,c,tag,Array.map aux args)
+      | MLsetref(s,l1) -> MLsetref(s,aux l1)
+      | MLsequence(l1,l2) -> MLsequence(aux l1, aux l2)
+      | MLarray arr -> MLarray (Array.map aux arr)
+      | MLisaccu (s, ind, l) -> MLisaccu (s, ind, aux l)
+    in
+    aux l
+  in let s = Array.map (subst_gname gn (MLprimitive(Force, [|MLglobal gn|])) ) s in
+  Format.fprintf fmt "@[(let (rec (%a (lazy %a))) (force %a))@]" pp_gname gn pp_array s pp_gname gn
 
-let type_of_global gn c = match gn with
-  | Ginternal "symbols_tbl" -> ""
-  | _ -> match c with
-    | MLprimitive (Lazy, _) -> " : Nativevalues.t Lazy.t"
-    | MLlam ([|_|], MLprimitive (Lazy, _)) -> " : Nativevalues.t -> Nativevalues.t Lazy.t"
-    | MLprimitive ((Mk_ind | Mk_const), [|_|]) -> " : UVars.Instance.t -> Nativevalues.t"
-    | MLsetref (_,_) -> " : unit"
-    | _ -> " : Nativevalues.t"
+let pp_type_decl fmt ind lar =
+  let rec aux s arity =
+    if Int.equal arity 0 then s else aux (s^" * t") (arity-1) in
+  let pp_const_sig fmt (tag,arity) =
+    if arity > 0 then
+      let sig_str = aux "of t" (arity-1) in
+      let cstr = string_of_construct "" ~constant:false ind tag in
+      Format.fprintf fmt "  | %s %s@\n" cstr sig_str
+    else
+      let cstr = string_of_construct "" ~constant:true ind tag in
+      Format.fprintf fmt "  | %s@\n" cstr
+  in
+  let pp_const_sigs fmt lar =
+    Format.fprintf fmt "  | %s of t@\n" (string_of_accu_construct "" ind);
+    Array.iter (pp_const_sig fmt) lar
+  in
+  Format.fprintf fmt "@[type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
 
 let pp_global fmt g =
   match g with
   | Glet (gn, c) ->
-      Format.fprintf fmt "@[let %a%s = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname gn
-        (type_of_global gn c)
-        pp_mllam c
-  | Gopen s ->
-      Format.fprintf fmt "@[open %s@]@." s
-  | Gtype (ind, lar) ->
+      Format.fprintf fmt "@[( %a  %a )@]@\n@." pp_gname gn pp_mllam c
+  | Gtype (ind, lar) -> (* types are not needed in malfunction, we will leave them as comments *)
     let rec aux s arity =
       if Int.equal arity 0 then s else aux (s^" * Nativevalues.t") (arity-1) in
     let pp_const_sig fmt (tag,arity) =
       if arity > 0 then
         let sig_str = aux "of Nativevalues.t" (arity-1) in
         let cstr = string_of_construct "" ~constant:false ind tag in
-        Format.fprintf fmt "  | %s %s@\n" cstr sig_str
+        Format.fprintf fmt ";  | %s %s@\n" cstr sig_str
       else
         let cstr = string_of_construct "" ~constant:true ind tag in
-        Format.fprintf fmt "  | %s@\n" cstr
+        Format.fprintf fmt ";  | %s@\n" cstr
     in
     let pp_const_sigs fmt lar =
-      Format.fprintf fmt "  | %s of Nativevalues.t@\n" (string_of_accu_construct "" ind);
+      Format.fprintf fmt ";  | %s of Nativevalues.t@\n" (string_of_accu_construct "" ind);
       Array.iter (pp_const_sig fmt) lar
     in
-    Format.fprintf fmt "@[type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
-  | Gtblfixtype (g, params, t) ->
-      Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_array t
-  | Gtblnorm (g, params, t) ->
-      Format.fprintf fmt "@[let %a %a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_array t
-  | Gtblcofix (g, params, s) ->
-      Format.fprintf fmt "@[let %a%a : Nativevalues.t array = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@." pp_gname g
-        pp_ldecls params pp_cofix (g, s);
-  | Gletcase(gn,params,annot,a,accu,bs) ->
-      Format.fprintf fmt "@[(* Hash = %i *)@\nlet rec %a %a : Nativevalues.t = let Refl = Nativevalues.t_eq in@\n  %a@]@\n@."
+    Format.fprintf fmt "@[;type ind_%s =@\n%a@]@\n@." (string_of_ind ind) pp_const_sigs lar
+  | Gopen _ ->
+      () (* open do not exist in malfunction, and there is no interest in leaving them as comments *)
+  | Gletcase(gn,[||],a,accu,bs) -> (* simple biding and not a function *)
+      Format.fprintf fmt "@[; Hash = %i@\n(%a %a)@]@\n@." (* no need to be recursive as we are sane and do not create recursive values other than functions *)
+      (hash_global g)
+        pp_gname gn
+        pp_mllam (MLmatch(a,accu,bs))
+  | Gletcase(gn,params,a,accu,bs) -> (* a function *)
+      Format.fprintf fmt "@[; Hash = %i@\n(rec (%a (lambda (%a)@\n  %a)))@]@\n@."
       (hash_global g)
         pp_gname gn pp_ldecls params
-        pp_mllam (MLmatch(annot,a,accu,bs))
+        pp_mllam (MLmatch(a,accu,bs))
+  | Gtblfixtype (g, [||], t) -> (* not a function but a definition *)
+      Format.fprintf fmt "@[<2>(%a %a)@]@\n@." pp_gname g
+        pp_array t
+  | Gtblfixtype (g, params, t) ->
+      Format.fprintf fmt "@[<2>(%a (lambda (%a)@\n%a))@]@\n@." pp_gname g
+        pp_ldecls params pp_array t
+  | Gtblnorm (g, [||], t) -> (* not a function but a definition *)
+      Format.fprintf fmt "@[<2>(%a %a)@]@\n@." pp_gname g
+        pp_array t
+  | Gtblnorm (g, params, t) ->
+      Format.fprintf fmt "@[<2>(%a (lambda (%a)@\n%a))@]@\n@." pp_gname g
+        pp_ldecls params pp_array t
+  | Gtblcofix (g, [||], s) -> (* not a function but a definition *)
+      Format.fprintf fmt "@[(%a %a)@]@\n@." pp_gname g
+        pp_cofix (g, s)
+  | Gtblcofix (g, params, s) ->
+      Format.fprintf fmt "@[(%a (lambda (%a)@\n  %a))@]@\n@." pp_gname g
+        pp_ldecls params pp_cofix (g, s)
   | Gcomment s ->
-      Format.fprintf fmt "@[(* %s *)@]@." s
+      List.iter (fun line -> Format.fprintf fmt ";@[ %s @]@." line) (String.split_on_char '\n' s)
+
+(* needed to know the names of the values to export *)
+let global_to_mlf_name g =
+  match g with
+  | Gtblfixtype (gn,_,_)
+  | Gtblnorm (gn,_,_)
+  | Gtblcofix (gn,_,_)
+  | Gletcase(gn,_,_,_,_)
+  | Glet (gn,_) ->
+    let gn = string_of_gname gn in
+    if gn = "_" || gn = "" then None else Some gn
+  | Gtype _
+  | Gcomment _
+  | Gopen _ -> None
+
+let pp_global_interface fmt g =
+  match g with
+  | Gtblnorm (_,_,_)
+  | Gtblcofix (_,_,_)
+  | Gtblfixtype (_,_,_)
+  | Gletcase (_,_,_,_,_)
+  | Glet (_,_) ->
+    begin match global_to_mlf_name g with
+    | None -> ()
+    | Some ident ->
+      let ident = String.sub ident 1 ((String.length ident) - 1) in (* we remove the $ before the local variable *)
+      Format.fprintf fmt "val %s : t@." ident
+    end
+  | Gcomment _
+  | Gopen _ -> ()
+  | Gtype (ind, lar) -> pp_type_decl fmt ind lar
 
 (** Compilation of elements in environment **)
 let rec compile_with_fv ?(wrap = fun t -> t) cenv env sigma univ auxdefs l t =
@@ -2236,8 +2252,6 @@ let compile_mind cenv mb mind stack =
     let add_proj proj_arg acc _pb =
       let tbl = ob.mind_reloc_tbl in
       (* Building info *)
-      let asw = { asw_ind = ind; asw_prefix = "";
-                  asw_reloc = tbl } in
       let c_uid = fresh_lname cenv Anonymous in
       let cf_uid = fresh_lname cenv Anonymous in
       let tag, arity = tbl.(0) in
@@ -2249,7 +2263,7 @@ let compile_mind cenv mb mind stack =
       let i = push_symbol cenv (SymbProj (ind, proj_arg)) in
       let accu = MLprimitive (Cast_accu, [|MLlocal cf_uid|]) in
       let accu_br = MLprimitive (Mk_proj, [|get_proj_code i;accu|]) in
-      let code = MLmatch(asw,MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
+      let code = MLmatch(MLlocal cf_uid,accu_br,[|[NonConstPattern (tag,cargs)],MLlocal ci_uid|]) in
       let force_c =
         if mb.mind_finite <> CoFinite
         then MLlocal c_uid
@@ -2392,16 +2406,16 @@ let mk_conv_code env sigma prefix t1 t2 =
   let code2 = lambda_of_constr env sigma t2 in
   let (gl,code1) = compile_with_fv cenv env sigma UGlobal gl None code1 in
   let (gl,code2) = compile_with_fv cenv env sigma UGlobal gl None code2 in
-  let t1 = mk_internal_let "t1" code1 in
-  let t2 = mk_internal_let "t2" code2 in
-  let g1 = MLglobal (Ginternal "t1") in
-  let g2 = MLglobal (Ginternal "t2") in
-  let setref1 = Glet(Ginternal "_", MLsetref("rt1",g1)) in
-  let setref2 = Glet(Ginternal "_", MLsetref("rt2",g2)) in
+  let t1 = mk_internal_let "$t1" code1 in
+  let t2 = mk_internal_let "$t2" code2 in
+  let g1 = MLglobal (Ginternal "$t1") in
+  let g2 = MLglobal (Ginternal "$t2") in
+  let setref1 = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt1)",g1)) in
+  let setref2 = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt2)",g2)) in
   let gl = List.rev (setref2 :: setref1 :: t2 :: t1 :: gl) in
-  let header = Glet(Ginternal "symbols_tbl",
+  let header = Glet(Ginternal "$symbols_tbl",
     MLprimitive (Get_symbols,
-      [|MLglobal (Ginternal "()")|])) in
+      [|MLglobal (Ginternal "0")|])) in
   let symbols = get_cenv_symbols cenv in
   header::gl, symbols, (mind_updates, const_updates)
 
@@ -2413,19 +2427,18 @@ let mk_norm_code env sigma prefix t =
   in
   let code = lambda_of_constr env sigma t in
   let (gl,code) = compile_with_fv cenv env sigma UGlobal gl None code in
-  let t1 = mk_internal_let "t1" code in
-  let g1 = MLglobal (Ginternal "t1") in
-  let setref = Glet(Ginternal "_", MLsetref("rt1",g1)) in
+  let t1 = mk_internal_let "$t1" code in
+  let g1 = MLglobal (Ginternal "$t1") in
+  let setref = Glet(Ginternal "_", MLsetref("(global $Nativelib $rt1)",g1)) in
   let gl = List.rev (setref :: t1 :: gl) in
-  let header = Glet(Ginternal "symbols_tbl",
+  let header = Glet(Ginternal "$symbols_tbl",
     MLprimitive (Get_symbols,
-      [|MLglobal (Ginternal "()")|])) in
+      [|MLglobal (Ginternal "0")|])) in
   let symbols = get_cenv_symbols cenv in
   header::gl, symbols, (mind_updates, const_updates)
 
 let mk_library_header (symbols : Nativevalues.symbols) =
-  let symbols = Format.sprintf "(str_decode \"%s\")" (str_encode symbols) in
-  [Glet(Ginternal "symbols_tbl", MLglobal (Ginternal symbols))]
+  [Glet(Ginternal "$symbols_tbl", MLprimitive (Str_decode, [|MLglobal (Ginternal ("\"" ^ (str_encode symbols) ^ "\""))|]))]
 
 let update_location r =
   r.upd_info := Linked r.upd_prefix
