@@ -1,0 +1,6 @@
+--rocq-package plug
+-Q theories Plug
+-I src
+theories/Loader.v
+src/dummy.ml
+src/plug.mlpack

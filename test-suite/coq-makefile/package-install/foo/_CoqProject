@@ -1,0 +1,6 @@
+--rocq-package foo
+--package-version 1.2.3
+--description "Test package"
+--legacy-support
+-R theories Foo
+theories/A.v
