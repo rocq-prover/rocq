@@ -174,6 +174,40 @@ log_anomaly = "==========> FAILURE <=========="
 log_failure = "==========> FAILURE <=========="
 log_intro = "==========> TESTING $(1) <=========="
 
+# An output test's reference is normally the single file $*.out. Some
+# tests, however, have output that legitimately varies between runs or
+# platforms in ways that are not worth (or not possible to) normalise away
+# in the post-processing pipeline -- for instance output/Partac.v, whose
+# STM par: workers may on Windows CI race a "connection lost" teardown
+# message into the captured output. For such tests, alternative accepted
+# references can be provided as sibling files named $*.out.variant-<name>
+# (any suffix). The produced output is compared against the primary $*.out
+# first and then, only if that differs, against each variant in shell glob
+# order; the test passes as soon as one candidate matches (first match
+# wins). If none matches, we report every candidate that was tried and
+# show the diff against the primary $*.out. `approve-output` only ever
+# writes the primary $*.out (see below); variants are hand-authored data.
+#
+# $(call diff_against_candidates,<primary .out>,<produced output>)
+# Emits the diff/times output and leaves the result in $$R (0 = a
+# candidate matched). Must be used inside a recipe's shell block.
+define diff_against_candidates
+  primary="$(1)"; produced="$(2)"; R=1; tried=""; \
+  for candidate in "$$primary" "$$primary".variant-*; do \
+    [ -e "$$candidate" ] || continue; \
+    tried="$$tried $$candidate"; \
+    if diff -a -u --strip-trailing-cr "$$candidate" "$$produced" > /dev/null 2>&1; then \
+      R=0; break; \
+    fi; \
+  done; \
+  if [ $$R = 0 ]; then times; else \
+    diff -a -u --strip-trailing-cr "$$primary" "$$produced" 2>&1; times; \
+    if [ "$$tried" != " $$primary" ]; then \
+      echo "(no accepted output matched; tried:$$tried)"; \
+    fi; \
+  fi
+endef
+
 FAIL = >&2 echo 'FAILED    $@'
 FAIL_CHK = >&2 echo 'FAILED    $(patsubst %.v.log,%.chk.log,$@)'
 
@@ -443,7 +477,7 @@ $(addsuffix .log,$(wildcard output/*.v)): %.v.log: %.v %.out $(PREREQUISITELOG)
 	    | grep -a -v "^<W>" \
 	    $(CLEANUP_WINPATH) \
 	    > $$output; \
-	  diff -a -u --strip-trailing-cr $*.out $$output 2>&1; R=$$?; times; \
+	  $(call diff_against_candidates,$*.out,$$output); \
 	  if [ $$R = 0 ]; then \
 	    echo $(log_success); \
 	    echo "    $< ... Ok"; \
@@ -517,11 +551,56 @@ $(addsuffix .log,$(wildcard output-coqchk/*.v)): %.v.log: %.v %.out $(PREREQUISI
 	$(HIDE)$(call REPORT_TIMER,$(patsubst %.v.log,%.chk.log,$@))
 
 .PHONY: approve-output
+# Approve the produced outputs (the $*.out.real files left by a failed run).
+# Two modes, selected by the APPROVE variable:
+#
+#   APPROVE=replace  The produced output replaces the primary reference
+#                    $*.out. Existing variants ($*.out.variant-*, see
+#                    diff_against_candidates above) are left untouched.
+#
+#   APPROVE=add      The produced output is *added* as a new accepted
+#                    reference instead of replacing anything: it is written
+#                    to the next free numeric variant $*.out.variant-<N>.
+#                    If it is byte-identical to the primary or to an
+#                    existing variant it is a no-op (deduplicated).
+#
+# The default mode is chosen per test: "replace" when the test currently
+# has a single expectation (just $*.out), "add" when it already has one or
+# more $*.out.variant-* files -- so approving a multi-expectation test never
+# clobbers the primary or drops existing variants. Set APPROVE explicitly to
+# override (e.g. APPROVE=replace to overwrite the primary of a
+# multi-expectation test, or APPROVE=add to start a variant set from a
+# single-expectation test).
+APPROVE ?=
 approve-output: output output-coqtop output-coqchk
-	$(HIDE)for f in $(addsuffix /*.out.real,$^); do if [ -f "$$f" ]; then \
-	  mv "$$f" "$${f%.real}"; \
-	  echo "Updated $${f%.real}!"; \
-	fi; done
+	$(HIDE)for f in $(addsuffix /*.out.real,$^); do [ -f "$$f" ] || continue; \
+	  out="$${f%.real}"; \
+	  mode="$(APPROVE)"; \
+	  if [ -z "$$mode" ]; then \
+	    set -- "$$out".variant-*; \
+	    if [ -e "$$1" ]; then mode=add; else mode=replace; fi; \
+	  fi; \
+	  case "$$mode" in \
+	    replace) \
+	      mv "$$f" "$$out"; \
+	      echo "Updated $$out!" ;; \
+	    add) \
+	      dup=; \
+	      for e in "$$out" "$$out".variant-*; do \
+	        [ -e "$$e" ] || continue; \
+	        if diff -a -q --strip-trailing-cr "$$e" "$$f" >/dev/null 2>&1; then dup="$$e"; break; fi; \
+	      done; \
+	      if [ -n "$$dup" ]; then \
+	        rm -f "$$f"; \
+	        echo "Skipped $$out (identical to $$dup)"; \
+	      else \
+	        n=1; while [ -e "$$out".variant-$$n ]; do n=$$((n+1)); done; \
+	        mv "$$f" "$$out".variant-$$n; \
+	        echo "Added $$out.variant-$$n!"; \
+	      fi ;; \
+	    *) echo "approve-output: unknown APPROVE=$$mode (use replace or add)" >&2; rm -f "$$f" ;; \
+	  esac; \
+	done
 
 approve-coqdoc: coqdoc
 	$(HIDE)(cd coqdoc; \
