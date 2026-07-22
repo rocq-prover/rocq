@@ -732,10 +732,10 @@ let next_token ~diff_mode ttree loc s : (Tok.t * Loc.t, Exninfo.iexn) Result.t =
 let pattern_strings : type c. _ -> c p -> string * string option =
   fun kwstate -> function
   | PKEYWORD s -> "", Some s
-  | PIDENT (Some s as os) ->
+  | PIDENT (Exact s) ->
     let kind = if is_keyword kwstate s then "" else "IDENT" in
-    kind, os
-  | PIDENT None -> "IDENT", None
+    kind, Some s
+  | PIDENT Any -> "IDENT", None
   | PFIELD s -> "FIELD", s
   | PNUMBER None -> "NUMBER", None
   | PNUMBER (Some n) -> "NUMBER", Some (NumTok.Unsigned.sprint n)
@@ -827,7 +827,7 @@ let strip s =
 let terminal s =
   let s = strip s in
   let () = match s with "" -> failwith "empty token." | _ -> () in
-  if is_ident s then PIDENT (Some s)
+  if is_ident s then PIDENT (Exact s)
   else PKEYWORD s
 
 (* Precondition: the input is a number (c.f. [NumTok.t]) *)
