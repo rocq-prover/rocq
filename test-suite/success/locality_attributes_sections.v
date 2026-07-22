@@ -195,6 +195,10 @@ Section Bar.
   Hint Resolve secret_42 : plop.
 End Bar.
 
+(* Availability of the [export] hint after closing its section *)
+Lemma hop_export : secret = 42.
+Proof. auto with plop. Qed.
+
 (* Availability of [Set Universe Polymorphism] *)
 Definition foo_ni@{u} := nat.
 Check foo_ni@{_}.
@@ -234,6 +238,10 @@ Section Bar.
   #[global]
   Hint Resolve secret_is_42 : plop.
 End Bar.
+
+(* Availability of the [global] hint after closing its section *)
+Lemma hop_global : secret = 42.
+Proof. auto with plop. Qed.
 
 (** **** Without importing: *)
 

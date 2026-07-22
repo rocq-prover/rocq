@@ -186,12 +186,8 @@ type hint_pattern =
 | ConstrPattern of constr_pattern
 | SyntacticPattern of constr_pattern
 
-type hint_prio =
-  | Implicit of int             (* computed by Rocq *)
-  | Explicit of int             (* Specified by user *)
-
 type ('a,'db) with_metadata =
-  { pri     : hint_prio
+  { pri     : int
   (** A number lower is higher priority *)
   ; pat     : hint_pattern option
   (** A pattern for the concl of the Goal *)
@@ -201,8 +197,6 @@ type ('a,'db) with_metadata =
   (** The database from which the hint comes *)
   ; secvars : Id.Pred.t
   (** The set of section variables the hint depends on *)
-  ; hnf : bool
-  (** The value of the hnf flag used for building the hint *)
   ; code    : 'a
   (** the tactic to apply when the concl matches pat *)
   }
@@ -214,6 +208,17 @@ type full_hint = (hint hint_ast with_uid, hint_db_name option) with_metadata
 
 type hint_entry = GlobRef.t option *
   (raw_hint hint_ast with_uid, unit) with_metadata
+
+type resolve_spec = {
+  resolve_info : Typeclasses.hint_info;
+  resolve_hnf : bool;
+  resolve_ref : GlobRef.t;
+}
+
+type resolve_bundle = {
+  resolve_spec : resolve_spec;
+  resolve_entries : hint_entry list;
+}
 
 type hint_mode =
   | ModeInput (* No evars *)
@@ -236,12 +241,8 @@ type 'a hints_transparency_target =
 
 let hint_as_term h = (h.hint_uctx, mkRef h.hint_term)
 
-let hint_prio h : int =
-  match h.pri with
-  | Implicit prio | Explicit prio -> prio
-
-let pri_order_int (id1, h1) (id2, h2) =
-  let d = Int.compare (hint_prio h1) (hint_prio h2) in
+let pri_order_int (id1, {pri=pri1}) (id2, {pri=pri2}) =
+  let d = Int.compare pri1 pri2 in
     if Int.equal d 0 then Int.compare id2 id1
     else d
 
@@ -983,14 +984,14 @@ let make_exact_entry env sigma info gr =
           try head_bound env sigma cty
           with Bound -> failwith "make_exact_entry"
         in
-        let pri = match info.hint_priority with None -> Implicit 0 | Some p -> Explicit p in
+        let pri = match info.hint_priority with None -> 0 | Some p -> p in
         let pat = match info.hint_pattern with
         | Some pat -> ConstrPattern (snd pat)
         | None -> DefaultPattern
         in
         let h = { rhint_term = c; rhint_type = cty; rhint_uctx = ctx; rhint_arty = 0 } in
         (Some hd,
-         { pri; pat = Some pat; name = Some gr; hnf = false;
+         { pri; pat = Some pat; name = Some gr;
            db = (); secvars;
            code = with_uid (Give_exact h); })
 
@@ -1009,7 +1010,7 @@ let make_apply_entry env sigma hnf info gr =
     let miss, hyps = Clenv.clenv_missing ce in
     let nmiss = List.length miss in
     let secvars = secvars_of_global env (fst c) in
-    let pri = match info.hint_priority with None -> Implicit (hyps + nmiss) | Some p -> Explicit p in
+    let pri = match info.hint_priority with None -> hyps + nmiss | Some p -> p in
     let pat = match info.hint_pattern with
     | Some p -> ConstrPattern (snd p)
     | None -> DefaultPattern
@@ -1017,13 +1018,13 @@ let make_apply_entry env sigma hnf info gr =
     let h = { rhint_term = c; rhint_type = cty; rhint_uctx = ctx; rhint_arty = hyps; } in
     if Int.equal nmiss 0 then
       (Some hd,
-       { pri; pat = Some pat; name = Some gr; hnf;
+       { pri; pat = Some pat; name = Some gr;
          db = ();
          secvars;
          code = with_uid (Res_pf h); })
     else
       (Some hd,
-       { pri; pat = Some pat; name = Some gr; hnf;
+       { pri; pat = Some pat; name = Some gr;
          db = (); secvars;
          code = with_uid (ERes_pf h); })
   | _ -> failwith "make_apply_entry"
@@ -1052,6 +1053,72 @@ let make_resolves env sigma (eapply, hnf) info ~check cr =
         else str "can be used as a hint only for eauto."));
   ents
 
+let make_resolve_bundle env sigma ~check resolve_spec =
+  let { resolve_info; resolve_hnf; resolve_ref } = resolve_spec in
+  let resolve_entries =
+    make_resolves env sigma (true, resolve_hnf) resolve_info ~check resolve_ref
+  in
+  { resolve_spec; resolve_entries }
+
+let discharge_preview_type gr typ =
+  if Global.is_in_section gr then
+    let segment = Global.section_segment_of_reference gr in
+    let cache = Cooking.create_cache segment in
+    EConstr.of_constr (Cooking.abstract_as_type cache (EConstr.Unsafe.to_constr typ))
+  else typ
+
+let resolve_spec_has_discharged_head env sigma spec =
+  let _, typ, ctx = fresh_global_hint env sigma spec.resolve_ref in
+  let typ = discharge_preview_type spec.resolve_ref typ in
+  let sigma = merge_context_set_opt sigma ctx in
+  let exact =
+    let typ = strip_outer_cast sigma typ in
+    match EConstr.kind sigma typ with
+    | Prod _ -> false
+    | _ ->
+      try ignore (head_bound env sigma typ); true
+      with Bound -> false
+  in
+  let apply =
+    let typ = if spec.resolve_hnf then hnf_constr0 env sigma typ else typ in
+    match EConstr.kind sigma typ with
+    | Prod _ ->
+      let typ = if spec.resolve_hnf then Reductionops.nf_betaiota env sigma typ else typ in
+      let _, concl = decompose_prod_decls sigma typ in
+      begin
+        try ignore (head_bound env sigma concl); true
+        with Bound -> false
+      end
+    | _ -> false
+  in
+  exact || apply
+
+let is_eauto_only_entry (_, hint) = match hint.code.obj with
+| ERes_pf _ -> true
+| Res_pf _ | Give_exact _ | Res_pf_THEN_trivial_fail _ | Unfold_nth _ | Extern _ -> false
+
+let report_eauto_only_entry env sigma (_, hint) = match hint.code.obj with
+| ERes_pf { rhint_term = c; rhint_type = cty; rhint_uctx = ctx } ->
+  let sigma' = merge_context_set_opt sigma ctx in
+  let ce = Clenv.mk_clenv_from env sigma' (mkRef c, cty) in
+  let miss, _ = Clenv.clenv_missing ce in
+  let nmiss = List.length miss in
+  let variables = str (CString.plural nmiss "variable") in
+  Feedback.msg_info (
+    strbrk "The hint " ++
+    pr_global (fst c) ++
+    strbrk " will only be used by eauto, because applying " ++
+    pr_global (fst c) ++
+    strbrk " would leave " ++ variables ++ Pp.spc () ++
+    Pp.prlist_with_sep Pp.pr_comma Name.print miss ++
+    strbrk " as unresolved existential " ++ variables ++ str "."
+  )
+| Res_pf _ | Give_exact _ | Res_pf_THEN_trivial_fail _ | Unfold_nth _ | Extern _ -> ()
+
+let report_eauto_only_bundle env sigma bundle =
+  if not !Flags.quiet then
+    List.iter (report_eauto_only_entry env sigma) bundle.resolve_entries
+
 (* used to add an hypothesis to the local hint database *)
 let make_resolve_hyp env sigma hname =
   try
@@ -1065,8 +1132,7 @@ let make_resolve_hyp env sigma hname =
 let make_unfold env eref =
   let g = global_of_evaluable_reference env eref in
   (Some g,
-   { pri = Implicit 4;
-     hnf = false;
+   { pri = 4;
      pat = None;
      name = Some g;
      db = ();
@@ -1083,8 +1149,7 @@ let make_extern pri pat tacast =
                         an if, case, or let expression, an application, or a projection.")
   in
   (hdconstr,
-   { pri = pri;
-     hnf = false;
+   { pri;
      pat = Option.map (fun p -> SyntacticPattern p) pat;
      name = None;
      db = ();
@@ -1110,8 +1175,7 @@ let make_trivial env sigma r =
   let hd = head_constr env sigma t in
   let h = { rhint_term = c; rhint_type = t; rhint_uctx = ctx; rhint_arty = 0 } in
   (Some hd,
-   { pri = Implicit 1;
-     hnf = true;
+   { pri = 1;
      pat = Some DefaultPattern;
      name = Some r;
      db = ();
@@ -1216,6 +1280,7 @@ type hint_action =
       grefs : Evaluable.t hints_transparency_target;
       state : bool;
     }
+  | AddResolveHints of resolve_bundle list
   | AddHints of hint_entry list
   | RemoveHints of GlobRef.t list
   | AddCut of hints_path
@@ -1227,8 +1292,15 @@ type hint_obj = {
   hint_local : hint_locality;
   hint_name : string;
   hint_action : hint_action;
-  hint_rebuild : bool;          (* only ever true between discharge and rebuild *)
 }
+
+type discharged_hint_obj =
+  | RebuildResolveHints of {
+      discharged_local : hint_locality;
+      discharged_name : string;
+      discharged_bundles : resolve_bundle list;
+    }
+  | KeepDischargedHint of hint_obj
 
 let is_trivial_action = function
 | AddTransparency { grefs } ->
@@ -1236,6 +1308,7 @@ let is_trivial_action = function
   | HintsVariables | HintsConstants | HintsProjections -> false
   | HintsReferences l -> List.is_empty l
   end
+| AddResolveHints l -> List.for_all (fun b -> List.is_empty b.resolve_entries) l
 | AddHints l -> List.is_empty l
 | RemoveHints l -> List.is_empty l
 | AddCut _ | AddMode _ -> false
@@ -1253,12 +1326,17 @@ let superglobal h = match h.hint_local with
   | SuperGlobal -> true
   | Local | Export -> false
 
+let resolve_bundle_entries bundles =
+  List.concat_map (fun bundle -> bundle.resolve_entries) bundles
+
 let load_autohint _ h =
   let name = h.hint_name in
   let superglobal = superglobal h in
   match h.hint_action with
   | AddTransparency { grefs; state } ->
     if superglobal then add_transparency name grefs state
+  | AddResolveHints bundles ->
+    if superglobal then add_hint name (resolve_bundle_entries bundles)
   | AddHints hints ->
     if superglobal then add_hint name hints
   | RemoveHints hints ->
@@ -1271,6 +1349,8 @@ let load_autohint _ h =
 let open_autohint h =
   let superglobal = superglobal h in
   match h.hint_action with
+  | AddResolveHints bundles ->
+    if not superglobal then add_hint h.hint_name (resolve_bundle_entries bundles)
   | AddHints hints ->
     if not superglobal then add_hint h.hint_name hints
   | AddCut paths ->
@@ -1300,11 +1380,9 @@ let subst_autohint (subst, obj) =
     let t' = subst_mps subst t in
     if gr==gr' && t'==t then h else { rhint_term = (gr', u); rhint_type = t'; rhint_uctx = ctx; rhint_arty = ar }
   in
-  let subst_hint (k,data as hint) =
-    let k' = Option.Smart.map subst_key k in
-    let env = Global.env () in
-    let sigma = Evd.from_env env in
-    let subst_hint_pattern = function
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let subst_hint_pattern = function
     | DefaultPattern -> DefaultPattern
     | ConstrPattern p as p0 ->
       let p' = subst_pattern env sigma subst p in
@@ -1312,7 +1390,23 @@ let subst_autohint (subst, obj) =
     | SyntacticPattern p as p0 ->
       let p' = subst_pattern env sigma subst p in
       if p' == p then p0 else SyntacticPattern p'
+  in
+  let subst_resolve_info info =
+    let map ((ids, pat) as user_pattern) =
+      let pat' = subst_pattern env sigma subst pat in
+      if pat' == pat then user_pattern else (ids, pat')
     in
+    let hint_pattern = Option.Smart.map map info.hint_pattern in
+    if hint_pattern == info.hint_pattern then info else { info with hint_pattern }
+  in
+  let subst_resolve_spec spec =
+    let resolve_info = subst_resolve_info spec.resolve_info in
+    let resolve_ref = subst_global_reference subst spec.resolve_ref in
+    if resolve_info == spec.resolve_info && resolve_ref == spec.resolve_ref then spec
+    else { spec with resolve_info; resolve_ref }
+  in
+  let subst_hint (k,data as hint) =
+    let k' = Option.Smart.map subst_key k in
     let pat' = Option.Smart.map subst_hint_pattern data.pat in
     let code' = match data.code.obj with
       | Res_pf h ->
@@ -1357,6 +1451,15 @@ let subst_autohint (subst, obj) =
           else HintsReferences grs'
       in
       if target' == target then obj.hint_action else AddTransparency { grefs = target'; state = b }
+    | AddResolveHints bundles ->
+      let subst_bundle bundle =
+        let resolve_spec = subst_resolve_spec bundle.resolve_spec in
+        let resolve_entries = List.Smart.map subst_hint bundle.resolve_entries in
+        if resolve_spec == bundle.resolve_spec && resolve_entries == bundle.resolve_entries then bundle
+        else { resolve_spec; resolve_entries }
+      in
+      let bundles' = List.Smart.map subst_bundle bundles in
+      if bundles' == bundles then obj.hint_action else AddResolveHints bundles'
     | AddHints hints ->
       let hints' = List.Smart.map subst_hint hints in
       if hints' == hints then obj.hint_action else AddHints hints'
@@ -1381,7 +1484,18 @@ let classify_autohint obj =
 let discharge_autohint obj =
   if is_hint_local obj.hint_local then None
   else
-    let hint_action, hint_rebuild = match obj.hint_action with
+    let keep hint_action =
+      if is_trivial_action hint_action then None
+      else Some (KeepDischargedHint { obj with hint_action })
+    in
+    match obj.hint_action with
+    | AddResolveHints discharged_bundles ->
+      if List.for_all (fun b -> List.is_empty b.resolve_entries) discharged_bundles then None
+      else Some (RebuildResolveHints {
+        discharged_local = obj.hint_local;
+        discharged_name = obj.hint_name;
+        discharged_bundles;
+      })
     | AddTransparency { grefs; state } ->
       let grefs = match grefs with
       | HintsVariables | HintsConstants | HintsProjections -> grefs
@@ -1397,48 +1511,45 @@ let discharge_autohint obj =
         let grs = List.filter_map filter grs in
         HintsReferences grs
       in
-      AddTransparency { grefs; state }, false
-    | AddHints hints ->
-      AddHints hints, true
-    | RemoveHints _ ->
-      (* not supported yet *)
-      assert false
+      keep (AddTransparency { grefs; state })
+    | AddHints _ | RemoveHints _ ->
+      CErrors.anomaly Pp.(str "Unexpected non-local hint action during section discharge.")
     | AddCut path ->
-      if is_section_path path then AddHints [], false (* dummy *) else obj.hint_action, false
+      if is_section_path path then None else keep obj.hint_action
     | AddMode { gref; mode } ->
       if Global.is_in_section gref then
-        if isVarRef gref then AddHints [], false (* dummy *)
+        if isVarRef gref then None
         else
           let inst = Global.section_instance gref in
           (* Default mode for discharged parameters is output *)
           let mode = Array.append (Array.make (Array.length inst) ModeOutput) mode in
-          AddMode { gref; mode }, false
-      else obj.hint_action, false
-    in
-    if is_trivial_action hint_action then None
-    else Some { obj with hint_action; hint_rebuild }
+          keep (AddMode { gref; mode })
+      else keep obj.hint_action
 
-let rebuild_hint_entry (k, hint) =
-  match hint.code.obj with
-  | Res_pf h | ERes_pf h | Give_exact h ->
-    assert (match hint.pat with None | Some DefaultPattern -> true | _ -> false);
-    let hint_priority =
-      match hint.pri with
-      | Explicit p -> Some p
-      | Implicit _ -> None
+let rebuild_autohint = function
+  | KeepDischargedHint obj -> obj
+  | RebuildResolveHints { discharged_local; discharged_name; discharged_bundles } ->
+    let env = Global.env () in
+    let sigma = Evd.from_env env in
+    let rebuild old_bundle =
+      let bundle = make_resolve_bundle env sigma ~check:false old_bundle.resolve_spec in
+      if List.is_empty bundle.resolve_entries then
+        CErrors.user_err Pp.(
+          str "The hint " ++ pr_global bundle.resolve_spec.resolve_ref ++
+          str " in database " ++ quote (str discharged_name) ++
+          str " became unusable after section discharge."
+        );
+      if not (List.exists is_eauto_only_entry old_bundle.resolve_entries) &&
+         List.exists is_eauto_only_entry bundle.resolve_entries then
+        report_eauto_only_bundle env sigma bundle;
+      bundle
     in
-    let info = { hint_priority; hint_pattern=None } in
-    make_resolves (Global.env()) Evd.empty (true, hint.hnf) info ~check:true @@ Option.get hint.name
-  | _ -> assert false
-
-let rebuild_autohint obj =
-  match obj.hint_action with
-  | AddHints hints when obj.hint_rebuild ->
-    let hints = List.concat_map rebuild_hint_entry hints in
-    let hint_action = AddHints hints in
-    let hint_rebuild = false in
-    {obj with hint_action; hint_rebuild }
-  | _ -> obj
+    let bundles = List.map rebuild discharged_bundles in
+    {
+      hint_local = discharged_local;
+      hint_name = discharged_name;
+      hint_action = AddResolveHints bundles;
+    }
 
 let hint_cat = create_category "hints"
 
@@ -1467,40 +1578,49 @@ let check_locality locality =
     | Export -> not_local "export"
 
 
-let check_resolve_locality locality (entries : (hint_info * _ * _) list) =
-  let pp_attr locality =
-    Pp.str @@ match locality with
-    | Local -> "local"
-    | SuperGlobal -> "global"
-    | Export -> "export"
-  in
-  let not_supported why =
-    CErrors.user_err
-        Pp.(str "Hint Resolve does not the " ++
-            pp_attr locality ++
-            str " attribute in sections for hints " ++ why)
-  in
+let pr_hint_locality = function
+| Local -> str "local"
+| SuperGlobal -> str "global"
+| Export -> str "export"
 
+let unsupported_section_resolve locality why =
+  CErrors.user_err Pp.(
+    str "Hint Resolve does not support the " ++ pr_hint_locality locality ++
+    str " attribute in sections " ++ why ++ str "."
+  )
+
+let check_resolve_locality locality (entries : (hint_info * _ * _) list) =
   let check (info, _, gr) =
     match locality with
     | Local -> ()
     | SuperGlobal | Export ->
       if Option.has_some info.hint_pattern then
-        not_supported Pp.(str "that have explicit patterns");
+        unsupported_section_resolve locality (str "when an explicit pattern is provided");
       match gr with
-      | Names.GlobRef.VarRef v when Termops.is_section_variable_env (Global.env()) v ->
-        not_supported Pp.(str "that are section variables")
+      | GlobRef.VarRef v when is_section_variable_env (Global.env ()) v ->
+        unsupported_section_resolve locality (str "when the hint is a section variable")
       | _ -> ()
   in
   if Lib.sections_are_opened () then
     List.iter check entries
+
+let check_resolve_spec_locality env sigma locality spec =
+  match locality with
+  | Local -> ()
+  | SuperGlobal | Export ->
+    if not (resolve_spec_has_discharged_head env sigma spec) then
+      CErrors.user_err Pp.(
+        str "Hint Resolve does not support the " ++ pr_hint_locality locality ++
+        str " attribute for " ++ pr_global spec.resolve_ref ++
+        str " in this section because the hint will not have a global head " ++
+        str "after section discharge."
+      )
 
 let make_hint ~locality name action =
   {
   hint_local = locality;
   hint_name = name;
   hint_action = action;
-  hint_rebuild = false;
 }
 
 let remove_hints ~locality dbnames grs =
@@ -1517,32 +1637,18 @@ let remove_hints ~locality dbnames grs =
 (**************************************************************************)
 
 let add_resolves env sigma clist ~locality dbnames =
+  let specs = List.map (fun (resolve_info, resolve_hnf, resolve_ref) ->
+    { resolve_info; resolve_hnf; resolve_ref }) clist
+  in
+  let () =
+    if Lib.sections_are_opened () then
+      List.iter (check_resolve_spec_locality env sigma locality) specs
+  in
   List.iter
     (fun dbname ->
-      let r =
-        List.flatten (List.map (fun (pri, hnf, gr) ->
-          make_resolves env sigma (true, hnf) pri ~check:true gr) clist)
-      in
-      let check (_, hint) = match hint.code.obj with
-      | ERes_pf { rhint_term = c; rhint_type = cty; rhint_uctx = ctx } ->
-        let sigma' = merge_context_set_opt sigma ctx in
-        let ce = Clenv.mk_clenv_from env sigma' (mkRef c, cty) in
-        let miss, _ = Clenv.clenv_missing ce in
-        let nmiss = List.length miss in
-        let variables = str (CString.plural nmiss "variable") in
-        Feedback.msg_info (
-          strbrk "The hint " ++
-          pr_global (fst c) ++
-          strbrk " will only be used by eauto, because applying " ++
-          pr_global (fst c) ++
-          strbrk " would leave " ++ variables ++ Pp.spc () ++
-          Pp.prlist_with_sep Pp.pr_comma Name.print miss ++
-          strbrk " as unresolved existential " ++ variables ++ str "."
-        )
-      | _ -> ()
-      in
-      let () = if not !Flags.quiet then List.iter check r in
-      let hint = make_hint ~locality dbname (AddHints r) in
+      let bundles = List.map (make_resolve_bundle env sigma ~check:true) specs in
+      let () = List.iter (report_eauto_only_bundle env sigma) bundles in
+      let hint = make_hint ~locality dbname (AddResolveHints bundles) in
       Lib.add_leaf (inAutoHint hint))
     dbnames
 
@@ -1581,7 +1687,7 @@ let add_extern info tacast ~locality dbname =
   | Some (_, pat) -> Some pat
   in
   let hint = make_hint ~locality dbname
-                       (AddHints [make_extern (Explicit (Option.get info.hint_priority)) pat tacast]) in
+                       (AddHints [make_extern (Option.get info.hint_priority) pat tacast]) in
   Lib.add_leaf (inAutoHint hint)
 
 let add_externs info tacast ~locality dbnames =
@@ -1740,7 +1846,7 @@ let pr_id_hint env sigma (id, v) =
   | Some (ConstrPattern p | SyntacticPattern p) -> str", pattern " ++ pr_lconstr_pattern_env env sigma p
   | Some DefaultPattern -> str", pattern " ++ (pr_default_pattern env sigma v.code.obj)
   in
-  (pr_hint env sigma v.code ++ str" (cost " ++ int (hint_prio v) ++ pr_pat v
+  (pr_hint env sigma v.code ++ str" (cost " ++ int v.pri ++ pr_pat v
    ++ str", id " ++ int id ++ str ")")
 
 let pr_hint_list env sigma hintlist =
@@ -1838,7 +1944,7 @@ let pr_hint_db_env env sigma db =
       in
       (* sort because db.hintdb_nopat isn't kept in priority sorted order;
          "auto" sorts on priority before using the hintdb *)
-      let sorted = List.stable_sort (fun a b -> Int.compare (hint_prio a) (hint_prio b)) hintlist in
+      let sorted = List.stable_sort (fun a b -> Int.compare a.pri b.pri) hintlist in
       (* always prints "id 0" in Print HintDb *)
       let hints = pr_hint_list env sigma (List.map (fun x -> (0, x)) sorted) in
       hov 0 (goal_descr ++ str " -> " ++ hints)
@@ -1902,7 +2008,7 @@ let to_user_ast = function
 module FullHint =
 struct
   type t = full_hint
-  let priority (h : t) = hint_prio h
+  let priority (h : t) = h.pri
   let database (h : t) = h.db
   let pattern (h : t) = match h.pat with
   | None -> None

@@ -3,17 +3,13 @@ Create HintDb ghrs_constructors.
 Create HintDb ghrs_extra.
 Create HintDb ghrs_nested.
 Create HintDb ghrs_local_def.
-Create HintDb ghrs_pattern.
-Create HintDb ghrs_context_var.
-Create HintDb ghrs_enclosing_context_var.
+Create HintDb ghrs_local_head.
+Create HintDb ghrs_local_inductive.
+Create HintDb ghrs_direction_l2r.
+Create HintDb ghrs_direction_r2l.
 Create HintDb ghrs_priority_default.
 Create HintDb ghrs_priority_explicit.
-Create HintDb ghrs_pattern_opaque discriminated.
-Create HintDb ghrs_pattern_inductive discriminated.
-Create HintDb ghrs_pattern_constructor discriminated.
-Create HintDb ghrs_pattern_projection discriminated.
 Create HintDb ghrs_eapply_after_discharge.
-Create HintDb ghrs_unsupported.
 
 Inductive SecPred (A : Type) : Prop :=
 | sec_pred_intro : A -> SecPred A.
@@ -107,34 +103,53 @@ Proof.
   auto with ghrs_local_def.
 Qed.
 
-Inductive PatternPred (A : Type) : Prop :=
-| pattern_pred_intro : A -> PatternPred A.
+Section LocalHeadAfterDischarge.
+  Let Alias := True.
 
-Section ExplicitPattern.
+  Lemma local_head_hint : Alias.
+  Proof. exact I. Qed.
+
+  #[global] Hint Resolve local_head_hint : ghrs_local_head.
+End LocalHeadAfterDischarge.
+
+Goal True.
+Proof. auto with ghrs_local_head nocore. Qed.
+
+Section LocalInductiveConstructors.
   Context (A : Type) (a : A).
 
-  Lemma pattern_hint : PatternPred A.
-  Proof. exact (pattern_pred_intro A a). Qed.
+  Inductive LocalBox : Type :=
+  | local_box : A -> LocalBox.
 
-  Fail #[global] Hint Resolve pattern_hint | 0 (PatternPred A) : ghrs_pattern.
-End ExplicitPattern.
+  #[global] Hint Constructors LocalBox : ghrs_local_inductive.
+End LocalInductiveConstructors.
 
-Inductive ContextOnly : Prop := .
-Existing Class ContextOnly.
+Goal forall (A : Type) (a : A), LocalBox A.
+Proof. intros; auto with ghrs_local_inductive nocore. Qed.
 
-Section ContextVariableHint.
-  Context (h : ContextOnly).
+Inductive LeftPred (A : Type) : Prop :=
+| left_pred_intro : A -> LeftPred A.
 
-  Fail #[global] Hint Resolve h : ghrs_context_var.
-End ContextVariableHint.
+Inductive RightPred (A : Type) : Prop :=
+| right_pred_intro : A -> RightPred A.
 
-Section EnclosingContextVariableHint.
-  Context (P : Prop) (h : P).
+Section DirectionalResolve.
+  Context (A : Type) (a : A).
 
-  Section Inner.
-    Fail #[global] Hint Resolve h : ghrs_enclosing_context_var.
-  End Inner.
-End EnclosingContextVariableHint.
+  Lemma directional_hint : LeftPred A <-> RightPred A.
+  Proof.
+    split; intros; [exact (right_pred_intro A a) | exact (left_pred_intro A a)].
+  Qed.
+
+  #[global] Hint Resolve -> directional_hint : ghrs_direction_l2r.
+  #[global] Hint Resolve <- directional_hint : ghrs_direction_r2l.
+End DirectionalResolve.
+
+Goal forall (A : Type) (a : A), LeftPred A -> RightPred A.
+Proof. intros; auto with ghrs_direction_l2r nocore. Qed.
+
+Goal forall (A : Type) (a : A), RightPred A -> LeftPred A.
+Proof. intros; auto with ghrs_direction_r2l nocore. Qed.
 
 Inductive PriorityChoice (A : Type) : Type :=
 | priority_good : PriorityChoice A
@@ -239,7 +254,10 @@ Qed.
 
 Module Universes.
   Create HintDb ghrs_universe_polymorphic.
+  Create HintDb ghrs_universe_constrained.
+  Create HintDb ghrs_universe_constrained_section.
   Set Universe Polymorphism.
+  Monomorphic Universe ghrs_mono.
 
   Polymorphic Inductive UPolyPred (A : Type) : Type :=
   | u_poly_intro : A -> UPolyPred A.
@@ -254,4 +272,24 @@ Module Universes.
 
   Goal forall (A : Type) (a : A), UPolyPred A.
   Proof. intros; auto with ghrs_universe_polymorphic. Qed.
+
+  Polymorphic Definition constrained_hint@{u | u < ghrs_mono}
+    (A : Type@{u}) : True := I.
+
+  Section ConstrainedPreexistingHint.
+    #[global] Hint Resolve constrained_hint : ghrs_universe_constrained.
+  End ConstrainedPreexistingHint.
+
+  Check constrained_hint.
+
+  Section ConstrainedSectionHint.
+    Context (n : nat).
+
+    Polymorphic Definition constrained_section_hint@{u | u < ghrs_mono}
+      (A : Type@{u}) : True := match n with _ => I end.
+
+    #[global] Hint Resolve constrained_section_hint : ghrs_universe_constrained_section.
+  End ConstrainedSectionHint.
+
+  Check constrained_section_hint.
 End Universes.
