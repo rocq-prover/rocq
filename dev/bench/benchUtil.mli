@@ -32,10 +32,22 @@ type memory = {
   heap_words : int option;
 }
 
+type gc_collections = {
+  major : int;
+  minor : int;
+}
+(** Collections observed between two adjacent profiled commands. *)
+
 type data = {
   time : measure;
   memory : memory option;
   instructions : int option;
+  gc_before : gc_collections option;
+  (** Collections between the preceding command and this command. [None] means
+      there is no preceding command or the profile has no boundary data. *)
+  gc_after : gc_collections option;
+  (** Collections between this command and the following command. [None] means
+      there is no following command or the profile has no boundary data. *)
 }
 
 val dummy_data : data

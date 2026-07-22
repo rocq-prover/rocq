@@ -35,13 +35,26 @@ type memory = {
   heap_words : int option;
 }
 
+type gc_collections = {
+  major : int;
+  minor : int;
+}
+
 type data = {
   time : measure;
   memory : memory option;
   instructions : int option;
+  gc_before : gc_collections option;
+  gc_after : gc_collections option;
 }
 
-let dummy_data = { time = dummy_measure; memory = None; instructions = None }
+let dummy_data = {
+  time = dummy_measure;
+  memory = None;
+  instructions = None;
+  gc_before = None;
+  gc_after = None;
+}
 
 let combine_related_data data =
   let nvals = Array.length (snd (data.(0))) in
