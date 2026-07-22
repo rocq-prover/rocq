@@ -9,6 +9,7 @@
 (************************************************************************)
 
 Require Import Ltac2.Init.
+Require Ltac2.Bool.
 
 Ltac2 @ external print : message -> unit := "rocq-runtime.plugins.ltac2" "print".
 
@@ -118,3 +119,28 @@ Ltac2 @ external ikfprintf : ('v -> 'r) -> 'v -> ('a, unit, 'v, 'r) format -> 'a
   "rocq-runtime.plugins.ltac2" "format_ikfprintf".
 
 End Format.
+
+Ltac2 of_bool (b : bool) : message := of_string (Bool.to_string b).
+
+(** [of_list_with_sep sep of_elt l] concatenates the messages
+    [of_elt x] for [x] in [l], separated by [sep]. *)
+Ltac2 of_list_with_sep (sep : message) (of_elt : 'a -> message) (l : 'a list) : message :=
+  let rec aux l :=
+    match l with
+    | [] => empty
+    | [x] => of_elt x
+    | x :: l => concat (of_elt x) (concat sep (aux l))
+    end in
+  aux l.
+
+(** [of_list of_elt l] prints the elements of [l] separated by ["; "]. *)
+Ltac2 of_list (of_elt : 'a -> message) (l : 'a list) : message :=
+  of_list_with_sep (of_string "; ") of_elt l.
+
+(** [of_option of_elt o] prints [Some x] as ["Some "] followed by
+    [of_elt x], and [None] as ["None"]. *)
+Ltac2 of_option (of_elt : 'a -> message) (o : 'a option) : message :=
+  match o with
+  | Some x => concat (of_string "Some ") (of_elt x)
+  | None => of_string "None"
+  end.
