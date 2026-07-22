@@ -544,6 +544,13 @@ Commands and options
   are excluded from the Search results
   (`#22193 <https://github.com/rocq-prover/rocq/pull/22193>`_,
   by Pierre-Marie Pédrot).
+- **Added:**
+  ``Printing All Assumptions`` flag making :cmd:`Print Assumptions` report
+  theory assumptions (impredicativity of :g:`Set`, rewrite rules, disabled
+  universe checking, indices not mattering) according to each definition's
+  typing flags in addition to the settings of the current environment
+  (`#22164 <https://github.com/rocq-prover/rocq/pull/22164>`_,
+  by Jason Gross).
 - **Fixed:** fallback printing of inductives using
   ``<inductive:Foo:0>`` now prints correctly
   (though with possibly more qualification than needed)
