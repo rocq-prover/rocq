@@ -763,7 +763,7 @@ for it.
 In the special case where Ltac2 antiquotations appear inside a Rocq term
 notation, the notation variables are systematically bound in the body
 of the tactic expression with type `Ltac2.Init.preterm`. Such a type represents
-untyped syntactic Rocq expressions, which can by typed in the
+untyped syntactic Rocq expressions, which can be typed in the
 current context using the `Ltac2.Constr.pretype` function.
 
 .. example::
