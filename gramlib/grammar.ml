@@ -1580,7 +1580,7 @@ module Parsable = struct
          the max peek is at least the current position) *)
       let _ = LStream.peek gstate.kwstate ts in
       let loc' = LStream.max_peek_loc ts in
-      let loc = LStream.get_loc (LStream.count ts) ts in
+      let loc = LStream.get_relative_loc 0 ts in
       Loc.merge loc loc'
     in
     match efun ts with

@@ -203,13 +203,12 @@ struct
 
   let rec contiguous n m strm =
     n == m ||
-    let (_, ep) = Loc.unloc (LStream.get_loc n strm) in
-    let (bp, _) = Loc.unloc (LStream.get_loc (n + 1) strm) in
+    let (_, ep) = Loc.unloc (LStream.get_relative_loc n strm) in
+    let (bp, _) = Loc.unloc (LStream.get_relative_loc (n + 1) strm) in
     Int.equal ep bp && contiguous (succ n) m strm
 
   let check_no_space m _kwstate strm =
-    let n = LStream.count strm in
-    if contiguous n (n+m-1) strm then Some m else None
+    if contiguous 0 (m - 1) strm then Some m else None
 
   let to_entry s (lk : t) =
     let run kwstate strm = match lk 0 kwstate strm with None -> Error () | Some _ -> Ok () in
