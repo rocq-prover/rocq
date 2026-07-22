@@ -430,6 +430,69 @@ Ltac2 map_with_binders (lift : 'a -> binder -> 'a) (f : 'a -> constr -> constr) 
       make (Array u t def ty)
   end.
 
+(** Convenience wrappers around [make], one per constructor of [kind],
+    plus [mkApp_list] and [mkArrow]. *)
+
+Ltac2 mkRel (n : int) : constr := make (Rel n).
+
+Ltac2 mkVar (id : ident) : constr := make (Var id).
+
+Ltac2 mkMeta (m : meta) : constr := make (Meta m).
+
+Ltac2 mkEvar (ev : evar) (args : constr array) : constr := make (Evar ev args).
+
+Ltac2 mkSort (s : sort) : constr := make (Sort s).
+
+Ltac2 mkCast (v : constr) (k : cast) (ty : constr) : constr := make (Cast v k ty).
+
+Ltac2 mkProd (b : binder) (body : constr) : constr := make (Prod b body).
+
+Ltac2 mkLambda (b : binder) (body : constr) : constr := make (Lambda b body).
+
+Ltac2 mkLetIn (b : binder) (v : constr) (body : constr) : constr := make (LetIn b v body).
+
+Ltac2 mkApp (f : constr) (args : constr array) : constr := make (App f args).
+
+Ltac2 mkApp_list (f : constr) (args : constr list) : constr := mkApp f (Array.of_list args).
+
+Ltac2 mkConstant (cst : constant) (inst : instance) : constr := make (Constant cst inst).
+
+Ltac2 mkInd (ind : inductive) (inst : instance) : constr := make (Ind ind inst).
+
+Ltac2 mkConstructor (cstr : constructor) (inst : instance) : constr := make (Constructor cstr inst).
+
+Ltac2 mkCase (ci : case) (p : constr * Relevance.t) (iv : case_invert) (scrut : constr) (branches : constr array) : constr :=
+  make (Case ci p iv scrut branches).
+
+Ltac2 mkFix (structs : int array) (which : int) (tl : binder array) (bl : constr array) : constr :=
+  make (Fix structs which tl bl).
+
+Ltac2 mkCoFix (which : int) (tl : binder array) (bl : constr array) : constr :=
+  make (CoFix which tl bl).
+
+Ltac2 mkProj (p : projection) (r : Relevance.t) (c : constr) : constr := make (Proj p r c).
+
+Ltac2 mkUint63 (n : uint63) : constr := make (Uint63 n).
+
+Ltac2 mkFloat (f : float) : constr := make (Float f).
+
+Ltac2 mkString (s : pstring) : constr := make (String s).
+
+Ltac2 mkArray (inst : instance) (vals : constr array) (def : constr) (ty : constr) : constr :=
+  make (Array inst vals def ty).
+
+(** [mkArrow r a b] builds the non-dependent product [a -> b];
+    [b] is lifted.  The binder is built with [Binder.unsafe_make] when
+    the relevance [r] is given, and with [Binder.make] (which infers
+    the relevance, and requires a focused goal) otherwise. *)
+Ltac2 mkArrow (r : Binder.relevance option) (a : constr) (b : constr) : constr :=
+  let bnd :=
+    match r with
+    | Some r => Binder.unsafe_make None r a
+    | None => Binder.make None a
+    end in
+  mkProd bnd (liftn 1 0 b).
+
 End Unsafe.
 
 Module Cast.
