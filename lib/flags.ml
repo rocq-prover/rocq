@@ -54,3 +54,5 @@ let if_silent f x = if !quiet then f x
 let if_verbose f x = if not !quiet then f x
 
 let test_mode = ref false
+
+let nursery = ref false

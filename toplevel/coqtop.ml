@@ -59,7 +59,7 @@ type ('a,'b) custom_toplevel =
 
 (** Main init routine *)
 let init_toplevel { parse_extra; init_extra; usage; initial_args } args =
-  Coqinit.init_ocaml ();
+  if not !Flags.nursery then Coqinit.init_ocaml ();
   let opts, customopts = Coqinit.parse_arguments ~parse_extra ~initial_args args in
   Stm.init_process (snd customopts);
   let () = Coqinit.init_runtime ~usage opts in

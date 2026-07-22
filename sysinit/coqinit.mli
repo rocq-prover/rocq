@@ -46,8 +46,10 @@ val parse_arguments :
     compilation. If Coq is used to process multiple libraries, what is set up
     here is really global and common to all of them.
 
-    This API must be called, typically jsut after parsing arguments. *)
+    This API must be called, typically just after parsing arguments. *)
 val init_runtime : usage:Boot.Usage.specific_usage -> Coqargs.t -> unit
+
+val init_load_paths : Boot.Env.maybe_env -> Coqargs.t -> unit
 
 val init_document : Coqargs.t -> unit
 
