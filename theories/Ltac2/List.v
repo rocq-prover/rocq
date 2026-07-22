@@ -790,3 +790,33 @@ Ltac2 rec map_filter (f : 'a -> 'b option) (l : 'a list) : 'b list :=
     | None => map_filter f l
     end
   end.
+
+(** [firstn_relaxed n ls] returns the first [n] elements of [ls], or
+    all of [ls] if [n > length ls].  Throws an exception if [n < 0].
+    Cf [firstn], which throws when [n > length ls]. *)
+Ltac2 rec firstn_relaxed (n : int) (ls : 'a list) : 'a list :=
+  Control.assert_valid_argument "List.firstn_relaxed" (Int.ge n 0);
+  match Int.equal n 0 with
+  | true => []
+  | false
+    => match ls with
+       | [] => []
+       | x :: xs
+         => x :: firstn_relaxed (Int.sub n 1) xs
+       end
+  end.
+
+(** [skipn_relaxed n ls] removes the first [n] elements of [ls],
+    returning the empty list if [n > length ls].  Throws an exception
+    if [n < 0].  Cf [skipn], which throws when [n > length ls]. *)
+Ltac2 rec skipn_relaxed (n : int) (ls : 'a list) : 'a list :=
+  Control.assert_valid_argument "List.skipn_relaxed" (Int.ge n 0);
+  match Int.equal n 0 with
+  | true => ls
+  | false
+    => match ls with
+       | [] => []
+       | _ :: xs
+         => skipn_relaxed (Int.sub n 1) xs
+       end
+  end.
