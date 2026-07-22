@@ -64,9 +64,36 @@ let rocqbin =
     | Some p -> p
     | None -> canonical_path_name (Filename.dirname Sys.executable_name)
 
+(** Locate the dune workspace root containing the given path, if any. *)
+let dune_workspace_root : string -> string option = fun path ->
+  let rec workspace_root path =
+    let parent = Filename.dirname path in
+    if parent = path then
+      None
+    else if Filename.basename path = "_build" then
+      Some parent
+    else
+      workspace_root parent
+  in
+  match workspace_root path with
+  | None -> None
+  | Some root ->
+      (* Check that this indeed looks like a dune workspace. *)
+      let ok =
+        let has file = Sys.file_exists (Filename.concat root file) in
+        List.exists has ["dune-project"; "dune-workspace"]
+      in
+      if ok then Some root else None
+
 (** The following only makes sense when executables are running from
     source tree (e.g. during build or in local mode). *)
 let rocqroot =
+  match dune_workspace_root rocqbin with
+  | Some dir ->
+      let dir = Filename.concat dir "_build" in
+      let dir = Filename.concat dir "install" in
+      Filename.concat dir "default"
+  | None ->
   let rec search = function
     | [] ->
       (* couldn't recognize the layout, guess the executable is 1 dir below the root
