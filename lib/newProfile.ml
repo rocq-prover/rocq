@@ -182,12 +182,21 @@ module Counters = struct
 
   let format_gc_boundaries ~start ~stop =
     let ppi i = `Intlit (string_of_int i) in
-    `Assoc [
-      ("major_collect_start", ppi start.major_collections);
-      ("minor_collect_start", ppi start.minor_collections);
-      ("major_collect_stop", ppi stop.major_collections);
-      ("minor_collect_stop", ppi stop.minor_collections);
-    ]
+    let ppw words = `Intlit (Format.sprintf "%.0f" words) in
+    let instr = match start.instr, stop.instr with
+      | Ok start, Ok stop ->
+        [ ("instr_start", `Intlit (Int64.to_string start));
+          ("instr_stop", `Intlit (Int64.to_string stop)); ]
+      | Error _, _ | _, Error _ -> []
+    in
+    `Assoc (
+      [ ("major_collect_start", ppi start.major_collections);
+        ("minor_collect_start", ppi start.minor_collections);
+        ("major_collect_stop", ppi stop.major_collections);
+        ("minor_collect_stop", ppi stop.minor_collections);
+        ("major_words_start", ppw start.major_words);
+        ("major_words_stop", ppw stop.major_words); ]
+      @ instr)
 
 end
 

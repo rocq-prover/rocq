@@ -35,17 +35,24 @@ type memory = {
   heap_words : int option;
 }
 
-type gc_collections = {
+type instruction_interval = {
+  start : int;
+  stop : int;
+}
+
+type gc_gap = {
   major : int;
   minor : int;
+  major_words : int option;
+  instructions : instruction_interval option;
 }
 
 type data = {
   time : measure;
   memory : memory option;
   instructions : int option;
-  gc_before : gc_collections option;
-  gc_after : gc_collections option;
+  gc_before : gc_gap option;
+  gc_after : gc_gap option;
 }
 
 let dummy_data = {
