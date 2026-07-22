@@ -336,6 +336,12 @@ project itree "https://github.com/DeepSpec/InteractionTrees" "master"
 # Contact @Lysxia on github
 
 ########################################################################
+# micromega-plugin
+########################################################################
+project micromega "https://github.com/rocq-community/micromega-plugin" "master"
+# Contact @fajb, @proux01 on github
+
+########################################################################
 # paramcoq
 ########################################################################
 project paramcoq "https://github.com/coq-community/paramcoq" "master"
