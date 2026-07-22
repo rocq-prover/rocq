@@ -790,3 +790,21 @@ Ltac2 rec map_filter (f : 'a -> 'b option) (l : 'a list) : 'b list :=
     | None => map_filter f l
     end
   end.
+
+(** [map_opt f xs] maps [f] over [xs], returning [Some] of the mapped
+    list if [f] returns [Some] on every element, and [None] otherwise.
+    Cf [map_filter], which instead drops the elements on which [f]
+    returns [None]. *)
+Ltac2 rec map_opt (f : 'a -> 'b option) (xs : 'a list) : 'b list option :=
+  match xs with
+  | [] => Some []
+  | x :: xs
+    => match f x with
+       | Some fx
+         => match map_opt f xs with
+            | Some fxs => Some (fx :: fxs)
+            | None => None
+            end
+       | None => None
+       end
+  end.
