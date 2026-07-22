@@ -17,8 +17,20 @@ let with_worker_gen opts ?(package="rocq-runtime") basename args =
   let argv = Array.of_list (prog :: args) in
   Rocqshim.exec_or_create_process prog argv
 
-let with_worker opts kind args =
-  with_worker_gen opts "rocqworker" (("--kind="^kind) :: args)
+let with_worker ?(ignore_nursery=false) opts kind args =
+  let args = (("--kind="^kind) :: args) in
+  match if ignore_nursery then None else Sys.getenv_opt "ROCQ_NURSERY" with
+  | None -> with_worker_gen opts "rocqworker" args
+  | Some _ ->
+    let ch = open_out_gen [Open_wronly; Open_binary] 0 ".nursery-in" in
+    Printf.fprintf ch "Run\n";
+    Marshal.to_channel ch args [];
+    flush ch;
+    close_out ch;
+    let ch = open_in ".nursery-out" in
+    let status = input_line ch in
+    let status = int_of_string status in
+    exit status
 
 let with_sibling_exe opts prog args =
   let prog = System.get_toplevel_path prog in
@@ -42,6 +54,7 @@ type subcommand =
   | Tex
   | Makefile
   | Timelog2Html
+  | Nursery
 
 let subcommands = [
   ("compile", "Compile a Rocq source file", Compile);
@@ -63,6 +76,7 @@ let subcommands = [
   ("tex", "Process Rocq code in a Latex document", Tex);
   ("makefile", "Generate a Makefile to compile a Rocq project", Makefile);
   ("timelog2html", "Combine timing information and a Rocq source file", Timelog2Html);
+  ("nursery", "Experimental process nursery mode", Nursery);
 ]
 
 let print_usage fmt () =
@@ -103,6 +117,7 @@ let run_subcommand opts args = function
   | Tex -> Rocqtex.main ~prog:(Sys.argv.(0) ^ " tex") args
   | Makefile -> Rocqmakefile.main ~prog:[Sys.argv.(0); "makefile"] args
   | Timelog2Html -> with_worker_gen opts ~package:"rocq-devtools" "timelog2html" args
+  | Nursery -> with_worker ~ignore_nursery:true opts "nursery" args
 
 let () =
   if Array.length Sys.argv < 2 then error_usage ();

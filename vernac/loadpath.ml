@@ -22,7 +22,7 @@ type t = {
 
 let load_vos_libraries = ref false
 
-let load_paths = Summary.ref ([] : t list) ~stage:Summary.Stage.Synterp ~name:"LOADPATHS"
+let load_paths = ref ([] : t list)
 
 let logical p = p.path_logical
 let physical p = p.path_physical

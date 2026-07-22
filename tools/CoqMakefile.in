@@ -420,7 +420,13 @@ ALLDFILES = $(addsuffix .d,$(ALLSRCFILES)) $(VDFILE)
 
 all:
 	$(HIDE)$(MAKE) --no-print-directory -f "$(SELF)" pre-all
-	$(HIDE)$(MAKE) --no-print-directory -f "$(SELF)" real-all
+	rm -f .nursery-in .nursery-out
+	mkfifo .nursery-in .nursery-out
+	$(ROCQ) nursery $(COQLIBS) & \
+	export ROCQ_NURSERY=1 && \
+	$(MAKE) --no-print-directory -f "$(SELF)" real-all && \
+	echo Exit > .nursery-in && wait && \
+	rm .nursery-in .nursery-out
 	$(HIDE)$(MAKE) --no-print-directory -f "$(SELF)" post-all
 .PHONY: all
 

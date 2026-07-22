@@ -189,7 +189,13 @@ module Intern = struct
       Loadpath.Error.raise dp e
 end
 
-let fs_intern = Intern.fs_intern
+let base_fs_intern = Intern.fs_intern
+
+let fs_intern = ref Intern.fs_intern
+
+let set_fs_intern f = fs_intern := f
+
+let fs_intern dp = !fs_intern dp
 
 let interp_qed_delayed_proof ~proof ~st ~control (CAst.{loc; v = pe } as e) : Vernacstate.Interp.t =
   NewProfile.profile "interp-delayed-qed" (fun () ->

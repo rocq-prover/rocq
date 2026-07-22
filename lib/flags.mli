@@ -73,3 +73,6 @@ val without_option : bool ref -> ('a -> 'b) -> 'a -> 'b
     - display verbose information for [Fail]
     - print quickfix info in error printers *)
 val test_mode : bool ref
+
+(* XXX move this to higher layers (coqinit.ml?) *)
+val nursery : bool ref

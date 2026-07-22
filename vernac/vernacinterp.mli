@@ -11,6 +11,10 @@
 (** Regular intern using the filesystem  *)
 val fs_intern : Library.Intern.t
 
+val base_fs_intern : Library.Intern.t
+
+val set_fs_intern : Library.Intern.t -> unit
+
 (** The main interpretation function of vernacular expressions *)
 val interp
   : intern:Library.Intern.t

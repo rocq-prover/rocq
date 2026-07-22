@@ -21,6 +21,8 @@ open Names
 (** Type of libraries loaded in memory *)
 type library_t
 
+val library_deps : library_t -> (DirPath.t * Safe_typing.vodigest) array
+
 (** {6 ... }
     Require = load in the environment *)
 val require_library_from_dirpath : library_t list -> unit
