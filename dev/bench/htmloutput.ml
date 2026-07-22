@@ -199,7 +199,7 @@ in
 let () = out "</ol>\n" in
 
 let () =
-  out {|<input type="radio" name="mode" id="instructions" checked><label for="time">Instructions</label>
+  out {|<input type="radio" name="mode" id="instructions" checked><label for="instructions">Instructions</label>
 |}
 in
 
