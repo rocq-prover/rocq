@@ -131,9 +131,16 @@ let mk_memory (lnum, l) =
     }
   with YBU.Type_error (msg,_) -> die "line %d: %s" lnum msg
 
+type gc_boundary = {
+  major_collections : int;
+  minor_collections : int;
+  major_words : int option;
+  instructions : int option;
+}
+
 type gc_boundaries = {
-  start_collections : gc_collections;
-  stop_collections : gc_collections;
+  start_boundary : gc_boundary;
+  stop_boundary : gc_boundary;
 }
 
 let mk_gc_boundaries (lnum, l) =
@@ -150,26 +157,75 @@ let mk_gc_boundaries (lnum, l) =
       | Some _ | None ->
         die "line %d: malformed gc_boundaries.%s" lnum name
     in
+    let get_optional name =
+      match CList.assoc_f_opt String.equal name boundaries with
+      | None -> None
+      | Some (`Int i) -> Some i
+      | Some _ -> die "line %d: malformed gc_boundaries.%s" lnum name
+    in
+    let get_pair start_name stop_name =
+      match get_optional start_name, get_optional stop_name with
+      | None, None -> None, None
+      | Some start, Some stop -> Some start, Some stop
+      | Some _, None | None, Some _ ->
+        die "line %d: gc_boundaries.%s and gc_boundaries.%s must occur together"
+          lnum start_name stop_name
+    in
+    let major_words_start, major_words_stop =
+      get_pair "major_words_start" "major_words_stop"
+    in
+    let instr_start, instr_stop = get_pair "instr_start" "instr_stop" in
     Some {
-      start_collections = {
-        major = get "major_collect_start";
-        minor = get "minor_collect_start";
+      start_boundary = {
+        major_collections = get "major_collect_start";
+        minor_collections = get "minor_collect_start";
+        major_words = major_words_start;
+        instructions = instr_start;
       };
-      stop_collections = {
-        major = get "major_collect_stop";
-        minor = get "minor_collect_stop";
+      stop_boundary = {
+        major_collections = get "major_collect_stop";
+        minor_collections = get "minor_collect_stop";
+        major_words = major_words_stop;
+        instructions = instr_stop;
       };
     }
   | Some _ -> die "line %d: malformed gc_boundaries" lnum
 
-let check_gc_boundaries ~lnum memory = function
+let checked_delta ~lnum ~name start stop =
+  let delta = stop - start in
+  if delta < 0 then die "line %d: gc_boundaries.%s decreased within the span" lnum name;
+  delta
+
+let check_gc_boundaries ~lnum memory instructions = function
   | None -> ()
   | Some boundaries ->
-    memory |> Option.iter @@ fun memory ->
-    let major = boundaries.stop_collections.major - boundaries.start_collections.major in
-    let minor = boundaries.stop_collections.minor - boundaries.start_collections.minor in
-    if major <> memory.major_collect || minor <> memory.minor_collect then
-      die "line %d: GC boundaries do not match the span collection counts" lnum
+    let start = boundaries.start_boundary in
+    let stop = boundaries.stop_boundary in
+    let major =
+      checked_delta ~lnum ~name:"major_collect" start.major_collections stop.major_collections
+    in
+    let minor =
+      checked_delta ~lnum ~name:"minor_collect" start.minor_collections stop.minor_collections
+    in
+    memory |> Option.iter (fun memory ->
+        if major <> memory.major_collect || minor <> memory.minor_collect then
+          die "line %d: GC boundaries do not match the span collection counts" lnum);
+    begin match start.major_words, stop.major_words with
+      | Some start, Some stop ->
+        ignore (checked_delta ~lnum ~name:"major_words" start stop : int)
+      | None, None -> ()
+      | Some _, None | None, Some _ -> assert false
+    end;
+    match start.instructions, stop.instructions with
+    | Some start, Some stop ->
+      let boundary_instructions = checked_delta ~lnum ~name:"instr" start stop in
+      begin match instructions with
+        | Some instructions when instructions = boundary_instructions -> ()
+        | Some _ -> die "line %d: GC boundaries do not match the span instruction count" lnum
+        | None -> die "line %d: GC boundaries have instruction counts but the span does not" lnum
+      end
+    | None, None -> ()
+    | Some _, None | None, Some _ -> assert false
 
 let mk_time start stop =
   let time = stop - start in
@@ -234,7 +290,9 @@ let rec process_cmds acc = function
       let memory = mk_memory end_event in
       let instructions = get_instr end_event in
       let gc_boundaries = mk_gc_boundaries end_event in
-      let () = check_gc_boundaries ~lnum:(fst end_event) memory gc_boundaries in
+      let () =
+        check_gc_boundaries ~lnum:(fst end_event) memory instructions gc_boundaries
+      in
       let data = {
         time;
         memory;
@@ -249,12 +307,32 @@ let rec process_cmds acc = function
 let gc_gap ~file left right =
   match left.gc_boundaries, right.gc_boundaries with
   | Some left_boundaries, Some right_boundaries ->
-    let major = right_boundaries.start_collections.major - left_boundaries.stop_collections.major in
-    let minor = right_boundaries.start_collections.minor - left_boundaries.stop_collections.minor in
-    if major < 0 || minor < 0 then
-      die "File %S: GC collection counts decreased between commands ending at character %d and starting at character %d"
-        file left.loc.stop_char right.loc.start_char;
-    Some { major; minor }
+    let start = left_boundaries.stop_boundary in
+    let stop = right_boundaries.start_boundary in
+    let checked_delta name start stop =
+      let delta = stop - start in
+      if delta < 0 then
+        die "File %S: GC boundary counter %s decreased between commands ending at character %d and starting at character %d"
+          file name left.loc.stop_char right.loc.start_char;
+      delta
+    in
+    let major =
+      checked_delta "major_collect" start.major_collections stop.major_collections
+    in
+    let minor =
+      checked_delta "minor_collect" start.minor_collections stop.minor_collections
+    in
+    let major_words = match start.major_words, stop.major_words with
+      | Some start, Some stop -> Some (checked_delta "major_words" start stop)
+      | None, _ | _, None -> None
+    in
+    let instructions = match start.instructions, stop.instructions with
+      | Some start, Some stop ->
+        ignore (checked_delta "instr" start stop : int);
+        Some { start; stop }
+      | None, _ | _, None -> None
+    in
+    Some { major; minor; major_words; instructions }
   | None, _ | _, None -> None
 
 let add_gc_edges ~file commands =

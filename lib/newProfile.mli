@@ -45,8 +45,9 @@ val profile : string ->
     produce additional annotations.
     [post_args] is called only if the profiling is active and is passed the
     result of the given function. Its output is annotated to the closing span.
-    When [gc_boundaries] is true, cumulative major and minor collection counts
-    at the start and stop of the function are annotated to the closing span.
+    When [gc_boundaries] is true, cumulative major and minor collection counts,
+    cumulative major words, and, when available, absolute instruction counts at
+    the start and stop of the function are annotated to the closing span.
 *)
 
 val is_profiling : unit -> bool
