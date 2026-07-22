@@ -131,6 +131,46 @@ let mk_memory (lnum, l) =
     }
   with YBU.Type_error (msg,_) -> die "line %d: %s" lnum msg
 
+type gc_boundaries = {
+  start_collections : gc_collections;
+  stop_collections : gc_collections;
+}
+
+let mk_gc_boundaries (lnum, l) =
+  let args = match assoc "args" l with
+    | `Assoc args -> args
+    | _ -> die "line %d: malformed args" lnum
+  in
+  match CList.assoc_f_opt String.equal "gc_boundaries" args with
+  | None -> None
+  | Some (`Assoc boundaries) ->
+    let get name =
+      match CList.assoc_f_opt String.equal name boundaries with
+      | Some (`Int i) -> i
+      | Some _ | None ->
+        die "line %d: malformed gc_boundaries.%s" lnum name
+    in
+    Some {
+      start_collections = {
+        major = get "major_collect_start";
+        minor = get "minor_collect_start";
+      };
+      stop_collections = {
+        major = get "major_collect_stop";
+        minor = get "minor_collect_stop";
+      };
+    }
+  | Some _ -> die "line %d: malformed gc_boundaries" lnum
+
+let check_gc_boundaries ~lnum memory = function
+  | None -> ()
+  | Some boundaries ->
+    memory |> Option.iter @@ fun memory ->
+    let major = boundaries.stop_collections.major - boundaries.start_collections.major in
+    let minor = boundaries.stop_collections.minor - boundaries.start_collections.minor in
+    if major <> memory.major_collect || minor <> memory.minor_collect then
+      die "line %d: GC boundaries do not match the span collection counts" lnum
+
 let mk_time start stop =
   let time = stop - start in
   (* time unit is microsecond *)
@@ -153,6 +193,12 @@ let get_instr (lnum, l) =
   let args = assoc "args" l in
   try Some YBU.(to_int @@ member "instr" args)
   with YBU.Type_error _ -> None
+
+type command = {
+  loc : char_loc;
+  data : data;
+  gc_boundaries : gc_boundaries option;
+}
 
 let rec process_cmds acc = function
   | [] -> acc
@@ -183,15 +229,48 @@ let rec process_cmds acc = function
       match hdr_line with
       | None -> process_cmds acc rest
       | Some (hdr, line) ->
-      let src_chars = get_src_chars ~lnum:(fst start_event) hdr in
+      let loc = get_src_chars ~lnum:(fst start_event) hdr in
       let time = mk_time start_ts end_ts in
       let memory = mk_memory end_event in
       let instructions = get_instr end_event in
-      process_cmds ((src_chars, { time; memory; instructions; }) :: acc) rest
+      let gc_boundaries = mk_gc_boundaries end_event in
+      let () = check_gc_boundaries ~lnum:(fst end_event) memory gc_boundaries in
+      let data = {
+        time;
+        memory;
+        instructions;
+        gc_before = None;
+        gc_after = None;
+      } in
+      process_cmds ({ loc; data; gc_boundaries; } :: acc) rest
     end
   | [_] -> die "ill parenthesized events"
+
+let gc_gap ~file left right =
+  match left.gc_boundaries, right.gc_boundaries with
+  | Some left_boundaries, Some right_boundaries ->
+    let major = right_boundaries.start_collections.major - left_boundaries.stop_collections.major in
+    let minor = right_boundaries.start_collections.minor - left_boundaries.stop_collections.minor in
+    if major < 0 || minor < 0 then
+      die "File %S: GC collection counts decreased between commands ending at character %d and starting at character %d"
+        file left.loc.stop_char right.loc.start_char;
+    Some { major; minor }
+  | None, _ | _, None -> None
+
+let add_gc_edges ~file commands =
+  let rec loop before acc = function
+    | [] -> List.rev acc
+    | command :: rest ->
+      let after = match rest with
+        | [] -> None
+        | next :: _ -> gc_gap ~file command next
+      in
+      let data = { command.data with gc_before = before; gc_after = after; } in
+      loop after ((command.loc, data) :: acc) rest
+  in
+  loop None [] commands
 
 let parse ~file =
   let cmds = read_file file in
   let cmds = process_cmds [] cmds in
-  cmds
+  add_gc_edges ~file cmds

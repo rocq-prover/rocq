@@ -180,6 +180,15 @@ module Counters = struct
 
   let make_diffs ~start ~stop = format (stop - start)
 
+  let format_gc_boundaries ~start ~stop =
+    let ppi i = `Intlit (string_of_int i) in
+    `Assoc [
+      ("major_collect_start", ppi start.major_collections);
+      ("minor_collect_start", ppi start.minor_collections);
+      ("major_collect_stop", ppi stop.major_collections);
+      ("minor_collect_stop", ppi stop.minor_collections);
+    ]
+
 end
 
 let global_start_time = gettime ()
@@ -255,22 +264,28 @@ let leave ?time name ?(args=[]) ?last () =
    through [profile] and I'm too lazy to make them conditional *)
 let components = ref CString.Pred.empty
 
-let profile name ?args ?post_args f () =
+let profile name ?args ?post_args ?(gc_boundaries=false) f () =
   if not (is_profiling ()) then f ()
   else if CString.Pred.mem name !components then begin
     let args = Option.map (fun f -> f()) args in
     enter name ?args ();
     let start = Counters.get () in
+    let make_counter_args stop =
+      let args = Counters.make_diffs ~start ~stop in
+      if gc_boundaries then
+        ("gc_boundaries", Counters.format_gc_boundaries ~start ~stop) :: args
+      else args
+    in
     let v = try f ()
       with e ->
         let e = Exninfo.capture e in
-        let counter_args = Counters.make_diffs ~start ~stop:(Counters.get()) in
+        let counter_args = make_counter_args (Counters.get ()) in
         let post_args = Option.cata (fun f -> f @@ Error e) [] post_args in
         let args = List.append counter_args post_args in
         leave name ~args ();
         Exninfo.iraise e
     in
-    let counter_args = Counters.make_diffs ~start ~stop:(Counters.get()) in
+    let counter_args = make_counter_args (Counters.get ()) in
     let post_args = Option.cata (fun f -> f @@ Ok v) [] post_args in
     let args = List.append counter_args post_args in
     leave name ~args ();
