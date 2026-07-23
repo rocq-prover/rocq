@@ -23,6 +23,9 @@ rocq timelog2html -raw-instr-o foo.instr.raw.real -min-diff 0.00001 foo.v foo.v.
 diff result.json.html result.json.html.real
 diff foo.instr.raw foo.instr.raw.real
 
+rocq timelog2html -raw-instr-o foo.instr.reverse.raw.real -min-diff 0.00001 foo.v foo.v.2.json foo.v.json > /dev/null
+diff foo.instr.reverse.raw foo.instr.reverse.raw.real
+
 if rocq timelog2html foo.v foo.v.time1 foo.v.time3 > bad1v3.html.real 2>stderr1v3.real
 then >&2 echo "Should have failed!"; exit 1
 fi
