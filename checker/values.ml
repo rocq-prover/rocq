@@ -306,7 +306,12 @@ let v_resolver =
       v_hmap v_kn v_delta_hint|]
 
 let v_subst =
-  v_annot_c ("substitution", v_map v_mp v_resolver)
+  fix (fun v_subst ->
+      v_annot_c
+        ("substitution",
+         v_sum "substitution_repr" 0
+           [|[|v_map v_mp v_resolver|];
+             [|v_subst; v_subst; v_int|]|]))
 
 (** kernel/lazyconstr *)
 
