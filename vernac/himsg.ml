@@ -1715,6 +1715,10 @@ let explain_reduction_tactic_error = function
       spc () ++ str "is not well typed." ++ fnl () ++
       explain_type_error env' (Evd.from_env env') e
 
+let explain_not_inductive env sigma t =
+  str "Not an inductive product: " ++ pr_ne_context_of (str "In environment") env sigma ++
+  str "the type" ++ spc() ++ pr_leconstr_env env sigma t ++ spc() ++ str "does not reduce to an applied inductive."
+
 let explain_prim_token_notation_error kind env sigma = function
   | PrimNotations.UnexpectedTerm c ->
     (strbrk "Unexpected term " ++
@@ -1792,6 +1796,8 @@ let rec vernac_interp_error_handler = function
     explain_pattern_matching_error env sigma e
   | Tacred.ReductionTacticError e ->
     explain_reduction_tactic_error e
+  | Tacred.NotInductive (env, sigma, t) ->
+    explain_not_inductive env sigma t
   | Logic.RefinerError (env, sigma, e) ->
     explain_refiner_error env sigma e
   | Nametab.GlobalizationError q ->
