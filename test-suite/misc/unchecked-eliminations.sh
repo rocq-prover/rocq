@@ -39,8 +39,13 @@ grep -q "^unchecked_r relies on unchecked sort eliminations" log
 # The theory summary line appears under Set Printing All Assumptions.
 grep -q "Sort elimination constraints are not checked (logic is inconsistent)" log
 
-# Print Typing Flags reports the flag.
-grep -q "check_eliminations:" log
+# Print Typing Flags reports the flag only while it is disabled; the final
+# Print Typing Flags (flag restored) must not mention it.
+grep -q "check_eliminations: false" log
+grep -q "check_eliminations: true" log && {
+  >&2 echo "check_eliminations should not be shown when at its default"
+  exit 1
+}
 
 # rocq check must report the inductive in its context summary.
 rocq check -Q theories UncheckedElim -o -silent -norec UncheckedElim.unchecked 2>&1 | tee chklog
