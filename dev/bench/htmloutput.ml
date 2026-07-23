@@ -305,7 +305,7 @@ let raw_output ch ~selection all_data =
   | Instr {min_diff} ->
     Option.iter2 (fun i1 i2 ->
       let diff = i2 - i1 in
-      let ignore = diff < min_diff in
+      let ignore = Stdlib.Int.abs diff < min_diff in
       if not ignore then begin
         let pdiff = if i1 = 0 then Float.infinity
             else Float.(of_int (100 * diff) /. of_int i1)
