@@ -1498,7 +1498,7 @@ expression returns an identifier:
 
    .. note:: We recommend generating the fresh identifier immediately before
       adding it to the local context.  Using :tacn:`fresh` in a local function
-      may not work as you expect:
+      may not work as you expect.
 
       Successive calls to :tacn:`fresh` give distinct names even if the names haven't
       yet been added to the local context:
@@ -1517,6 +1517,14 @@ expression returns an identifier:
          let a := fresh "x" in
          let b := fresh "x" in
          idtac a b.
+
+      This works because :tacn:`fresh` scans the current Ltac (meta-)environment
+      and avoids all variable names that are already stored there (including
+      inside Ltac variables that hold intropatterns). However, this scan does
+      not recurse into the environment of closures, so if you call :tacn:`fresh`
+      with a user-defined callback in scope, the names known to that callback
+      will not be avoided. You can pass an (unused) pattern argument to the
+      function to give it more variables to avoid.
 
       When applying :tacn:`fresh` in a function, the name is chosen based on the
       tactic context at the point where the function was defined:
