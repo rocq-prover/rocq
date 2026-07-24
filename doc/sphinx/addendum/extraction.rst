@@ -75,8 +75,8 @@ the command :cmd:`Cd`.
    :cmd:`Recursive Extraction Library`, except that only the needed
    parts of Rocq libraries are extracted instead of the whole.
    The naming convention in case of name clash is the same one as
-   :cmd:`Extraction Library`: identifiers are here renamed using prefixes
-   ``coq_``  or ``Coq_``.
+   :cmd:`Extraction Library`: identifiers are here renamed using
+   :opt:`Extraction Prefix`.
 
 The following command is meant to help automatic testing of
 the extraction, see for instance the ``test-suite`` directory
@@ -623,6 +623,10 @@ Additional settings
    files will be written to the directory specified by the command line
    option :n:`-output-directory`, if set (see :ref:`command-line-options`) and
    otherwise, the current directory.  Use :cmd:`Pwd` to display the current directory.
+
+.. opt:: Extraction Prefix @string
+
+   Prefix to use in resulting code, defaults to ``Rocq``.
 
 Differences between Rocq and ML type systems
 ----------------------------------------------

@@ -7,7 +7,7 @@ Quickfix:
 Replace File "./output/Qf_extraction.v", line 5, characters 11-14 with Qf_extraction.nat
 Replace File "./output/Qf_extraction.v", line 5, characters 11-14 with Corelib.Init.Datatypes.nat
 
-module Coq_nat =
+module Rocq_nat =
  struct
  end
 
