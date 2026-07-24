@@ -283,16 +283,19 @@ let pr_universes sigma ?variance ?priv = function
 let pr_global_env = Nametab.pr_global_env
 let pr_global = pr_global_env Id.Set.empty
 
-let pr_universe_instance_binder evd inst csts =
-  let open Univ in
-  let prlev = Termops.pr_evd_level evd in
-  let pcsts = if UnivConstraints.is_empty csts then mt()
-    else strbrk " | " ++
-         prlist_with_sep pr_comma
-           (fun (u,d,v) -> hov 0 (prlev u ++ UnivConstraint.pr_kind d ++ prlev v))
-           (UnivConstraints.elements csts)
+let pr_abstract_universe_binder evd auctx =
+  let open UVars in
+  let printer = Evd.sort_printer evd in
+  let uctx = AbstractContext.repr auctx in
+  let pp =
+    if UContext.is_empty uctx then mt()
+    else if PConstraints.is_empty (UContext.constraints uctx) then
+      h (Instance.pr printer (UContext.instance uctx))
+    else
+      h (Instance.pr printer (UContext.instance uctx) ++ str " | ") ++
+      h (v 0 (PConstraints.pr printer (UContext.constraints uctx)))
   in
-  str"@{" ++ UVars.Instance.pr (Evd.sort_printer evd) inst ++ pcsts ++ str"}"
+  str"@{" ++ pp ++ str"}"
 
 let pr_universe_instance evd inst =
   str "@{" ++ UVars.Instance.pr (Evd.sort_printer evd) inst ++ str "}"
