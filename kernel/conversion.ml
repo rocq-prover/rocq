@@ -300,7 +300,13 @@ let eq_universes (_,e1) (_,e2) u1 u2 =
   let subst e u = if UVars.Instance.is_empty e then u else UVars.subst_instance_instance e u in
   UVars.Instance.equal (subst e1 u1) (subst e2 u2)
 
+let eq_usubs_fast (s1, u1) (s2, u2) =
+  (s1 == s2 || (Esubst.is_subs_id s1 && Esubst.is_subs_id s2)) &&
+  (u1 == u2 || UVars.Instance.equal u1 u2)
+
 let rec compare_under e1 c1 e2 c2 =
+  (c1 == c2 && eq_usubs_fast e1 e2)
+  ||
   match Constr.kind c1, Constr.kind c2 with
   | Cast (c1, _, _), _ -> compare_under e1 c1 e2 c2
   | _, Cast (c2, _, _) -> compare_under e1 c1 e2 c2
@@ -347,7 +353,31 @@ let rec compare_under e1 c1 e2 c2 =
   | Ind (c1,u1), Ind (c2,u2) -> Ind.UserOrd.equal c1 c2 && eq_universes e1 e2 u1 u2
   | Construct (c1,u1), Construct (c2,u2) ->
     Construct.UserOrd.equal c1 c2 && eq_universes e1 e2 u1 u2
-  | Case _, Case _ | Fix _, Fix _ | CoFix _, CoFix _ -> false (* todo some other time *)
+  | Case (ci1, u1, pms1, ((nas1, p1), _), _, s1, br1),
+    Case (ci2, u2, pms2, ((nas2, p2), _), _, s2, br2) ->
+    Ind.UserOrd.equal ci1.ci_ind ci2.ci_ind
+    && eq_universes e1 e2 u1 u2
+    && Array.equal_norefl (fun c1 c2 -> compare_under e1 c1 e2 c2) pms1 pms2
+    && Int.equal (Array.length nas1) (Array.length nas2)
+    && compare_under (usubs_liftn (Array.length nas1) e1) p1
+         (usubs_liftn (Array.length nas2) e2) p2
+    && compare_under e1 s1 e2 s2
+    && Array.equal_norefl (fun (nas1, b1) (nas2, b2) ->
+         Int.equal (Array.length nas1) (Array.length nas2)
+         && compare_under (usubs_liftn (Array.length nas1) e1) b1
+              (usubs_liftn (Array.length nas2) e2) b2) br1 br2
+  | Fix ((ln1, i1), (_, tl1, bl1)), Fix ((ln2, i2), (_, tl2, bl2)) ->
+    Int.equal i1 i2 && Array.equal Int.equal ln1 ln2
+    && Array.equal_norefl (fun c1 c2 -> compare_under e1 c1 e2 c2) tl1 tl2
+    && (let n = Array.length tl1 in
+        Array.equal_norefl (fun c1 c2 ->
+          compare_under (usubs_liftn n e1) c1 (usubs_liftn n e2) c2) bl1 bl2)
+  | CoFix (i1, (_, tl1, bl1)), CoFix (i2, (_, tl2, bl2)) ->
+    Int.equal i1 i2
+    && Array.equal_norefl (fun c1 c2 -> compare_under e1 c1 e2 c2) tl1 tl2
+    && (let n = Array.length tl1 in
+        Array.equal_norefl (fun c1 c2 ->
+          compare_under (usubs_liftn n e1) c1 (usubs_liftn n e2) c2) bl1 bl2)
   | Array(_,t1,def1,ty1), Array(_,t2,def2,ty2) ->
     Array.equal_norefl (fun c1 c2 -> compare_under e1 c1 e2 c2) t1 t2
     && compare_under e1 def1 e2 def2
