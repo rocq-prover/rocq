@@ -1309,11 +1309,8 @@ let explain_not_match_error = function
   | IncompatibleUnivConstraints { env; got; expect } ->
     let open UVars in
     let pr_auctx auctx =
-      let uctx = UVars.AbstractContext.repr auctx in
-      let sigma = Evd.from_auctx env (Printer.fill_names auctx) in
-      Printer.pr_universe_instance_binder sigma
-        (UContext.instance uctx)
-        (UContext.univ_constraints uctx)
+      let auctx = Printer.fill_names auctx in
+      Printer.pr_abstract_universe_binder (Evd.from_auctx env auctx) auctx
     in
     str "incompatible polymorphic binders: got" ++ spc () ++ h (pr_auctx got) ++ spc() ++
     str "but expected" ++ spc() ++ h (pr_auctx expect) ++
