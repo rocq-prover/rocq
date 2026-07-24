@@ -21,9 +21,9 @@ type matching_var_kind = FirstOrderPatVar of Id.t | SecondOrderPatVar of Id.t
 
 type subevar_kind = Domain | Codomain | Body
 
-(* maybe this should be a Projection.t *)
-(* Represents missing record field *)
-type record_field = { fieldname : Constant.t; recordname : Names.inductive }
+(** Represents missing record field
+    field_idx is 1-indexed *)
+type record_field = { field_idx : int; recordname : Names.inductive }
 
 type question_mark = {
      qm_obligation: obligation_definition_status;

@@ -102,3 +102,16 @@ File "./output/Record.v", line 101, characters 2-33:
 Warning:
 The record anonproj could not be defined as a primitive record because it has
 an anonymous projection. [non-primitive-record,records,default]
+Build_foo 10 ?c
+     : foo
+where
+?c : [ |- C 10]
+File "./output/Record.v", line 112, characters 2-39:
+The command has indeed failed with message:
+The following term contains unresolved implicit arguments:
+  (Build_foo 10 ?c)
+More precisely: 
+- ?c: Cannot infer 2nd field of record foo (no type class instance found).
+File "./output/Record.v", line 118, characters 28-44:
+The command has indeed failed with message:
+Cannot use "with": this record contains anonymous fields.
