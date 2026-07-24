@@ -192,7 +192,7 @@ module ConstrPriority = struct
 
   (* The priority is memoised here. Because of the very localised use
      of this module, it is not worth it making a convenient interface. *)
-  type t = GlobRef.t * (Vernacexpr.discharge * Decls.logical_kind) option * Environ.env * Evd.evar_map * Constr.t * priority
+  type t = GlobRef.t * Libnames.qualid * (Vernacexpr.discharge * Decls.logical_kind) option * Environ.env * Evd.evar_map * Constr.t * priority
   and priority = int
 
   (** A measure of the size of a term *)
@@ -215,8 +215,10 @@ module ConstrPriority = struct
   let priority gref t : priority =
     -(3*(num_symbols t) + size t)
 
-  let compare (_,_,_,_,_,p1) (_,_,_,_,_,p2) =
-    Stdlib.compare p1 p2
+  let compare (_,qid1,_,_,_,_,p1) (_,qid2,_,_,_,_,p2) =
+    let c = Int.compare p1 p2 in
+    if c <> 0 then c
+    else Libnames.qualid_compare qid1 qid2
 end
 
 module PriorityQueue = Heap.Functional(ConstrPriority)
@@ -224,7 +226,7 @@ module PriorityQueue = Heap.Functional(ConstrPriority)
 let rec iter_priority_queue q fn =
   (* Tail-rec! *)
   match PriorityQueue.maximum q with
-  | (gref,kind,env,sigma,t,_) ->
+  | (gref,_,kind,env,sigma,t,_) ->
     fn gref kind env sigma t;
     iter_priority_queue (PriorityQueue.remove q) fn
   | exception Heap.EmptyHeap -> ()
@@ -233,7 +235,8 @@ let prioritize_search seq fn =
   let acc = ref PriorityQueue.empty in
   let iter gref kind env sigma t =
     let p = ConstrPriority.priority gref t in
-    acc := PriorityQueue.add (gref,kind,env,sigma,t,p) !acc
+    let qid = Nametab.shortest_qualid_of_global Id.Set.empty gref in
+    acc := PriorityQueue.add (gref,qid,kind,env,sigma,t,p) !acc
   in
   let () = seq iter in
   iter_priority_queue !acc fn

@@ -3,6 +3,6 @@ a: nat
 a: nat
 improbable_name12345: nat
 improbable_name12345: nat
-b: nat
 A.improbable_name12345: nat
 A.a: nat
+b: nat

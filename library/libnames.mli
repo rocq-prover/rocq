@@ -84,6 +84,7 @@ val make_qualid : ?loc:Loc.t -> DirPath.t -> Id.t -> qualid
 val repr_qualid : qualid -> DirPath.t * Id.t
 
 val qualid_eq : qualid -> qualid -> bool
+val qualid_compare : qualid -> qualid -> int
 val is_qualid_suffix_of_full_path : qualid -> full_path -> bool
 
 val pr_qualid : qualid -> Pp.t
