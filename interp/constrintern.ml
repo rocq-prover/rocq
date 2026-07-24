@@ -1659,11 +1659,7 @@ let sort_fields genv ~complete loc fields completer =
         let base_constructor = GlobRef.ConstructRef (record.Structure.name,1) in
         let () = check_duplicate ?loc fields in
         let build_proj idx proj =
-          if proj.Structure.proj_body = None && complete then
-            (* we don't want anonymous fields *)
-            user_err ?loc (str "This record contains anonymous fields.")
-          else
-            (idx, proj.Structure.proj_body, proj.Structure.proj_true) in
+          (idx, proj.Structure.proj_body, proj.Structure.proj_true) in
         let proj_list =
           List.map_i build_proj 1 record.Structure.projections in
         (* now we want to have all fields assignments indexed by their place in
@@ -2616,13 +2612,12 @@ let proj self genv env lvar ?loc (expl, f, args, c) =
 let record self genv env lvar ?loc (def,fs) =
   let st = Evar_kinds.Define (not (Program.get_proofs_transparency ())) in
   let used_default = Stdlib.ref false in
-  let completer _idx fieldname constructorname =
-    let fieldname = Option.get fieldname in
+  let completer idx fieldname constructorname =
     match def with
     | None ->
       let open Evar_kinds in
       let fieldinfo : Evar_kinds.record_field =
-        {fieldname; recordname=inductive_of_constructor constructorname}
+        {field_idx = idx; recordname=inductive_of_constructor constructorname}
       in
       CAst.make ?loc @@
       CHole (Some
@@ -2633,6 +2628,11 @@ let record self genv env lvar ?loc (def,fs) =
     | Some def ->
       (* duplicating internalization of the default value is not ideal *)
       used_default := true;
+      let fieldname = match fieldname with
+        | Some v -> v
+        | None ->
+          CErrors.user_err ?loc (str "Cannot use \"with\": this record contains anonymous fields.")
+      in
       let fieldname =
         Libnames.qualid_of_path @@ Nametab.XRefs.to_path (TrueGlobal (ConstRef fieldname))
       in
