@@ -112,7 +112,7 @@ let load_vernac_core ~beautify ~check ~state ?source file =
     let tstart = System.get_time () in
 
     let result = NewProfile.profile "command"
-        ~gc_boundaries:true
+        ~gc_boundaries:false
         ~post_args:(function
           | Error _ | Ok None -> [("skip", `Intlit "1")]
           | Ok (Some (ast, _)) ->
