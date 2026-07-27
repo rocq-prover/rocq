@@ -123,8 +123,6 @@ ci-ext_lib: ci-stdlib
 
 ci-itauto: ci-stdlib
 
-ci-jasmin: ci-mathcomp_word ci-itree
-
 ci-autosubst: ci-stdlib
 ci-iris: ci-autosubst
 
