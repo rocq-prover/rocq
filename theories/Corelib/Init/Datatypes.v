@@ -329,6 +329,8 @@ Inductive list (A : Type) : Type :=
 Arguments nil {A}.
 Arguments cons {A} a l.
 
+Scheme All for list.
+
 Declare Scope list_scope.
 Delimit Scope list_scope with list.
 Bind Scope list_scope with list.
