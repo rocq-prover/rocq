@@ -46,7 +46,7 @@ let vo_magic =
 
 (* NB: not the same as checking patch = Release,
    because post release commits still get patch = Release *)
-let is_a_released_version = true
+let is_a_released_version = false
 
 (** Default OCaml binaries *)
 
