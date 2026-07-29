@@ -315,7 +315,7 @@ let wait () =
 
 let status force =
   (* We remove the initial part of the current [DirPath.t]
-     (usually Top in an interactive session, cf "coqtop -top"),
+     (usually Top in an interactive session, cf "rocq top -top"),
      and display the other parts (opened sections and modules) *)
   ignore (Stm.finish ~doc:(get_doc ()) : Vernacstate.t);
   if force then Stm.join ~doc:(get_doc ());
