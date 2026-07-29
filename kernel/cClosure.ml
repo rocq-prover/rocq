@@ -83,32 +83,43 @@ module FCell : sig
   val fterm_of : 'a t -> 'a
   val get_fid : 'a t -> int
   val set_ntrl : 'a t -> unit
+  val set_cstr : 'a t -> unit
   val update : 'a t -> 'a t -> unit
   val set_term : 'a t -> 'a -> unit
 end = struct
   type 'a t = {
-    mutable mark : red_state;
+    mutable mark : int;
+    (** We use 2 bits to store a [red_state], and the rest for a stable cell
+        id for the conversion cache (0 = unassigned). The id is preserved by
+        in-place [update], but reset by copies. *)
     mutable term : 'a;
-    (* Stable cell id for the conversion cache; 0 = unassigned. Preserved by
-       in-place [update], reset by copies. *)
-    mutable fid : int;
   }
 
-  let make mark term = {mark; term; fid = 0}
-  let get_red_state {mark; _} = mark
+  let red_state_mask = 0b11
+  let fid_mask = lnot red_state_mask
+
+  let make mark term = {mark = Obj.magic mark; term}
+  let get_red_state {mark; _} = Obj.magic (mark land red_state_mask)
   let fterm_of {term; _} = term
 
   let fid_counter = ref 0
   let get_fid v =
-    if v.fid != 0 then v.fid
-    else begin incr fid_counter; v.fid <- !fid_counter; !fid_counter end
+    let fid = v.mark lsr 2 in
+    if fid != 0 then fid else begin
+      incr fid_counter;
+      v.mark <- v.mark lor (!fid_counter lsl 2);
+      !fid_counter
+    end
 
-  let set_ntrl v = v.mark <- Ntrl
+  let set_ntrl v =
+    v.mark <- v.mark land fid_mask
 
-  (* Could issue a warning if no is still Red, pointing out that we loose
-     sharing. *)
+  let set_cstr v =
+    v.mark <- (v.mark land fid_mask) lor 1
+
   let update v vs =
-    v.mark <- vs.mark; v.term <- vs.term
+    v.mark <- (v.mark land fid_mask) lor (vs.mark land red_state_mask);
+    v.term <- vs.term
 
   let set_term v t = v.term <- t
 end
@@ -890,7 +901,7 @@ let usubs_consv v s =
 let rec get_args n tys f e = function
     | Zupdate r :: s ->
         (** The stack contains [Zupdate] mark only if in sharing mode *)
-        let () = update r (make Cstr (FLambda(n,tys,f,e))) in (* FIXME optimize? *)
+        let () = set_cstr r; set_term r (FLambda(n,tys,f,e)) in
         get_args n tys f e s
     | Zshift k :: s ->
         get_args n tys f (usubs_shft (k,e)) s
