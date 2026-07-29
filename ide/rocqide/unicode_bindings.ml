@@ -55,7 +55,7 @@ let load_files filenames =
           (pp_print_list ~pp_sep:pp_print_cut pp_print_string) dirs) in
   let warn_local_not_found () =
     Ideutils.warning (Printf.sprintf
-      "Warning: the local configuration file 'coqide.bindings' was not found.") in
+      "Warning: the local configuration file 'rocqide.bindings' was not found.") in
   if filenames = [] then begin
     (* If no argument is provided using [-unicode-bindings],
        then use the default file and the local file, if it exists *)

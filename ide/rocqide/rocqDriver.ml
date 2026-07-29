@@ -77,7 +77,7 @@ let rocq_error_popup ~code ~msg data =
   callback ()
 
 let connection_error cmd lines exn =
-  rocq_error_popup ~code:1 ~msg:"Connection with coqtop failed!"
+  rocq_error_popup ~code:1 ~msg:"Connection with rocqtop failed!"
     [
       "Command", cmd;
       "Answer", (String.concat "\n" lines);
@@ -85,7 +85,7 @@ let connection_error cmd lines exn =
     ]
 
 let display_rocqtop_answer cmd lines =
-  rocq_error_popup ~code:0 ~msg:"The coqtop process has exited."
+  rocq_error_popup ~code:0 ~msg:"The rocqtop process has exited."
     [
       "Command", cmd;
       "Answer", String.concat "\n" lines;
