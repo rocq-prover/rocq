@@ -636,16 +636,17 @@ line. Comments are ignored.
 Quoting arguments to rocq c
 +++++++++++++++++++++++++++
 Any string in a ``_RocqProject`` file may be enclosed in double quotes to include
-whitespace characters or ``#``. For example, use ``-arg "-w all"`` to pass the
-argument ``-w all`` to `rocq compile`. If the argument to `rocq compile` needs some quotes as well,
+whitespace characters or ``#``. Furthermore, the argument to ``-arg`` is split at
+whitespaces, so multiple argument can be passed at once. For example, use ``-arg "-w all"`` to pass the
+two arguments ``-w`` and ``all`` to `rocq compile`. If the argument to `rocq compile` contains spaces,
 use single-quotes inside the double-quotes. For example ``-arg "-set 'Default
-Goal Selector=!'"`` gets passed to `rocq compile` as ``-set 'Default Goal Selector=!'``.
+Goal Selector=!'"`` gets passed to `rocq compile` as the two arguments ``-set`` and ``Default Goal Selector=!``.
 
 But note, that single-quotes in a ``_RocqProject`` file are only special
 characters if they appear in the string following ``-arg``. And on their own
 they don't quote spaces. For example ``-arg 'foo bar'`` in ``_RocqProject`` is
 equivalent to ``-arg foo "bar'"`` (in ``_RocqProject`` notation). ``-arg "'foo
-bar'"`` behaves differently and passes ``'foo bar'`` to `rocq compile`.
+bar'"`` behaves differently and passes the single argument ``foo bar`` to `rocq compile`.
 
 Forbidden filenames
 +++++++++++++++++++
