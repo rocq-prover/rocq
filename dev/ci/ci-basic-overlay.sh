@@ -121,19 +121,25 @@ project corn "https://github.com/coq-community/corn" "master"
 ########################################################################
 
 # NB: stdpp and Iris refs are gotten from the opam files in the Iris and
-# iris_examples repos respectively. So just getting a fix landed in stdpp or
-# Iris is not enough. Ping @RalfJung and @robbertkrebbers if you need the
-# versions of stdpp or Iris to be bumped.
-project stdpp "https://gitlab.mpi-sws.org/iris/stdpp" ""
+# iris_examples repos respectively. Those will be updated automatically within
+# 24h after a change lands in stdpp or Iris. Ping @RalfJung and @robbertkrebbers
+# if that does not work for some reason.
+# The URL below is a mirror; use https://gitlab.mpi-sws.org/iris/stdpp for issues
+# and PRs.
+project stdpp "https://github.com/rocq-iris/stdpp" ""
 # Contact @RalfJung, @robbertkrebbers on github
 
-project iris "https://gitlab.mpi-sws.org/iris/iris" ""
+# The URL below is a mirror; use https://gitlab.mpi-sws.org/iris/iris for issues
+# and PRs.
+project iris "https://github.com/rocq-iris/iris" ""
 # Contact @RalfJung, @robbertkrebbers on github
 
 project autosubst "https://github.com/coq-community/autosubst" "master"
 # Contact @RalfJung on github
 
-project iris_examples "https://gitlab.mpi-sws.org/iris/examples" "master"
+# The URL below is a mirror; use https://gitlab.mpi-sws.org/iris/examples for
+# issues and PRs.
+project iris_examples "https://github.com/rocq-iris/examples" "master"
 # Contact @RalfJung, @robbertkrebbers on github
 
 ########################################################################
