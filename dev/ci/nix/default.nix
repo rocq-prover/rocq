@@ -49,12 +49,12 @@ let corn = (coqPackages.corn.override { inherit coq bignums math-classes; })
   }); in
 
 let stdpp = coqPackages.stdpp.overrideAttrs (o: {
-    src = fetchTarball "https://gitlab.mpi-sws.org/iris/stdpp/-/archive/master/stdpp-master.tar.bz2";
+    src = fetchTarball "https://github.com/rocq-iris/stdpp/archive/master.tar.gz";
   }); in
 
 let iris = (coqPackages.iris.override { inherit coq stdpp; })
   .overrideAttrs (o: {
-    src = fetchTarball "https://gitlab.mpi-sws.org/iris/iris/-/archive/master/iris-master.tar.bz2";
+    src = fetchTarball "https://github.com/rocq-iris/iris/archive/master.tar.gz";
     propagatedBuildInputs = [ stdpp ];
   }); in
 
