@@ -689,7 +689,7 @@ let rec parse = function
        x :: parse rest
   | [] -> []
 
-let rocqidetop_specific_usage = Boot.Usage.{
+let coqidetop_specific_usage = Boot.Usage.{
   executable_name = "coqidetop";
   extra_args = "";
   extra_options = "\n\
@@ -720,7 +720,7 @@ let () =
   Shared_os_specific.init ();
   let custom = {
       parse_extra = islave_parse ;
-      usage = rocqidetop_specific_usage;
+      usage = coqidetop_specific_usage;
       init_extra = islave_init;
       run = loop;
       initial_args = islave_default_opts } in

@@ -492,7 +492,7 @@ export PROFILING=1
 export ROCQ_PROFILE_COMPONENTS=command,parse_command,partac.perform
 
 # packages tied to the coq commit need to be pinned accordingly
-core_packages='rocq-runtime coq-core rocq-core coqide-server'
+core_packages='rocq-runtime coq-core rocq-core rocqide-server'
 
 for coq_opam_package in $core_packages $coq_opam_packages; do
 
@@ -623,7 +623,7 @@ $coq_opam_package (in $RUNNER)"
     done
 
     case $coq_opam_package in
-      coqide-server|coq)
+      rocqide-server|coq)
         # don't render results for these
         ;;
       *)

@@ -297,7 +297,7 @@ let filter_all_files () = GFile.filter
   ~patterns:["*"] ()
 
 let filter_rocq_files () =  GFile.filter
-  ~name:"Coq source code"
+  ~name:"Rocq source code"
   ~patterns:[ "*.v"] ()
 
 let current_dir () = match project_path#get with

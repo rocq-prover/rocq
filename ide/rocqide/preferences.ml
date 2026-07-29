@@ -249,7 +249,7 @@ let get_config_file dirs name =
   Filename.concat config_dir name
 
 let get_unicode_bindings_local_file () =
-  try Some (get_config_file [Minilib.rocqide_config_home ()] "coqide.bindings")
+  try Some (get_config_file [Minilib.rocqide_config_home ()] "rocqide.bindings")
   with Not_found -> None
 
 let get_unicode_bindings_default_file () =
@@ -606,8 +606,8 @@ let diffs =
 
 (** Loading/saving preferences *)
 
-let pref_file = Filename.concat (Minilib.rocqide_config_home ()) "coqiderc"
-let accel_file = Filename.concat (Minilib.rocqide_config_home ()) "coqide.keys"
+let pref_file = Filename.concat (Minilib.rocqide_config_home ()) "rocqiderc"
+let accel_file = Filename.concat (Minilib.rocqide_config_home ()) "rocqide.keys"
 
 let accel_regex = Str.regexp {|\(; \|\)(gtk_accel_path "\([^""]*\)"|}
 
@@ -628,7 +628,7 @@ let save_accel_pref () =
   mkdir_p (Minilib.rocqide_config_home ()) 0o700;
   let tmp_file, fd = Filename.open_temp_file ?perms:(Some 0o644)
     ?temp_dir:(Some (Filename.dirname accel_file))
-    "coqide.keys_" "" in
+    "rocqide.keys_" "" in
   close_out fd;
   GtkData.AccelMap.save tmp_file;
   (* AccelMap.save writes entries in random order, so sort them: *)
@@ -644,7 +644,7 @@ let save_accel_pref () =
           map := CString.Map.add key line !map
         else begin
           if not (CString.Map.is_empty !map) then begin
-            Minilib.log ("Unknown format for coqide.keys; sorting skipped");
+            Minilib.log ("Unknown format for rocqide.keys; sorting skipped");
             raise UnknownFormat
           end;
           top_lines := line :: !top_lines
@@ -700,7 +700,7 @@ let load_pref_file loader warn name =
     warn ~delay:5000 ("No " ^ name ^ ", using default internal configuration")
 
 let load_accel_pref ~warn =
-  load_pref_file GtkData.AccelMap.load warn "coqide.keys"
+  load_pref_file GtkData.AccelMap.load warn "rocqide.keys"
 
 let load_rc_pref ~warn =
   let loader file =
@@ -711,7 +711,7 @@ let load_rc_pref ~warn =
       else unknown_preferences := Util.String.Map.add name v !unknown_preferences
     in
     Util.String.Map.iter iter m in
-  load_pref_file loader warn "coqiderc";
+  load_pref_file loader warn "rocqiderc";
   attach_modifiers_callback ()
 
 let load_pref ~warn =

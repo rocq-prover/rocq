@@ -122,7 +122,7 @@ stdenv.mkDerivation rec {
   # From https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/ocaml/dune.nix
   installPhase = ''
     runHook preInstall
-    dune install --prefix $out --libdir $OCAMLFIND_DESTDIR rocq-runtime coq-core rocq-core coqide-server ${optionalString buildIde "rocqide"}
+    dune install --prefix $out --libdir $OCAMLFIND_DESTDIR rocq-runtime coq-core rocq-core rocqide-server ${optionalString buildIde "rocqide"}
     runHook postInstall
   '';
 
