@@ -33,3 +33,7 @@ Proof.
   refine (fun x : sumbool True True => if x is left _ then _ else _);assumption.
 Defined.
 Print test.  (* printed as match (cannot use if) *)
+
+(* There are historic uses of the if syntax with sumbool, so don't warn for now *)
+Check if @left True False I then 1 else 0.
+Check if @inleft nat False 3 then 1 else 0.
