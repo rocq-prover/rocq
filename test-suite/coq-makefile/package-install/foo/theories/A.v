@@ -1,0 +1,1 @@
+Definition x := 0.

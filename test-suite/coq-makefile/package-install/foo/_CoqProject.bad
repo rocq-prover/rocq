@@ -1,0 +1,4 @@
+--rocq-package bad
+-Q theories Foo
+-R theories Foo
+theories/A.v

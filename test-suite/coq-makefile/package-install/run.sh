@@ -1,37 +1,18 @@
 #!/usr/bin/env bash
 
+set -ex
+
 . ../template/path-init.sh
 
 rm -rf _test
-mkdir -p _test/foo/theories _test/use _test/tmp
+mkdir _test
+find . -maxdepth 1 -not -name . -not -name _test -exec cp -r '{}' -t _test ';'
+cd _test
 
-cd _test/foo || exit 1
-cat > theories/A.v <<'EOT'
-Definition x := 0.
-EOT
-cat > _CoqProject <<'EOT'
---rocq-package foo
---package-version 1.2.3
---description "Test package"
---legacy-support
--R theories Foo
-theories/A.v
-EOT
-cat > _CoqProject.bad <<'EOT'
---rocq-package bad
--Q theories Foo
--R theories Foo
-theories/A.v
-EOT
-cat > _CoqProject.legacy <<'EOT'
--R theories Foo
-theories/A.v
-EOT
-cat > _CoqProject.silent <<'EOT'
---no-rocq-package-warning
--R theories Foo
-theories/A.v
-EOT
+testdir=$PWD
+
+# foo: a package with both findlib and legacy install
+cd foo || exit 1
 rocq makefile -f _CoqProject.legacy -o Makefile.legacy 2> legacy.err
 grep -q 'Omitting --rocq-package is deprecated' legacy.err
 rocq makefile -f _CoqProject.silent -o Makefile.silent 2> silent.err
@@ -50,70 +31,52 @@ grep -q 'directory = "."' META.foo
 grep -q 'version = "1.2.3"' META.foo
 grep -q 'description = "Test package"' META.foo
 make
-make install DSTROOT="$PWD/../tmp"
+make install DSTROOT="$testdir/tmp"
 
-pkgdir="$(find ../tmp -type d -name foo | head -n 1)"
+pkgdir="$(find "$testdir/tmp" -type d -name foo | head -n 1)"
+libdir="$(dirname "$pkgdir")"
+user_contrib_dir=$(find "$testdir/tmp" -type d -name user-contrib)
 test -n "$pkgdir"
 test -f "$pkgdir/META"
 test -f "$pkgdir/rocq.d/A.vo"
 grep -q 'rocqpath = "Foo"' "$pkgdir/META"
 grep -q 'directory = "."' "$pkgdir/META"
-test -f "$(find ../tmp -path '*/user-contrib/Foo/A.vo' | head -n 1)"
+test -f "$user_contrib_dir/Foo/A.vo"
 
-cd .. || exit 1
-mkdir -p plug/theories plug/src
-cat > plug/theories/Loader.v <<'EOT'
-Declare ML Module "plug.plugin".
-EOT
-cat > plug/src/plug.mlpack <<'EOT'
-Dummy
-EOT
-cat > plug/src/dummy.ml <<'EOT'
-let () = ()
-EOT
-cat > plug/_CoqProject <<'EOT'
---rocq-package plug
--Q theories Plug
--I src
-theories/Loader.v
-src/dummy.ml
-src/plug.mlpack
-EOT
-(cd plug && rocq makefile -f _CoqProject -o Makefile)
-grep -q 'rocqpath = "Plug"' plug/src/META.plug
-grep -q 'directory = "."' plug/src/META.plug
-grep -q 'requires = "plug.plugin"' plug/src/META.plug
-grep -q 'package "plugin"' plug/src/META.plug
+# plug: a plugin (and Loader.v) with only findlib install
+cd ../plug || exit 1
+rocq makefile -f _CoqProject -o Makefile
+grep -q 'rocqpath = "Plug"' src/META.plug
+grep -q 'directory = "."' src/META.plug
+grep -q 'requires = "plug.plugin"' src/META.plug
+grep -q 'package "plugin"' src/META.plug
+make
+make install DSTROOT="$testdir/tmp"
 
-libdir="$(dirname "$pkgdir")"
-cd use || exit 1
-cat > B.v <<'EOT'
-From Foo Require A.
-Definition y := A.x.
-EOT
-cat > _CoqProject <<'EOT'
---rocq-package bar
--package foo
--Q . Bar
-B.v
-EOT
+# installed in findlib but not user-contrib
+test "$libdir/plug/rocq.d/Loader.vo" = "$(find "$testdir/tmp" -name Loader.vo)"
+
+cd ../use || exit 1
 
 if which cygpath 2>/dev/null; then
-  export OCAMLPATH="$OCAMLPATH;$(cygpath -m "$libdir")"
+  export OCAMLPATH="$(cygpath -m "$libdir");$OCAMLPATH"
 else
-  export OCAMLPATH="$OCAMLPATH:$libdir"
+  export OCAMLPATH="$libdir:$OCAMLPATH"
 fi
 
 rocq makefile -f _CoqProject -o Makefile
-grep -q 'COQMF_PACKAGES = foo' Makefile.conf
+grep -q 'COQMF_PACKAGES = foo plug' Makefile.conf ||
+  grep -q 'COQMF_PACKAGES = plug foo' Makefile.conf
+
 if grep -q 'rocq\.d' Makefile.conf; then
   echo 'package dependency was baked into Makefile.conf'
   exit 1
 fi
 make
+test -e B.vo
 
 cd ../foo || exit 1
-make uninstall DSTROOT="$PWD/../tmp"
+make uninstall DSTROOT="$testdir/tmp"
 test ! -e "$pkgdir/META"
 test ! -d "$pkgdir/rocq.d"
 test -z "$(find ../tmp -path '*/user-contrib/Foo/A.vo' | head -n 1)"
