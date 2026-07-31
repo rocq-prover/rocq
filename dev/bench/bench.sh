@@ -397,7 +397,7 @@ create_opam() {
     # Allow experimental compiler switches
     opam repo add -q --set-default ocaml-pr https://github.com/ejgallego/ocaml-pr-repository.git
     # Rest of default switches
-    opam repo add -q --set-default iris-dev "https://gitlab.mpi-sws.org/FP/opam-dev.git"
+    opam repo add -q --set-default iris-dev "https://github.com/rocq-iris/opam.git"
 
     if [[ $USE_FLAMBDA = 1 ]];
     then flambda=--packages=ocaml-variants.${OCAML_VER}+options,ocaml-option-flambda
