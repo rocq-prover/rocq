@@ -64,8 +64,18 @@ val declare_summary_tag : string -> ?make_marshallable:('a -> 'a) -> 'a summary_
     [ref_tag] is never local.
 *)
 
-val ref : ?stage:Stage.t -> ?local:bool -> name:string -> 'a -> 'a ref
-val ref_tag : ?stage:Stage.t -> name:string -> 'a -> 'a ref * 'a Dyn.tag
+module Ref :
+sig
+  type 'a t
+  val get : 'a t -> 'a
+  val set : 'a t -> 'a -> unit
+  val (!) : 'a t -> 'a
+  val (:=) : 'a t -> 'a -> unit
+end
+
+val ref : ?stage:Stage.t -> name:string -> 'a -> 'a Ref.t
+val local_ref : ?stage:Stage.t -> name:string -> 'a -> 'a ref
+val ref_tag : ?stage:Stage.t -> name:string -> 'a -> 'a Ref.t * 'a Dyn.tag
 
 (** Special summary for ML modules.  This summary entry is special
     because its unfreeze may load ML code and hence add summary

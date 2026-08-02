@@ -29,19 +29,19 @@ let global_env, global_env_summary_tag =
   Summary.ref_tag ~name:global_env_summary_name Safe_typing.empty_environment
 
 let is_joined_environment () =
-  Safe_typing.is_joined_environment !global_env
+  Safe_typing.is_joined_environment (Summary.Ref.get global_env)
 
 let is_curmod_library () =
-  Safe_typing.is_curmod_library !global_env
+  Safe_typing.is_curmod_library (Summary.Ref.get global_env)
 
 let assert_not_synterp () =
   if !Flags.in_synterp_phase = Some true then
     CErrors.anomaly (
       Pp.strbrk"The global environment cannot be accessed during the syntactic interpretation phase.")
 
-let safe_env () = assert_not_synterp(); !global_env
+let safe_env () = assert_not_synterp(); Summary.Ref.get global_env
 
-let set_safe_env e = global_env := e
+let set_safe_env e = Summary.Ref.set global_env e
 
 end
 

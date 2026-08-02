@@ -156,7 +156,7 @@ let empty_table = {
   modfile_mps = DirPath.Map.empty;
 }
 
-let make_table () = ref { empty_table with modfile_ids = !blacklist_table }
+let make_table () = ref { empty_table with modfile_ids = Summary.Ref.get blacklist_table }
 
 let add_typedef table kn inst cb t =
   let upd = function
@@ -690,9 +690,12 @@ type lang = Ocaml | Haskell | Scheme | JSON
 
 let lang_ref = Summary.ref Ocaml ~name:"ExtrLang"
 
-let lang () = !lang_ref
+let lang () =
+  let open Summary.Ref in
+  !lang_ref
 
 let extr_lang : lang -> obj =
+  let open Summary.Ref in
   declare_object @@ superglobal_object_nodischarge "Extraction Lang"
     ~cache:(fun l -> lang_ref := l)
     ~subst:None
@@ -705,7 +708,9 @@ let empty_inline_table = (Refset'.empty,Refset'.empty)
 
 let inline_table = Summary.ref empty_inline_table ~name:"ExtrInline"
 
-let to_inline r = Refset'.mem r (fst !inline_table)
+let to_inline r =
+  let open Summary.Ref in
+  Refset'.mem r (fst !inline_table)
 
 (* Extension for supporting foreign function call extraction. *)
 
@@ -713,7 +718,9 @@ let empty_foreign_set = Refset'.empty
 
 let foreign_set = Summary.ref empty_foreign_set ~name:"ExtrForeign"
 
-let to_foreign r = Refset'.mem r !foreign_set
+let to_foreign r =
+  let open Summary.Ref in
+  Refset'.mem r !foreign_set
 
 (* End of Extension for supporting foreign function call extraction. *)
 
@@ -726,9 +733,12 @@ let callback_map = Summary.ref empty_callback_map ~name:"ExtrCallback"
 
 (* End of Extension for supporting callback registration extraction. *)
 
-let to_keep r = Refset'.mem r (snd !inline_table)
+let to_keep r =
+  let open Summary.Ref in
+  Refset'.mem r (snd !inline_table)
 
 let add_inline_entries b l =
+  let open Summary.Ref in
   let f b = if b then Refset'.add else Refset'.remove in
   let i,k = !inline_table in
   inline_table :=
@@ -736,10 +746,12 @@ let add_inline_entries b l =
   (List.fold_right (f (not b)) l k)
 
 let add_foreign_entries l =
+  let open Summary.Ref in
   foreign_set := List.fold_right (Refset'.add) l !foreign_set
 
 (* Adds the qualid_ref and alias opt to the callback_map. *)
 let add_callback_entry alias_opt qualid_ref =
+  let open Summary.Ref in
   callback_map := Refmap'.add qualid_ref alias_opt !callback_map
 
 (* Registration of operations for rollback. *)
@@ -784,6 +796,7 @@ let extraction_inline b l =
 (* Printing part *)
 
 let print_extraction_inline () =
+  let open Summary.Ref in
   let (i,n)= !inline_table in
   let i'= Refset'.filter (function { glob = GlobRef.ConstRef _ } -> true | _ -> false) i in
     (str "Extraction Inline:" ++ fnl () ++
@@ -798,16 +811,19 @@ let print_extraction_inline () =
 (* Reset part *)
 
 let reset_inline : unit -> obj =
+  let open Summary.Ref in
   declare_object @@ superglobal_object_nodischarge "Reset Extraction Inline"
     ~cache:(fun () -> inline_table := empty_inline_table)
     ~subst:None
 
 let reset_foreign : unit -> obj =
+  let open Summary.Ref in
   declare_object @@ superglobal_object_nodischarge "Reset Extraction Foreign"
     ~cache:(fun () -> foreign_set := empty_foreign_set)
     ~subst:None
 
 let reset_callback : unit -> obj =
+  let open Summary.Ref in
   declare_object @@ superglobal_object_nodischarge "Reset Extraction Callback"
     ~cache:(fun () -> callback_map := empty_callback_map)
     ~subst:None
@@ -833,9 +849,11 @@ type int_or_id = ArgInt of int | ArgId of Id.t
 let implicits_table = Summary.ref Refmap'.empty ~name:"ExtrImplicit"
 
 let implicits_of_global r =
- try Refmap'.find r !implicits_table with Not_found -> Int.Set.empty
+  let open Summary.Ref in
+  try Refmap'.find r !implicits_table with Not_found -> Int.Set.empty
 
 let add_implicits r l =
+  let open Summary.Ref in
   let names = argnames_of_global r in
   let n = List.length names in
   let add_arg s = function
@@ -887,6 +905,7 @@ let file_of_modfile table dp =
   String.mapi (fun i c -> if i = 0 then s0.[0] else c) (string_of_modfile table dp)
 
 let add_blacklist_entries l =
+  let open Summary.Ref in
   blacklist_table :=
     List.fold_right (fun s -> Id.Set.add (Id.of_string (String.capitalize_ascii s)))
       l !blacklist_table
@@ -907,11 +926,13 @@ let extraction_blacklist l =
 (* Printing part *)
 
 let print_extraction_blacklist () =
+  let open Summary.Ref in
   prlist_with_sep fnl Id.print (Id.Set.elements !blacklist_table)
 
 (* Reset part *)
 
 let reset_blacklist : unit -> obj =
+  let open Summary.Ref in
   declare_object @@ superglobal_object_nodischarge "Reset Extraction Blacklist"
     ~cache:(fun ()-> blacklist_table := Id.Set.empty)
     ~subst:None
@@ -925,23 +946,34 @@ let (use_type_scheme_nb_args, type_scheme_nb_args_hook) = Hook.make ()
 
 let customs = Summary.ref Refmap'.empty ~name:"ExtrCustom"
 
-let add_custom r ids s = customs := Refmap'.add r (ids,s) !customs
+let add_custom r ids s =
+  let open Summary.Ref in
+  customs := Refmap'.add r (ids,s) !customs
 
-let is_custom r = Refmap'.mem r !customs
+let is_custom r =
+  let open Summary.Ref in
+  Refmap'.mem r !customs
 
 let is_inline_custom r = (is_custom r) && (to_inline r)
 
 let is_foreign_custom r = (is_custom r) && (to_foreign r)
 
-let find_callback r = Refmap'.find r !callback_map
+let find_callback r =
+  let open Summary.Ref in
+  Refmap'.find r !callback_map
 
-let find_custom r = snd (Refmap'.find r !customs)
+let find_custom r =
+  let open Summary.Ref in
+  snd (Refmap'.find r !customs)
 
-let find_type_custom r = Refmap'.find r !customs
+let find_type_custom r =
+  let open Summary.Ref in
+  Refmap'.find r !customs
 
 let custom_matchs = Summary.ref Refmap'.empty ~name:"ExtrCustomMatchs"
 
 let add_custom_match r s =
+  let open Summary.Ref in
   custom_matchs := Refmap'.add r s !custom_matchs
 
 let indref_of_match pv =
@@ -953,10 +985,12 @@ let indref_of_match pv =
     | _ -> raise Not_found
 
 let is_custom_match pv =
+  let open Summary.Ref in
   try Refmap'.mem (indref_of_match pv) !custom_matchs
   with Not_found -> false
 
 let find_custom_match pv =
+  let open Summary.Ref in
   Refmap'.find (indref_of_match pv) !custom_matchs
 
 (* Printing entries *)
@@ -970,9 +1004,11 @@ let print_constref_extractions ref_set val_lookup_f section_str =
        )
 
 let print_extraction_foreign () =
+  let open Summary.Ref in
   print_constref_extractions !foreign_set (find_custom) "Extraction Foreign Constant:"
 
 let print_extraction_callback () =
+  let open Summary.Ref in
   let keys = Refmap'.domain !callback_map in
   print_constref_extractions keys (fun r ->
     match find_callback r with

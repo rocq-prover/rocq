@@ -381,6 +381,7 @@ let transitivity_left_table = Summary.ref [] ~name:"transitivity-steps-l"
    complete to proof of the last hypothesis (assumed to state an equality) *)
 
 let step left x tac =
+  let open Summary.Ref in
   let l =
     List.map (fun lem ->
       let lem = EConstr.of_constr lem in
@@ -394,6 +395,7 @@ let step left x tac =
 (* Main function to push lemmas in persistent environment *)
 
 let cache_transitivity_lemma (left,lem) =
+  let open Summary.Ref in
   if left then
     transitivity_left_table  := lem :: !transitivity_left_table
   else

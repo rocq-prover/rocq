@@ -62,6 +62,7 @@ let projection_table =
   Summary.ref (Environ.QConstant.Map.empty : t Environ.QConstant.Map.t) ~name:"record-projs"
 
 let register ({ name; projections; nparams } as s) =
+  let open Summary.Ref in
   let env = Global.env () in
   structure_table := Environ.QInd.Map.add env name s !structure_table;
   projection_table :=
@@ -86,21 +87,28 @@ let rebuild env s =
   let nparams = mib.Declarations.mind_nparams in
   { s with nparams }
 
-let mem env ind = Environ.QInd.Map.mem env ind !structure_table
+let mem env ind =
+  let open Summary.Ref in
+  Environ.QInd.Map.mem env ind !structure_table
 
-let find env indsp = Environ.QInd.Map.find env indsp !structure_table
+let find env indsp =
+  let open Summary.Ref in
+  Environ.QInd.Map.find env indsp !structure_table
 
 let find_projections env indsp =
   (find env indsp).projections |>
   List.map (fun { proj_body } -> proj_body)
 
 let find_from_projection env cst =
+  let open Summary.Ref in
   Environ.QConstant.Map.find env cst !projection_table
 
 let projection_nparams env cst =
+  let open Summary.Ref in
   (Environ.QConstant.Map.find env cst !projection_table).nparams
 
 let is_projection cst =
+  let open Summary.Ref in
   let env = Global.env () in
   Environ.QConstant.Map.mem env cst !projection_table
 
@@ -330,6 +338,7 @@ let make env sigma ref =
   (ref,indsp)
 
 let register ~warn env sigma o =
+    let open Summary.Ref in
     compute_canonical_projections env sigma ~warn o |>
     List.iter (fun ((proj, (cs_pat, t)), s) ->
       let l = try GlobRefMap.find env proj !object_table with Not_found -> PatMap.empty in
@@ -369,6 +378,7 @@ type t = {
 }
 
 let find env sigma (proj,pat) =
+  let open Summary.Ref in
   let t', { o_DEF = c; o_CTX = ctx; o_INJ=n; o_TABS = bs;
         o_TPARAMS = params; o_NPARAMS = nparams; o_TCOMPS = us } = PatMap.find env pat (GlobRefMap.find env proj !object_table) in
   let us = List.map EConstr.of_constr us in
@@ -394,6 +404,7 @@ let rec get_nth n = function
   else get_nth (n - len) args
 
 let rec decompose_projection ?metas env sigma c args =
+  let open Summary.Ref in
   match EConstr.kind sigma c with
   | Meta mv ->
     begin match metas with
@@ -452,11 +463,13 @@ let canonical_entry_of_object projection value (_, { o_ORIGIN = solution }) =
   { projection; value; solution }
 
 let entries () =
+  let open Summary.Ref in
   GlobRefMap.fold (fun p ol acc ->
     PatMap.fold (fun pat o acc -> canonical_entry_of_object p pat o :: acc) ol acc)
     !object_table []
 
 let entries_for env ~projection:p =
+  let open Summary.Ref in
   try
     GlobRefMap.find env p !object_table |>
     (fun m -> PatMap.fold (fun pat o accu -> canonical_entry_of_object p pat o :: accu) m []) |>
@@ -473,11 +486,15 @@ let prim_table =
   Summary.ref (Cmap_env.empty : data Cmap_env.t) ~name:"record-prim-projs"
 
 let register p c =
+  let open Summary.Ref in
   prim_table := Cmap_env.add c p !prim_table
 
-let mem c = Cmap_env.mem c !prim_table
+let mem c =
+  let open Summary.Ref in
+  Cmap_env.mem c !prim_table
 
 let find_opt c =
+  let open Summary.Ref in
   try Some (Cmap_env.find c !prim_table) with Not_found -> None
 
 let find_opt_with_relevance (c,u) =

@@ -378,7 +378,7 @@ module type Elt = sig
   val name : string
 
   val gref : unit -> GlobRef.t
-  val table : (term_kind * decl_kind) ConstrMap.t ref
+  val table : (term_kind * decl_kind) ConstrMap.t Summary.Ref.t
   val cast : elt decl -> decl_kind
   val dest : decl_kind -> elt decl option
 
@@ -647,6 +647,7 @@ module MakeTable (E : Elt) : S = struct
                                           gl_pr_constr c ++ str " should be a global reference")
 
   let register_hint env evd t elt =
+    let open Summary.Ref in
     match EConstr.kind evd t with
     | App (c, _) ->
        let gr = safe_ref evd c in
@@ -702,6 +703,7 @@ module MakeTable (E : Elt) : S = struct
         (CErrors.user_err Pp.(Libnames.pr_qualid c ++ str " does not exist."))
 
   let pp_keys () =
+    let open Summary.Ref in
     let env = Global.env () in
     let evd = Evd.from_env env in
     ConstrMap.fold
@@ -770,9 +772,9 @@ module UnOpSpec = MakeTable (EUnopSpec)
 module BinOpSpec = MakeTable (EBinOpSpec)
 
 let init_cache () =
-  table_cache := !table;
-  saturate_cache := !saturate;
-  specs_cache := !specs
+  table_cache := Summary.Ref.get table;
+  saturate_cache := Summary.Ref.get saturate;
+  specs_cache := Summary.Ref.get specs
 
 open EInjT
 

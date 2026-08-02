@@ -93,6 +93,7 @@ let coercion_tab =
   Summary.ref ~name:"coercion_tab" (CoeTypMap.empty : coe_info_typ CoeTypMap.t)
 
 let reachable_from cl =
+  let open Summary.Ref in
   try (ClTypMap.find cl !class_tab).cl_reachable_from
   with Not_found -> ClTypSet.empty
 
@@ -133,28 +134,39 @@ let inheritance_graph =
 (* ajout de nouveaux "objets" *)
 
 let add_new_class cl s =
+  let open Summary.Ref in
   class_tab := ClTypMap.add cl s !class_tab
 
 let add_coercion coe s =
+  let open Summary.Ref in
   coercion_tab := CoeTypMap.add coe s !coercion_tab
 
 let add_path (x, y) p =
+  let open Summary.Ref in
   inheritance_graph := ClGraph.add x y p !inheritance_graph
 
 (* class_info : cl_typ -> int * cl_info_typ *)
 
-let class_info cl = ClTypMap.find cl !class_tab
+let class_info cl =
+  let open Summary.Ref in
+  ClTypMap.find cl !class_tab
 
 let class_nparams cl = (class_info cl).cl_param
 
-let class_exists cl = ClTypMap.mem cl !class_tab
+let class_exists cl =
+  let open Summary.Ref in
+  ClTypMap.mem cl !class_tab
 
-let coercion_info coe = CoeTypMap.find coe !coercion_tab
+let coercion_info coe =
+  let open Summary.Ref in
+  CoeTypMap.find coe !coercion_tab
 
 let coercion_type env sigma (coe,u) =
   Retyping.get_type_of env sigma (EConstr.mkRef (coe.coe_value,u))
 
-let coercion_exists coe = CoeTypMap.mem coe !coercion_tab
+let coercion_exists coe =
+  let open Summary.Ref in
+  CoeTypMap.mem coe !coercion_tab
 
 (* find_class_type : evar_map -> constr -> cl_typ * universe_list * constr list *)
 
@@ -247,6 +259,7 @@ let pr_class x = str (string_of_class x)
 (* lookup paths *)
 
 let lookup_path_between_class (s,t) =
+  let open Summary.Ref in
   ClGraph.find s t !inheritance_graph
 
 let lookup_path_to_fun_from_class s =
@@ -293,6 +306,7 @@ let get_coercion_constructor env coe =
   | _ -> raise Not_found
 
 let lookup_pattern_path_between env (s,t) =
+  let open Summary.Ref in
   List.map (get_coercion_constructor env)
     (ClGraph.find (CL_IND s) (CL_IND t) !inheritance_graph)
 
@@ -339,6 +353,7 @@ let different_class_params env ci =
     | _ -> false
 
 let add_coercion_in_graph env sigma ?(update=false) ic =
+  let open Summary.Ref in
   let source = ic.coe_source in
   let target = ic.coe_target in
   let source_info = class_info source in
@@ -371,7 +386,7 @@ let add_coercion_in_graph env sigma ?(update=false) ic =
             j_info.cl_reachable_from) &&
        not (compare_path env sigma i p q)
     then
-      ambig_paths := (ij, p, q) :: !ambig_paths
+      Stdlib.(ambig_paths := (ij, p, q) :: !ambig_paths)
   in
   let try_add_new_path (i,j as ij) p =
     let () = if cl_typ_eq i j then check_coherence ij p [] in
@@ -423,7 +438,7 @@ let add_coercion_in_graph env sigma ?(update=false) ic =
           else
             k_info.cl_repr
       }) !class_tab;
-  match !ambig_paths with [] -> () | _ -> warn_ambiguous_path !ambig_paths
+  Stdlib.(match !ambig_paths with [] -> () | _ -> warn_ambiguous_path !ambig_paths)
 
 let subst_coercion subst c =
   let env = Global.env () in
@@ -472,11 +487,14 @@ let declare_coercion env sigma ?update c =
 
 (* For printing purpose *)
 let classes () =
+  let open Summary.Ref in
   List.rev (ClTypMap.fold (fun x _ acc -> x :: acc) !class_tab [])
 let coercions () =
+  let open Summary.Ref in
   List.rev (CoeTypMap.fold (fun _ y acc -> y::acc) !coercion_tab [])
 
 let inheritance_graph () =
+  let open Summary.Ref in
   ClGraph.bindings !inheritance_graph
 
 let coercion_of_reference env r =

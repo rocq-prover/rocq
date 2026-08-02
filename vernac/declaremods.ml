@@ -317,9 +317,12 @@ module ModSubstObjs :
      Summary.ref ~stage:Actions.stage (ModPath.Map.empty : substitutive_objects ModPath.Map.t)
        ~name:Actions.substobjs_table_name
 
-   let set mp objs = (table := ModPath.Map.add mp objs !table)
+   let set mp objs =
+    let open Summary.Ref in
+    (table := ModPath.Map.add mp objs !table)
 
    let rec get mp =
+     let open Summary.Ref in
      try ModPath.Map.find mp !table with Not_found ->
        handle_missing_substobjs mp
 
@@ -428,6 +431,7 @@ module ModObjs :
    val all : unit -> module_objects ModPath.Map.t
  end =
  struct
+   open Summary.Ref
    let table =
      Summary.ref ~stage:Actions.stage (ModPath.Map.empty : module_objects ModPath.Map.t)
        ~name:Actions.modobjs_table_name
@@ -799,16 +803,21 @@ let default_module_info = { cur_typ = None; cur_typs = [] }
 let openmod_info = Summary.ref default_module_info ~name:"MODULE-INFO"
 
 let start_library dir =
+  let open Summary.Ref in
   let mp = Global.start_library dir in
   openmod_info := default_module_info;
   openmod_syntax_info := Some (default_module_syntax_info mp);
   Lib.start_compilation dir mp
 
-let set_openmod_syntax_info info = match !openmod_syntax_info with
+let set_openmod_syntax_info info =
+  let open Summary.Ref in
+  match !openmod_syntax_info with
   | None -> anomaly Pp.(str "bad init of openmod_syntax_info")
   | Some _ -> openmod_syntax_info := Some info
 
-let openmod_syntax_info () = match !openmod_syntax_info with
+let openmod_syntax_info () =
+  let open Summary.Ref in
+  match !openmod_syntax_info with
   | None -> anomaly Pp.(str "missing init of openmod_syntax_info")
   | Some v -> v
 
@@ -1085,6 +1094,7 @@ let start_module_core id args res =
   mp, res_entry_o, subtyps, params, Univ.ContextSet.union ctx ctx'
 
 let start_module export id args res =
+  let open Summary.Ref in
   let fs = Summary.Interp.freeze_summaries () in
   let mp, res_entry_o, subtyps, _, _ = start_module_core id args res in
   openmod_info := { cur_typ = res_entry_o; cur_typs = subtyps };
@@ -1132,6 +1142,7 @@ let end_module_core id m_info objects fs =
   mp, objects
 
 let end_module () =
+  let open Summary.Ref in
   let oldprefix,fs,objects = Lib.Interp.end_module () in
   let m_info = !openmod_info in
   let _olddp, id = pop_path oldprefix.obj_path in
@@ -1271,6 +1282,7 @@ let start_modtype_core id args mtys =
   mp, params, sub_mty_l, Univ.ContextSet.union params_ctx sub_mty_ctx
 
 let start_modtype id args mtys =
+  let open Summary.Ref in
   let fs = Summary.Interp.freeze_summaries () in
   let mp, _, sub_mty_l, _ = start_modtype_core id args mtys in
   openmodtype_info := sub_mty_l;
@@ -1287,6 +1299,7 @@ let end_modtype_core id sub_mty_l objects fs =
   mp, objects
 
 let end_modtype () =
+  let open Summary.Ref in
   let oldprefix,fs,objects = Lib.Interp.end_modtype () in
   let olddp, id = pop_path oldprefix.obj_path in
   let sub_mty_l = !openmodtype_info in

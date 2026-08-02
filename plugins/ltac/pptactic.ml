@@ -71,6 +71,7 @@ type pp_tactic = {
 let prnotation_tab = Summary.ref ~name:"pptactic-notation" KerName.Map.empty
 
 let declare_notation_tactic_pprule kn pt =
+  let open Summary.Ref in
   prnotation_tab := KerName.Map.add kn pt !prnotation_tab
 
 type 'a raw_extra_genarg_printer =
@@ -250,6 +251,7 @@ let string_of_genarg_arg (ArgumentType arg) =
   | Extend.Uentryl (_, lvl) -> "tactic" ^ string_of_int lvl
 
   let pr_alias_key key =
+    let open Summary.Ref in
     try
       let prods = (KerName.Map.find key !prnotation_tab).pptac_prods in
       let pr = function
@@ -267,6 +269,7 @@ let string_of_genarg_arg (ArgumentType arg) =
     argument_type_eq (ArgumentType (ExtraArg tag)) wit
 
   let pr_alias_gen pr_gen lev key l =
+    let open Summary.Ref in
     try
       let pp = KerName.Map.find key !prnotation_tab in
       let rec pack prods args = match prods, args with

@@ -532,6 +532,7 @@ module GlobRefMap = Environ.QGlobRef.Map
 let implicits_table = Summary.ref GlobRefMap.empty ~name:"implicits"
 
 let implicits_of_global ref =
+  let open Summary.Ref in
   try
     let env = Global.env () in
     let l = GlobRefMap.find env ref !implicits_table in
@@ -549,6 +550,7 @@ let implicits_of_global ref =
   with Not_found -> [DefaultImpArgs,[]]
 
 let cache_implicits_decl (ref, imps) =
+  let open Summary.Ref in
   implicits_table := GlobRefMap.add (Global.env ()) ref imps !implicits_table
 
 let load_implicits _ (_,l) = List.iter cache_implicits_decl l
@@ -568,6 +570,7 @@ let sec_implicits =
   Summary.ref Id.Map.empty ~name:"section-implicits"
 
 let impls_of_context vars =
+  let open Summary.Ref in
   let map n id =
     let impl_pos = (Name id, n, None) in
     match Id.Map.get id !sec_implicits with
@@ -679,6 +682,7 @@ let declare_implicits local ref =
 
 let declare_var_implicits id ~impl =
   let flags = !implicit_args in
+  let open Summary.Ref in
   sec_implicits := Id.Map.add id impl !sec_implicits;
   declare_implicits_gen ImplLocal flags (GlobRef.VarRef id)
 

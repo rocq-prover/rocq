@@ -33,12 +33,15 @@ let pp p =
   let path = Pp.str (CUnix.escaped_string_of_physical_path p.path_physical) in
   Pp.(h (installed ++ spc () ++ dir ++ spc () ++ path))
 
-let get_load_paths () = !load_paths
+let get_load_paths () =
+  let open Summary.Ref in
+  !load_paths
 
 let anomaly_too_many_paths path =
   CErrors.anomaly Pp.(str "Several logical paths are associated with" ++ spc () ++ str path ++ str ".")
 
 let find_load_path phys_dir =
+  let open Summary.Ref in
   let phys_dir = CUnix.canonical_path_name phys_dir in
   let filter p = String.equal p.path_physical phys_dir in
   let paths = List.filter filter !load_paths in
@@ -49,6 +52,7 @@ let find_load_path phys_dir =
 
 (* get the list of load paths that correspond to a given logical path *)
 let find_with_logical_path dirpath =
+  let open Summary.Ref in
   List.filter (fun p -> Names.DirPath.equal p.path_logical dirpath) !load_paths
 
 let warn_file_found_multiple_times =
@@ -87,6 +91,7 @@ let find_extra_dep_with_logical_path ?loc ~from ~file () =
 
 
 let remove_load_path dir =
+  let open Summary.Ref in
   let filter p = not (String.equal p.path_physical dir) in
   load_paths := List.filter filter !load_paths
 
@@ -98,6 +103,7 @@ let warn_overriding_logical_loadpath =
                ; DP.print rocq_path]))
 
 let add_load_path ~installed phys_path rocq_path ~implicit =
+  let open Summary.Ref in
   let phys_path = CUnix.canonical_path_name phys_path in
   let filter p = String.equal p.path_physical phys_path in
   let binding = {
@@ -128,6 +134,7 @@ let add_load_path ~installed phys_path rocq_path ~implicit =
   | _ -> anomaly_too_many_paths phys_path
 
 let filter_path f =
+  let open Summary.Ref in
   let rec aux = function
   | [] -> []
   | p :: l ->
@@ -163,13 +170,14 @@ let expand_path ?root dir =
       full, add_path ~is_installed:path_installed (ph, lg) others
     else
       full, others in
+  let open Summary.Ref in
   let full, others = List.fold_right aux !load_paths (([],[]), ([], [])) in
   (* Returns the dirpath matching exactly and the ordered list of
      -R/-Q blocks with subdirectories that matches *)
   full, others
 
 let locate_file fname =
-  let paths = List.map physical !load_paths in
+  let paths = List.map physical @@ Summary.Ref.get load_paths in
   let _,longfname =
     System.find_file_in_path ~warn:(not !Flags.quiet) paths fname in
   longfname

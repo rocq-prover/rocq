@@ -85,11 +85,13 @@ let notation_constr_key env = function (* Rem: NApp(NRef ref,[]) stands for @ref
   | _ -> Oth, None
 
 let add_reserved_type env (id,t) =
+  let open Summary.Ref in
   let key = fst (notation_constr_key env t) in
   reserve_table := Id.Map.add id t !reserve_table;
   reserve_revtable := keymap_add env key (id, t) !reserve_revtable
 
 let declare_reserved_type_binding env {CAst.loc;v=id} t =
+  let open Summary.Ref in
   if not (Id.equal id (root_of_id id)) then
     user_err ?loc
       ((Id.print id ++ str
@@ -105,13 +107,16 @@ let declare_reserved_type idl t =
   let env = Global.env () in
   List.iter (fun id -> declare_reserved_type_binding env id t) (List.rev idl)
 
-let find_reserved_type id = Id.Map.find (root_of_id id) !reserve_table
+let find_reserved_type id =
+  let open Summary.Ref in
+  Id.Map.find (root_of_id id) !reserve_table
 
 let constr_key env evd c =
   try mkRefKey env (fst @@ EConstr.destRef evd (fst (EConstr.decompose_app evd c)))
   with Constr.DestKO -> Oth
 
 let revert_reserved_type env evd t =
+  let open Summary.Ref in
   try
     let reserved = KeyMap.find (constr_key env evd t) !reserve_revtable in
     let t = Detyping.detype Detyping.Now ~flags:(PrintingFlags.Detype.current()) env evd t in

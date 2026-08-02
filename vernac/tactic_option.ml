@@ -49,9 +49,10 @@ let warn_default_locality =
          are fine with the change of semantics, disable this warning.")
 
 let declare_tactic_option ?default name =
-  let current_tactic : Gentactic.glob_generic_tactic option ref =
+  let current_tactic : Gentactic.glob_generic_tactic option Summary.Ref.t =
     Summary.ref default ~name:(name^"-default-tactic")
   in
+  let open Summary.Ref in
   let set_current_tactic t =
     current_tactic := t
   in

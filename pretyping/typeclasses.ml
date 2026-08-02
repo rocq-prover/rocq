@@ -77,10 +77,12 @@ let hint_priority is = is.is_info.hint_priority
  * states management
  *)
 
-let classes : typeclasses ref = Summary.ref GlobRefMap.empty ~name:"classes"
-let instances : instances ref = Summary.ref GlobRefMap.empty ~name:"instances"
+let classes : typeclasses Summary.Ref.t = Summary.ref GlobRefMap.empty ~name:"classes"
+let instances : instances Summary.Ref.t = Summary.ref GlobRefMap.empty ~name:"instances"
 
-let class_info env c = GlobRefMap.find_opt env c !classes
+let class_info env c =
+  let open Summary.Ref in
+  GlobRefMap.find_opt env c !classes
 
 let class_info_exn env sigma r =
   match class_info env r with
@@ -90,6 +92,7 @@ let class_info_exn env sigma r =
     not_a_class env sigma c
 
 let global_class_of_constr env sigma c =
+  let open Summary.Ref in
   try let gr, u = EConstr.destRef sigma c in
     GlobRefMap.find env gr !classes, u
   with DestKO | Not_found -> not_a_class env sigma c
@@ -116,11 +119,13 @@ let class_of_constr env sigma c =
   with e when CErrors.noncritical e -> None
 
 let is_class_constr env sigma c =
+  let open Summary.Ref in
   try let gr, u = EConstr.destRef sigma c in
     GlobRefMap.mem env gr !classes
   with DestKO | Not_found -> false
 
 let rec is_class_type env evd c =
+  let open Summary.Ref in
   let c, _ = EConstr.decompose_app evd c in
     match EConstr.kind evd c with
     | Prod (_, _, t) -> is_class_type env evd t
@@ -132,6 +137,7 @@ let is_class_evar env evd evi =
   is_class_type env evd (Evd.evar_concl evi)
 
 let rec is_maybe_class_type env evd c =
+  let open Summary.Ref in
   let c, _ = EConstr.decompose_app evd c in
     match EConstr.kind evd c with
     | Prod (_, _, t) -> is_maybe_class_type env evd t
@@ -141,6 +147,7 @@ let rec is_maybe_class_type env evd c =
     | _ -> is_class_constr env evd c
 
 let load_class env cl =
+  let open Summary.Ref in
   classes := GlobRefMap.add env cl.cl_impl cl !classes
 
 (** Build the subinstances hints. *)
@@ -150,6 +157,7 @@ let load_class env cl =
  *)
 
 let load_instance env inst =
+  let open Summary.Ref in
   let insts =
     try GlobRefMap.find env inst.is_class !instances
     with Not_found -> GlobRefMap.empty in
@@ -157,20 +165,25 @@ let load_instance env inst =
   instances := GlobRefMap.add env inst.is_class insts !instances
 
 let remove_instance env inst =
+  let open Summary.Ref in
   let insts =
     try GlobRefMap.find env inst.is_class !instances
     with Not_found -> assert false in
   let insts = GlobRefMap.remove env inst.is_impl insts in
   instances := GlobRefMap.add env inst.is_class insts !instances
 
-let typeclasses () = GlobRefMap.fold (fun _ l c -> l :: c) !classes []
+let typeclasses () =
+  let open Summary.Ref in
+  GlobRefMap.fold (fun _ l c -> l :: c) !classes []
 
 let cmap_elements c = GlobRefMap.fold (fun k v acc -> v :: acc) c []
 
 let instances_of env c =
+  let open Summary.Ref in
   try cmap_elements (GlobRefMap.find env c.cl_impl !instances) with Not_found -> []
 
 let all_instances () =
+  let open Summary.Ref in
   GlobRefMap.fold (fun k v acc ->
     GlobRefMap.fold (fun k v acc -> v :: acc) v acc)
     !instances []
@@ -186,6 +199,7 @@ let instances_exn env sigma r =
     not_a_class env sigma c
 
 let is_class env gr =
+  let open Summary.Ref in
   GlobRefMap.mem env gr !classes
 
 open Evar_kinds

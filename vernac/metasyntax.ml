@@ -38,6 +38,7 @@ let () = CErrors.register_handler @@ function
 let compat_custom_names = Summary.ref ~stage:Synterp ~name:"compat-custom-names" Id.Map.empty
 
 let add_custom_compat kn =
+  let open Summary.Ref in
   let id = CustomName.label kn in
   compat_custom_names :=
     Id.Map.update id (fun existing -> Some (kn :: Option.default [] existing))
@@ -51,6 +52,7 @@ let warn_compat_custom = CWarnings.create ~name:"deprecated-unqualified-custom-e
         str " by its unqualified name is deprecated.")
 
 let intern_custom_name qid =
+  let open Summary.Ref in
   match Nametab.CustomEntries.locate qid with
   | v -> v
   | exception Not_found ->
@@ -1548,7 +1550,9 @@ let find_subentry_types from n assoc etyps symbols =
 let custom_entry_locality = Summary.ref ~name:"LOCAL-CUSTOM-ENTRY" CustomName.Set.empty
 (** If the entry is present then local *)
 
-let locality_of_custom_entry s = CustomName.Set.mem s !custom_entry_locality
+let locality_of_custom_entry s =
+  let open Summary.Ref in
+  CustomName.Set.mem s !custom_entry_locality
 
 let check_locality_compatibility local custom i_typs =
   if not local then
@@ -2206,6 +2210,7 @@ let load_custom_entry i ((sp,kn),local) =
   Nametab.CustomEntries.push (Until i) sp kn;
   add_custom_compat kn;
   Egramrocq.create_custom_entry kn;
+  let open Summary.Ref in
   let () = if local then
       custom_entry_locality := CustomName.Set.add kn !custom_entry_locality
   in

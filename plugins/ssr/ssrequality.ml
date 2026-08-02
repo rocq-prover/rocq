@@ -32,6 +32,7 @@ module ERelevance = EConstr.ERelevance
 
 let ssroldreworder = Summary.ref ~name:"SSR:oldreworder" false
 let () =
+  let open Summary.Ref in
   Goptions.(declare_bool_option
     { optstage = Summary.Stage.Interp;
       optkey   = ["SsrOldRewriteGoalsOrder"];
@@ -428,7 +429,7 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
   let proof = EConstr.mkApp (elim, [| rdx_ty; new_rdx; pred; p; rdx; c |]) in
   debug_ssr (fun () -> Pp.(str"pirrel_rewrite: proof term: " ++ pr_econstr_env env sigma proof));
   Proofview.tclORELSE (refine_with
-                         ~first_goes_last:(not !ssroldreworder || under) ~with_evars:under (sigma, proof))
+                         ~first_goes_last:(not @@ Summary.Ref.get ssroldreworder || under) ~with_evars:under (sigma, proof))
     (fun (e, i) ->
        (* we generate a msg like: "Unable to find an instance for the variable" *)
        match EConstr.kind sigma c with
@@ -504,7 +505,7 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
       let rwtacs = [
         Tacticals.tclTHENLIST [
           rewritetac ?under dir (EConstr.mkVar rule_id);
-          if !ssroldreworder || Option.default false under then
+          if Summary.Ref.get ssroldreworder || Option.default false under then
             Proofview.tclUNIT ()
           else
             Proofview.cycle 1

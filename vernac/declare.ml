@@ -401,7 +401,9 @@ end
 
 let local_csts = Summary.ref ~name:"local-csts" Cset_env.empty
 
-let is_local_constant c = Cset_env.mem c !local_csts
+let is_local_constant c =
+  let open Summary.Ref in
+  Cset_env.mem c !local_csts
 
 type constant_obj = {
   cst_kind : Decls.logical_kind;
@@ -411,6 +413,7 @@ type constant_obj = {
 }
 
 let load_constant i ((sp,kn), obj) =
+  let open Summary.Ref in
   if Nametab.exists_cci sp then
     raise (DeclareUniv.AlreadyDeclared (None, Libnames.basename sp));
   let con = Global.constant_of_delta_kn kn in

@@ -274,27 +274,34 @@ let notation_constr_key = function (* Rem: NApp(NRef ref,[]) stands for @ref *)
   | _ -> Oth, NotAppNotation
 
 let uninterp_notations env c =
+  let open Summary.Ref in
   List.map_append (fun key -> keymap_find env key !notations_key_table)
     (glob_constr_keys c)
 
 let uninterp_cases_pattern_notations env c =
+  let open Summary.Ref in
   keymap_find env (cases_pattern_key c) !notations_key_table
 
 let uninterp_ind_pattern_notations env ind =
+  let open Summary.Ref in
   keymap_find env (RefKey (canonical_gr (GlobRef.IndRef ind))) !notations_key_table
 
 let remove_uninterpretation env rule (metas,c as pat) =
+  let open Summary.Ref in
   let (key,n) = notation_constr_key c in
   notations_key_table := keymap_remove env key { not_rule = rule; not_patt = pat; not_status = n } !notations_key_table
 
 let declare_uninterpretation env rule (metas,c as pat) =
+  let open Summary.Ref in
   let (key,n) = notation_constr_key c in
   notations_key_table := keymap_add env key { not_rule = rule; not_patt = pat; not_status = n } !notations_key_table
 
 let freeze () =
+  let open Summary.Ref in
   !notations_key_table
 
 let unfreeze fkm =
+  let open Summary.Ref in
   notations_key_table := fkm
 
 let with_notation_uninterpretation_protection f x =

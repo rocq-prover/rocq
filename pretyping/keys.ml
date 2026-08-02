@@ -76,9 +76,11 @@ let add_kv k v m =
   with Not_found -> Keymap.add k (Keyset.singleton v) m
 
 let add_keys k v =
+  let open Summary.Ref in
   keys := add_kv k v (add_kv v k !keys)
 
 let equiv_keys k k' =
+  let open Summary.Ref in
   k == k' || KeyOrdered.equal k k' ||
     try Keyset.mem k' (Keymap.find k !keys)
     with Not_found -> false
@@ -173,4 +175,5 @@ let pr_mapping pr_global k v =
   pr_key pr_global k ++ str" <-> " ++ pr_keyset pr_global v
 
 let pr_keys pr_global =
+  let open Summary.Ref in
   Keymap.fold (fun k v acc -> pr_mapping pr_global k v ++ fnl () ++ acc) !keys (mt())

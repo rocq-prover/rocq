@@ -328,7 +328,9 @@ let empty_rewrite_db = {
 let rewtab =
   Summary.ref (String.Map.empty : rewrite_db String.Map.t) ~name:"autorewrite"
 
-let raw_find_base bas = String.Map.find bas !rewtab
+let raw_find_base bas =
+  let open Summary.Ref in
+  String.Map.find bas !rewtab
 
 let find_base bas =
   try raw_find_base bas
@@ -439,7 +441,8 @@ let auto_multi_rewrite ?(conds=Naive) ?(forward=true) lems cl =
 let fresh_key =
   let id = Summary.ref ~name:"REWHINT-COUNTER" 0 in
   fun () ->
-    let cur = incr id; !id in
+    let open Summary.Ref in
+    let cur = id := !id + 1; !id in
     let lbl = Id.of_string ("_" ^ string_of_int cur) in
     let kn = Lib.make_kn lbl in
     let (mp, _) = KerName.repr kn in
@@ -477,10 +480,12 @@ let warn_implicit_create_hint_db =
   CWarnings.create ~name:"implicit-create-rewrite-hint-db" ~category:Deprecation.Version.v9_2
     (fun db -> strbrk "Implicitly declaring Rewrite hint databases is deprecated. Please explicitly create " ++ quote (str db))
 
-let cache_db db = match String.Map.find_opt db.db_name !rewtab with
-| None ->
-  rewtab := String.Map.add db.db_name empty_rewrite_db !rewtab
-| Some _ -> warn_create_hintdb db
+let cache_db db =
+  let open Summary.Ref in
+  match String.Map.find_opt db.db_name !rewtab with
+  | None ->
+    rewtab := String.Map.add db.db_name empty_rewrite_db !rewtab
+  | Some _ -> warn_create_hintdb db
 
 let load_db _ x = cache_db x
 
@@ -501,6 +506,7 @@ let create_rewrite_hint_db ~local ~name =
 
 (* Functions necessary to the library object declaration *)
 let cache_hintrewrite (rbase,lrl) =
+  let open Summary.Ref in
   let base = try raw_find_base rbase with Not_found -> empty_rewrite_db in
   let fold accu r = {
     rdb_hintdn = HintDN.add (Global.env ()) r.rew_pat r accu.rdb_hintdn;
@@ -594,6 +600,7 @@ let add_rew_rules ~locality base (lrul:raw_rew_rule list) =
 
 
 let check_declared db =
+  let open Summary.Ref in
   if not (String.Map.mem db !rewtab) then warn_implicit_create_hint_db db
 
 let add_rewrite_hint ~locality ~poly bases ort t lcsr =

@@ -199,6 +199,15 @@ let nop () = ()
 
 (** All-in-one reference declaration + registration *)
 
+module Ref =
+struct
+  type 'a t = 'a ref
+  let get = (!)
+  let set = (:=)
+  let (!) = get
+  let (:=) = set
+end
+
 let ref_tag ?(stage=Stage.Interp) ~name x =
   let r = ref x in
   let tag = declare_summary_tag name
@@ -208,18 +217,19 @@ let ref_tag ?(stage=Stage.Interp) ~name x =
       init_function = (fun () -> r := x) } in
   r, tag
 
-let ref ?(stage=Stage.Interp) ?(local=false) ~name x =
-  if not local then fst @@ ref_tag ~stage ~name x
-  else
-    let r = ref x in
-    let () = declare_summary name
-        ~make_marshallable:(fun _ -> None)
-        { stage;
-          freeze_function = (fun () -> Some !r);
-          unfreeze_function = (function Some v -> r := v | None -> r := x);
-          init_function = (fun () -> r := x); }
-    in
-    r
+let local_ref ?(stage=Stage.Interp) ~name x =
+  let r = ref x in
+  let () = declare_summary name
+      ~make_marshallable:(fun _ -> None)
+      { stage;
+        freeze_function = (fun () -> Some !r);
+        unfreeze_function = (function Some v -> r := v | None -> r := x);
+        init_function = (fun () -> r := x); }
+  in
+  r
+
+let ref ?(stage=Stage.Interp) ~name x =
+  fst @@ ref_tag ~stage ~name x
 
 (** Observables *)
 module type OBSERVABLE =
@@ -252,9 +262,12 @@ module MakeObservable
 struct
   type token = string
   type value = Obs.value
+  type observer = Normal of token list Ref.t | Local of token list ref
 
   let observers = Stdlib.ref CString.Map.empty
-  let active_observers : token list ref = ref ~stage:Obs.stage ~local:Obs.local ~name:Obs.name []
+  let active_observers : observer =
+    if Obs.local then Local (local_ref ~stage:Obs.stage ~name:Obs.name [])
+    else Normal (ref ~stage:Obs.stage ~name:Obs.name [])
 
   let register ~name ?(override=false) value : token =
     if not override && CString.Map.mem name !observers then
@@ -264,21 +277,27 @@ struct
       observers := CString.Map.add name value !observers ;
     name
 
-  let remove name = Util.List.remove String.equal name !active_observers
+  let get_active_observers () = match active_observers with
+  | Local active_observers -> !active_observers
+  | Normal active_observers -> Ref.get active_observers
+
+  let remove name =
+    Util.List.remove String.equal name (get_active_observers ())
 
   let activate name : unit =
     assert (CString.Map.mem name !observers);
-    active_observers := name :: remove name;
-    ()
+    match active_observers with
+    | Local active_observers -> active_observers := name :: remove name
+    | Normal active_observers -> Ref.set active_observers (name :: remove name)
 
-  let deactivate name : unit =
-    active_observers := remove name;
-    ()
+  let deactivate name : unit = match active_observers with
+  | Local active_observers -> active_observers := remove name
+  | Normal active_observers -> Ref.set active_observers (remove name)
 
-  let is_active tkn = List.mem tkn !active_observers
+  let is_active tkn = List.mem tkn (get_active_observers ())
 
   let all_active () : (token * value) list =
-    List.map (fun k -> k, CString.Map.get k !observers) !active_observers
+    List.map (fun k -> k, CString.Map.get k !observers) (get_active_observers ())
 end
 
 

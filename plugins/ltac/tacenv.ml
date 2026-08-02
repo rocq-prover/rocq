@@ -50,13 +50,17 @@ let alias_map = Summary.ref ~name:"tactic-alias"
   (KerName.Map.empty : alias_tactic KerName.Map.t)
 
 let register_alias key tac =
+  let open Summary.Ref in
   alias_map := KerName.Map.add key tac !alias_map
 
 let interp_alias key =
+  let open Summary.Ref in
   try KerName.Map.find key !alias_map
   with Not_found -> CErrors.anomaly (str "Unknown tactic alias: " ++ KerName.print key ++ str ".")
 
-let check_alias key = KerName.Map.mem key !alias_map
+let check_alias key =
+  let open Summary.Ref in
+  KerName.Map.mem key !alias_map
 
 (** ML tactic extensions (TacML) *)
 
@@ -131,13 +135,20 @@ let mactab =
   Summary.ref (KerName.Map.empty : ltac_entry KerName.Map.t)
     ~name:"tactic-definition"
 
-let ltac_entries () = !mactab
+let ltac_entries () =
+  let open Summary.Ref in
+  !mactab
 
-let interp_ltac r = (KerName.Map.find r !mactab).tac_body
+let interp_ltac r =
+  let open Summary.Ref in
+  (KerName.Map.find r !mactab).tac_body
 
-let is_ltac_for_ml_tactic r = (KerName.Map.find r !mactab).tac_for_ml
+let is_ltac_for_ml_tactic r =
+  let open Summary.Ref in
+  (KerName.Map.find r !mactab).tac_for_ml
 
 let add ~depr kn b t =
+  let open Summary.Ref in
   let entry = {
     tac_for_ml = b;
     tac_body = t;
@@ -148,10 +159,12 @@ let add ~depr kn b t =
   mactab := KerName.Map.add kn entry !mactab
 
 let replace kn path t =
+  let open Summary.Ref in
   let entry _ e = { e with tac_body = t; tac_redef = path :: e.tac_redef } in
   mactab := KerName.Map.modify kn entry !mactab
 
 let tac_deprecation kn =
+  let open Summary.Ref in
   try (KerName.Map.find kn !mactab).tac_deprecation with Not_found -> None
 
 type tacdef = {

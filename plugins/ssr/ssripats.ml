@@ -375,12 +375,13 @@ let mk_abstract_id =
   let open Rocqlib in
   let ssr_abstract_id = Summary.ref ~name:"SSR:abstractid" 0 in
 begin fun env sigma ->
+  let open Summary.Ref in
   let sigma, zero = EConstr.fresh_global env sigma (lib_ref "num.nat.O") in
   let sigma, succ = EConstr.fresh_global env sigma (lib_ref "num.nat.S") in
   let rec nat_of_n n =
     if n = 0 then zero
     else EConstr.mkApp (succ, [|nat_of_n (n-1)|]) in
-  incr ssr_abstract_id;
+  ssr_abstract_id := !ssr_abstract_id + 1;
   sigma, nat_of_n !ssr_abstract_id
 end
 

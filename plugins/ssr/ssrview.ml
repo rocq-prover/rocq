@@ -30,6 +30,8 @@ module AdaptorDb = struct
   end
   module AdaptorMap = Map.Make(AdaptorKind)
 
+  open Summary.Ref
+
   let term_view_adaptor_db =
     Summary.ref ~name:"view_adaptor_db" AdaptorMap.empty
 

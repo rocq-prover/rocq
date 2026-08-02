@@ -18,6 +18,7 @@ open Notation
 let notation_grammar_map = Summary.ref ~stage:Summary.Stage.Synterp ~name:"notation_grammar_map" NotationMap.empty
 
 let declare_notation_grammar ntn rule =
+  let open Summary.Ref in
   try
     let _ = NotationMap.find ntn !notation_grammar_map in
     anomaly (str "Notation " ++ pr_notation ntn ++ str " is already assigned a grammar.")
@@ -25,6 +26,7 @@ let declare_notation_grammar ntn rule =
   notation_grammar_map := NotationMap.add ntn rule !notation_grammar_map
 
 let grammar_of_notation ntn =
+  let open Summary.Ref in
   NotationMap.find ntn !notation_grammar_map
 
 let list_prefixes ntn =
@@ -54,6 +56,7 @@ let list_prefixes ntn =
 let prefixes_map = Summary.ref ~stage:Summary.Stage.Synterp ~name:"notation_prefixes_map" NotationMap.empty
 
 let declare_prefixes ntn =
+  let open Summary.Ref in
   let register_prefix (pref, _) =
     if not (NotationMap.mem pref !prefixes_map) then
       prefixes_map := NotationMap.add pref ntn !prefixes_map in
@@ -62,6 +65,7 @@ let declare_prefixes ntn =
 let notation_non_terminals_map = Summary.ref ~stage:Summary.Stage.Synterp ~name:"notation_non_terminals_map" NotationMap.empty
 
 let declare_notation_non_terminals ntn entries =
+  let open Summary.Ref in
   try
     let _ = NotationMap.find ntn !notation_grammar_map in
     anomaly (str "Notation " ++ pr_notation ntn ++ str " is already assigned a grammar.")
@@ -70,9 +74,11 @@ let declare_notation_non_terminals ntn entries =
   declare_prefixes ntn
 
 let non_terminals_of_notation ntn =
+  let open Summary.Ref in
   NotationMap.find ntn !notation_non_terminals_map
 
 let longest_common_prefix ntn =
+  let open Summary.Ref in
   CList.find_map
     (fun (pref, k) ->
       NotationMap.find_opt pref !prefixes_map
@@ -80,4 +86,5 @@ let longest_common_prefix ntn =
     (List.rev (list_prefixes ntn))
 
 let get_defined_notations () =
+  let open Summary.Ref in
   NotationSet.elements @@ NotationMap.domain !notation_grammar_map

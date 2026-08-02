@@ -106,7 +106,7 @@ type library_t = {
 }
 
 (* This is a map from names to loaded libraries *)
-let libraries_table : library_t DirPath.Map.t ref =
+let libraries_table : library_t DirPath.Map.t Summary.Ref.t =
   Summary.ref DirPath.Map.empty ~stage:Summary.Stage.Synterp ~name:"LIBRARY"
 
 (* This is the map of loaded libraries filename *)
@@ -123,6 +123,7 @@ let loaded_native_libraries = Summary.ref DirPath.Set.empty ~stage:Summary.Stage
 (* various requests to the tables *)
 
 let find_library dir =
+  let open Summary.Ref in
   DirPath.Map.find_opt dir !libraries_table
 
 let try_find_library dir =
@@ -154,6 +155,7 @@ let library_is_loaded dir =
      be performed first, thus the libraries_loaded_list ... *)
 
 let register_loaded_library ~root m =
+  let open Summary.Ref in
   let libname = m.library_name in
   let rec aux = function
     | [] -> [root, libname]
@@ -163,6 +165,7 @@ let register_loaded_library ~root m =
   libraries_table := DirPath.Map.add libname m !libraries_table
 
 let register_native_library libname =
+  let open Summary.Ref in
   if (Global.typing_flags ()).enable_native_compiler
     && not (DirPath.Set.mem libname !loaded_native_libraries) then begin
       let dirname = Filename.dirname (library_full_filename libname) in
@@ -170,7 +173,9 @@ let register_native_library libname =
       Nativelib.enable_library dirname libname
   end
 
-let loaded_libraries () = List.map snd !libraries_loaded_list
+let loaded_libraries () =
+  let open Summary.Ref in
+  List.map snd !libraries_loaded_list
 
 (** Delayed / available tables of opaque terms *)
 
@@ -454,6 +459,7 @@ let require_library_syntax_from_dirpath ~intern modrefl =
 (*s [save_library dir] ends library [dir] and save it to the disk. *)
 
 let current_deps () =
+  let open Summary.Ref in
   (* Only keep the roots of the dependency DAG *)
   let map (root, m) =
     if root then
@@ -552,6 +558,7 @@ let save_library_to todo_proofs ~output_native_objects dir f =
     Nativelib.compile_library ast fn
 
 let get_used_load_paths () =
+  let open Summary.Ref in
   String.Set.elements
     (List.fold_left (fun acc (root, m) -> String.Set.add
       (Filename.dirname (library_full_filename m)) acc)

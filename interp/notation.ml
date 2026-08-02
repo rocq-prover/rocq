@@ -268,6 +268,7 @@ let entry_relative_level_le child = function
 let notation_level_map = Summary.ref ~stage:Summary.Stage.Synterp ~name:"notation_level_map" NotationMap.empty
 
 let declare_notation_level ntn level =
+  let open Summary.Ref in
   if NotationMap.mem ntn !notation_level_map then
     anomaly (str "Notation " ++ pr_notation ntn ++ str " is already assigned a level.");
   notation_level_map := NotationMap.add ntn level !notation_level_map
@@ -1222,6 +1223,7 @@ let is_prim_token_constant_in_constr (entry, symbs) =
   | _ -> false
 
 let level_of_notation ntn =
+  let open Summary.Ref in
   if is_prim_token_constant_in_constr (decompose_notation_key ntn) then
     (* A primitive notation *)
     ({ notation_entry = fst ntn; notation_level = 0}, []) (* TODO: string notations*)
@@ -1583,6 +1585,7 @@ let pr_id_infos (id, ((level,(tmp_scopes, scopes)), under_binders, kind)) =
 let notation_gram_locs = Summary.ref ~stage:Synterp ~name:"ntn-gram-locs" NotationMap.empty
 
 let declare_ntn_gram_loc ntn (loc : Loc.t option) =
+  let open Summary.Ref in
   match loc with
   | None -> ()
   | Some loc ->
@@ -1593,6 +1596,7 @@ let declare_ntn_gram_loc ntn (loc : Loc.t option) =
         !notation_gram_locs
 
 let get_ntn_gram_locs ntn decl_loc =
+  let open Summary.Ref in
   let list = NotationMap.find ntn !notation_gram_locs in
   (match decl_loc with
      None -> list

@@ -19,7 +19,9 @@ module NamedDecl = Context.Named.Declaration
 let all_collection_id = Id.of_string "All"
 let known_names = Summary.ref [] ~name:"proofusing-nameset"
 
-let is_known_name id = CList.mem_assoc_f Id.equal id !known_names
+let is_known_name id =
+  let open Summary.Ref in
+  CList.mem_assoc_f Id.equal id !known_names
 
 let rec close_fwd env sigma s =
   let s' =
@@ -59,6 +61,7 @@ let err_redefine_all_collection () =
   CErrors.user_err Pp.(str "\"" ++ Id.print all_collection_id ++ str "\" is a predefined collection containing all variables. It can't be redefined.")
 
 let process_expr env sigma e v_ty =
+  let open Summary.Ref in
   let variable_exists id = Termops.is_section_variable_env ~check:false env id in
   let rec aux = function
     | SsEmpty -> Id.Set.empty
@@ -103,6 +106,7 @@ let definition_using env evd ~using ~terms =
   Names.Id.Set.(CList.fold_right add l empty)
 
 let name_set id expr =
+  let open Summary.Ref in
   if Id.equal id all_collection_id then err_redefine_all_collection ();
   if is_known_name id then warn_redefine_collection id;
   (* but we won't warn if id gets declared as a section variable later *)

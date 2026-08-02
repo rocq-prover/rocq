@@ -285,17 +285,19 @@ let register_hook ~name ?(override=false) h =
 let active_hooks = Summary.ref ~name:"canonical_solution_hooks_hacked" ([] : string list)
 
 let deactivate_hook ~name =
+  let open Summary.Ref in
   active_hooks := List.filter (fun s -> not (String.equal s name)) !active_hooks
 
 let activate_hook ~name =
   assert (CString.Map.mem name !all_hooks);
   deactivate_hook ~name;
+  let open Summary.Ref in
   active_hooks := name :: !active_hooks
 
 let apply_hooks env sigma proj pat =
   List.find_map (fun name ->
     try CString.Map.get name !all_hooks env sigma proj pat
-    with e when CErrors.noncritical e -> anomaly Pp.(str "CS hook " ++ str name ++ str " exploded")) !active_hooks
+    with e when CErrors.noncritical e -> anomaly Pp.(str "CS hook " ++ str name ++ str " exploded")) (Summary.Ref.get active_hooks)
 
 let decompose_proj ?metas env sigma (t1, sk1) =
    (* I only recognize ConstRef projections since these are the only ones for which
