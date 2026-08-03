@@ -81,6 +81,20 @@ and a `.out` file with the expected output.  Output tests in this directory are
 run with coqc in -test-mode.  Output tests in [`output-coqtop`](output-coqtop)
 work the same way, but are run with coqtop.
 
+An output test may also provide *alternative* accepted outputs as sibling
+files named `foo.out.variant-<name>` (any suffix after `.out.variant-`).
+The produced output is compared against the primary `foo.out` first and,
+only if that differs, against each `foo.out.variant-*` in shell glob order;
+the test passes as soon as one candidate matches (first match wins). This
+is meant for the rare test whose output legitimately varies between runs or
+platforms in a way that cannot reasonably be normalised in the
+post-processing pipeline (for example a message that a background STM
+worker may race into the output on some platforms). If no candidate
+matches, the failure report shows the diff against the primary `foo.out`
+and lists every candidate that was tried. Variant files are hand-authored
+data: `approve-output` only ever writes the primary `foo.out` (see below),
+never a variant.
+
 There are unit tests of OCaml code in [`unit-tests`](unit-tests). These tests
 are contained in `.ml` files, and rely on the `OUnit` unit-test framework, as
 described at <http://ounit.forge.ocamlcore.org/>.  Use `make unit-tests` in the
@@ -94,4 +108,22 @@ When an output test `output/foo.v` fails, the output is stored in
 `approve-output` will do this for all failing output tests
 automatically.
 
-Don't forget to check the updated `.out` files into git!
+`approve-output` supports two modes, selected by the `APPROVE` variable:
+
+- `make approve-output APPROVE=replace` replaces the primary reference
+  `foo.out` with the produced output, leaving any variants untouched.
+- `make approve-output APPROVE=add` *adds* the produced output as a new
+  accepted reference instead of replacing anything: it is written to the
+  next free numeric variant `foo.out.variant-<N>`. If the produced output
+  is byte-identical to the primary or to an existing variant, it is a
+  no-op (deduplicated).
+
+With no `APPROVE` set, the mode is chosen per test: `replace` when the
+test has a single expectation (just `foo.out`), and `add` when it already
+has one or more `foo.out.variant-*` files (so approving a multi-expectation
+test never clobbers the primary or drops existing variants). Set `APPROVE`
+explicitly to override, e.g. `APPROVE=replace` to overwrite the primary of
+a multi-expectation test, or `APPROVE=add` to start a variant set from a
+single-expectation test.
+
+Don't forget to check the updated `.out`/`.out.variant-*` files into git!
