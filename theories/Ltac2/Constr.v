@@ -648,3 +648,52 @@ Ltac2 is_case(c: constr) :=
   | Unsafe.Case _ _ _ _ _ => true
   | _ => false
   end.
+
+(** [strip_cast c] removes all casts at the head of [c]. *)
+Ltac2 rec strip_cast (c : constr) : constr :=
+  match Unsafe.kind c with
+  | Unsafe.Cast v _ _ => strip_cast v
+  | _ => c
+  end.
+
+(** [head c] returns the head of the application [c] (or [c] itself if
+    it is not an application). *)
+Ltac2 head (c : constr) : constr :=
+  match Unsafe.kind c with
+  | Unsafe.App f _ => f
+  | _ => c
+  end.
+
+(** [head_nocast c] returns the head of the application [c], looking
+    through casts around applications and around the head. *)
+Ltac2 rec head_nocast (c : constr) : constr :=
+  match Unsafe.kind_nocast c with
+  | Unsafe.App f _ => head_nocast f
+  | _ => c
+  end.
+
+(** [decompose_app_nocast c] returns the head and the arguments of the
+    application [c], looking through casts around applications and
+    around the head, and concatenating the argument lists of nested
+    applications. *)
+Ltac2 decompose_app_nocast (c : constr) : constr * constr array :=
+  let rec aux c :=
+    match Unsafe.kind_nocast c with
+    | Unsafe.App f args
+      => let (f, argss) := aux f in
+         (f, args :: argss)
+    | _ => (c, [])
+    end in
+  let rec rev_append ls acc :=
+    match ls with
+    | [] => acc
+    | x :: ls => rev_append ls (x :: acc)
+    end in
+  let (f, argss) := aux c in
+  (f, Array.concat (rev_append argss [])).
+
+(** [decompose_app_list_nocast c] is like [decompose_app_nocast], with
+    the arguments returned as a list. *)
+Ltac2 decompose_app_list_nocast (c : constr) : constr * constr list :=
+  let (f, args) := decompose_app_nocast c in
+  (f, Array.to_list args).
