@@ -55,11 +55,11 @@ val intern : ('raw, 'glb, 'top) genarg_type -> ('raw, 'glb) intern_fun
 
 val generic_intern : (raw_generic_argument, glob_generic_argument) intern_fun
 
-val generic_intern_constr : (GenConstr.raw, GenConstr.glb) constr_intern_fun
+val generic_intern_constr : (GenConstr.raw, Glob_term.glob_constr) constr_intern_fun
 
 (** {5 Internalization in tactic patterns} *)
 
-val generic_intern_pat : (GenConstr.raw, GenConstr.glb) constr_intern_fun
+val generic_intern_pat : (GenConstr.raw, Glob_term.glob_constr) constr_intern_fun
 
 (** {5 Notation functions} *)
 
@@ -82,6 +82,12 @@ val register_intern_constr : ('raw, 'glb) GenConstr.tag ->
 
 val register_intern_pat : ('raw, 'glb) GenConstr.tag ->
   ('raw, 'glb) constr_intern_fun -> unit
+
+val register_intern_constr_gen : ('raw, Util.Empty.t) GenConstr.tag ->
+  ('raw, Glob_term.glob_constr) constr_intern_fun -> unit
+
+val register_intern_pat_gen : ('raw, Util.Empty.t) GenConstr.tag ->
+  ('raw, Glob_term.glob_constr) constr_intern_fun -> unit
 
 val register_ntn_subst0 : (_, 'glb) GenConstr.tag -> 'glb ntn_subst_fun -> unit
 

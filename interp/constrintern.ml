@@ -2772,9 +2772,7 @@ let genarg self genv env lvar ?loc gen =
     then Genintern.generic_intern_pat
     else Genintern.generic_intern_constr
   in
-  let glb = intern ?loc ist gen in
-  DAst.make ?loc @@
-  GGenarg glb
+  intern ?loc ist gen
 
 let genargglob self genv env lvar ?loc gen =
   DAst.make ?loc @@ GGenarg gen
