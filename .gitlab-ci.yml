@@ -86,7 +86,7 @@ before_script:
   script:
     - cp dev/ci/dune-workspace.ci dune-workspace
 
-    - PKGS=rocq-runtime,coq-core,rocq-core,coqide-server,rocq-devtools
+    - PKGS=rocq-runtime,coq-core,rocq-core,rocqide-server,rocq-devtools
     - if [ "$ROCQIDE" != "no" ]; then PKGS=${PKGS},rocqide; fi
     - dev/ci/gitlab-section.sh start coq.clean coq.clean
     - make clean # ensure that `make clean` works on a fresh clone
@@ -251,7 +251,7 @@ before_script:
     - if [ "$ROCQ_CI_NATIVE" = true ]; then echo "Definition f x := x + x." > test_native.v; fi
     - if [ "$ROCQ_CI_NATIVE" = true ]; then rocq c test_native.v; fi
     - if [ "$ROCQ_CI_NATIVE" = true ]; then test -f .coq-native/Ntest_native.cmxs; fi
-    - opam pin add --kind=path coqide-server.dev .
+    - opam pin add --kind=path rocqide-server.dev .
     - opam pin add --kind=path rocqide.dev .
     - opam pin add --kind=path rocq-devtools .
     - opam pin add --kind=path rocq-test-suite.dev . -v
@@ -353,7 +353,7 @@ build:base:dev:dune:
   script:
     - cp theories/Corelib/dune.disabled theories/Corelib/dune
     - cp theories/Ltac2/dune.disabled theories/Ltac2/dune
-    - dune build -p rocq-runtime,coq-core,rocq-core,coqide-server
+    - dune build -p rocq-runtime,coq-core,rocq-core,rocqide-server
     - ls _build/install/default/lib/coq/theories/Init/Prelude.vo
     - ls _build/install/default/lib/coq/user-contrib/Ltac2/Ltac2.vo
   only: *full-ci

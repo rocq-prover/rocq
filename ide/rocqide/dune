@@ -3,7 +3,7 @@
 
 (library
  (name core)
- (public_name coqide-server.core)
+ (public_name rocqide-server.core)
  (wrapped false)
  (modules document)
  (libraries rocq-runtime.boot rocq-runtime.lib))
@@ -11,9 +11,9 @@
 (executable
  (name idetop)
  (public_name coqidetop)
- (package coqide-server)
+ (package rocqide-server)
  (modules idetop)
- (libraries rocq-runtime.toplevel coqide-server.protocol platform_specific)
+ (libraries rocq-runtime.toplevel rocqide-server.protocol platform_specific)
  (link_flags -linkall))
 
 ; IDE Client, we may want to add the macos_prehook.ml conditionally.
@@ -25,7 +25,7 @@
  (foreign_stubs
   (language c)
   (names rocqide_os_stubs))
- (libraries coqide-server.protocol coqide-server.core lablgtk3-sourceview3 platform_specific))
+ (libraries rocqide-server.protocol rocqide-server.core lablgtk3-sourceview3 platform_specific))
 
 (library
  (name platform_specific)

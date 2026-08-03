@@ -1801,7 +1801,7 @@ let rocqide_specific_usage = Boot.Usage.{
 RocqIDE specific options:\
 \n  -f PROJECT_FILE            set Rocq project file to PROJECT_FILE\
 \n  -unicode-bindings f1 .. f2 load files f1..f2 with extra unicode bindings\
-\n  -coqtop dir                look for rocqidetop in dir\
+\n  -coqtop dir                look for coqidetop in dir\
 \n  -coqtop-flags              extra flags for the rocqtop subprocess\
 \n  -debug                     enable debug mode\
 \n  -xml-debug                 enable debug mode and print XML messages to/from RocqIDE\

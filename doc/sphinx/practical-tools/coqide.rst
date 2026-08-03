@@ -351,7 +351,8 @@ Preferences and key bindings are saved in the user configuration directory,
 which is ``$XDG_CONFIG_HOME/coq`` if the environment variable ``$XDG_CONFIG_HOME``
 is set.  If the variable isn't set, the directory is ``~/.config/coq`` on Linux
 and `C:\\Users\\<USERNAME>\\AppData\\Local\\coq` on Windows.
-Preferences are in the file `coqiderc` and key bindings are in the file `coqide.keys`.
+Preferences are in the file `rocqiderc` and key bindings are in the file
+`rocqide.keys`.
 
 .. _rocqide_key_bindings:
 
@@ -375,7 +376,7 @@ menu item without releasing the mouse button, pressing the keys you want
 for the new binding and then releasing the mouse button.
 
 Alternatively, you can edit the configuration file directly.
-Key bindings are saved in the file `coqide.keys` in
+Key bindings are saved in the file `rocqide.keys` in
 the :ref:`user configuration directory<user-configuration-directory>`.
 Make sure there are no RocqIDE processes running while you edit the file
 (RocqIDE creates or overwrites the file when it terminates,
@@ -485,9 +486,9 @@ of the preferences.
 Adding custom bindings
 ~~~~~~~~~~~~~~~~~~~~~~
 
-To extend the default set of bindings, create a file named ``coqide.bindings``
+To extend the default set of bindings, create a file named ``rocqide.bindings``
 in the :ref:`user configuration directory<user-configuration-directory>`.
-The file `coqide.bindings` should contain one
+The file `rocqide.bindings` should contain one
 binding per line, in the form ``\key value``, followed by an optional priority
 integer. (The key and value should not contain any space character.)
 
@@ -515,7 +516,7 @@ Each of the file tokens provided may consists of one of:
 
  -  a path to a custom bindings file,
  -  the token ``default``, which resolves to the default bindings file,
- -  the token ``local``, which resolves to the `coqide.bindings` file
+ -  the token ``local``, which resolves to the `rocqide.bindings` file
     stored in the :ref:`user configuration directory <user-configuration-directory>`.
 
 .. warning::

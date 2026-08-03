@@ -20,18 +20,18 @@ jobs:
             ocaml: 4.14
             test_disabled:
             # We exclude the coq-core package
-            packages: ./coqide-server.opam ./rocq*.opam
+            packages: ./rocq*.opam
           - name: Windows
             os: windows-latest
             ocaml: 4.14
             test_disabled: misc coq-makefile precomputed-time-tests
             # we don't support rocqide on Windows yet, so we filter it, see #20631
-            packages: ./coqide-server.opam ./rocq-*.opam
+            packages: ./rocqide-server.opam ./rocq-*.opam
           - name: Linux (latest OCaml)
             os: ubuntu-latest
             ocaml: 5.4
             test_disabled:
-            packages: ./coqide-server.opam ./rocq*.opam
+            packages: ./rocq*.opam
       fail-fast: false
 
     name: ${{ matrix.name }}

@@ -165,7 +165,7 @@ state that should become the next tip.
   Note that IDEs may need to convert byte offsets passed in the four position fields of the
   location to character offsets to correctly handle multi-byte characters. Also, due to
   asynchronous evaluation, line number fields of locations may need to be adjusted
-  if the sentence has moved since it was sent to Coqtop.
+  if the sentence has moved since it was sent to Rocqtop.
 
 -------------------------------
 
@@ -958,7 +958,7 @@ Currently these tags are used:
   or elsewhere
 * **prompt** - output for display in the Messages panel prompting the user to
   enter a debug command, allowing RocqIDE to display it without
-  appending a newline.  It also signals that coqidetop is waiting to receive
+  appending a newline.  It also signals that `coqidetop` is waiting to receive
   a debugger-specific message such as [Db_cmd](#command-db_cmd).
 
 ```xml

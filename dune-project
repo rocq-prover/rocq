@@ -115,7 +115,7 @@ by Rocq in every .v file, as well as other modules bound to the
 Corelib.* and Ltac2.* namespaces."))
 
 (package
- (name coqide-server)
+ (name rocqide-server)
  (depends
   (rocq-runtime (= :version)))
  (synopsis "The Rocq Prover, XML protocol server")
@@ -135,7 +135,7 @@ structured way."))
   (ocamlfind :build)
   (conf-findutils :build)
   conf-adwaita-icon-theme
-  (coqide-server (= :version))
+  (rocqide-server (= :version))
   (cairo2 (>= 0.6.4))
   (lablgtk3-sourceview3 (and (>= 3.1.2) (or (>= 3.1.5) (<> :os-family "windows")))))
  (synopsis "The Rocq Prover --- GTK3 IDE")
@@ -152,7 +152,7 @@ development of interactive proofs."))
  (allow_empty)
  (depends
   (rocq-core (= :version))
-  coqide-server
+  rocqide-server
   ounit2
   conf-python-3
   conf-time)

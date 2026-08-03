@@ -313,7 +313,7 @@ module Rocqide = Spawn.Sync ()
 let main =
   if Sys.os_type = "Unix" then Sys.set_signal Sys.sigpipe
     (Sys.Signal_handle
-       (fun _ -> prerr_endline "Broken Pipe (coqtop died ?)"; exit 1));
+       (fun _ -> prerr_endline "Broken Pipe (rocqtop died ?)"; exit 1));
   let idetop_name, input_file, args  = match Sys.argv with
     | [| _; p; f |] -> p, f, []
     | [| _; p; f; args |] ->
