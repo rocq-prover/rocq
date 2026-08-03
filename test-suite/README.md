@@ -81,6 +81,15 @@ and a `.out` file with the expected output.  Output tests in this directory are
 run with coqc in -test-mode.  Output tests in [`output-coqtop`](output-coqtop)
 work the same way, but are run with coqtop.
 
+Before comparison, the captured output goes through a small post-processing
+pipeline in the `Makefile` (dropping the banner, `Loading ML file` lines,
+etc.). That pipeline also drops STM worker "connection lost" teardown noise
+(a line combining a worker-error marker such as `Slave: critical exception`
+with a connection-loss message like `Broken pipe` or `... forcibly closed
+by the remote host`), which a background worker may otherwise race into the
+output when the master tears it down — see the `CLEANUP_STM_WORKER_NOISE`
+filter and its comment for the exact, narrowly-anchored pattern.
+
 There are unit tests of OCaml code in [`unit-tests`](unit-tests). These tests
 are contained in `.ml` files, and rely on the `OUnit` unit-test framework, as
 described at <http://ounit.forge.ocamlcore.org/>.  Use `make unit-tests` in the

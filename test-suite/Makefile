@@ -70,6 +70,24 @@ else
   CLEANUP_WINPATH=
 endif
 
+# When an STM worker loses its connection to the master during teardown,
+# the worker's read/write to the (now closed) master fails with a
+# connection-loss error that does not surface as End_of_file: on Windows
+# the socket is reset (WSAECONNRESET/WSAECONNABORTED) and on Unix a write
+# to the dead master fails with EPIPE. These take the loud "Slave:
+# critical exception" / "Fatal marshal error" branches of the worker main
+# loop, and the message can race into the master's output, making output
+# tests that use par: / async workers (e.g. output/Partac.v) fail
+# intermittently, mostly on Windows CI. Such a line looks like:
+#   260:tactic:1:1:0] Slave: critical exception: System error: "An existing connection was forcibly closed by the remote host."
+# This is pure teardown noise, unrelated to what the test exercises, so we
+# drop those lines from the captured output before comparison. The pattern
+# is anchored on both a worker-error marker and one of the connection-loss
+# strerror texts so it cannot swallow any legitimate test output. See
+# rocq-prover/rocq#22286 for the alternative of fixing this in the STM.
+CLEANUP_STM_WORKER_NOISE=| grep -a -v -E \
+  '(Slave: critical exception|Fatal marshal error).*(Connection reset by peer|Broken pipe|forcibly closed by the remote host|aborted by the software in your host machine)'
+
 # The $(shell echo) trick is necessary due to configure quoting
 # filenames, still, this issue is tricky when paths contain spaces
 export OCAMLPATH := $(shell echo $(COQPREFIX)/lib$(FINDLIB_SEP)$$OCAMLPATH)
@@ -442,6 +460,7 @@ $(addsuffix .log,$(wildcard output/*.v)): %.v.log: %.v %.out $(PREREQUISITELOG)
 	    | grep -a -v "Skipping rcfile loading" \
 	    | grep -a -v "^<W>" \
 	    $(CLEANUP_WINPATH) \
+	    $(CLEANUP_STM_WORKER_NOISE) \
 	    > $$output; \
 	  diff -a -u --strip-trailing-cr $*.out $$output 2>&1; R=$$?; times; \
 	  if [ $$R = 0 ]; then \
@@ -466,6 +485,7 @@ $(addsuffix .log,$(wildcard output-coqtop/*.v)): %.v.log: %.v %.out $(PREREQUISI
 	    | grep -v "\[Loading ML file" \
 	    | grep -v "Skipping rcfile loading" \
 	    | grep -v "^<W>" \
+	    $(CLEANUP_STM_WORKER_NOISE) \
 	    > $$output; \
 	  diff -u --strip-trailing-cr $*.out $$output 2>&1; R=$$?; times; \
 	  if [ $$R = 0 ]; then \
