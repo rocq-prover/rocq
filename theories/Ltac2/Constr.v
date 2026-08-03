@@ -430,6 +430,116 @@ Ltac2 map_with_binders (lift : 'a -> binder -> 'a) (f : 'a -> constr -> constr) 
       make (Array u t def ty)
   end.
 
+(** [iter2_with_binders g f mismatch n c1 c2] iterates [f n] over the
+    pairs of immediate subterms of [c1] and [c2] when they have the
+    same head constructor, and calls [mismatch n c1 c2] otherwise
+    (also when [Evar], [Case], [Fix], [CoFix] or [Array] nodes have
+    incompatible shapes).  [g] updates [n] at each binder traversal
+    (using the binders of [c1]).  When both terms are applications
+    with different numbers of arguments, the arguments are aligned
+    from the right, the extra arguments on the longer side being
+    reattached to its head. *)
+Ltac2 iter2_with_binders (g : 'a -> binder -> 'a) (f : 'a -> constr -> constr -> unit) (mismatch : 'a -> constr -> constr -> unit) (n : 'a) (c1 : constr) (c2 : constr) : unit :=
+  match kind c1, kind c2 with
+  | Rel _, Rel _ => ()
+  | Var _, Var _ => ()
+  | Meta _, Meta _ => ()
+  | Sort _, Sort _ => ()
+  | Constant _ _, Constant _ _ => ()
+  | Ind _ _, Ind _ _ => ()
+  | Constructor _ _, Constructor _ _ => ()
+  | Uint63 _, Uint63 _ => ()
+  | Float _, Float _ => ()
+  | String _, String _ => ()
+  | Cast v1 _ ty1, Cast v2 _ ty2 => f n v1 v2; f n ty1 ty2
+  | Prod b1 body1, Prod b2 body2
+    => f n (Binder.type b1) (Binder.type b2);
+       f (g n b1) body1 body2
+  | Lambda b1 body1, Lambda b2 body2
+    => f n (Binder.type b1) (Binder.type b2);
+       f (g n b1) body1 body2
+  | LetIn b1 v1 body1, LetIn b2 v2 body2
+    => f n (Binder.type b1) (Binder.type b2);
+       f n v1 v2;
+       f (g n b1) body1 body2
+  | App h1 args1, App h2 args2
+    => let len1 := Array.length args1 in
+       let len2 := Array.length args2 in
+       let min_len := match Int.le len1 len2 with true => len1 | false => len2 end in
+       let excess1 := Int.sub len1 min_len in
+       let excess2 := Int.sub len2 min_len in
+       let h1 := match Int.equal excess1 0 with
+                 | true => h1
+                 | false => make (App h1 (Array.sub args1 0 excess1))
+                 end in
+       let h2 := match Int.equal excess2 0 with
+                 | true => h2
+                 | false => make (App h2 (Array.sub args2 0 excess2))
+                 end in
+       f n h1 h2;
+       let rec aux i :=
+         match Int.lt i min_len with
+         | true
+           => f n (Array.get args1 (Int.add excess1 i)) (Array.get args2 (Int.add excess2 i));
+              aux (Int.add i 1)
+         | false => ()
+         end in
+       aux 0
+  | Evar _ args1, Evar _ args2
+    => match Int.equal (Array.length args1) (Array.length args2) with
+       | true => Array.iter2 (f n) args1 args2
+       | false => mismatch n c1 c2
+       end
+  | Case _ p1 iv1 scrut1 bl1, Case _ p2 iv2 scrut2 bl2
+    => let (ret1, _) := p1 in
+       let (ret2, _) := p2 in
+       f n ret1 ret2;
+       (match iv1, iv2 with
+        | NoInvert, NoInvert => ()
+        | CaseInvert indices1, CaseInvert indices2
+          => match Int.equal (Array.length indices1) (Array.length indices2) with
+             | true => Array.iter2 (f n) indices1 indices2
+             | false => mismatch n c1 c2
+             end
+        | _, _ => mismatch n c1 c2
+        end);
+       f n scrut1 scrut2;
+       match Int.equal (Array.length bl1) (Array.length bl2) with
+       | true => Array.iter2 (f n) bl1 bl2
+       | false => mismatch n c1 c2
+       end
+  | Proj _ _ v1, Proj _ _ v2 => f n v1 v2
+  | Fix _ _ tl1 bl1, Fix _ _ tl2 bl2
+    => match Int.equal (Array.length tl1) (Array.length tl2) with
+       | true
+         => Array.iter2 (fun b1 b2 => f n (Binder.type b1) (Binder.type b2)) tl1 tl2;
+            let n := Array.fold_left g n tl1 in
+            Array.iter2 (f n) bl1 bl2
+       | false => mismatch n c1 c2
+       end
+  | CoFix _ tl1 bl1, CoFix _ tl2 bl2
+    => match Int.equal (Array.length tl1) (Array.length tl2) with
+       | true
+         => Array.iter2 (fun b1 b2 => f n (Binder.type b1) (Binder.type b2)) tl1 tl2;
+            let n := Array.fold_left g n tl1 in
+            Array.iter2 (f n) bl1 bl2
+       | false => mismatch n c1 c2
+       end
+  | Array _ vals1 def1 ty1, Array _ vals2 def2 ty2
+    => f n ty1 ty2;
+       f n def1 def2;
+       match Int.equal (Array.length vals1) (Array.length vals2) with
+       | true => Array.iter2 (f n) vals1 vals2
+       | false => mismatch n c1 c2
+       end
+  | _, _ => mismatch n c1 c2
+  end.
+
+(** [iter2 f mismatch c1 c2] iterates [f] over the pairs of immediate
+    subterms of [c1] and [c2]; see [iter2_with_binders]. *)
+Ltac2 iter2 (f : constr -> constr -> unit) (mismatch : constr -> constr -> unit) (c1 : constr) (c2 : constr) : unit :=
+  iter2_with_binders (fun _ _ => ()) (fun _ => f) (fun _ => mismatch) () c1 c2.
+
 End Unsafe.
 
 Module Cast.
