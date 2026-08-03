@@ -64,13 +64,15 @@ Abbreviation int_beq := signed_int_beq.
 Abbreviation internal_int_dec_lb := internal_signed_int_dec_lb.
 Abbreviation internal_int_dec_bl := internal_signed_int_dec_bl.
 
+Module Import NumberNotations.
 Declare Scope dec_uint_scope.
-Delimit Scope dec_uint_scope with uint.
+Delimit Scope dec_uint_scope with duint.
 Bind Scope dec_uint_scope with uint.
 
 Declare Scope dec_int_scope.
-Delimit Scope dec_int_scope with int.
+Delimit Scope dec_int_scope with dint.
 Bind Scope dec_int_scope with int.
+End NumberNotations.
 
 Register uint as num.uint.type.
 Register int as num.int.type.
@@ -256,9 +258,3 @@ with succ_double d :=
   end.
 
 End Little.
-
-(** Pseudo-conversion functions used when declaring
-    Number Notations on [uint] and [int]. *)
-
-Definition uint_of_uint (i:uint) := i.
-Definition int_of_int (i:int) := i.
