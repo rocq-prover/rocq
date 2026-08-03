@@ -156,6 +156,7 @@ let make_qualid ?loc pa id = CAst.make ?loc (make_path pa id)
 let repr_qualid {CAst.v=qid} = repr_path qid
 
 let qualid_eq qid1 qid2 = eq_full_path qid1.CAst.v qid2.CAst.v
+let qualid_compare qid1 qid2 = compare_full_path qid1.CAst.v qid2.CAst.v
 
 let is_qualid_suffix_of_full_path
     CAst.{v={dirpath=dirpath1;basename=basename1}} {dirpath=dirpath2;basename=basename2} =
