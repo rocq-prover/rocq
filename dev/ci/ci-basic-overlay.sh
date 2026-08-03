@@ -420,12 +420,6 @@ project mathcomp_word "https://github.com/jasmin-lang/coqword" "main"
 # Contact @vbgl, @strub on github
 
 ########################################################################
-# Jasmin
-########################################################################
-project jasmin "https://github.com/jasmin-lang/jasmin" "main"
-# Contact @vbgl, @bgregoir on github
-
-########################################################################
 # Lean Importer
 ########################################################################
 project lean_importer "https://github.com/coq-community/rocq-lean-import" "master"

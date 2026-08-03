@@ -1012,21 +1012,6 @@ library:ci-mathcomp_word:
   - library:ci-mathcomp
   stage: build-2
 
-library:ci-jasmin:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - library:ci-stdlib+flambda
-  - plugin:ci-elpi_hb
-  - plugin:ci-micromega
-  - library:ci-mathcomp
-  - library:ci-mathcomp_word
-  - library:ci-mczify
-  - library:ci-ext_lib
-  - library:ci-paco
-  - library:ci-itree
-  stage: build-3+
-
 library:ci-trakt:
   extends: .ci-template-flambda
   needs:
