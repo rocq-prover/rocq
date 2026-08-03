@@ -54,3 +54,7 @@ fun x : {True} + {True} => match x with
                            | left t | right t => t
                            end
      : {True} + {True} -> True
+if left I is left _ then 1 else 0
+     : nat
+if inleft 3 is inleft _ then 1 else 0
+     : nat
