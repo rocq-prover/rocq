@@ -21,7 +21,7 @@ open Ssreflect_plugin.Ssrtacs
 let warn_deprecated_rewrite =
   CWarnings.create ~name:"rewrite-rw" ~category:Deprecation.Version.v9_3
     ~quickfix:(fun ~loc () -> [Quickfix.make ~loc (Pp.str "rw")])
-    (fun () -> Pp.str "The 'rewrite' tactic has been renamed 'rw'.")
+    (fun () -> Pp.str "The ssreflect 'rewrite' tactic has been renamed 'rw' (available from Rocq 9.3).")
 
 let warn_deprecated_rewrite ?loc () =
   (* 7 = length "rewrite" *)

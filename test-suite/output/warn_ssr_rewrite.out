@@ -1,10 +1,12 @@
 File "./output/warn_ssr_rewrite.v", line 4, characters 14-21:
-Warning: The 'rewrite' tactic has been renamed 'rw'.
+Warning:
+The ssreflect 'rewrite' tactic has been renamed 'rw' (available from Rocq 9.3).
 [rewrite-rw,deprecated-since-9.3,deprecated,default]
 Quickfix:
 Replace File "./output/warn_ssr_rewrite.v", line 4, characters 14-21 with rw
 File "./output/warn_ssr_rewrite.v", line 12, characters 2-9:
-Warning: The 'rewrite' tactic has been renamed 'rw'.
+Warning:
+The ssreflect 'rewrite' tactic has been renamed 'rw' (available from Rocq 9.3).
 [rewrite-rw,deprecated-since-9.3,deprecated,default]
 Quickfix:
 Replace File "./output/warn_ssr_rewrite.v", line 12, characters 2-9 with rw

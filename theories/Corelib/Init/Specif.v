@@ -927,6 +927,8 @@ Inductive sumor (A:Type) (B:Prop) : Type :=
 Arguments inleft {A B} _ , [A] B _.
 Arguments inright {A B} _ , A [B] _.
 
+Register sumor as core.sumor.type.
+
 (* Unset Universe Polymorphism. *)
 
 (** Various forms of the axiom of choice for specifications *)
