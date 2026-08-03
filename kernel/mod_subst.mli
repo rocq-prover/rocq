@@ -90,6 +90,10 @@ val map_mp :
 
 (** sequential composition:
    [substitute (join sub1 sub2) t = substitute sub2 (substitute sub1 t)]
+
+   Composition is recorded persistently and normalized after a bounded number
+   of components, so callers should use [join] rather than eagerly combining
+   resolver maps.
 *)
 val join : substitution -> substitution -> substitution
 
