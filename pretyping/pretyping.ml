@@ -1435,12 +1435,12 @@ struct
         CErrors.user_err ?loc (str "If is only for inductive types with two constructors.")
     in
     let () =
-      let indf_is_bool =
-        match dest_ind_family indf with _, _ :: _ -> false | (ind, _), [] ->
-          match Rocqlib.lib_ref_opt "core.bool.type" with
-          | None -> false
-          | Some bool -> GlobRef.CanOrd.equal (IndRef ind) bool in
-      if not indf_is_bool then
+      let (ind, _), _ = dest_ind_family indf in
+      let indf_is r =
+        match Rocqlib.lib_ref_opt ("core." ^ r ^ ".type") with
+        | None -> false
+        | Some bool -> GlobRef.CanOrd.equal (IndRef ind) bool in
+      if not (indf_is "bool" || indf_is "sumbool" || indf_is "sumor") then
         let cloc = loc_of_glob_constr c in
         warn_nonbool_if ?loc (cloc, fst cstrs.(0).cs_cstr) in
     let arsgn, indr =
