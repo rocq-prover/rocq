@@ -34,6 +34,87 @@ module DynMap = Dyn.Map(Decl)
 
 module MarshMap = Dyn.Map(struct type 'a t = 'a -> 'a end)
 
+module ID = struct type 'a t = 'a end
+module Frozen = Dyn.Map(ID)
+module HMap = Dyn.HMap(Decl)(ID)
+
+let warn_summary_out_of_scope =
+  CWarnings.create ~name:"summary-out-of-scope" ~default:Disabled Pp.(fun name ->
+      str "A Rocq plugin was loaded inside a local scope (such as a Section)." ++ spc() ++
+      str "It is recommended to load plugins at the start of the file." ++ spc() ++
+      str "Summary entry: " ++ str name)
+
+module MakeRef () :
+sig
+  type frozen
+  val empty : frozen
+  val register_tag : 'a Dyn.tag -> 'a -> unit
+  val init : unit -> unit
+  val freeze : unit -> frozen
+  val unfreeze : partial:bool -> frozen -> unit
+  val get : 'a Dyn.tag -> 'a
+  val set : 'a Dyn.tag -> 'a -> unit
+  val project : 'a Dyn.tag -> frozen -> 'a
+  val modify : 'a Dyn.tag -> 'a option -> frozen -> frozen
+end =
+struct
+
+type frozen = { frozen : Frozen.t; nonce : unit ref }
+
+let empty = { frozen = Frozen.empty; nonce = ref () }
+
+(** Unique nonce associated to each set of registered tags *)
+let sum_nonce = ref (ref ())
+
+let sum_ref = ref Frozen.empty
+let sum_init = ref Frozen.empty
+
+let register_tag tag v =
+  let () = sum_ref := Frozen.add tag v !sum_ref in
+  let () = sum_init := Frozen.add tag v !sum_init in
+  sum_nonce := ref ()
+
+let init () =
+  sum_ref := !sum_init
+
+let freeze () = { frozen = !sum_ref; nonce = !sum_nonce }
+
+let unfreeze ~partial f =
+  if f.nonce == !sum_nonce then sum_ref := f.frozen
+  else
+    (* mismatch, we have to add the state piecewise *)
+    let fold (Frozen.Any (tag, _)) accu =
+      try
+        let v = Frozen.find tag f.frozen in
+        Frozen.add tag v accu
+      with Not_found ->
+        if not partial then
+          let () = warn_summary_out_of_scope (Dyn.repr tag) in
+          Frozen.add tag (Frozen.find tag !sum_init) accu
+        else accu
+    in
+    let frozen = Frozen.fold fold !sum_ref !sum_ref in
+    sum_ref := frozen
+
+let project tag f = Frozen.find tag f.frozen
+
+let get tag = Frozen.find tag !sum_ref
+
+let set tag v =
+  sum_ref := Frozen.add tag v !sum_ref
+
+let modify tag v refs =
+  let () = assert (Frozen.mem tag refs.frozen) in
+  (* Be sure to create a fresh nonce *)
+  match v with
+  | None -> { frozen = Frozen.remove tag refs.frozen; nonce = ref () }
+  | Some v -> { frozen = Frozen.add tag v refs.frozen; nonce = ref () }
+
+end
+
+module SynterpRef = MakeRef()
+module InterpRef = MakeRef ()
+
 type ml_modules = string list
 
 let sum_mod : ml_modules summary_declaration option ref = ref None
@@ -67,13 +148,17 @@ let declare_summary_tag sumname ?make_marshallable decl =
   in
   tag
 
+let declare_summary_ref_tag ?(stage=Stage.Interp) sumname v =
+  let () = check_name (mangle sumname) in
+  let tag = Dyn.create (mangle sumname) in
+  let () = match stage with
+  | Synterp -> SynterpRef.register_tag tag v
+  | Interp -> InterpRef.register_tag tag v
+  in
+  tag
+
 let declare_summary sumname ?make_marshallable decl =
   ignore(declare_summary_tag sumname ?make_marshallable decl)
-
-module ID = struct type 'a t = 'a end
-module Frozen = Dyn.Map(ID)
-module HMap = Dyn.HMap(Decl)(ID)
-
 
 module type FrozenStage = sig
 
@@ -102,12 +187,6 @@ let make_marshallable marsh_map summaries =
   in
   Frozen.map map summaries
 
-let warn_summary_out_of_scope =
-  CWarnings.create ~name:"summary-out-of-scope" ~default:Disabled Pp.(fun name ->
-      str "A Rocq plugin was loaded inside a local scope (such as a Section)." ++ spc() ++
-      str "It is recommended to load plugins at the start of the file." ++ spc() ++
-      str "Summary entry: " ++ str name)
-
 let unfreeze_summaries ?(partial=false) sum_map summaries =
   (* We must be independent on the order of the map! *)
   let ufz (DynMap.Any (name, decl)) =
@@ -128,67 +207,85 @@ module Synterp = struct
   type frozen =
     {
         summaries : Frozen.t;
-        (** Ordered list w.r.t. the first component. *)
+        (** Frozen data for arbitrary summary declarations *)
+        refs : SynterpRef.frozen;
+        (* Frozen data for summary references *)
         ml_module : ml_modules option;
         (** Special handling of the ml_module summary. *)
     }
 
-  let empty_frozen = { summaries = Frozen.empty; ml_module = None }
+  let empty_frozen = { summaries = Frozen.empty; refs = SynterpRef.empty; ml_module = None }
 
   let freeze_summaries () =
     let summaries = freeze_summaries !sum_map_synterp in
-    { summaries; ml_module = Option.map (fun decl -> decl.freeze_function ()) !sum_mod }
+    let refs = SynterpRef.freeze () in
+    { summaries; refs; ml_module = Option.map (fun decl -> decl.freeze_function ()) !sum_mod }
 
-  let make_marshallable { summaries; ml_module } =
+  let make_marshallable { summaries; refs; ml_module } =
     { summaries = make_marshallable !sum_marsh_synterp summaries;
+      refs;
       ml_module }
 
-  let unfreeze_summaries ?(partial=false) { summaries; ml_module } =
+  let unfreeze_summaries ?(partial=false) { summaries; refs; ml_module } =
     (* The unfreezing of [ml_modules_summary] has to be anticipated since it
     * may modify the content of [summaries] by loading new ML modules *)
     begin match !sum_mod with
     | None -> CErrors.anomaly Pp.(str "Undeclared ML-MODULES summary.")
     | Some decl -> Option.iter decl.unfreeze_function ml_module
     end;
+    SynterpRef.unfreeze ~partial refs;
     unfreeze_summaries ~partial !sum_map_synterp summaries
 
   let init_summaries () =
+    SynterpRef.init ();
     init_summaries !sum_map_synterp
 
   (** Summary projection *)
-  let project_from_summary { summaries; _ } tag =
-    Frozen.find tag summaries
+  let project_from_summary { summaries; refs; _ } tag =
+    try Frozen.find tag summaries
+    with Not_found -> SynterpRef.project tag refs
 
 end
 
 module Interp = struct
 
-type frozen = Frozen.t
+type frozen = {
+  summaries : Frozen.t;
+  refs : InterpRef.frozen;
+}
 
-let empty_frozen = Frozen.empty
+let empty_frozen = {
+  summaries = Frozen.empty;
+  refs = InterpRef.empty;
+}
 
-  let freeze_summaries () =
-    freeze_summaries !sum_map_interp
+let freeze_summaries () =
+  let summaries = freeze_summaries !sum_map_interp in
+  let refs = InterpRef.freeze () in
+  { summaries; refs }
 
-  let make_marshallable summaries = make_marshallable !sum_marsh_interp summaries
+let make_marshallable { summaries; refs } =
+  let summaries = make_marshallable !sum_marsh_interp summaries in
+  { summaries; refs }
 
-  let unfreeze_summaries ?(partial=false) summaries =
-    unfreeze_summaries ~partial !sum_map_interp summaries
+let unfreeze_summaries ?(partial=false) { summaries; refs } =
+  let () = InterpRef.unfreeze ~partial refs in
+  unfreeze_summaries ~partial !sum_map_interp summaries
 
-  let init_summaries () =
-    init_summaries !sum_map_interp
+let init_summaries () =
+  let () = InterpRef.init () in
+  init_summaries !sum_map_interp
 
-  (** Summary projection *)
-  let project_from_summary summaries tag =
-    Frozen.find tag summaries
+(** Summary projection *)
+let project_from_summary { summaries; refs } tag =
+  try Frozen.find tag summaries
+  with Not_found -> InterpRef.project tag refs
 
-  let modify_summary summaries tag v =
-    let () = assert (Frozen.mem tag summaries) in
-    Frozen.add tag v summaries
+let modify_summary summaries tag v =
+  { summaries with refs = InterpRef.modify tag (Some v) summaries.refs }
 
-  let remove_from_summary summaries tag =
-    let () = assert (Frozen.mem tag summaries) in
-    Frozen.remove tag summaries
+let remove_from_summary summaries tag =
+  { summaries with refs = InterpRef.modify tag None summaries.refs }
 
 end
 
@@ -201,21 +298,23 @@ let nop () = ()
 
 module Ref =
 struct
-  type 'a t = 'a ref
-  let get = (!)
-  let set = (:=)
+  type 'a t = { stage : Stage.t; tag : 'a Dyn.tag }
+
+  let get r = match r.stage with
+  | Stage.Interp -> InterpRef.get r.tag
+  | Stage.Synterp -> SynterpRef.get r.tag
+
+  let set r v = match r.stage with
+  | Stage.Interp -> InterpRef.set r.tag v
+  | Stage.Synterp -> SynterpRef.set r.tag v
+
   let (!) = get
   let (:=) = set
 end
 
 let ref_tag ?(stage=Stage.Interp) ~name x =
-  let r = ref x in
-  let tag = declare_summary_tag name
-    { stage;
-      freeze_function = (fun () -> !r);
-      unfreeze_function = ((:=) r);
-      init_function = (fun () -> r := x) } in
-  r, tag
+  let tag = declare_summary_ref_tag ~stage name x in
+  Ref.{ stage; tag }, tag
 
 let local_ref ?(stage=Stage.Interp) ~name x =
   let r = ref x in
@@ -289,7 +388,6 @@ struct
     match active_observers with
     | Local active_observers -> active_observers := name :: remove name
     | Normal active_observers -> Ref.set active_observers (name :: remove name)
-
   let deactivate name : unit = match active_observers with
   | Local active_observers -> active_observers := remove name
   | Normal active_observers -> Ref.set active_observers (remove name)
