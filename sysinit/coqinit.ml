@@ -107,7 +107,9 @@ let boot_env usage opts =
   let coqlib = opts.config.coqlib in
   let warn_ignored_coqlib = CWarnings.warn_ignored_coqlib in
   match opts.main with
-  | Run -> Boot.Env.maybe_init ~boot ~coqlib ~warn_ignored_coqlib
+  | Run ->
+    if !Flags.nursery then Option.get @@ Boot.Env.initialized ()
+    else Boot.Env.maybe_init ~boot ~coqlib ~warn_ignored_coqlib
   | Queries qs ->
     let _ : Boot.Env.maybe_env =
       with_err
@@ -162,7 +164,7 @@ let init_runtime ~usage opts =
   let coqenv = boot_env usage opts in
 
   (* Paths for loading stuff *)
-  init_load_paths coqenv opts;
+  if not !Flags.nursery then init_load_paths coqenv opts;
 
   ()
 
@@ -172,7 +174,8 @@ let init_document opts =
   (* this isn't in init_load_paths because processes (typically
      vscoqtop) are allowed to have states with differing vo paths (but
      not with differing -boot or ml paths) *)
-  List.iter (fun x -> Loadpath.add_vo_path @@ to_vo_path x) opts.pre.vo_includes;
+  if not !Flags.nursery then
+    List.iter (fun x -> Loadpath.add_vo_path @@ to_vo_path x) opts.pre.vo_includes;
 
   (* Kernel configuration *)
   Global.set_impredicative_set opts.config.logic.impredicative_set;

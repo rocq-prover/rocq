@@ -105,6 +105,8 @@ type library_t = {
   library_vm : Vmlibrary.on_disk;
 }
 
+let library_deps l = l.library_deps
+
 (* This is a map from names to loaded libraries *)
 let libraries_table : library_t DirPath.Map.t ref =
   Summary.ref DirPath.Map.empty ~stage:Summary.Stage.Synterp ~name:"LIBRARY"

@@ -8,4 +8,4 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-let () = Worker_main.main (List.tl (Array.to_list Sys.argv))
+val start : (string list -> unit) -> string list -> unit
