@@ -22,7 +22,7 @@ val get_load_paths : (unit -> string list) ref
 
 val load_obj : (string -> unit) ref
 
-val get_ml_filename : unit -> string * string
+val get_mlf_filename : unit -> string * string
 
 (** [compile file code ~profile] will compile native [code] to [file],
    and return the name of the object file; this name depends on
