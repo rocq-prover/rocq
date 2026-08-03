@@ -550,7 +550,7 @@ let explain_ill_formed_fix_body env sigma names i = function
       let pr_db x = quote (pr_db env x) in
       let vars =
         match Lazy.force le_lt with
-            ([],[]) -> assert false
+            ([],[]) -> str "no known variables"
           | ([x],[]) -> str "a subterm of " ++ pr_db x
           | (le,[]) -> str "a subterm of the following variables: " ++
               pr_sequence pr_db le
