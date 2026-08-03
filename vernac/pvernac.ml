@@ -99,7 +99,7 @@ module Vernac_ =
         mode.command_entry
 
     let parse_generic_tactic strm =
-      let (let+) x f = Result.map f x in
+      let (let+) x f = Option.map f x in
       let mode = get_default_proof_mode () in
       let ProofMode mode = find_proof_mode mode in
       let+ v = Procq.Entry.parse_token_stream mode.tactic_expr_entry strm in

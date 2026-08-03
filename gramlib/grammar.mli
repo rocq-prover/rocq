@@ -33,7 +33,7 @@ module type S = sig
 
   type peek_error = unit
 
-  type 'a parser_v = ('a, peek_error) result
+  type 'a parser_v = 'a option
   (** Recoverable parsing errors are signaled use [Error]. To be
       correctly recovered we must not have consumed any tokens since
       the last choice point, ie we only peeked at the stream.
