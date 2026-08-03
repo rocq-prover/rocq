@@ -430,6 +430,22 @@ Ltac2 map_with_binders (lift : 'a -> binder -> 'a) (f : 'a -> constr -> constr) 
       make (Array u t def ty)
   end.
 
+(** [fold f acc c] folds [f] over the immediate subterms of [c],
+    mirroring [iter].  Cf the OCaml [Constr.fold]. *)
+Ltac2 fold (f : 'a -> constr -> 'a) (acc : 'a) (c : constr) : 'a :=
+  let cell := { contents := acc } in
+  iter (fun c => cell.(contents) := f (cell.(contents)) c) c;
+  cell.(contents).
+
+(** [fold_with_binders g f n acc c] folds [f n] over the immediate
+    subterms of [c], updating [n] with [g] at each binder traversal,
+    mirroring [iter_with_binders].  Cf the OCaml
+    [Constr.fold_constr_with_binders]. *)
+Ltac2 fold_with_binders (g : 'b -> binder -> 'b) (f : 'b -> 'a -> constr -> 'a) (n : 'b) (acc : 'a) (c : constr) : 'a :=
+  let cell := { contents := acc } in
+  iter_with_binders g (fun n c => cell.(contents) := f n (cell.(contents)) c) n c;
+  cell.(contents).
+
 End Unsafe.
 
 Module Cast.
@@ -648,3 +664,23 @@ Ltac2 is_case(c: constr) :=
   | Unsafe.Case _ _ _ _ _ => true
   | _ => false
   end.
+
+(** [has_of_is is_x c] returns [true] iff [is_x] returns [true] on [c]
+    or on any of its (deep) subterms. *)
+Ltac2 has_of_is (is_x : constr -> bool) (c : constr) : bool :=
+  let rec aux c :=
+    if is_x c then true
+    else Unsafe.fold (fun acc c => if acc then true else aux c) false c
+  in aux c.
+
+(** [has_var c] returns [true] iff [c] contains a named variable. *)
+Ltac2 has_var (c : constr) : bool := has_of_is is_var c.
+
+(** [is_fix_or_cofix c] returns [true] iff [c] is a [Fix] or a
+    [CoFix]. *)
+Ltac2 is_fix_or_cofix (c : constr) : bool :=
+  if is_fix c then true else is_cofix c.
+
+(** [has_fix_or_cofix c] returns [true] iff [c] contains a [Fix] or a
+    [CoFix] as a (deep) subterm. *)
+Ltac2 has_fix_or_cofix (c : constr) : bool := has_of_is is_fix_or_cofix c.
