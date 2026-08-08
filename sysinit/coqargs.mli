@@ -80,7 +80,10 @@ type coqargs_pre = {
 
   ml_includes : CUnix.physical_path list;
   vo_includes : vo_path list;
+  (** Explicit load paths specified with [-Q] or [-R]. *)
   packages : string list;
+  (** Findlib package names specified with [-package].  They are resolved when
+      the document is initialized. *)
 
   load_vernacular_list : string list;
   injections  : injection_command list;
