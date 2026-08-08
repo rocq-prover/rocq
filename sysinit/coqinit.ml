@@ -172,7 +172,17 @@ let init_document opts =
   (* this isn't in init_load_paths because processes (typically
      vscoqtop) are allowed to have states with differing vo paths (but
      not with differing -boot or ml paths) *)
-  List.iter (fun x -> Loadpath.add_vo_path @@ to_vo_path x) opts.pre.vo_includes;
+  let package_includes =
+    let vo_path_of_package (x:Rocq_package.t) : vo_path = {
+      implicit = false;
+      unix_path = x.dir;
+      rocq_path = x.logpath;
+      }
+    in
+    List.rev_map vo_path_of_package (Rocq_package.resolve opts.pre.packages)
+  in
+  let vo_includes = opts.pre.vo_includes @ package_includes in
+  List.iter (fun x -> Loadpath.add_vo_path @@ to_vo_path x) vo_includes;
 
   (* Kernel configuration *)
   Global.set_impredicative_set opts.config.logic.impredicative_set;

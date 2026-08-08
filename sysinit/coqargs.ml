@@ -172,16 +172,6 @@ let add_vo_include opts unix_path rocq_path implicit =
 let add_package opts p =
   { opts with pre = { opts.pre with packages = p :: opts.pre.packages }}
 
-let resolve_packages args =
-  let packages = Rocq_package.resolve args.pre.packages in
-  let add p vo_includes =
-    let unix_path = p.Rocq_package.dir in
-    let rocq_path = p.Rocq_package.logpath in
-    { unix_path; rocq_path; implicit = false } :: vo_includes
-  in
-  let vo_includes = List.fold_right add packages args.pre.vo_includes in
-  { args with pre = { args.pre with vo_includes } }
-
 let add_vo_require opts d ?(allow_failure=false) p export =
   { opts with pre = { opts.pre with injections = RequireInjection {lib=d; prefix=p; export; allow_failure} :: opts.pre.injections }}
 
@@ -273,7 +263,7 @@ let parse_args ~init arglist : t * string list =
   let extras = ref [] in
   let rec parse oval = match !args with
   | [] ->
-    (resolve_packages oval, List.rev !extras)
+    (oval, List.rev !extras)
   | opt :: rem ->
     args := rem;
     let next () = match !args with
@@ -442,19 +432,23 @@ let parse_args ~init arglist : t * string list =
   in
   parse init
 
-(* We need to reverse a few lists *)
+(* These lists are accumulated in reverse order by the parser.  This helper
+   converts both from and to that representation. *)
+let reverse_accumulators opts =
+  { opts with
+    pre = { opts.pre with
+            ml_includes = List.rev opts.pre.ml_includes
+          ; vo_includes = List.rev opts.pre.vo_includes
+          ; packages = List.rev opts.pre.packages
+          ; load_vernacular_list = List.rev opts.pre.load_vernacular_list
+          ; injections = List.rev opts.pre.injections
+          }
+  }
+
 let parse_args ~init args =
+  let init = reverse_accumulators init in
   let opts, extra = parse_args ~init args in
-  let opts =
-    { opts with
-      pre = { opts.pre with
-              ml_includes = List.rev opts.pre.ml_includes
-            ; vo_includes = List.rev opts.pre.vo_includes
-            ; load_vernacular_list = List.rev opts.pre.load_vernacular_list
-            ; injections = List.rev opts.pre.injections
-            }
-    } in
-  opts, extra
+  reverse_accumulators opts, extra
 
 (******************************************************************************)
 (* Startup LoadPath and Modules                                               *)
