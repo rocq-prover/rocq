@@ -1,0 +1,26 @@
+Abbreviation double x := (x + x)
+Arguments are in scopes: x%_nat_scope
+Expands to: Abbreviation abbreviation_scopes.double
+Declared in library abbreviation_scopes, line 3, characters 0-33
+Abbreviation add3 x y z := (x + y + z)
+Arguments are in scopes: x%_nat_scope, y%_nat_scope, z%_nat_scope
+Expands to: Abbreviation abbreviation_scopes.add3
+Declared in library abbreviation_scopes, line 6, characters 0-39
+Abbreviation idp A := (fun a : A => a)
+Arguments are in scopes: A%_type_scope
+Expands to: Abbreviation abbreviation_scopes.idp
+Declared in library abbreviation_scopes, line 10, characters 0-39
+Abbreviation id_unit x := match x with
+                          | tt => tt
+                          end
+Expands to: Abbreviation abbreviation_scopes.id_unit
+Declared in library abbreviation_scopes, line 14, characters 0-52
+Abbreviation zero := 0
+Expands to: Abbreviation abbreviation_scopes.zero
+Declared in library abbreviation_scopes, line 18, characters 0-23
+
+O : nat
+
+O is not universe polymorphic
+Expands to: Constructor Corelib.Init.Datatypes.O
+Declared in library Corelib.Init.Datatypes, line 186, characters 4-5
