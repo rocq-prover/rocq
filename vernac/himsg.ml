@@ -1312,6 +1312,7 @@ let explain_not_match_error = function
       let uctx = UVars.AbstractContext.repr auctx in
       let sigma = Evd.from_auctx env (Printer.fill_names auctx) in
       Printer.pr_universe_instance_binder sigma
+        ~elim_csts:(UContext.elim_constraints uctx)
         (UContext.instance uctx)
         (UContext.univ_constraints uctx)
     in

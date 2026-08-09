@@ -1,0 +1,6 @@
+File "./output/elim_constraints_binder.v", line 15, characters 0-27:
+The command has indeed failed with message:
+Signature components for field T do not match:
+incompatible polymorphic binders: got @{s ; u | s -> Type, Set < u}
+but expected @{s ; u | Set < u}
+(incompatible constraints).
