@@ -485,7 +485,7 @@ let cc_tactic depth additional_terms b =
         | HeqnH (ida,idb) ->
           convert_to_hyp_tac ida ta idb tb p)
       begin function (e, info) -> match e with
-        | TacticErrors.NotConvertible ->
+        | TacticErrors.NotConvertible _ ->
           Tacticals.tclFAIL
             (str (if b then "simple congruence failed" else "congruence failed") ++
              str " (cannot build a well-typed proof)")

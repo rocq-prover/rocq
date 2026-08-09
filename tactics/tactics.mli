@@ -732,7 +732,7 @@ end
     for backwards compatibility. Don't use in new code. *)
 
 (** Deprecated since 9.2, use [TacticErrors.not_convertible ()] instead. *)
-exception NotConvertible
+exception NotConvertible of (Environ.env * Evd.evar_map * EConstr.constr * EConstr.constr) option
 
 val fix : Id.t -> int -> unit Proofview.tactic
 [@@ocaml.deprecated "(since 9.2) Use [FixTactics.fix]"]
