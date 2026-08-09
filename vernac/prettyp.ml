@@ -1058,12 +1058,29 @@ let print_about_global_reference ?loc env ref udecl =
     [hov 0 (str "Expands to: " ++ pr_located_qualid env (Term ref)) ++
     loc_info (TrueGlobal ref)])
 
+let print_abbreviation_argument_scopes kn =
+  let (vars,_) = Abbreviation.find_interp kn in
+  let scope_of (_entry,(tmp_scopes,scopes)) = match tmp_scopes @ scopes with
+    | [] -> None
+    | sc :: _ -> Some sc in
+  let scoped =
+    List.filter_map (fun (id,(subscopes,_,_)) ->
+        Option.map (fun sc -> (id,sc)) (scope_of subscopes))
+      vars in
+  if List.is_empty scoped then mt ()
+  else
+    fnl () ++
+    hov 0 (str "Arguments are in scopes:" ++ spc () ++
+           prlist_with_sep pr_comma
+             (fun (id,sc) -> Id.print id ++ str " : " ++ str sc) scoped)
+
 let print_about_abbreviation env sigma kn =
   let (vars,c) = glob_constr_of_abbreviation kn in
   let pp = match DAst.get c with
   | GRef (gref,_udecl) -> (* TODO: don't drop universes? *) [print_about_global_reference env gref None]
   | _ -> [] in
-  print_abbreviation_body env kn (vars,c) ++ fnl () ++
+  print_abbreviation_body env kn (vars,c) ++
+  print_abbreviation_argument_scopes kn ++ fnl () ++
   hov 0 (str "Expands to: " ++ pr_located_qualid env (Abbreviation kn)) ++
   loc_info (Abbrev kn) ++
   with_line_skip pp
