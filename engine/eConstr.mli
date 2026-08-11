@@ -353,6 +353,12 @@ val map_existential : Evd.evar_map -> (t -> t) -> existential -> existential
 val iter : Evd.evar_map -> (t -> unit) -> t -> unit
 val iter_with_binders : Evd.evar_map -> ('a -> 'a) -> ('a -> t -> unit) -> 'a -> t -> unit
 val iter_with_full_binders : Environ.env -> Evd.evar_map -> (rel_declaration -> 'a -> 'a) -> ('a -> t -> unit) -> 'a -> t -> unit
+val map_with_full_binders : Environ.env -> Evd.evar_map -> (rel_declaration -> 'a -> 'a) -> ('a -> t -> t) -> 'a -> t -> t
+(** The map counterpart of {!iter_with_full_binders}: [f] is applied to the
+    immediate subterms of the term, the accumulator being updated by [g] for
+    every declaration bound in the visited subterm, including the ones bound
+    by [Case], [Fix] and [CoFix] nodes. It is not recursive. *)
+
 val fold : Evd.evar_map -> ('a -> t -> 'a) -> 'a -> t -> 'a
 val fold_with_binders : Evd.evar_map -> ('a -> 'a) -> ('a -> 'b -> t -> 'b) -> 'a -> 'b -> t -> 'b
 
