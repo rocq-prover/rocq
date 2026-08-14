@@ -591,7 +591,7 @@ $coq_opam_package (dependency install failed in $RUNNER)"
                  3>$log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.stdout.log 1>&3 \
                  4>$log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.stderr.log 2>&4 || \
                 _RES=$?
-            if [ $_RES = 0 ];
+            if [ $_RES = 0 ] && [ -e $log_dir/$coq_opam_package.$RUNNER.$iteration.ncoms ];
             then
                 echo $_RES > $log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.exit_status
                 # "opam install" was successful.
@@ -604,6 +604,12 @@ $coq_opam_package (dependency install failed in $RUNNER)"
                 if [ $iteration != $num_of_iterations ]; then
                     opam uninstall -q $coq_opam_package
                 fi
+            elif [ $_RES = 0 ]; then
+              # package became a virtual package (no commands were run), act as though it failed
+              echo 127 > $log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.exit_status
+              failed_packages="$failed_packages
+$coq_opam_package (virtual package?) (in $RUNNER)"
+              continue 3
             else
                 # "opam install" failed.
                 echo $_RES > $log_dir/$coq_opam_package.$RUNNER.opam_install.$iteration.exit_status
