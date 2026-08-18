@@ -190,9 +190,16 @@ let generic_search env sigma (fn : GlobRef.t -> (Vernacexpr.discharge * Decls.lo
     required of a search. *)
 module ConstrPriority = struct
 
-  (* The priority is memoised here. Because of the very localised use
-     of this module, it is not worth it making a convenient interface. *)
-  type t = GlobRef.t * Libnames.qualid * (Vernacexpr.discharge * Decls.logical_kind) option * Environ.env * Evd.evar_map * Constr.t * priority
+  (* The priority is memoised here. *)
+  type t = {
+    gref : GlobRef.t;
+    qid : Libnames.qualid;
+    kind : (Vernacexpr.discharge * Decls.logical_kind) option;
+    env : Environ.env;
+    sigma : Evd.evar_map;
+    term : Constr.t;
+    prio : priority;
+  }
   and priority = int
 
   (** A measure of the size of a term *)
@@ -215,10 +222,10 @@ module ConstrPriority = struct
   let priority gref t : priority =
     -(3*(num_symbols t) + size t)
 
-  let compare (_,qid1,_,_,_,_,p1) (_,qid2,_,_,_,_,p2) =
-    let c = Int.compare p1 p2 in
+  let compare v1 v2 =
+    let c = Int.compare v1.prio v2.prio in
     if c <> 0 then c
-    else Libnames.qualid_compare qid1 qid2
+    else Libnames.qualid_compare v1.qid v2.qid
 end
 
 module PriorityQueue = Heap.Functional(ConstrPriority)
@@ -226,8 +233,8 @@ module PriorityQueue = Heap.Functional(ConstrPriority)
 let rec iter_priority_queue q fn =
   (* Tail-rec! *)
   match PriorityQueue.maximum q with
-  | (gref,_,kind,env,sigma,t,_) ->
-    fn gref kind env sigma t;
+  | {gref;kind;env;sigma;term} ->
+    fn gref kind env sigma term;
     iter_priority_queue (PriorityQueue.remove q) fn
   | exception Heap.EmptyHeap -> ()
 
@@ -236,7 +243,7 @@ let prioritize_search seq fn =
   let iter gref kind env sigma t =
     let p = ConstrPriority.priority gref t in
     let qid = Nametab.shortest_qualid_of_global Id.Set.empty gref in
-    acc := PriorityQueue.add (gref,qid,kind,env,sigma,t,p) !acc
+    acc := PriorityQueue.add {gref;qid;kind;env;sigma;term=t;prio=p} !acc
   in
   let () = seq iter in
   iter_priority_queue !acc fn
