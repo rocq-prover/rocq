@@ -2388,7 +2388,6 @@ SPLICE: [
 | ne_in_or_out_modules
 | search_queries
 | locatable
-| scope_delimiter
 | one_import_filter_name
 | search_where
 | message_token

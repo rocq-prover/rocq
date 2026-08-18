@@ -48,8 +48,6 @@ val of_type_inst :
 
 val section_subset_expr : Vernacexpr.section_subset_expr Procq.Entry.t
 
-val scope_delimiter : Vernacexpr.scope_delimiter Procq.Entry.t
-
 val syntax_modifiers : Vernacexpr.syntax_modifier CAst.t list Procq.Entry.t
 
 val make_bullet : string -> Proof_bullet.t
