@@ -16,7 +16,7 @@ make clean
 make src/evil_plugin.cmxs
 make src/good_plugin.cmxs
 
-if rocq c -async-proofs on  -I src -Q theories Marshal theories/evil.v 2> log1 1>&2; then
+if rocq c -q -async-proofs on  -I src -Q theories Marshal theories/evil.v 2> log1 1>&2; then
   >&2 echo "evil.v should have failed with async proofs on"
   exit 1
 fi
@@ -25,6 +25,6 @@ if ! grep -q 'Marshalling error' log1; then
   exit 1
 fi
 
-rocq c -async-proofs off -I src -Q theories Marshal theories/evil.v
+rocq c -q -async-proofs off -I src -Q theories Marshal theories/evil.v
 
-rocq c -async-proofs on  -I src -Q theories Marshal theories/good.v
+rocq c -q -async-proofs on  -I src -Q theories Marshal theories/good.v

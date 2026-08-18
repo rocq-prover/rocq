@@ -20,8 +20,8 @@ make clean
 
 # Test using compilation in custom order
 set -x #echo on
-rocq c A.v
-rocq c -vos B.v
-rocq c -vos C.v
-rocq c -vok B.v
-rocq c -vok C.v
+rocq c -q A.v
+rocq c -q -vos B.v
+rocq c -q -vos C.v
+rocq c -q -vok B.v
+rocq c -q -vok C.v

@@ -17,5 +17,5 @@ EOF
 
 echo 'Load "toload.v". Eval cbv in after_succeed.' > main.v
 
-rocq c main.v
+rocq c -q main.v
 test -e main.vo
