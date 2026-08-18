@@ -35,6 +35,72 @@ let empty_state = {
   st_retro = (Mindmap_env.empty, Cmap_env.empty);
 }
 
+(** {6 Compiling the VM bytecode}
+
+    The checker never reads the [vmlibrary] segment of a [.vo] file, and it does
+    not trust the code descriptors [const_body_code] stored in the declarations
+    either: both are attacker-controlled data that the typechecker has no way to
+    validate. Instead it recompiles the bytecode of every constant from the body
+    it is about to check, and records it in a table of its own, so that the code
+    the VM runs agrees with the checked body by construction. *)
+
+let push_bytecode vmtab code =
+  let open Vmemitcodes in
+  match code with
+  | BCdefined (mask, code, patches) ->
+    let vmtab, index = Vmlibrary.add code vmtab in
+    vmtab, BCdefined (mask, index, patches)
+  | (BCalias _ | BCconstant | BCuncompiled) as code -> vmtab, code
+
+let compile_constant_bytecode env vmtab cb =
+  let code =
+    Vmbytegen.compile_constant_body ~fail_on_error:false env
+      cb.const_universes cb.const_body
+  in
+  let vmtab, code = push_bytecode vmtab code in
+  vmtab, { cb with const_body_code = code }
+
+(* The environment is threaded exactly as in [Modops.add_structure], so that
+   each constant is compiled in the environment it is declared in. *)
+let rec compile_structure env vmtab mp res struc =
+  let fold (env, vmtab, accu) (lab, sfb) = match sfb with
+  | SFBconst cb ->
+    let c = Mod_subst.constant_of_delta_kn res (KerName.make mp lab) in
+    let vmtab, cb = compile_constant_bytecode env vmtab cb in
+    Environ.add_constant c cb env, vmtab, (lab, SFBconst cb) :: accu
+  | SFBmind mib ->
+    let mind = Mod_subst.mind_of_delta_kn res (KerName.make mp lab) in
+    Environ.add_mind mind mib env, vmtab, (lab, sfb) :: accu
+  | SFBmodule mb ->
+    let mp = MPdot (mp, lab) in
+    let vmtab, mb = compile_module_bytecode env vmtab mp mb in
+    Modops.add_module mp mb env, vmtab, (lab, SFBmodule mb) :: accu
+  | SFBmodtype mtb ->
+    let mp = MPdot (mp, lab) in
+    let vmtab, mtb = compile_module_bytecode env vmtab mp mtb in
+    add_modtype mp mtb env, vmtab, (lab, SFBmodtype mtb) :: accu
+  | SFBrules rrb ->
+    Environ.add_rewrite_rules rrb.rewrules_rules env, vmtab, (lab, sfb) :: accu
+  in
+  let (_ : env), vmtab, accu = List.fold_left fold (env, vmtab, []) struc in
+  vmtab, List.rev accu
+
+and compile_signature env vmtab mp res = function
+  | MoreFunctor (arg_id, mtb, body) ->
+    let vmtab, mtb = compile_module_bytecode env vmtab (MPbound arg_id) mtb in
+    let env = Modops.add_module_parameter arg_id mtb env in
+    let vmtab, body = compile_signature env vmtab mp res body in
+    vmtab, MoreFunctor (arg_id, mtb, body)
+  | NoFunctor struc ->
+    let vmtab, struc = compile_structure env vmtab mp res struc in
+    vmtab, NoFunctor struc
+
+and compile_module_bytecode : 'a. env -> Vmlibrary.t -> ModPath.t ->
+  'a generic_module_body -> Vmlibrary.t * 'a generic_module_body =
+  fun env vmtab mp mb ->
+  let vmtab, sign = compile_signature env vmtab mp (mod_delta mb) (mod_type mb) in
+  vmtab, Mod_declarations.set_signature sign mb
+
 let indirect_accessor : (Opaqueproof.opaque -> Opaqueproof.opaque_proofterm) ref =
   ref (fun _ -> assert false)
 
@@ -290,6 +356,11 @@ let rec check_module env opac mp mb opacify =
       let opacify = collect_constants_without_body (mod_type mb) mp opacify in
       (* TODO: a bit wasteful, we recheck the types of parameters twice *)
       let sign_struct = Modops.annotate_struct_body sign_struct (mod_type mb) in
+      (* The implementation is checked in its own right, hence its bytecode is
+         compiled too; it is local to this check and never exported. *)
+      let vmtab, sign_struct =
+        compile_signature env (Environ.vm_library env) mp reso sign_struct in
+      let env = Environ.set_vm_library vmtab env in
       let opac = check_signature env opac sign_struct mp reso opacify in
       Some (sign_struct, reso), opac
     | Algebraic me -> Some (check_mexpression env me (mod_type mb) mp delta_mb), opac

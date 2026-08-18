@@ -1605,6 +1605,7 @@ let add_include me is_module inl senv =
 let dirpath_of_library lib = lib.comp_name
 
 let module_of_library lib = lib.comp_mod
+let replace_module_of_library lib mb = { lib with comp_mod = mb }
 
 let univs_of_library lib = lib.comp_sorts, lib.comp_univs
 

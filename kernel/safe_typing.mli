@@ -241,6 +241,9 @@ type compiled_library
 
 val dirpath_of_library : compiled_library -> DirPath.t
 val module_of_library : compiled_library -> Mod_declarations.module_body
+val replace_module_of_library : compiled_library -> Mod_declarations.module_body -> compiled_library
+(** Used by the checker, which recompiles the VM bytecode of every constant
+    instead of trusting the one serialized in the file. *)
 val univs_of_library : compiled_library -> (Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t) * Univ.ContextSet.t
 val retroknowledge_of_library : compiled_library -> Retroknowledge.action list
 val check_flags_for_library : compiled_library -> safe_transformer0
