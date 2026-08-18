@@ -88,7 +88,43 @@ let option_write_vos = ref false
 let set_noglob glob = option_noglob := glob
 let set_write_vos vos = option_write_vos := vos
 
+(* Transform "Declare ML %DECL" to a pair of (meta, cmxs). Something
+   very similar is in ML top *)
+let declare_ml_to_file file (decl : string) =
+  let legacy_decl = String.split_on_char ':' decl in
+  match legacy_decl with
+  | [package] ->
+    Fl.findlib_deep_resolve ~file ~package
+  | [cmxs; package] ->
+    (* rocq compile will warn *)
+    Fl.findlib_deep_resolve ~file ~package
+  | bad_pkg ->
+    CErrors.user_err Pp.(str "Failed to resolve plugin: " ++ str decl)
+
 let print_dep fmt { Dep_info.name; deps } =
+  let vfile = name^".v" in
+  let deps =
+    let visited_ml = ref CString.Set.empty in
+    let expand_package_dep package =
+      let meta_file, str = declare_ml_to_file vfile package in
+      List.map (fun f -> Dep_info.Dep.Other f) meta_file @
+      CList.map_filter (fun str ->
+          let plugin_file = Filename.chop_extension str in
+          if not (CString.Set.mem plugin_file !visited_ml) then begin
+            visited_ml := CString.Set.add plugin_file !visited_ml;
+            Some (Dep_info.Dep.Ml plugin_file)
+          end
+          else None)
+        str
+    in
+    let f dep =
+      match dep with
+      | Dep_info.Dep.Ml package -> expand_package_dep package
+      | Dep_info.Dep.Other _ | Dep_info.Dep.Require _ -> [dep]
+    in
+    List.concat_map f deps |> CList.sort_uniq Dep_info.Dep.compare
+  in
+
   let ename = escape name in
     let glob = if !option_noglob then "" else ename^".glob " in
   fprintf fmt "%s.vo %s%s.v.beautified %s.required_vo: %s.v %a\n" ename glob ename ename ename
