@@ -406,7 +406,7 @@ let rec extract_structure table access venv env mp reso ~all = function
       let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst inst) rrb.rewrules_rules in
       let ms = extract_structure table access venv env mp reso ~all struc in
       if all || b then begin
-        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) { glob = ConstRef cst; inst } l) rrb.rewrules_rules;
+        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) (ConstRef cst) l) rrb.rewrules_rules;
         ms
       end else ms
   | (l,SFBmodule mb) :: struc ->

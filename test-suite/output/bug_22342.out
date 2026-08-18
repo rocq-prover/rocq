@@ -1,6 +1,6 @@
 File "./output/bug_22342.v", line 8, characters 0-24:
 Warning: The extraction is currently set to bypass opacity, the following
-opaque constant bodies have been accessed : m1 m1.
+opaque constant bodies have been accessed : m1.
  [extraction-opaque-accessed,extraction,default]
 
 type __ = Obj.t
