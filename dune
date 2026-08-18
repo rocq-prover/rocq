@@ -44,8 +44,7 @@
  (targets corelib_dune)
  (deps
   (source_tree plugins)
-  (source_tree theories)
-  (package rocq-runtime))
+  (source_tree theories))
  (action
   (with-stdout-to %{targets}
    (run tools/dune_rule_gen/gen_rules.exe Corelib theories/Corelib %{env:COQ_DUNE_EXTRA_OPT=}))))
@@ -54,8 +53,7 @@
  (targets ltac2_dune)
  (deps
   (source_tree plugins)
-  (source_tree theories)
-  (package rocq-runtime))
+  (source_tree theories))
  (action
   (with-stdout-to %{targets}
    (run tools/dune_rule_gen/gen_rules.exe Ltac2 theories/Ltac2 -noinit %{env:COQ_DUNE_EXTRA_OPT=}))))
