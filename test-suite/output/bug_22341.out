@@ -1,0 +1,6 @@
+(** val idp : 'a1 -> 'a1 **)
+
+let idp a =
+  a
+type 'a bli = 'a
+  (* singleton inductive, whose constructor was Build_bli *)
