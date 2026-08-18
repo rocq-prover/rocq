@@ -195,6 +195,7 @@ module Constr :
     val record_declaration : (Libnames.qualid * constr_expr) list Entry.t
     val arg : (constr_expr * explicitation CAst.t option) Entry.t
     val type_cstr : constr_expr Entry.t
+    val scope_delimiter : scope_delimiter Entry.t
   end
 
 module Module :

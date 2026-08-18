@@ -56,7 +56,6 @@ let record_field = Entry.make "record_field"
 let of_type = Entry.make "of_type"
 let of_type_inst = Entry.make "of_type_inst"
 let section_subset_expr = Entry.make "section_subset_expr"
-let scope_delimiter = Entry.make "scope_delimiter"
 let syntax_modifiers = Entry.make "syntax_modifiers"
 let goal_selector = Entry.make "goal_selector"
 let toplevel_selector = Entry.make "toplevel_selector"
@@ -869,7 +868,7 @@ END
 
 (* Extensions: implicits, coercions, etc. *)
 GRAMMAR EXTEND Gram
-  GLOBAL: gallina_ext hint_info scope_delimiter;
+  GLOBAL: gallina_ext hint_info;
 
   gallina_ext: TOP
     [ [ (* Transparent and Opaque *)
@@ -971,10 +970,6 @@ GRAMMAR EXTEND Gram
       | IDENT "clear"; IDENT "implicits"; IDENT "and"; IDENT "scopes" ->
           { [`ClearImplicits; `ClearScopes] }
       ] ]
-  ;
-  scope_delimiter:
-    [ [ "%"; key = IDENT -> { DelimUnboundedScope, key }
-      | "%_"; key = IDENT -> { DelimOnlyTmpScope, key } ] ]
   ;
   argument_spec: [
        [ b = OPT "!"; id = name ; s = LIST0 scope_delimiter ->

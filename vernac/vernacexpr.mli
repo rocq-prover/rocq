@@ -20,8 +20,6 @@ type coercion_class = FunClass | SortClass | RefClass of qualid or_by_notation
 type goal_identifier = string
 type scope_name = string
 
-type scope_delimiter = delimiter_depth * scope_name
-
 type goal_reference =
   | OpenSubgoals
   | NthGoal of int

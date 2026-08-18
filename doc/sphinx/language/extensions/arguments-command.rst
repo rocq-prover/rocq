@@ -11,10 +11,10 @@ Setting properties of a function's arguments
       arg_specs ::= @argument_spec
       | /
       | &
-      | ( {+ @argument_spec } ) {* {| % @scope | %_ @scope } }
-      | [ {+ @argument_spec } ] {* {| % @scope | %_ @scope } }
-      | %{ {+ @argument_spec } %} {* {| % @scope | %_ @scope } }
-      argument_spec ::= {? ! } @name {* {| % @scope | %_ @scope } }
+      | ( {+ @argument_spec } ) {* @scope_delimiter }
+      | [ {+ @argument_spec } ] {* @scope_delimiter }
+      | %{ {+ @argument_spec } %} {* @scope_delimiter }
+      argument_spec ::= {? ! } @name {* @scope_delimiter }
       implicits_alt ::= @name
       | [ {+ @name } ]
       | %{ {+ @name } %}
