@@ -1112,8 +1112,8 @@ let extract_constant table access env kn inst cb =
   let sg = Evd.from_env env in
   let r = { glob = GlobRef.ConstRef kn; inst } in
   let typ = qmono cb.const_universes inst cb.const_type in
-  let warn_info () = if not (is_custom r) then add_info_axiom (Common.State.get_table table) r in
-  let warn_log () = if not (constant_has_body cb) then add_log_axiom (Common.State.get_table table) r
+  let warn_info () = if not (is_custom r) then add_info_axiom (Common.State.get_table table) r.glob in
+  let warn_log () = if not (constant_has_body cb) then add_log_axiom (Common.State.get_table table) r.glob
   in
   let mk_typ_ax () =
     let n = type_scheme_nb_args env sg typ in
@@ -1142,7 +1142,7 @@ let extract_constant table access env kn inst cb =
     | (Logic,Default) -> warn_log (); Dterm (r, MLdummy Kprop, Tdummy Kprop)
     | (Info,TypeScheme) ->
         (match cb.const_body with
-          | Symbol _ -> add_symbol (Common.State.get_table table) r; mk_typ_ax ()
+          | Symbol _ -> add_symbol (Common.State.get_table table) r.glob; mk_typ_ax ()
           | Primitive _ | Undef _ -> warn_info (); mk_typ_ax ()
           | Def c ->
              (match Structures.PrimitiveProjections.find_opt kn with
@@ -1152,12 +1152,12 @@ let extract_constant table access env kn inst cb =
                 let body = qmono cb.const_universes inst body in
                 mk_typ body)
           | OpaqueDef c ->
-            add_opaque (Common.State.get_table table) r;
+            add_opaque (Common.State.get_table table) r.glob;
             if access_opaque () then mk_typ (get_opaque cb.const_universes inst access c)
             else mk_typ_ax ())
     | (Info,Default) ->
         (match cb.const_body with
-          | Symbol _ -> add_symbol (Common.State.get_table table) r; mk_ax ()
+          | Symbol _ -> add_symbol (Common.State.get_table table) r.glob; mk_ax ()
           | Primitive _ | Undef _ -> warn_info (); mk_ax ()
           | Def c ->
              (match Structures.PrimitiveProjections.find_opt kn with
@@ -1166,7 +1166,7 @@ let extract_constant table access env kn inst cb =
                 let body = fake_match_projection env p in
                 mk_def (qmono cb.const_universes inst body))
           | OpaqueDef c ->
-            add_opaque (Common.State.get_table table) r;
+            add_opaque (Common.State.get_table table) r.glob;
             if access_opaque () then mk_def (get_opaque cb.const_universes inst access c)
             else mk_ax ())
   with SingletonInductiveBecomesProp ind ->
