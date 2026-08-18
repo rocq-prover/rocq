@@ -81,14 +81,19 @@ module Make(T : Task) () = struct
     with Failure s | Invalid_argument s | Sys_error s ->
       marshal_err ("marshal_request: "^s)
 
+  (* [unmarshal_request] and [marshal_response] are used by the worker
+     only, where a [Sys_error] means the channel to the master is gone.
+     We let it through so that the main loop can tell a lost connection
+     apart from a genuine marshalling failure, which alone becomes
+     [MarshalError]. *)
   let unmarshal_request ic =
     try (CThread.thread_friendly_input_value ic : request)
-    with Failure s | Invalid_argument s | Sys_error s ->
+    with Failure s | Invalid_argument s ->
       marshal_err ("unmarshal_request: "^s)
 
   let marshal_response oc (res : response) =
     try marshal_to_channel oc res
-    with Failure s | Invalid_argument s | Sys_error s ->
+    with Failure s | Invalid_argument s ->
       marshal_err ("marshal_response: "^s)
 
   let unmarshal_response ic =
@@ -282,20 +287,6 @@ module Make(T : Task) () = struct
   let slave_handshake () =
     Pool.worker_handshake (Option.get !slave_ic) (Option.get !slave_oc)
 
-  (* The master going away while we read from or write to it is not
-     always observed as [End_of_file]: reads can fail with a connection
-     reset (in particular on Windows, where the master closing the
-     socket resets it) and writes with a broken pipe, both showing up
-     as [Sys_error] with the corresponding strerror text. *)
-  let connection_lost msg =
-    let contains what = CString.string_contains ~where:msg ~what in
-    contains "Connection reset by peer" ||
-    contains "Broken pipe" ||
-    (* WSAECONNRESET *)
-    contains "forcibly closed by the remote host" ||
-    (* WSAECONNABORTED *)
-    contains "aborted by the software in your host machine"
-
   let pp_pid pp = Pp.(str (Spawned.process_id () ^ " ") ++ pp)
 
   let debug_with_pid = Feedback.(function
@@ -323,13 +314,13 @@ module Make(T : Task) () = struct
         marshal_response (Option.get !slave_oc) response;
         CEphemeron.clean ()
       with
-      | MarshalError s when connection_lost s ->
-        stm_prerr_endline "connection lost"; flush_all (); exit 2
       | MarshalError s ->
         stm_pr_err Pp.(prlist str ["Fatal marshal error: "; s]); flush_all (); exit 2
-      | End_of_file ->
-        stm_prerr_endline "connection lost"; flush_all (); exit 2
-      | Sys_error s when connection_lost s ->
+      (* The master going away shows up either as [End_of_file] or as a
+         [Sys_error] (a connection reset on Windows, a broken pipe
+         elsewhere).  The worker is being torn down, so neither is worth
+         reporting. *)
+      | End_of_file | Sys_error _ ->
         stm_prerr_endline "connection lost"; flush_all (); exit 2
       | e ->
         stm_pr_err Pp.(seq [str "Slave: critical exception: "; print e]);
