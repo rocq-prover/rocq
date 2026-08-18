@@ -114,9 +114,8 @@ let qmono uctx inst lconstr = match uctx with
   let lconstr = Vars.subst_instance_constr inst lconstr in
   EConstr.of_constr lconstr
 
-let get_opaque access env c =
-  EConstr.of_constr
-    (fst (Global.force_proof access c))
+let get_opaque uctx inst access c =
+  qmono uctx inst (fst (Global.force_proof access c))
 
 let applistc c args = EConstr.mkApp (c, Array.of_list args)
 
@@ -1154,7 +1153,7 @@ let extract_constant table access env kn inst cb =
                 mk_typ body)
           | OpaqueDef c ->
             add_opaque (Common.State.get_table table) r;
-            if access_opaque () then mk_typ (get_opaque access env c)
+            if access_opaque () then mk_typ (get_opaque cb.const_universes inst access c)
             else mk_typ_ax ())
     | (Info,Default) ->
         (match cb.const_body with
@@ -1168,7 +1167,7 @@ let extract_constant table access env kn inst cb =
                 mk_def (qmono cb.const_universes inst body))
           | OpaqueDef c ->
             add_opaque (Common.State.get_table table) r;
-            if access_opaque () then mk_def (get_opaque access env c)
+            if access_opaque () then mk_def (get_opaque cb.const_universes inst access c)
             else mk_ax ())
   with SingletonInductiveBecomesProp ind ->
     error_singleton_become_prop ind

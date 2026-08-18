@@ -1,0 +1,22 @@
+File "./output/bug_22342.v", line 8, characters 0-24:
+Warning: The extraction is currently set to bypass opacity, the following
+opaque constant bodies have been accessed : m1 m1.
+ [extraction-opaque-accessed,extraction,default]
+
+type __ = Obj.t
+let __ = let rec f _ = Obj.repr f in Obj.repr f
+
+type nat =
+| O
+| S of nat
+
+(** val m1 : 'a1 -> ('a1 -> nat) -> nat **)
+
+let m1 a f =
+  f a
+
+(** val m0__O : (__ -> nat) -> nat **)
+
+let m0__O f =
+  f __
+
