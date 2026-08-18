@@ -127,6 +127,10 @@ val type_expand : unit -> bool
 
 val keep_singleton : unit -> bool
 
+(*s Prefix parameter *)
+
+val prefix : unit -> string
+
 (*s Optimize parameter *)
 
 type opt_flag =

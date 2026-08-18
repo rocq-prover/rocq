@@ -115,11 +115,14 @@ let pseudo_qualify = qualify "__"
 let is_upper s = match s.[0] with 'A' .. 'Z' -> true | _ -> false
 let is_lower s = match s.[0] with 'a' .. 'z' | '_' -> true | _ -> false
 
+let lowercase_prefix () = String.uncapitalize_ascii (Table.prefix ())
+let uppercase_prefix () = Table.prefix ()
+
 let lowercase_id id = Id.of_string (String.uncapitalize_ascii (ascii_of_id id))
 let uppercase_id id =
   let s = ascii_of_id id in
   assert (not (String.is_empty s));
-  if s.[0] == '_' then Id.of_string ("Coq_"^s)
+  if s.[0] == '_' then Id.of_string (uppercase_prefix ()^"_"^s)
   else Id.of_string (String.capitalize_ascii s)
 
 type kind = Term | Type | Cons | Mod
@@ -366,7 +369,7 @@ let clear_mpfiles s =
 let add_duplicate s mp l =
   let state = s.state.contents in
   let (index, dups) = state.duplicates in
-  let ren = "Coq__" ^ string_of_int (index + 1) in
+  let ren = uppercase_prefix () ^ "__" ^ string_of_int (index + 1) in
   let dups = DupMap.add (mp, l) ren dups in
   s.state := { state with duplicates = (index + 1, dups) }
 
@@ -409,13 +412,15 @@ let get_mpfiles_content s mp =
 (*S Renaming functions *)
 
 (* This function creates from [id] a correct uppercase/lowercase identifier.
-   This is done by adding a [Coq_] or [coq_] prefix. To avoid potential clashes
-   with previous [Coq_id] variable, these prefixes are duplicated if already
+   This is done by adding a [Rocq_] or [rocq_] prefix. To avoid potential clashes
+   with previous [Rocq_id] variable, these prefixes are duplicated if already
    existing. *)
 
 let modular_rename table k id =
   let s = ascii_of_id id in
-  let prefix,is_ok = if upperkind k then "Coq_",is_upper else "coq_",is_lower
+  let prefix,is_ok =
+    if upperkind k then uppercase_prefix () ^ "_",is_upper
+    else lowercase_prefix () ^ "_",is_lower
   in
   if not (is_ok s) || Id.Set.mem id (State.get_keywords table) || begins_with s prefix
   then prefix ^ s
@@ -429,12 +434,12 @@ let modfstlev_rename table id =
     let n = State.get_mod_index table id in
     let () = State.add_mod_index table id (n+1) in
     let s = if n == 0 then "" else string_of_int (n-1) in
-    "Coq"^s^"_"^(ascii_of_id id)
+    uppercase_prefix ()^s^"_"^(ascii_of_id id)
   with Not_found ->
     let s = ascii_of_id id in
     if is_lower s || begins_with_CoqXX s then
       let () = State.add_mod_index table id 1 in
-      "Coq_" ^ s
+      uppercase_prefix () ^ "_" ^ s
     else
       let () = State.add_mod_index table id 0 in
       s

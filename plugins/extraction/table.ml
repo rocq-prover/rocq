@@ -591,6 +591,20 @@ let type_expand = my_bool_option "TypeExpand" true
 
 let keep_singleton = my_bool_option "KeepSingleton" false
 
+(*s Extraction Prefix *)
+
+let { Goptions.get = prefix } =
+  declare_interpreted_string_option_and_ref
+    (fun s ->
+      let () = if not (Unicode.is_basic_ascii s && Id.is_valid s) then
+        user_err Pp.(str "Extraction prefix must be a valid ASCII identifier.")
+      in
+      String.capitalize_ascii s)
+    Fun.id
+    ~key:["Extraction"; "Prefix"]
+    ~value:"Rocq"
+    ()
+
 (*s Extraction Optimize *)
 
 type opt_flag =
