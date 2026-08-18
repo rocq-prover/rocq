@@ -131,10 +131,10 @@ type table = {
   (* recursors: we can use the equivalence between canonical and user constant names. *)
   projs : GlobRef.Set_env.t;
   (* projs: working modulo name equivalence is ok *)
-  info_axioms : Refset'.t;
-  log_axioms : Refset'.t;
-  symbols : Id.t list Refmap'.t;
-  opaques:  Refset'.t;
+  info_axioms : GlobRef.Set_env.t;
+  log_axioms : GlobRef.Set_env.t;
+  symbols : Id.t list GlobRef.Map_env.t;
+  opaques:  GlobRef.Set_env.t;
   modfile_ids : Id.Set.t;
   modfile_mps : string DirPath.Map.t;
 }
@@ -148,10 +148,10 @@ let empty_table = {
   inductive_kinds = Mindmap_env.empty;
   recursors = KerName.Set.empty;
   projs = GlobRef.Set_env.empty;
-  info_axioms = Refset'.empty;
-  log_axioms = Refset'.empty;
-  symbols = Refmap'.empty;
-  opaques = Refset'.empty;
+  info_axioms = GlobRef.Set_env.empty;
+  log_axioms = GlobRef.Set_env.empty;
+  symbols = GlobRef.Map_env.empty;
+  opaques = GlobRef.Set_env.empty;
   modfile_ids = Id.Set.empty;
   modfile_mps = DirPath.Map.empty;
 }
@@ -256,14 +256,14 @@ let is_projection table r = GlobRef.Set_env.mem r.glob !table.projs
 
 (*s Table of used axioms *)
 
-let add_info_axiom table r = table := { !table with info_axioms = Refset'.add r !table.info_axioms }
-let remove_info_axiom table r = table := { !table with info_axioms = Refset'.remove r !table.info_axioms }
-let add_log_axiom table r = table := { !table with log_axioms = Refset'.add r !table.log_axioms }
-let add_symbol table r = table := { !table with symbols = Refmap'.update r (function Some l -> Some l | _ -> Some []) !table.symbols }
-let add_symbol_rule table r l = table := { !table with symbols = Refmap'.update r (function Some lst -> Some (l :: lst) | _ -> Some [l]) !table.symbols }
+let add_info_axiom table r = table := { !table with info_axioms = GlobRef.Set_env.add r !table.info_axioms }
+let remove_info_axiom table r = table := { !table with info_axioms = GlobRef.Set_env.remove r !table.info_axioms }
+let add_log_axiom table r = table := { !table with log_axioms = GlobRef.Set_env.add r !table.log_axioms }
+let add_symbol table r = table := { !table with symbols = GlobRef.Map_env.update r (function Some l -> Some l | _ -> Some []) !table.symbols }
+let add_symbol_rule table r l = table := { !table with symbols = GlobRef.Map_env.update r (function Some lst -> Some (l :: lst) | _ -> Some [l]) !table.symbols }
 
-let add_opaque table r = table := { !table with opaques = Refset'.add r !table.opaques }
-let remove_opaque table r = table := { !table with opaques = Refset'.remove r !table.opaques }
+let add_opaque table r = table := { !table with opaques = GlobRef.Set_env.add r !table.opaques }
+let remove_opaque table r = table := { !table with opaques = GlobRef.Set_env.remove r !table.opaques }
 
 (*s Extraction modes: modular or monolithic, library or minimal ?
 
@@ -280,20 +280,19 @@ Nota:
    have been done earlier, otherwise we can only ask the Nametab about
    currently visible objects. *)
 
-let safe_basename_of_global_gen table r =
+let safe_basename_of_globref_gen table r =
   let last_chance r (kn, pos) =
     try Nametab.basename_of_global r
     with Not_found ->
       let id = Id.to_string (MutInd.label kn) in
       Id.of_string (id ^ "_" ^ String.concat "_" (List.map string_of_int pos))
   in
-  let unsafe_lookup_ind table kn = snd (InfvMap.find r.inst (Mindmap_env.find kn !table.inductives)) in
+  let unsafe_lookup_ind table kn = snd @@ snd (InfvMap.choose (Mindmap_env.find kn !table.inductives)) in
   let open GlobRef in
-  match r.glob with
+  match r with
     | ConstRef kn -> Constant.label kn
     | IndRef (kn,0) -> MutInd.label kn
     | IndRef (kn,i) ->
-      let r = r.glob in
       begin match table with
       | None -> last_chance r (kn, [i])
       | Some table ->
@@ -301,7 +300,6 @@ let safe_basename_of_global_gen table r =
         with Not_found -> last_chance r (kn, [i])
       end
     | ConstructRef ((kn,i),j) ->
-      let r = r.glob in
       begin match table with
       | None -> last_chance r (kn, [i; j])
       | Some table ->
@@ -310,13 +308,15 @@ let safe_basename_of_global_gen table r =
       end
     | VarRef v -> v
 
-let safe_basename_of_global table r = safe_basename_of_global_gen (Some table) r
+let safe_basename_of_global table r = safe_basename_of_globref_gen (Some table) r.glob
 
-let string_of_global r  =
- try string_of_qualid (Nametab.shortest_qualid_of_global Id.Set.empty r.glob)
- with Not_found -> Id.to_string (safe_basename_of_global_gen None r)
+let string_of_globref r  =
+ try string_of_qualid (Nametab.shortest_qualid_of_global Id.Set.empty r)
+ with Not_found -> Id.to_string (safe_basename_of_globref_gen None r)
 
-let safe_pr_global r = str (string_of_global r)
+let safe_pr_globref r = str (string_of_globref r)
+
+let safe_pr_global r = safe_pr_globref r.glob
 
 (* idem, but with qualification, and only for constants. *)
 
@@ -343,7 +343,7 @@ let warn_extraction_axiom_to_realize =
          (fun axioms ->
           let s = if Int.equal (List.length axioms) 1 then "axiom" else "axioms" in
           strbrk ("The following "^s^" must be realized in the extracted code:")
-                   ++ hov 1 (spc () ++ prlist_with_sep spc safe_pr_global axioms)
+                   ++ hov 1 (spc () ++ prlist_with_sep spc safe_pr_globref axioms)
                    ++ str "." ++ fnl ())
 
 let warn_extraction_logical_axiom =
@@ -353,14 +353,14 @@ let warn_extraction_logical_axiom =
             if Int.equal (List.length axioms) 1 then "axiom was" else "axioms were"
           in
           (strbrk ("The following logical "^s^" encountered:") ++
-             hov 1 (spc () ++ prlist_with_sep spc safe_pr_global axioms ++ str ".\n")
+             hov 1 (spc () ++ prlist_with_sep spc safe_pr_globref axioms ++ str ".\n")
            ++ strbrk "Having invalid logical axiom in the environment when extracting"
            ++ spc () ++ strbrk "may lead to incorrect or non-terminating ML terms." ++
              fnl ()))
 
 let warn_extraction_symbols =
   let pp_symb_with_rules (symb, rules) =
-    safe_pr_global symb ++
+    safe_pr_globref symb ++
     if List.is_empty rules then str " (no rules)" else
     str ":" ++ spc() ++ prlist_with_sep spc Id.print rules
   in
@@ -373,13 +373,13 @@ let warn_extraction_symbols =
       fnl ())
 
 let warning_axioms table =
-  let info_axioms = Refset'.elements !table.info_axioms in
+  let info_axioms = GlobRef.Set_env.elements !table.info_axioms in
   if not (List.is_empty info_axioms) then
     warn_extraction_axiom_to_realize info_axioms;
-  let log_axioms = Refset'.elements !table.log_axioms in
+  let log_axioms = GlobRef.Set_env.elements !table.log_axioms in
   if not (List.is_empty log_axioms) then
     warn_extraction_logical_axiom log_axioms;
-  let symbols = Refmap'.bindings !table.symbols in
+  let symbols = GlobRef.Map_env.bindings !table.symbols in
   if not (List.is_empty symbols) then
     warn_extraction_symbols symbols
 
@@ -398,9 +398,9 @@ let warn_extraction_opaque_as_axiom =
          ++ fnl ())
 
 let warning_opaques table accessed =
-  let opaques = Refset'.elements !table.opaques in
+  let opaques = GlobRef.Set_env.elements !table.opaques in
   if not (List.is_empty opaques) then
-    let lst = hov 1 (spc () ++ prlist_with_sep spc safe_pr_global opaques) in
+    let lst = hov 1 (spc () ++ prlist_with_sep spc safe_pr_globref opaques) in
     if accessed then warn_extraction_opaque_accessed lst
     else warn_extraction_opaque_as_axiom lst
 
@@ -496,7 +496,7 @@ let msg_of_implicit = function
        | Anonymous -> ""
        | Name id -> "(" ^ Id.to_string id ^ ") "
      in
-     (String.ordinal i)^" argument "^name^"of "^(string_of_global r)
+     (String.ordinal i)^" argument "^name^"of "^(string_of_globref r.glob)
   | Ktype | Kprop -> ""
 
 let error_remaining_implicit k =

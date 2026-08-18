@@ -98,14 +98,14 @@ val is_recursor : t -> global -> bool
 val add_projection : t -> int -> Constant.t -> inductive -> unit
 val is_projection : t -> global -> bool
 
-val add_info_axiom : t -> global -> unit
-val remove_info_axiom : t -> global -> unit
-val add_log_axiom : t -> global-> unit
-val add_symbol : t -> global -> unit
-val add_symbol_rule : t -> global -> Id.t -> unit
+val add_info_axiom : t -> GlobRef.t -> unit
+val remove_info_axiom : t -> GlobRef.t -> unit
+val add_log_axiom : t -> GlobRef.t-> unit
+val add_symbol : t -> GlobRef.t -> unit
+val add_symbol_rule : t -> GlobRef.t -> Id.t -> unit
 
-val add_opaque : t -> global -> unit
-val remove_opaque : t -> global -> unit
+val add_opaque : t -> GlobRef.t -> unit
+val remove_opaque : t -> GlobRef.t -> unit
 
 (*s Output Directory parameter *)
 
