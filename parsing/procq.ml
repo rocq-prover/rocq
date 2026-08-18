@@ -371,6 +371,7 @@ module Constr =
     let record_declaration = Entry.make "record_declaration"
     let arg = Entry.make "arg"
     let type_cstr = Entry.make "type_cstr"
+    let scope_delimiter = Entry.make "scope_delimiter"
   end
 
 module Module =

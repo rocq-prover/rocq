@@ -85,9 +85,14 @@ term_application: [
 ]
 
 arg: [
-| "(" ident ":=" term ")"
-| "(" natural ":=" term ")"
+| "(" ident ":=" term ")" LIST0 scope_delimiter
+| "(" natural ":=" term ")" LIST0 scope_delimiter
 | term1
+]
+
+scope_delimiter: [
+| "%" scope
+| "%_" scope
 ]
 
 term_explicit: [
@@ -685,13 +690,13 @@ arg_specs: [
 | argument_spec
 | "/"
 | "&"
-| "(" LIST1 argument_spec ")" LIST0 [ "%" scope | "%_" scope ]
-| "[" LIST1 argument_spec "]" LIST0 [ "%" scope | "%_" scope ]
-| "{" LIST1 argument_spec "}" LIST0 [ "%" scope | "%_" scope ]
+| "(" LIST1 argument_spec ")" LIST0 scope_delimiter
+| "[" LIST1 argument_spec "]" LIST0 scope_delimiter
+| "{" LIST1 argument_spec "}" LIST0 scope_delimiter
 ]
 
 argument_spec: [
-| OPT "!" name LIST0 [ "%" scope | "%_" scope ]
+| OPT "!" name LIST0 scope_delimiter
 ]
 
 implicits_alt: [

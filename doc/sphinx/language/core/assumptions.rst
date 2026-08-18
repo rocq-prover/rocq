@@ -120,14 +120,16 @@ products.
 Function application
 --------------------
 
-.. insertprodn term_application arg
+.. insertprodn term_application scope_delimiter
 
 .. prodn::
    term_application ::= @term10 {+ @arg }
    | @ @qualid_annotated {+ @term1 }
-   arg ::= ( @ident := @term )
-   | ( @natural := @term )
+   arg ::= ( @ident := @term ) {* @scope_delimiter }
+   | ( @natural := @term ) {* @scope_delimiter }
    | @term1
+   scope_delimiter ::= % @scope
+   | %_ @scope
 
 :n:`@term1__fun @term1` denotes applying the function :n:`@term1__fun` to :token:`term1`.
 
