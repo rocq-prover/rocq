@@ -367,7 +367,8 @@ let v_vm_reloc_table = v_array (v_pair v_int v_int)
 
 let v_vm_annot_switch = v_tuple "vm_annot_switch" [|v_vm_reloc_table; v_bool; v_int|]
 
-let v_vm_caml_prim = v_enum "vm_caml_prim" 6
+let v_vm_caml_prim = v_enum "vm_caml_prim" 12
+(* Number of constructors of the caml_prim type in "kernel/vmbytecodes.ml" *)
 
 let v_non_subst_reloc = v_sum "vm_non_subst_reloc" 0 [|
   [|v_sort|];
