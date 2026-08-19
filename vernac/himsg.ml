@@ -712,8 +712,14 @@ let rec explain_evar_kind env sigma evk ty =
       strbrk "the existential variable named " ++ Id.print id
   | Evar_kinds.QuestionMark {qm_record_field=None} ->
       strbrk "this placeholder of type " ++ ty
-  | Evar_kinds.QuestionMark {qm_record_field=Some {fieldname; recordname}} ->
-          str "field " ++ (Printer.pr_constant env fieldname) ++ str " of record " ++ (Printer.pr_inductive env recordname)
+  | Evar_kinds.QuestionMark {qm_record_field=Some {field_idx; recordname}} ->
+    let projs = Structures.Structure.find_projections env recordname in
+    let field = match List.nth_opt projs (field_idx-1) with
+      | None -> assert false
+      | Some (Some c) -> str "field " ++ (Printer.pr_constant env c)
+      | Some None -> str (String.ordinal field_idx) ++ str " field"
+    in
+    field ++ str " of record " ++ (Printer.pr_inductive env recordname)
   | Evar_kinds.CasesType false ->
       strbrk "the type of this pattern-matching problem"
   | Evar_kinds.CasesType true ->

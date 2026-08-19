@@ -101,3 +101,19 @@ Module WhyNotPrim.
   Record anonproj := { _ : nat }.
 
 End WhyNotPrim.
+
+Module AnonField.
+  Class C (n:nat) := c {}.
+
+  Record foo := { x : nat ; _ : C x }.
+
+  Check {| x := 10 |}.
+
+  Fail Definition bar := {| x := 10 |}.
+
+  Existing Instance c.
+
+  Definition bar := {| x := 10 |}.
+
+  Fail Definition baz := {| bar with x := 10 |}.
+End AnonField.
