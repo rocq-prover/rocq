@@ -229,9 +229,7 @@ val tclEXACTLY_ONCE : exn -> 'a tactic -> 'a tactic
 (** [tclCASE t] splits [t] into its first success and a
     continuation. It is the most general primitive to control
     backtracking. *)
-type 'a case =
-  | Fail of Exninfo.iexn
-  | Next of 'a * (Exninfo.iexn -> 'a tactic)
+type 'a case = ('a * (Exninfo.iexn -> 'a tactic), Exninfo.iexn) result
 val tclCASE : 'a tactic -> 'a case tactic
 
 (** [tclBREAK p t] is a generalization of [tclONCE t]. Instead of

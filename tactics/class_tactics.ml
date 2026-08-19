@@ -607,7 +607,7 @@ module Search = struct
             str " of status " ++ pr_goal_status status)
         in
         let rec kont = function
-          | Fail ((NonStuckFailure | StuckGoal as exn), info) when allow_out_of_order ->
+          | Error ((NonStuckFailure | StuckGoal as exn), info) when allow_out_of_order ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++
                 str" is stuck or failed without being stuck, trying other tactics.")
@@ -620,13 +620,13 @@ module Search = struct
             in
             cycle 1 (* Puts the first goal last *) <*>
             fixpoint progress tacs ((glid, ev, status, tac) :: stuck) fk (* Launches the search on the rest of the goals *)
-          | Fail ie ->
+          | Error ie ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++ str" has no more solutions, returning exception: "
                 ++ pr_internal_exception ie)
             in
             fk ie
-          | Next (res, fk') ->
+          | Ok (res, fk') ->
             let () = ppdebug 1 (fun () ->
                 str "Goal " ++ int glid ++ str" has a success, continuing resolution")
             in
