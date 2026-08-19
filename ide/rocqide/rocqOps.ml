@@ -788,7 +788,7 @@ object(self)
     let fill_queue = RocqDriver.lift (fun () ->
       let queue = Queue.create () in
       (* Lock everything and fill the waiting queue *)
-      Ideutils.push_info "Coq is computing";
+      Ideutils.push_info "Rocq is computing";
       messages#default_route#clear;
       script#set_editable false;
       self#fill_command_queue until queue;
@@ -965,7 +965,7 @@ object(self)
     Minilib.log("backtrack_to_id "^Stateid.to_string to_id^
       " (unfocus_needed="^string_of_bool unfocus_needed^")");
     let opening () =
-      Ideutils.push_info "Coq is undoing" in
+      Ideutils.push_info "Rocq is undoing" in
     let conclusion () =
       Ideutils.pop_info ();
       if move_insert then begin
@@ -1083,7 +1083,7 @@ object(self)
     let get_initial_state =
       let next = function
       | Fail (_, _, message) ->
-        let message = "Couldn't initialize coqtop\n\n" ^ (Pp.string_of_ppcmds message) in
+        let message = "Couldn't initialize rocqtop\n\n" ^ (Pp.string_of_ppcmds message) in
         let popup = GWindow.message_dialog ~buttons:GWindow.Buttons.ok ~message_type:`ERROR ~message () in
         ignore (popup#run ()); exit 1
       | Good id -> initial_state <- id; RocqDriver.return () in

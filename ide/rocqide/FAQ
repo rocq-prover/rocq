@@ -41,7 +41,7 @@ a module for LaTeX-like inputting.
 
 Q6) How to customize the shortcuts for menus?
 R6) Two solutions are offered:
-  - Edit $XDG_CONFIG_HOME/coq/coqide.keys by hand or
+  - Edit $XDG_CONFIG_HOME/coq/rocqide.keys by hand or
   - If your system allows it, from RocqIDE, you may select a menu entry and press the 
     desired shortcut. 
 

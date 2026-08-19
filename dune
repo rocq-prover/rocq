@@ -22,7 +22,7 @@
 
 (alias
  (name default)
- (deps rocq-runtime.install coq-core.install rocq-core.install coqide-server.install))
+ (deps rocq-runtime.install coq-core.install rocq-core.install rocqide-server.install))
 
 (alias
  (name runtime)

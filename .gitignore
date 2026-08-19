@@ -57,7 +57,7 @@ config/coq_config.ml
 config/coq_byte_config.ml
 config/coq_config.py
 config/dune.c_flags
-ide/coqide/config.ml
+ide/rocqide/config.ml
 dev/ocamldebug-coq
 coqdoc.sty
 coqdoc.css
@@ -132,9 +132,9 @@ doc/tools/docgram/updated_rsts
 
 # other auto-generated files
 
-ide/coqide/default.bindings
-ide/coqide/default_bindings_src.exe
-ide/coqide/index_urls.txt
+ide/rocqide/default.bindings
+ide/rocqide/default_bindings_src.exe
+ide/rocqide/index_urls.txt
 .lia.cache
 .nia.cache
 .nra.cache
@@ -146,13 +146,14 @@ ide/coqide/index_urls.txt
 # vscode local config
 .vscode/
 
-# coqide generated files (when testing)
+# rocqide generated files (when testing)
 *.crashcoqide
+*.crashrocqide
 
 .*.sw*
 .#*
 
-ide/coqide/coqide.keys
+ide/rocqide/rocqide.keys
 .dune.lock
 
 # bin compat directory, should be eventually be phased out

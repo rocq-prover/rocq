@@ -102,7 +102,7 @@ help-install:
 	@echo "  - rocq-runtime: base Rocq package, toplevel compilers, plugins, tools, no corelib, no stdlib, no GTK"
 	@echo "  - coq-core: compat binaries (coqc instead of rocq compile, etc)"
 	@echo "  - rocq-core: Rocq's prelude and corelib"
-	@echo "  - coqide-server: XML protocol language server"
+	@echo "  - rocqide-server: XML protocol language server"
 	@echo "  - rocqide: RocqIDE gtk application"
 	@echo ""
 	@echo " To build a package, you can use:"
@@ -162,7 +162,7 @@ states: world
 	echo "'make states' is an alias for 'make world'"
 
 MAIN_TARGETS:=rocq-runtime.install coq-core.install rocq-core.install \
-  coqide-server.install rocq-devtools.install
+  rocqide-server.install rocq-devtools.install
 
 world: dunestrap
 	+$(WITHJOBS) dune build $(DUNEOPT) $(MAIN_TARGETS)

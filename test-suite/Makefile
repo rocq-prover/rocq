@@ -700,7 +700,7 @@ ide : $(patsubst %.fake,%.fake.log,$(wildcard ide/*.fake))
 
 ide/fake_ide.exe : ide/fake_ide.ml
 	$(SHOW) 'OCAMLC  $<'
-	$(HIDE)$(OCAMLBEST) -linkpkg -package coqide-server.protocol -package coqide-server.core $< -o $@
+	$(HIDE)$(OCAMLBEST) -linkpkg -package rocqide-server.protocol -package rocqide-server.core $< -o $@
 
 %.fake.log : %.fake ide/fake_ide.exe
 	$(SHOW) "TEST      $<"

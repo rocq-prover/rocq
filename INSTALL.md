@@ -87,8 +87,8 @@ for more details.
 To build and install Rocq (and RocqIDE if desired) do:
 
     $ make dunestrap
-    $ dune build -p rocq-runtime,coq-core,rocq-core,coqide-server,rocqide
-    $ dune install --prefix=<install_prefix> rocq-runtime coq-core rocq-core coqide-server rocqide
+    $ dune build -p rocq-runtime,coq-core,rocq-core,rocqide-server,rocqide
+    $ dune install --prefix=<install_prefix> rocq-runtime coq-core rocq-core rocqide-server rocqide
 
 You can drop the `rocqide` packages if not needed.
 

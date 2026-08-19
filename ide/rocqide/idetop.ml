@@ -315,7 +315,7 @@ let wait () =
 
 let status force =
   (* We remove the initial part of the current [DirPath.t]
-     (usually Top in an interactive session, cf "coqtop -top"),
+     (usually Top in an interactive session, cf "rocq top -top"),
      and display the other parts (opened sections and modules) *)
   ignore (Stm.finish ~doc:(get_doc ()) : Vernacstate.t);
   if force then Stm.join ~doc:(get_doc ());
@@ -689,7 +689,7 @@ let rec parse = function
        x :: parse rest
   | [] -> []
 
-let rocqidetop_specific_usage = Boot.Usage.{
+let coqidetop_specific_usage = Boot.Usage.{
   executable_name = "coqidetop";
   extra_args = "";
   extra_options = "\n\
@@ -720,7 +720,7 @@ let () =
   Shared_os_specific.init ();
   let custom = {
       parse_extra = islave_parse ;
-      usage = rocqidetop_specific_usage;
+      usage = coqidetop_specific_usage;
       init_extra = islave_init;
       run = loop;
       initial_args = islave_default_opts } in

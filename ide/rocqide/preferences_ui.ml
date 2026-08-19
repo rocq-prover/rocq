@@ -641,7 +641,7 @@ let configure ?(apply = fun () -> ()) parent =
   let misc =
     create_pref_box "Miscellaneous" [
         pbool "Stop interpreting before the current point" stop_before;
-        pbool "Reset coqtop on tab switch" reset_on_tab_switch;
+        pbool "Reset rocqtop on tab switch" reset_on_tab_switch;
       ]
   in
 
