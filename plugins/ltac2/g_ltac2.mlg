@@ -916,74 +916,21 @@ END
 
 (** Extension of constr syntax *)
 
-(*
 GRAMMAR EXTEND Gram
   Procq.Constr.term: LEVEL "0"
     [ [ IDENT "ltac2"; ":"; "("; tac = ltac2_expr; ")" ->
-      { let arg = Genarg.in_gen (Genarg.rawwit Tac2env.wit_ltac2_constr) tac in
-        CAst.make ~loc (CGenarg arg) }
+      { CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_constr, tac))) }
       | test_ampersand_ident; "&"; id = Prim.ident ->
       { let tac = Tac2quote.of_exact_hyp ~loc (CAst.make ~loc id) in
-        let arg = Genarg.in_gen (Genarg.rawwit Tac2env.wit_ltac2_constr) tac in
-        CAst.make ~loc (CGenarg arg) }
+        CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_constr, tac))) }
+      | test_dollar_ident_colon_ident; "$"; kind = Prim.identref; ":"; id = Prim.identref ->
+      { CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_var_quotation, (Some kind, id)))) }
       | test_dollar_ident; "$"; id = Prim.ident ->
-      { let id = Loc.tag ~loc id in
-        let arg = Genarg.in_gen (Genarg.rawwit Tac2env.wit_ltac2_quotation) id in
-        CAst.make ~loc (CGenarg arg) }
+      { let id = CAst.make ~loc id in
+        CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_var_quotation, (None, id)))) }
     ] ]
   ;
 END
-*)
-{
-
-let () =
-
-let open Tok in
-let (++) r s = Procq.Rule.next r s in
-let rules = [
-  Procq.(
-    Production.make
-      (Rule.stop ++ Symbol.nterm test_dollar_ident ++ Symbol.token (PKEYWORD "$") ++ Symbol.nterm Prim.ident)
-    begin fun id _ _ loc ->
-      let id = CAst.make ~loc id in
-      CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_var_quotation, (None, id))))
-    end
-  );
-
-  Procq.(
-    Production.make
-      (Rule.stop ++ Symbol.nterm test_dollar_ident_colon_ident ++
-       Symbol.token (PKEYWORD "$") ++ Symbol.nterm Prim.identref ++
-       Symbol.token (PKEYWORD ":") ++ Symbol.nterm Prim.identref)
-    begin fun id _ kind _ _ loc ->
-      CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_var_quotation, (Some kind, id))))
-    end
-  );
-
-  Procq.(
-    Production.make
-      (Rule.stop ++ Symbol.nterm test_ampersand_ident ++ Symbol.token (PKEYWORD "&") ++ Symbol.nterm Prim.ident)
-    begin fun id _ _ loc ->
-      let tac = Tac2quote.of_exact_hyp ~loc (CAst.make ~loc id) in
-      CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_constr, tac)))
-    end
-  );
-
-  Procq.(
-    Production.make
-      (Rule.stop ++ Symbol.token (PIDENT (Exact "ltac2")) ++ Symbol.token (PKEYWORD ":") ++
-       Symbol.token (PKEYWORD "(") ++ Symbol.nterm ltac2_expr ++ Symbol.token (PKEYWORD ")"))
-    begin fun _ tac _ _ _ loc ->
-      CAst.make ~loc (CGenarg (Raw (Tac2env.wit_ltac2_constr, tac)))
-    end
-  )
-] in
-
-  Egramml.grammar_extend ~ignore_kw:false ~plugin_uid:("rocq-runtime.plugins.ltac2", "g_ltac2.mlg:adhoc1")
-    Procq.Constr.term (Procq.Reuse (Some"0", rules))
-
-
-}
 
 {
 

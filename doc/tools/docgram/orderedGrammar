@@ -2044,6 +2044,13 @@ q_assert: [
 | assertion      (* ltac2 plugin *)
 ]
 
+Procq.Constr.term0: [
+| "ltac2" ":" "(" ltac2_expr ")"      (* ltac2 plugin *)
+| test_ampersand_ident "&" ident      (* ltac2 plugin *)
+| test_dollar_ident_colon_ident "$" ident ":" ident      (* ltac2 plugin *)
+| test_dollar_ident "$" ident      (* ltac2 plugin *)
+]
+
 assertion: [
 | "(" ident_or_anti ":=" term ")"      (* ltac2 plugin *)
 | "(" ident_or_anti ":" term ")" OPT ltac2_by_tactic      (* ltac2 plugin *)
