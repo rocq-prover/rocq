@@ -281,6 +281,9 @@ let rec check_mexpression env sign mbtyp mp_mse res = match sign with
 
 let rec check_module env opac mp mb opacify =
   Flags.if_verbose Feedback.msg_notice (str "  checking module: " ++ str (ModPath.to_string mp));
+  (* The operation that built this module may have skipped checks; we are
+     redoing that operation, so we skip the same ones (#12155, #16646). *)
+  let env = CheckFlags.weaken_checks (mod_typing_flags mb) env in
   let delta_mb = mod_delta mb in
   let opac =
     check_signature env opac (mod_type mb) mp delta_mb opacify
@@ -309,6 +312,7 @@ let rec check_module env opac mp mb opacify =
 
 and check_module_type env mp mty =
   Flags.if_verbose Feedback.msg_notice (str "  checking module type: " ++ str (ModPath.to_string @@ mp));
+  let env = CheckFlags.weaken_checks (mod_typing_flags mty) env in
   let _ : check_state =
     check_signature env empty_state (mod_type mty) mp (mod_delta mty) empty_cset in
   ()
