@@ -530,6 +530,7 @@ reductions: [
 
 reduction: [
 | "head"
+| "noopaques"
 | "beta"
 | "delta" OPT delta_reductions
 | "match"
