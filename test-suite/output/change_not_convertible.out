@@ -1,0 +1,9 @@
+File "./output/change_not_convertible.v", line 5, characters 5-17:
+The command has indeed failed with message:
+Not convertible: "True" with "False".
+File "./output/change_not_convertible.v", line 6, characters 5-19:
+The command has indeed failed with message:
+Not convertible: "True" with "1 = 1".
+File "./output/change_not_convertible.v", line 7, characters 5-28:
+The command has indeed failed with message:
+Not convertible: "True" with "True -> True".

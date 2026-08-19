@@ -117,7 +117,7 @@ let convert_concl ~cast ~check ty k =
         if check then begin
           let sigma, _ = Typing.type_of env sigma ty in
           match Reductionops.infer_conv env sigma ty conclty with
-          | None -> TacticErrors.not_convertible ()
+          | None -> TacticErrors.not_convertible_terms env sigma ty conclty
           | Some sigma -> sigma
         end else sigma
       in
@@ -146,11 +146,11 @@ let convert_gen pb x y =
     let sigma = Proofview.Goal.sigma gl in
     match Reductionops.infer_conv ~pb env sigma x y with
     | Some sigma -> Proofview.Unsafe.tclEVARS sigma
-    | None -> TacticErrors.not_convertible ()
+    | None -> TacticErrors.not_convertible_terms env sigma x y
     | exception e when CErrors.noncritical e ->
       let _, info = Exninfo.capture e in
       (* FIXME: Sometimes an anomaly is raised from conversion *)
-      TacticErrors.not_convertible ?loc:(Loc.get_loc info) ()
+      TacticErrors.not_convertible_terms ?loc:(Loc.get_loc info) env sigma x y
 end
 
 let convert x y = convert_gen Conversion.CONV x y
@@ -720,7 +720,7 @@ let change_and_check cv_pb mayneedglobalcheck deep t env sigma c = match t env s
 | Changed (sigma, t') ->
   let sigma = check_types env sigma mayneedglobalcheck deep t' c in
   match infer_conv ~pb:cv_pb env sigma t' c with
-  | None -> TacticErrors.not_convertible ()
+  | None -> TacticErrors.not_convertible_terms env sigma c t'
   | Some sigma -> Changed (sigma, t')
 
 (* Use cumulativity only if changing the conclusion not a subterm *)

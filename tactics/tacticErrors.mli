@@ -39,6 +39,10 @@ val convert_not_a_type : ?loc:Loc.t -> unit -> 'a
 
 val not_convertible : ?loc:Loc.t -> unit -> 'a
 
+(** Same as [not_convertible], but reports the two terms that failed to
+    convert. *)
+val not_convertible_terms : ?loc:Loc.t -> env -> evar_map -> constr -> constr -> 'a
+
 val not_unfoldable : ?loc:Loc.t -> unit -> 'a
 
 val no_quantified_hypothesis : ?loc:Loc.t -> quantified_hypothesis -> bool -> 'a
@@ -87,5 +91,5 @@ val need_dependent_product : ?loc:Loc.t -> unit -> 'a
 val clear_dependency_msg : env -> evar_map -> Names.Id.t option ->
     Evarutil.clear_dependency_error -> GlobRef.t option -> Pp.t
 
-exception NotConvertible
+exception NotConvertible of (env * evar_map * constr * constr) option
 exception DependsOnBody of Names.Id.t list * Names.Id.Set.t * Names.Id.t option

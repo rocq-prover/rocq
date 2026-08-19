@@ -28,7 +28,7 @@ exception UsedTwice of Id.t
 exception VariableHasNoValue of Id.t
 exception ConvertIncompatibleTypes of env * evar_map * constr * constr
 exception ConvertNotAType
-exception NotConvertible
+exception NotConvertible of (env * evar_map * constr * constr) option
 exception NotUnfoldable
 exception NoQuantifiedHypothesis of quantified_hypothesis * bool
 exception CannotFindInstance of Id.t
@@ -146,8 +146,13 @@ let tactic_interp_error_handler = function
       quote (Termops.Internal.print_constr_env env sigma t2) ++ str "."
   | ConvertNotAType ->
       str "Not a type."
-  | NotConvertible ->
+  | NotConvertible None ->
       str "Not convertible."
+  | NotConvertible (Some (env, sigma, t1, t2)) ->
+      str "Not convertible:" ++ spc () ++
+      quote (Termops.Internal.print_constr_env env sigma t1) ++ spc () ++
+      str "with" ++ spc () ++
+      quote (Termops.Internal.print_constr_env env sigma t2) ++ str "."
   | NotUnfoldable ->
      str "Cannot unfold a non-constant."
   | NoQuantifiedHypothesis (id,red) ->
@@ -242,7 +247,10 @@ let convert_not_a_type ?loc () =
   Loc.raise ?loc ConvertNotAType
 
 let not_convertible ?loc () =
-  Loc.raise ?loc NotConvertible
+  Loc.raise ?loc (NotConvertible None)
+
+let not_convertible_terms ?loc env sigma x y =
+  Loc.raise ?loc (NotConvertible (Some (env, sigma, x, y)))
 
 let not_unfoldable ?loc () =
   Loc.raise ?loc NotUnfoldable
