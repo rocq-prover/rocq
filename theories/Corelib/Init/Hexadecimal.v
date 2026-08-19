@@ -68,6 +68,7 @@ Abbreviation int_beq := signed_int_beq.
 Abbreviation internal_int_dec_lb := internal_signed_int_dec_lb.
 Abbreviation internal_int_dec_bl := internal_signed_int_dec_bl.
 
+Module Import NumberNotations.
 Declare Scope hex_uint_scope.
 Delimit Scope hex_uint_scope with huint.
 Bind Scope hex_uint_scope with uint.
@@ -75,6 +76,7 @@ Bind Scope hex_uint_scope with uint.
 Declare Scope hex_int_scope.
 Delimit Scope hex_int_scope with hint.
 Bind Scope hex_int_scope with int.
+End NumberNotations.
 
 Register uint as num.hexadecimal_uint.type.
 Register int as num.hexadecimal_int.type.

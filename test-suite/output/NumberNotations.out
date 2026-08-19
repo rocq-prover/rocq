@@ -38,7 +38,7 @@ applications of pto_punits. [abstract-large-number,numbers,default]
 File "./output/NumberNotations.v", line 91, characters 32-33:
 The command has indeed failed with message:
 In environment
-v := pto_punits (Number.UIntDecimal (Decimal.D1 Decimal.Nil)) : punit
+v := pto_punits 1 : punit
 The term "v" has type "punit@{Set}" while it is expected to have type
  "punit@{u}"
 (universe inconsistency: Cannot enforce Set = u).
@@ -69,7 +69,7 @@ The command has indeed failed with message:
 In environment
 v := 0 : nat
 The term "v" has type "nat" while it is expected to have type "wuint".
-     = {| unwrap := Number.UIntDecimal (Decimal.D0 Decimal.Nil) |}
+     = {| unwrap := 0 |}
      : wuint
 let v := 0%wuint8' in v : wuint
      : wuint
@@ -93,7 +93,7 @@ The command has indeed failed with message:
 The 'abstract after' directive has no effect when the parsing function
 (of_uint) targets an option type.
 [abstract-large-number-no-op,numbers,default]
-let v := of_uint (Number.UIntDecimal (Decimal.D1 Decimal.Nil)) in v : unit
+let v := of_uint 1 in v : unit
      : unit
 let v := 0%test13 in v : unit
      : unit
@@ -578,3 +578,27 @@ NUnit 0
      : nunit 0
 NUnit (1 + 1)
      : nunit (1 + 1)
+Decimal.D1 (Decimal.D2 Decimal.Nil)
+     : Decimal.uint
+Hexadecimal.D1 (Hexadecimal.Da Hexadecimal.Nil)
+     : Hexadecimal.uint
+Number.UIntDecimal (Decimal.D1 (Decimal.D2 Decimal.Nil))
+     : Number.uint
+Number.UIntHexadecimal (Hexadecimal.D1 (Hexadecimal.Da Hexadecimal.Nil))
+     : Number.uint
+12%duint
+     : Decimal.uint
+0x1a%huint
+     : Hexadecimal.uint
+12%uint
+     : Number.uint
+0x1a%uint
+     : Number.uint
+Nat.of_uint 12
+     : nat
+Nat.of_hex_uint 0x1a
+     : nat
+Nat.of_num_uint 12
+     : nat
+Nat.of_num_uint 0x1a
+     : nat
