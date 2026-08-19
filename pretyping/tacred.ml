@@ -1425,6 +1425,8 @@ let reduce_to_atomic_ind env sigma c =
   | None, _ -> user_err Pp.(str"Not an inductive definition.")
   | Some i, t -> i, t
 
+exception NotInductive of Environ.env * Evd.evar_map * EConstr.t
+
 let eval_to_quantified_ind env sigma t =
   let rec elimrec env t =
     let t = hnf_constr0 env sigma t in
@@ -1440,7 +1442,9 @@ let eval_to_quantified_ind env sigma t =
           let t' = whd_all env sigma t in
           match EConstr.kind sigma (fst (decompose_app sigma t')) with
             | Ind (ind, _ as indu) -> check_privacy env ind; indu
-            | _ -> user_err Pp.(str"Not an inductive product.")
+            | _ ->
+              (* NB We print t not t' in the error *)
+              raise (NotInductive (env, sigma, t))
   in
   elimrec env t
 

@@ -124,3 +124,5 @@ val e_contextually : bool -> occurrences * constr_pattern ->
 
 (** Errors if the inductive is not allowed for pattern-matching. **)
 val check_privacy : env -> inductive -> unit
+
+exception NotInductive of Environ.env * Evd.evar_map * EConstr.t
