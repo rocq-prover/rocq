@@ -221,7 +221,9 @@ type conv_cache = {
   mutable max_uid : int;
 }
 
-let cc_intern cache l =
+let cc_intern cache l = match l with
+| ELID -> 0
+| _ ->
   match LiftTbl.find_opt cache.cc_lifts l with
   | Some id -> id
   | None ->
@@ -1136,7 +1138,7 @@ let clos_gen_conv (type err) ~typed ~use_cache trans cv_pb l2r evars env graph u
       let cache =
         if use_cache && cc_enabled then
           Some { cc_key = Array.make 256 0; cc_meta = Array.make 256 0;
-                 cc_cnt = 0; cc_lifts = LiftTbl.create 16; cc_nlifts = 0; max_uid = 0 }
+                 cc_cnt = 0; cc_lifts = LiftTbl.create 16; cc_nlifts = 1; max_uid = 0 }
         else None
       in
       let infos = {
