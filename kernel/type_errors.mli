@@ -34,6 +34,7 @@ type 'constr pcofix_guard_error =
   | RecCallInTypeOfAbstraction of 'constr
   | RecCallInNonRecArgOfConstructor of 'constr
   | RecCallInTypeOfDef of 'constr
+  | RecCallInNonMainMutual of 'constr
   | RecCallInCaseFun of 'constr
   | RecCallInCaseArg of 'constr
   | RecCallInCasePred of 'constr
