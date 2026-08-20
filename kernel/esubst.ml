@@ -405,7 +405,7 @@ let weakening_of_lift el = weakening_of_lift 0 el
 let rec weakening_to_lift =
   function
   | ID -> ELID
-  | LIFT (k, w) -> el_shft_rec k (weakening_to_lift w)
+  | LIFT (k, w) -> el_liftn_rec k (weakening_to_lift w)
   | WEAK (k, w) ->
       el_shft_rec k (el_liftn_rec k (weakening_to_lift w))
 [@@warning "-unused-value-declaration"]
