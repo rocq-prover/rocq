@@ -3374,6 +3374,13 @@ q_assert: [
 | assertion      (* ltac2 plugin *)
 ]
 
+Procq.Constr.term0: [
+| "ltac2" ":" "(" ltac2_expr6 ")"      (* ltac2 plugin *)
+| test_ampersand_ident "&" Prim.ident      (* ltac2 plugin *)
+| test_dollar_ident_colon_ident "$" Prim.identref ":" Prim.identref      (* ltac2 plugin *)
+| test_dollar_ident "$" Prim.ident      (* ltac2 plugin *)
+]
+
 ltac2_entry: [
 | tac2def_val      (* ltac2 plugin *)
 | tac2def_typ      (* ltac2 plugin *)
