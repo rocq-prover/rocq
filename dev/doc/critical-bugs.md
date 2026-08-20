@@ -31,6 +31,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker sometimes does reduction in the wrong context accepting wrong fixpoints](#guard-checker-sometimes-does-reduction-in-the-wrong-context-accepting-wrong-fixpoints)
       - [guard checker sometimes forgets to check lambda domains in nested fixpoints](#guard-checker-sometimes-forgets-to-check-lambda-domains-in-nested-fixpoints)
       - [cofixpoint guard checker passes wrong rectree for nested mutual cofixpoints](#cofixpoint-guard-checker-passes-wrong-rectree-for-nested-mutual-cofixpoints)
+      - [guard checker counts local definitions as formal arguments in uniformity analysis](#guard-checker-counts-local-definitions-as-formal-arguments-in-uniformity-analysis)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -403,6 +404,17 @@ and lack of checking of relevance marks on constants in coqchk
 - found by: Daniel Selsam
 - exploit / GH issue: [#22386](https://github.com/rocq-prover/rocq/issues/22386)
 - risk: ?
+
+#### guard checker counts local definitions as formal arguments in uniformity analysis
+- component: guard checking
+- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
+- impacted released versions: V8.20, V9.0, V9.1, V9.2.0
+- impacted coqchk versions: Same
+- fixed in: V9.2.1, V9.3 ([#22384](https://github.com/rocq-prover/rocq/pull/22384))
+- found by: Daniel Selsam
+- exploit / GH issue: [#22382](https://github.com/rocq-prover/rocq/issues/22382)
+- risk: ?
+
 
 ### Module system
 
