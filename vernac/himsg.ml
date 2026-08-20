@@ -1267,10 +1267,11 @@ let explain_not_match_error = function
     str "number of inductive types differs:" ++ spc () ++
     str "expected" ++ spc () ++ int expected ++ spc () ++
     str "but found" ++ spc () ++ int got
-  | InductiveParamsNumberField { got; expected } ->
-    str "number of parameters differs:" ++ spc () ++
-    str "expected" ++ spc () ++ int expected ++ spc () ++
-    str "but found" ++ spc () ++ int got
+  | InductiveParams { env; got; expected } ->
+    let sigma = Evd.from_env env in
+    str "parameters differs:" ++ spc () ++
+    str "expected" ++ spc () ++ pr_rel_context env sigma expected ++ spc () ++
+    str "but found" ++ spc () ++ pr_rel_context env sigma got
   | RecordFieldExpected isrecord ->
     str "type is expected " ++ str (if isrecord then "" else "not ") ++
     str "to be a record"

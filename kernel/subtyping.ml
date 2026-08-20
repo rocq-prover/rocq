@@ -140,19 +140,43 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
   let kn1 = KerName.make mp1 l in
   let kn2 = KerName.make mp2 l in
   let error why = error_signature_mismatch trace l why in
-  let check_conv why cst poly pb = check_conv_error error why (cst, ustate) poly pb in
   let mib1 =
     match info1 with
       | IndType ((_,0), mib) -> Declareops.subst_mind_body subst1 mib
       | _ -> error (InductiveFieldExpected mib2)
   in
+  let poly = inductive_is_polymorphic mib1 in
+  let check_conv why cst pb = check_conv_error error why (cst, ustate) poly pb in
+
+  let check_rel_ctx err env cst ctx1 ctx2 =
+    let () = if not (List.same_length ctx1 ctx2) then error err in
+    List.fold_right2 (fun d1 d2 (env, cst) ->
+        let open Context.Rel.Declaration in
+        match d1, d2 with
+        | LocalAssum (_, t1), LocalAssum (_, t2) ->
+          let cst = check_conv err cst CONV env t1 t2 in
+          Environ.push_rel d1 env, cst
+        | LocalDef (_, b1, t1), LocalDef (_, b2, t2) ->
+          let cst = check_conv err cst CONV env t1 t2 in
+          let cst = check_conv err cst CONV env b1 b2 in
+          Environ.push_rel d1 env, cst
+        | (LocalAssum _ | LocalDef _), _ -> error err)
+      ctx1 ctx2 (env, cst)
+  in
+
   let env = check_universes error env mib1.mind_universes mib2.mind_universes in
   let () = check_variance error mib1.mind_variance mib2.mind_variance in
   let inst = make_abstract_instance (Declareops.inductive_polymorphic_context mib1) in
   let mib2 =  Declareops.subst_mind_body subst2 mib2 in
-  let check_inductive_type cst name t1 t2 =
-    check_conv (NotConvertibleInductiveField (name, Some (env, t1, t2)))
-      cst (inductive_is_polymorphic mib1) CUMUL env t1 t2
+  let check_inductive_type ~is_ctor cst name t1 t2 =
+    let err = if is_ctor then NotConvertibleConstructorField (name, Some (env, t1, t2))
+      else NotConvertibleInductiveField (name, Some (env, t1, t2))
+    in
+    let ctx1, o1 = Term.decompose_prod_decls t1 in
+    let ctx2, o2 = Term.decompose_prod_decls t2 in
+    let env, cst = check_rel_ctx err env cst ctx1 ctx2 in
+    let pb = if is_ctor then CONV else CUMUL in
+    check_conv err cst pb env o1 o2
   in
 
   let check_packet cst p1 p2 =
@@ -174,7 +198,7 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
       (* params_ctxt done because part of the inductive types *)
       let ty1 = type_of_inductive ((mib1, p1), inst) in
       let ty2 = type_of_inductive ((mib2, p2), inst) in
-      let cst = check_inductive_type cst p2.mind_typename ty1 ty2 in
+      let cst = check_inductive_type ~is_ctor:false cst p2.mind_typename ty1 ty2 in
       (* we check that records and their field names are preserved. *)
       (** FIXME: this check looks nonsense *)
       check (fun p -> p.mind_record <> NotRecord) (==) (fun x -> RecordFieldExpected x);
@@ -203,9 +227,7 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
   in
   let mind = MutInd.make1 kn1 in
   let check_cons_types i cst p1 p2 =
-    Array.fold_left3
-      (fun cst id t1 t2 -> check_conv (NotConvertibleConstructorField (id, Some (env, t1, t2))) cst
-        (inductive_is_polymorphic mib1) CONV env t1 t2)
+    Array.fold_left3 (check_inductive_type ~is_ctor:true)
       cst
       p2.mind_consnames
       (arities_of_constructors ((mind,i), inst) (mib1, p1))
@@ -219,15 +241,21 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
   assert (Array.length mib1.mind_packets >= 1
             && Array.length mib2.mind_packets >= 1);
 
-  (* Check that the expected numbers of uniform parameters are the same *)
-  (* No need to check the contexts of parameters: it is checked *)
-  (* at the time of checking the inductive arities in check_packet. *)
-  (* Notice that we don't expect the local definitions to match: only *)
-  (* the inductive types and constructors types have to be convertible *)
-  if not (Int.equal mib1.mind_nparams mib2.mind_nparams) then
-    error (InductiveParamsNumberField { got = mib1.mind_nparams; expected = mib2.mind_nparams });
+  (* Check that the parameters are the same (ignoring names).
+     It seems like we could accept differences in localdef params, but
+     because they can be accessed through a localdef constructor
+     argument it would lead to inconsistency. *)
+  let cst =
+    let ctx1 = mib1.mind_params_ctxt in
+    let ctx2 = mib2.mind_params_ctxt in
+    let _env, cst = check_rel_ctx
+        (InductiveParams { env; got = ctx1; expected = ctx2; })
+        env cst ctx1 ctx2
+    in
+    cst
+  in
 
-  begin
+  let () =
     let kn1' = kn_of_delta reso1 kn1 in
     let kn2' = kn_of_delta reso2 kn2 in
     let mind1 = MutInd.make kn1 kn1' in
@@ -235,7 +263,7 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
     if KerName.equal kn2 kn2' || KerName.equal kn1' (MutInd.canonical mind2)
     then ()
     else error (NotEqualInductiveAliases (mind1, mind2))
-  end;
+  in
   (* we first check simple things *)
   let cst =
     Array.fold_left2 check_packet cst mib1.mind_packets mib2.mind_packets
