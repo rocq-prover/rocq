@@ -650,11 +650,11 @@ Note that single-quotes in a ``_RocqProject`` file are only special characters
 if they appear in the string following ``-arg``. And on their own they don't
 quote spaces. For example ``-arg 'foo bar'`` in ``_RocqProject`` is first split
 into ``-arg``, ``'foo``, ``bar'``. Then ``'foo`` is interpreted as the value for
-``-arg``. The unpaired single quote is implicitly closed at the end, so this
-ends up passing ``foo`` to `rocq compile`. Finally, ``bar'`` is the next token,
-and it is interpreted as a filename (like all strings in ``_RocqProject`` that
-are not flags). ``-arg "'foo bar'"`` behaves differently and passes the single
-argument ``foo bar`` to `rocq compile`.
+``-arg``. This leads to an error due to the unpaired single quote. If we could
+ignore the error, the next token ``bar'`` would be interpreted as a filename
+(like all strings in ``_RocqProject`` that are not flags). ``-arg "'foo bar'"``
+behaves differently and passes the single argument ``foo bar`` to `rocq
+compile`.
 
 Forbidden filenames
 +++++++++++++++++++
