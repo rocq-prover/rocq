@@ -594,6 +594,9 @@ let explain_ill_formed_cofix_body env sigma = function
   | RecCallInTypeOfDef c ->
       str "Recursive call forbidden in the type of a recursive definition" ++
       spc () ++ pr_leconstr_env env sigma c
+  | RecCallInNonMainMutual c ->
+    str "Recursive call forbidden in non-main cofix in nested mutual cofixpoints" ++
+    spc () ++ pr_leconstr_env env sigma c
   | RecCallInCaseFun c ->
       str "Invalid recursive call in a branch of" ++
       spc () ++ pr_leconstr_env env sigma c
