@@ -87,6 +87,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [kernel reduction drops the lift on a primitive array](#kernel-reduction-drops-the-lift-on-a-primitive-array)
       - [VM conversion entered a mutual fixpoint with the block's last component](#vm-conversion-entered-a-mutual-fixpoint-with-the-blocks-last-component)
       - [VM conversion of stuck matches shifted the arguments of constructors with extended tags](#vm-conversion-of-stuck-matches-shifted-the-arguments-of-constructors-with-extended-tags)
+      - [conversion under contexts is done in the wrong environment](#conversion-under-contexts-is-done-in-the-wrong-environment)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -1081,6 +1082,18 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - GH issue number: rocq-rocq-prover/rocq#22364
 - exploit: see issue
 - risk: systematic when using native compilation
+
+#### conversion under contexts is done in the wrong environment
+
+- component: lazy conversion
+- introduced: 8.14 ([d72e5c154f, PR #13563](https://github.com/rocq-prover/rocq/pull/13563))
+- impacted versions: until 9.2.0 (included)
+- impacted coqchk versions: same
+- fixed in: 9.2.1, 9.3.0 ([rocq-prover/rocq#22379](https://github.com/rocq-prover/rocq/pull/22379))
+- found by: Daniel Selsam
+- GH issue number: ([rocq-prover/rocq#22378](https://github.com/rocq-prover/rocq/pull/22378))
+- exploit: see issue
+- risk: ?
 
 ### Side-effects
 
