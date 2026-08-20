@@ -359,6 +359,17 @@ and lack of checking of relevance marks on constants in coqchk
 - risk: needs a cumulative inductive in which a match on an empty SProp inductive
   or inductive using Definitional UIP appears
 
+#### missing universe substitution when converting matches with letin in constructor type
+- component: conversion
+- introduced: V8.17
+- impacted released versions: V8.17 to V9.2.0
+- impacted rocqchk versions: same
+- fixed in: V9.2.1, V9.3
+- found by: OpenAI
+- issue: #22391
+- risk: needs to convert stuck matches of a universe polymorphic inductive
+  with a letin in the constructor type. The bug only appears if a polymorphic universe is used in the letin's body, and the match uses the letin.
+
 ### Module system
 
 #### missing universe constraints in typing "with" clause of a module type
