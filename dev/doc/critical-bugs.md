@@ -348,6 +348,17 @@ and lack of checking of relevance marks on constants in coqchk
   The bug occurs when the reduced type has a stuck match on a universe polymorphic inductive.
   The exploit in the issue uses Definitional UIP but the code is incorrect even without that flag.
 
+#### variance inference ignores stack of stuck irrelevant to relevant matches
+- component: inductive declarations, universe polymorphism
+- introduced: 8.13
+- impacted released versions: V8.13 to V9.2.0
+- impacted rocqchk versions: same
+- fixed in: V9.2.1, V9.3
+- found by: OpenAI
+- issue: #22376
+- risk: needs a cumulative inductive in which a match on an empty SProp inductive
+  or inductive using Definitional UIP appears
+
 ### Module system
 
 #### missing universe constraints in typing "with" clause of a module type
