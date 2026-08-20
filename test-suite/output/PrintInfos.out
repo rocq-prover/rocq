@@ -82,7 +82,7 @@ bar : forall {x : nat}, x = 0
 
 Arguments bar {x}
 Module Corelib.Init.Peano
-Notation sym_eq := eq_sym
+Abbreviation sym_eq := eq_sym
 Expands to: Notation Corelib.Init.Logic.sym_eq
 Declared in library Corelib.Init.Logic, line 767, characters 0-45
 

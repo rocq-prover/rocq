@@ -654,7 +654,7 @@ let print_abbreviation_body env kn (vars,c) =
   let qid = Nametab.shortest_qualid_of_abbreviation Id.Set.empty kn in
   hov 2
     (hov 4
-       (str "Notation " ++ pr_qualid qid ++
+       (str "Abbreviation " ++ pr_qualid qid ++
         prlist (fun id -> spc () ++ Id.print id) vars ++
         spc () ++ str ":=") ++
      spc () ++
