@@ -14,6 +14,7 @@ open CErrors
 let extra_deps = Summary.ref ~name:"extra_deps" ~stage:Summary.Stage.Synterp Id.Map.empty
 
 let bind_extra_dep ?loc path id =
+  let open Summary.Ref in
   match Id.Map.find_opt id !extra_deps with
   | Some (other,loc) ->
       user_err Pp.(str "Extra dependency " ++ Id.print id ++
@@ -25,4 +26,6 @@ let declare_extra_dep ?loc ~from ~file id =
   let file_path = Loadpath.find_extra_dep_with_logical_path ?loc ~from ~file () in
   Option.iter (bind_extra_dep ?loc file_path) id
 
-let query_extra_dep id = fst @@ Id.Map.find id !extra_deps
+let query_extra_dep id =
+  let open Summary.Ref in
+  fst @@ Id.Map.find id !extra_deps

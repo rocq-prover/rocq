@@ -82,18 +82,23 @@ let specific_notation_printing_rules =
   Summary.ref ~name:"specific-notation-printing-rules" (SpecificNotationMap.empty : notation_printing_rules SpecificNotationMap.t)
 
 let declare_generic_notation_printing_rules ntn rules =
+  let open Summary.Ref in
   generic_notation_printing_rules := NotationMap.add ntn rules !generic_notation_printing_rules
 let declare_specific_notation_printing_rules specific_ntn rules =
+  let open Summary.Ref in
   specific_notation_printing_rules := SpecificNotationMap.add specific_ntn rules !specific_notation_printing_rules
 
 let has_generic_notation_printing_rule ntn =
+  let open Summary.Ref in
   try (NotationMap.find ntn !generic_notation_printing_rules).notation_printing_reserved
   with Not_found -> false
 
 let find_generic_notation_printing_rule ntn =
+  let open Summary.Ref in
   NotationMap.find ntn !generic_notation_printing_rules
 
 let find_specific_notation_printing_rule specific_ntn =
+  let open Summary.Ref in
   SpecificNotationMap.find specific_ntn !specific_notation_printing_rules
 
 let find_notation_printing_rule which ntn =

@@ -15,6 +15,7 @@ let counter = Summary.ref ~name:"persistent_counter" 0
  * saves the value that is passed to it into the reference we have just defined:
  *)
 let cache_count v =
+  let open Summary.Ref in
   counter := v
 
 (*
@@ -44,6 +45,7 @@ let declare_counter : int -> Libobject.obj =
  * Incrementing our counter looks almost identical:
  *)
 let increment () =
+  let open Summary.Ref in
   Lib.add_leaf (declare_counter (succ !counter))
 (*
  * except that we must call our declare_counter function to get a persistent
@@ -54,4 +56,5 @@ let increment () =
  * Reading a value does not change at all:
  *)
 let value () =
+  let open Summary.Ref in
   !counter

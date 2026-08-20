@@ -145,7 +145,8 @@ include KerName
 let fresh_key =
   let id = Summary.ref ~name:"HINT-COUNTER" 0 in
   fun () ->
-    let cur = incr id; !id in
+    let open Summary.Ref in
+    let cur = id := !id + 1; !id in
     let lbl = Id.of_string ("_" ^ string_of_int cur) in
     let kn = Lib.make_kn lbl in
     let (mp, _) = KerName.repr kn in
@@ -919,16 +920,23 @@ type hint_db = Hint_db.t
 let searchtable = Summary.ref ~name:"searchtable" Hintdbmap.empty
 
 let searchtable_map name =
+  let open Summary.Ref in
   Hintdbmap.find name !searchtable
 let searchtable_add (name, db) =
+  let open Summary.Ref in
   (* XXX see #21114 *)
 (*   let () = assert (Hintdbmap.mem name !searchtable) in *)
   searchtable := Hintdbmap.add name db !searchtable
 let searchtable_create (name, db) =
+  let open Summary.Ref in
 (*   let () = assert (not @@ Hintdbmap.mem name !searchtable) in *)
   searchtable := Hintdbmap.add name db !searchtable
-let current_db_names () = Hintdbmap.domain !searchtable
-let current_db () = Hintdbmap.bindings !searchtable
+let current_db_names () =
+  let open Summary.Ref in
+  Hintdbmap.domain !searchtable
+let current_db () =
+  let open Summary.Ref in
+  Hintdbmap.bindings !searchtable
 
 let current_pure_db () = List.map snd (current_db ())
 
@@ -1806,6 +1814,7 @@ let pr_hint_db_by_name env sigma dbname =
 
 (* displays all the hints of all databases *)
 let pr_searchtable env sigma =
+  let open Summary.Ref in
   let fold name db accu =
     accu ++ str "In the database " ++ str name ++ str ":" ++ fnl () ++
     pr_hint_db_env env sigma db ++ fnl ()

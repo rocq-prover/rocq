@@ -10,6 +10,7 @@
 
 open Util
 open Names
+open Summary.Ref
 
 let make_dir l = DirPath.make (List.rev_map Id.of_string l)
 
@@ -22,7 +23,7 @@ let init_dir = [ rocq; "Init"]
 
 let jmeq_module_name = ["Stdlib";"Logic";"JMeq"]
 
-let table : GlobRef.t CString.Map.t ref =
+let table : GlobRef.t CString.Map.t Summary.Ref.t =
   Summary.ref ~name:"rocqlib_registered" CString.Map.empty
 
 let get_lib_refs () =

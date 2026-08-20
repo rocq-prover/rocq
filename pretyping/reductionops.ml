@@ -43,12 +43,13 @@ let effect_table = ref String.Map.empty
 (** a test to know whether a constant is actually the effect function *)
 let reduction_effect_hook env sigma con c =
   try
-    let funkey = Cmap_env.find con !constant_effect_table in
+    let funkey = Cmap_env.find con (Summary.Ref.get @@ constant_effect_table) in
     let effect_function = String.Map.find funkey !effect_table in
     effect_function env sigma (Lazy.force c)
   with Not_found -> ()
 
 let cache_reduction_effect (con,funkey) =
+  let open Summary.Ref in
   constant_effect_table := Cmap_env.add con funkey !constant_effect_table
 
 let subst_reduction_effect (subst,(con,funkey)) =
@@ -97,6 +98,7 @@ module ReductionBehaviour = struct
     Summary.ref ((Cpred.empty, QConstant.Map.empty)) ~name:"reductionbehaviour"
 
   let load _ (_,(r, b)) =
+    let open Summary.Ref in
     let env = Global.env () in
     table := (match b with
                 | None -> Cpred.remove r (fst !table), QConstant.Map.remove env r (snd !table)
@@ -177,6 +179,7 @@ module ReductionBehaviour = struct
        hov 2 (str "The reduction tactics " ++ pp_behavior b)
 
   module Db = struct
+    open Summary.Ref
     type t = table
     let get () = !table
     let empty = (Cpred.empty, QConstant.Map.empty)

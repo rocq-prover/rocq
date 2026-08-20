@@ -69,8 +69,11 @@ type variable_data = {
 let vartab =
   Summary.ref (Id.Map.empty : (variable_data*DirPath.t) Id.Map.t) ~name:"VARIABLE"
 
+open Summary.Ref
+
 let secpath () = Lib.current_dirpath true
-let add_variable_data id o = vartab := Id.Map.add id (o,secpath()) !vartab
+let add_variable_data id o =
+vartab := Id.Map.add id (o,secpath()) !vartab
 
 let variable_opacity id = let {opaque},_ = Id.Map.find id !vartab in opaque
 let variable_kind id = let {kind},_ = Id.Map.find id !vartab in kind

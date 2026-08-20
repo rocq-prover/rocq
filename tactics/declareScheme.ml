@@ -13,6 +13,7 @@ open Names
 let scheme_map = Summary.ref GlobRef.Map_env.empty ~name:"Schemes"
 
 let cache_one_scheme kind (gr,const) =
+  let open Summary.Ref in
   scheme_map := GlobRef.Map_env.update gr (function
       | None -> Some (CString.Map.singleton kind const)
       | Some map -> Some (CString.Map.add kind const map))
@@ -46,9 +47,13 @@ let declare_scheme local kind (gr, _ as grcl) =
   in
   Lib.add_leaf (inScheme (local,(kind,grcl)))
 
-let lookup_scheme kind gr = CString.Map.find kind (GlobRef.Map_env.find gr !scheme_map)
+let lookup_scheme kind gr =
+  let open Summary.Ref in
+  CString.Map.find kind (GlobRef.Map_env.find gr !scheme_map)
 
 let lookup_scheme_opt kind gr =
   try Some (lookup_scheme kind gr) with Not_found -> None
 
-let all_schemes () = !scheme_map
+let all_schemes () =
+  let open Summary.Ref in
+  !scheme_map

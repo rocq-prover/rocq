@@ -2,7 +2,7 @@ DECLARE PLUGIN "coq-test-suite.good"
 
 {
 
-let state = Summary.ref ~local:true
+let state = Summary.local_ref
   ~name:"elpi-compiler-cache"
   None
 

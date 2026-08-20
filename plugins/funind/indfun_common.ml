@@ -157,6 +157,7 @@ let cache_Function (_,(finfos)) =
 *)
 
 let cache_Function finfos =
+  let open Summary.Ref in
   from_function := Cmap_env.add finfos.function_constant finfos !from_function;
   from_graph := Indmap_env.add finfos.graph_ind finfos !from_graph
 
@@ -253,8 +254,12 @@ let find_or_none id =
       | _ -> CErrors.anomaly (Pp.str "Not a constant.") )
   with Not_found -> None
 
-let find_Function_infos f = Cmap_env.find_opt f !from_function
-let find_Function_of_graph ind = Indmap_env.find_opt ind !from_graph
+let find_Function_infos f =
+  let open Summary.Ref in
+  Cmap_env.find_opt f !from_function
+let find_Function_of_graph ind =
+  let open Summary.Ref in
+  Indmap_env.find_opt ind !from_graph
 
 let update_Function finfo =
   (* Pp.msgnl (pr_info finfo); *)
@@ -288,7 +293,9 @@ let add_Function is_general f =
   in
   update_Function finfos
 
-let pr_table env sigma = pr_table env sigma !from_function
+let pr_table env sigma =
+  let open Summary.Ref in
+  pr_table env sigma !from_function
 
 (*********************************)
 (* Debugging *)

@@ -244,23 +244,24 @@ let reduction_tab = ref String.Map.empty
 let red_expr_tab = Summary.ref String.Map.empty ~name:"Declare Reduction"
 
 let declare_reduction s f =
-  if String.Map.mem s !reduction_tab || String.Map.mem s !red_expr_tab
+  if String.Map.mem s !reduction_tab || String.Map.mem s (Summary.Ref.get red_expr_tab)
   then user_err
     (str "There is already a reduction expression of name " ++ str s ++ str ".")
   else reduction_tab := String.Map.add s f !reduction_tab
 
 let check_custom = function
   | ExtraRedExpr s ->
-      if not (String.Map.mem s !reduction_tab || String.Map.mem s !red_expr_tab)
+      if not (String.Map.mem s !reduction_tab || String.Map.mem s (Summary.Ref.get red_expr_tab))
       then user_err (str "Reference to undefined reduction expression " ++ str s ++ str ".")
   |_ -> ()
 
 let decl_red_expr s e =
-  if String.Map.mem s !reduction_tab || String.Map.mem s !red_expr_tab
+  if String.Map.mem s !reduction_tab || String.Map.mem s (Summary.Ref.get red_expr_tab)
   then user_err
     (str "There is already a reduction expression of name " ++ str s ++ str ".")
   else begin
     check_custom e;
+    let open Summary.Ref in
     red_expr_tab := String.Map.add s e !red_expr_tab
   end
 
@@ -312,6 +313,7 @@ let rec eval_red_expr env = function
 | Cbn f -> Cbn (make_flag env f)
 | Lazy f -> Lazy (make_flag env f)
 | ExtraRedExpr s ->
+  let open Summary.Ref in
   begin match String.Map.find s !red_expr_tab with
   | e -> eval_red_expr env e
   | exception Not_found -> ExtraRedExpr s (* delay to runtime interpretation *)

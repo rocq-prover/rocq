@@ -82,7 +82,7 @@ val all_hooks : hook CString.Map.t ref
 
 val register_hook : name:CString.Map.key -> ?override:bool -> hook -> unit
 
-val active_hooks : string list ref
+val active_hooks : string list Summary.Ref.t
 
 val deactivate_hook : name:Util.String.t -> unit
 

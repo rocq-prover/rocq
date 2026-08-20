@@ -334,6 +334,7 @@ module Cmap = Map.Make(Termops.ConstrData)
 let from_carrier = Summary.ref Cmap.empty ~name:"ring-tac-carrier-table"
 
 let print_rings () =
+  let open Summary.Ref in
   Feedback.msg_notice (strbrk "The following ring structures have been declared:");
   Cmap.iter (fun _carrier ring ->
       let env = Global.env () in
@@ -345,7 +346,9 @@ let print_rings () =
             str"and equivalence relation "++ pr_constr_env env sigma ring.ring_req))
     ) !from_carrier
 
-let ring_for_carrier r = Cmap.find r !from_carrier
+let ring_for_carrier r =
+  let open Summary.Ref in
+  Cmap.find r !from_carrier
 
 let find_ring_structure env sigma l =
   match l with
@@ -366,6 +369,7 @@ let find_ring_structure env sigma l =
     | [] -> assert false
 
 let add_entry e =
+  let open Summary.Ref in
   from_carrier := Cmap.add e.ring_carrier e !from_carrier
 
 let subst_th (subst,th) =
@@ -767,6 +771,7 @@ let dest_field env sigma th_spec =
 let field_from_carrier = Summary.ref Cmap.empty ~name:"field-tac-carrier-table"
 
 let print_fields () =
+  let open Summary.Ref in
   Feedback.msg_notice (strbrk "The following field structures have been declared:");
   Cmap.iter (fun _carrier fi ->
       let env = Global.env () in
@@ -778,7 +783,9 @@ let print_fields () =
             str"and equivalence relation "++ pr_constr_env env sigma fi.field_req))
     ) !field_from_carrier
 
-let field_for_carrier r = Cmap.find r !field_from_carrier
+let field_for_carrier r =
+  let open Summary.Ref in
+  Cmap.find r !field_from_carrier
 
 let find_field_structure env sigma l =
   check_required_library (cdir@["Field_tac"]);
@@ -800,6 +807,7 @@ let find_field_structure env sigma l =
     | [] -> assert false
 
 let add_field_entry e =
+  let open Summary.Ref in
   field_from_carrier := Cmap.add e.field_carrier e !field_from_carrier
 
 let subst_th (subst,th) =

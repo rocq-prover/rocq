@@ -282,9 +282,13 @@ let do_constraint ~poly l =
 
 let constraint_sources = Summary.ref ~name:"univ constraint sources" []
 
-let cache_constraint_source x = constraint_sources := x :: !constraint_sources
+let cache_constraint_source x =
+  let open Summary.Ref in
+  constraint_sources := x :: !constraint_sources
 
-let constraint_sources () = !constraint_sources
+let constraint_sources () =
+  let open Summary.Ref in
+  !constraint_sources
 
 let constraint_obj =
   Libobject.declare_object {

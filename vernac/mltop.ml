@@ -241,7 +241,7 @@ let plugin_init_functions : (unit -> unit) list PluginSpec.Map.t ref = ref Plugi
 
 let add_init_function name f =
   let name = PluginSpec.of_package name in
-  if PluginSpec.Set.mem name !initialized_plugins
+  if PluginSpec.Set.mem name (Summary.Ref.get initialized_plugins)
   then CErrors.anomaly Pp.(str "Not allowed to add init function for already initialized plugin " ++ str (PluginSpec.pp name));
   plugin_init_functions := PluginSpec.Map.update name (function
       | None -> Some [f]
@@ -286,7 +286,7 @@ let perform_cache_obj name =
 let dinit = CDebug.create ~name:"mltop-init" ()
 
 let init_ml_object mname =
-  if PluginSpec.Set.mem mname !initialized_plugins
+  if PluginSpec.Set.mem mname (Summary.Ref.get initialized_plugins)
   then dinit Pp.(fun () -> str "already initialized " ++ str (PluginSpec.pp mname))
   else  begin
     dinit Pp.(fun () -> str "initing " ++ str (PluginSpec.pp mname));
@@ -294,6 +294,7 @@ let init_ml_object mname =
       | l -> List.iter (fun f -> f()) (List.rev l); List.length l
       | exception Not_found -> 0
     in
+    let open Summary.Ref in
     initialized_plugins := PluginSpec.Set.add mname !initialized_plugins;
     dinit Pp.(fun () -> str "finished initing " ++ str (PluginSpec.pp mname) ++ str " (" ++ int n ++ str " init functions)")
   end

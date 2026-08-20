@@ -69,6 +69,7 @@ let current_scopes = Summary.ref ~name:"ltac2-current-scopes" []
 type open_close_scope = Open | Close
 
 let cache_open_close_scope (sc,openclose) =
+  let open Summary.Ref in
   match openclose with
   | Open -> current_scopes := sc :: (List.remove Tac2Scope.equal sc !current_scopes)
   | Close -> current_scopes := List.remove Tac2Scope.equal sc !current_scopes
@@ -90,6 +91,7 @@ let close_scope local sc = open_close_scope local sc Close
 let default_scope = Summary.ref ~name:"ltac2-default-scope" None
 
 let cache_default_scope sc =
+  let open Summary.Ref in
   let () = if Option.has_some !default_scope then
       CErrors.user_err Pp.(str "Declare ML Module for the Ltac2 plugin in multiple Rocq modules is not supported.")
   in
@@ -111,11 +113,15 @@ let declare_default_scope () =
 let () =
   Mltop.(declare_cache_obj_full (interp_only_obj declare_default_scope) "rocq-runtime.plugins.ltac2")
 
-let default_scope () = match !default_scope with
+let default_scope () =
+  let open Summary.Ref in
+  match !default_scope with
   | Some v -> v
   | None -> assert false
 
-let current_scopes () = !current_scopes
+let current_scopes () =
+  let open Summary.Ref in
+  !current_scopes
 
 module Tac2Custom = KerName
 
@@ -765,7 +771,7 @@ type ('scope,'body) notation_interpretation = {
   nota_body : 'body;
 }
 
-let notation_data : (Tac2Scope.t, notation_data) notation_interpretation Tac2Scope.Map.t ParsedNota.AnyMap.t ref =
+let notation_data : (Tac2Scope.t, notation_data) notation_interpretation Tac2Scope.Map.t ParsedNota.AnyMap.t Summary.Ref.t =
   Summary.ref ~name:"tac2notation-data" ParsedNota.AnyMap.empty
 
 let rec interp_notation_args : type a. a Syntax.seq -> _ -> a -> _ = fun parsing toks args ->
@@ -789,6 +795,7 @@ let rec interp_notation_args : type a. a Syntax.seq -> _ -> a -> _ = fun parsing
    scopes *)
 let interp_notation ?loc scopes syn
   : notation_data * (lname * raw_tacexpr) list =
+  let open Summary.Ref in
   let WithArgs ((rule, _ as parsing), args) = TacSyn.get syn in
   let data =
     (* NB no Reserve Notation for ltac2 so can't have a notation without interp data *)
@@ -811,6 +818,7 @@ let interp_notation ?loc scopes syn
   data.nota_body, args
 
 let cache_synext_interp data =
+  let open Summary.Ref in
   let add_data m =
     let m = Option.default Tac2Scope.Map.empty m in
     let m = Tac2Scope.Map.add data.nota_scope data m in

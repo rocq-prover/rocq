@@ -86,6 +86,7 @@ open Ssripats
 let ssrhaveNOtcresolution = Summary.ref ~name:"SSR:havenotcresolution" false
 
 let () =
+  let open Summary.Ref in
   Goptions.(declare_bool_option
     { optstage = Summary.Stage.Interp;
       optkey   = ["SsrHave";"NoTCResolution"];
@@ -251,6 +252,7 @@ let havetac ist
      (introstac binders) in
  let simpltac = introstac simpl in
  let fixtc =
+   let open Summary.Ref in
    not !ssrhaveNOtcresolution &&
    match fk with FwdHint(_,true) -> false | _ -> true in
  let hint = hinttac ist true hint in

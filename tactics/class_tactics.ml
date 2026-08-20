@@ -488,6 +488,7 @@ module Search = struct
        Hint_db.empty TransparentState.full true, QGraph.initial_graph)
 
   let make_autogoal_hints env sigma only_classes (modes,st as mst) =
+    let open Summary.Ref in
     let sign = EConstr.named_context env in
     let qvars = Evd.elim_graph sigma in
     let (dir, onlyc, sign', cached_modes, cached_hints, qvars') = !autogoal_cache in
@@ -1215,10 +1216,12 @@ let register_solver ~name ?(override=false) h =
 let active_solvers = Summary.ref ~name:"typeclass_solvers" ([] : string list)
 
 let deactivate_solver ~name =
+  let open Summary.Ref in
   active_solvers := List.filter (fun s -> not (String.equal s name)) !active_solvers
 
 let activate_solver ~name =
   assert (CString.Map.mem name !class_solvers);
+  let open Summary.Ref in
   deactivate_solver ~name;
   active_solvers := name :: !active_solvers
 
@@ -1230,6 +1233,7 @@ let find_solver env evd (s : Intpart.set) =
         let (solver,cond) = CString.Map.find hd !class_solvers in
         if cond env evd s then solver else find_solver tl
       with Not_found ->  find_solver tl in
+  let open Summary.Ref in
   find_solver !active_solvers
 
 (** If [do_split] is [true], we try to separate the problem in

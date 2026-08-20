@@ -36,15 +36,19 @@ let abbrev_table =
   Summary.ref (KerName.Map.empty : data KerName.Map.t) ~name:"ABBREVIATIONS"
 
 let add kn fpa =
+  let open Summary.Ref in
   abbrev_table := KerName.Map.add kn fpa !abbrev_table
 
 let fold f acc =
+  let open Summary.Ref in
   KerName.Map.fold f !abbrev_table acc
 
 let find_opt k =
+  let open Summary.Ref in
   KerName.Map.find_opt k !abbrev_table
 
 let toggle_aux ~on ~use k (sp, data) =
+  let open Summary.Ref in
   if data.abbrev_activated != on then begin
     abbrev_table := KerName.Map.add k (sp, {data with abbrev_activated = on}) !abbrev_table;
     match use with
@@ -57,6 +61,7 @@ let toggle_aux ~on ~use k (sp, data) =
   end
 
 let toggle ~on ~use k =
+  let open Summary.Ref in
   toggle_aux ~on ~use k (KerName.Map.find k !abbrev_table)
 
 let toggle_if ~on ~use filter =
@@ -98,6 +103,7 @@ let open_abbreviation i ((sp,kn),abbrev) =
   end
 
 let import i sp kn =
+  let open Summary.Ref in
   let _,abbrev = KerName.Map.get kn !abbrev_table in
   open_abbreviation i ((sp,kn),abbrev)
 
@@ -134,5 +140,6 @@ let declare ~local user_warns id ~onlyparsing pat =
 
 (* Remark: do not check for activation (if not activated, it is already not supposed to be located) *)
 let find_interp kn =
+  let open Summary.Ref in
   let _,abbrev = KerName.Map.find kn !abbrev_table in
   abbrev.abbrev_pattern

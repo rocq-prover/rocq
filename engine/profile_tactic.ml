@@ -72,7 +72,7 @@ let empty_treenode name = {
 let root = "root"
 
 
-let stack = Summary.ref ~name:"LtacProf-stack" ~local:true [empty_treenode root]
+let stack = Summary.local_ref ~name:"LtacProf-stack" [empty_treenode root]
 
 let reset_profile_tmp () = stack := [empty_treenode root]
 

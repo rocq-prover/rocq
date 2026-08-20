@@ -45,9 +45,11 @@ let add_generalizable gen table =
       table l
 
 let cache_generalizable_type (local,cmd) =
+  let open Summary.Ref in
   generalizable_table := add_generalizable cmd !generalizable_table
 
 let load_generalizable_type _ (local,cmd) =
+  let open Summary.Ref in
   generalizable_table := add_generalizable cmd !generalizable_table
 
 let in_generalizable : bool * lident list option -> obj =
@@ -60,7 +62,9 @@ let in_generalizable : bool * lident list option -> obj =
 let declare_generalizable ~local gen =
  Lib.add_leaf (in_generalizable (local, gen))
 
-let find_generalizable_ident id = Id.Pred.mem (root_of_id id) !generalizable_table
+let find_generalizable_ident id =
+  let open Summary.Ref in
+  Id.Pred.mem (root_of_id id) !generalizable_table
 
 let is_global id =
   try ignore (Nametab.locate_extended (qualid_of_ident id)); true

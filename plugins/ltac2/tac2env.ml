@@ -66,53 +66,71 @@ type compile_info = {
 
 let ltac_state = Summary.ref empty_state ~name:"ltac2-state"
 
-let compiled_tacs = Summary.ref ~local:true ~name:"ltac2-compiled-state" KerName.Map.empty
+let compiled_tacs = Summary.local_ref ~name:"ltac2-compiled-state" KerName.Map.empty
 
 let define_global kn e =
+  let open Summary.Ref in
   let state = !ltac_state in
   ltac_state := { state with ltac_tactics = KerName.Map.add kn e state.ltac_tactics }
 
 let interp_global kn =
-  let data = KerName.Map.find kn ltac_state.contents.ltac_tactics in
+  let open Summary.Ref in
+  let data = KerName.Map.find kn (!ltac_state).ltac_tactics in
   data
 
 let set_compiled_global kn info v =
   assert (not (interp_global kn).gdata_mutable);
   compiled_tacs := KerName.Map.add kn (info,v) !compiled_tacs
 
-let get_compiled_global kn = KerName.Map.find_opt kn !compiled_tacs
+let get_compiled_global kn =
+  KerName.Map.find_opt kn !compiled_tacs
 
-let globals () = (!ltac_state).ltac_tactics
+let globals () =
+  let open Summary.Ref in
+  (!ltac_state).ltac_tactics
 
 let define_constructor kn t =
+  let open Summary.Ref in
   let state = !ltac_state in
   ltac_state := {
     state with
     ltac_constructors = KerName.Map.add kn t state.ltac_constructors;
   }
 
-let interp_constructor kn = KerName.Map.find kn ltac_state.contents.ltac_constructors
+let interp_constructor kn =
+  let open Summary.Ref in
+  KerName.Map.find kn (!ltac_state).ltac_constructors
 
 let find_all_constructors_in_type kn =
+  let open Summary.Ref in
   KerName.Map.filter (fun _ data -> KerName.equal kn data.cdata_type) (!ltac_state).ltac_constructors
 
 let define_projection kn t =
+  let open Summary.Ref in
   let state = !ltac_state in
   ltac_state := { state with ltac_projections = KerName.Map.add kn t state.ltac_projections }
 
-let interp_projection kn = KerName.Map.find kn ltac_state.contents.ltac_projections
+let interp_projection kn =
+  let open Summary.Ref in
+  KerName.Map.find kn (!ltac_state).ltac_projections
 
 let define_type kn e =
+  let open Summary.Ref in
   let state = !ltac_state in
   ltac_state := { state with ltac_types = KerName.Map.add kn e state.ltac_types }
 
-let interp_type kn = KerName.Map.find kn ltac_state.contents.ltac_types
+let interp_type kn =
+  let open Summary.Ref in
+  KerName.Map.find kn (!ltac_state).ltac_types
 
 let define_abbrev kn data =
+  let open Summary.Ref in
   let state = !ltac_state in
   ltac_state := { state with ltac_abbrevs = KerName.Map.add kn data state.ltac_abbrevs }
 
-let interp_abbrev kn = KerName.Map.find kn ltac_state.contents.ltac_abbrevs
+let interp_abbrev kn =
+  let open Summary.Ref in
+  KerName.Map.find kn (!ltac_state).ltac_abbrevs
 
 module ML =
 struct

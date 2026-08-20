@@ -708,7 +708,9 @@ let evar_counter_summary_name = "evar counter"
 
 (* Generator of existential names *)
 let evar_ctr, evar_counter_summary_tag = Summary.ref_tag 0 ~name:evar_counter_summary_name
-let new_untyped_evar () = incr evar_ctr; Evar.unsafe_of_int !evar_ctr
+let new_untyped_evar () =
+  let open Summary.Ref in
+  evar_ctr := !evar_ctr + 1; Evar.unsafe_of_int !evar_ctr
 
 let default_source = Loc.tag @@ Evar_kinds.InternalHole
 

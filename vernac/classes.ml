@@ -147,15 +147,17 @@ let register_observer ~name ?(override=false) o =
   name
 
 let deactivate_observer name =
+  let open Summary.Ref in
   active_observers := List.remove String.equal name !active_observers
 
 let activate_observer name =
   assert (CString.Map.mem name !observers);
   deactivate_observer name;
+  let open Summary.Ref in
   active_observers := name :: !active_observers
 
 let observe event =
-  List.iter (fun name -> (CString.Map.get name !observers) event) !active_observers
+  List.iter (fun name -> (CString.Map.get name !observers) event) (Summary.Ref.get active_observers)
 
 let add_instance cl info global impl =
   let () = match global with

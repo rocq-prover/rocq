@@ -581,6 +581,8 @@ module MakeImperative (Tab:Functional_NAMETAB) (SI:StateInfo) ()
 = struct
   type elt = Tab.elt
 
+  open Summary.Ref
+
   let the_tab = Summary.ref ~stage:SI.stage ~name:SI.summary_name Tab.empty
 
   let push vis sp v = the_tab := Tab.push vis sp v !the_tab
@@ -625,6 +627,8 @@ module MakeWarned (M:NAMETAB)
     : WarnedTab with type elt = M.elt and type warning_data := W.data
 = struct
   include M
+
+  open Summary.Ref
 
   let warntab = Summary.ref ~stage:W.stage ~name:W.summary_name W.Map.empty
 
@@ -947,8 +951,9 @@ let exists_universe = Univs.exists
 (* Source locations *)
 
 open Globnames
+open Summary.Ref
 
-let cci_loc_table : Loc.t ExtRefMap.t ref = Summary.ref ~name:"constant-loc-table" ExtRefMap.empty
+let cci_loc_table : Loc.t ExtRefMap.t Summary.Ref.t = Summary.ref ~name:"constant-loc-table" ExtRefMap.empty
 
 let set_cci_src_loc kn loc = cci_loc_table := ExtRefMap.add kn loc !cci_loc_table
 

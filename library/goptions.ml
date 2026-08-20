@@ -125,6 +125,7 @@ module MakeTable =
             ++ strbrk ") is already used.")
 
     module MySet = A.Set
+    open Summary.Ref
 
     let t = Summary.ref ~stage:Interp MySet.empty ~name:nick
 
@@ -169,7 +170,9 @@ module MakeTable =
        print = (fun () -> print_table A.title A.printer !t);
      }
 
-    let () = tables := (nick, table_of_A)::!tables
+    let () =
+      let open Stdlib in
+      tables := (nick, table_of_A)::!tables
 
     let v () = !t
     let active x = A.Set.mem x !t
