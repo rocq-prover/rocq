@@ -123,10 +123,13 @@ let adjust_primitive_univ_entry p auctx = function
   | Polymorphic_entry uctx ->
     assert (not (AbstractContext.is_empty auctx)); (* ensured by ComPrimitive *)
     (* [push_context] will check that the universes aren't repeated in
-       the instance so comparing the sizes works. No polymorphic
-       primitive uses constraints currently. *)
-    if not (AbstractContext.size auctx = UContext.size uctx
-            && PConstraints.is_empty (UContext.constraints uctx))
+       the instance so comparing the sizes works. *)
+    if not (AbstractContext.size auctx = UContext.size uctx) then
+      CErrors.user_err Pp.(str "Incorrect universes for primitive " ++
+                            str (CPrimitives.op_or_type_to_string p));
+    let expected_constraints = AbstractContext.instantiate (UContext.instance uctx) auctx in
+    let actual_constraints = UContext.constraints uctx in
+    if not (PConstraints.equal expected_constraints actual_constraints)
     then CErrors.user_err Pp.(str "Incorrect universes for primitive " ++
                                 str (CPrimitives.op_or_type_to_string p));
     Polymorphic_entry (UContext.refine_names (AbstractContext.names auctx) uctx)

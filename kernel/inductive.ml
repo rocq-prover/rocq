@@ -1329,7 +1329,7 @@ let rec subterm_specif ?evars renv stack t =
 
     | Var _ | Sort _ | Cast _ | Prod _ | LetIn _ | App _ | Ind _
       | Construct _ | CoFix _ | Int _ | Float _ | String _
-      | Array _ -> Subterm.not_subterm
+      | Array _ | PBlock _ | PRun _ -> Subterm.not_subterm
 
 
       (* Other terms are not subterms *)
@@ -1563,7 +1563,7 @@ let check_one_fix ?evars renv recpos trees def =
               | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
               | Sort _ | Int _ | Float _ | String _ | Array _ -> assert false
               | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
-              | Proj _ | Cast _ | Meta _ | Evar _ -> None)
+              | Proj _ | Cast _ | Meta _ | Evar _ | PBlock _ | PRun _ -> None)
 
         (* Enables to traverse Fixpoint definitions in a more intelligent
            way, ie, the rule :
@@ -1613,7 +1613,7 @@ let check_one_fix ?evars renv recpos trees def =
               | Sort _ | Int _ | Float _ | String _
               | Array _ -> assert false
               | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
-              | Proj _ | Cast _ | Meta _ | Evar _ -> None)
+              | Proj _ | Cast _ | Meta _ | Evar _ | PBlock _ | PRun _ -> None)
 
         | Const (kn,_u as cu) ->
             check_rec_call_state renv NoNeedReduce stack rs (fun () ->
@@ -1662,7 +1662,7 @@ let check_one_fix ?evars renv recpos trees def =
               | CoFix _ | Ind _ | Lambda _ | Prod _ | LetIn _
               | Sort _ | Int _ | Float _ | String _ | Array _ -> assert false
               | Rel _ | Var _ | Const _ | App _ | Case _ | Fix _
-              | Proj _ | Cast _ | Meta _ | Evar _ -> None)
+              | Proj _ | Cast _ | Meta _ | Evar _ | PBlock _ | PRun _ -> None)
             end
 
         | Var id ->
@@ -1699,6 +1699,19 @@ let check_one_fix ?evars renv recpos trees def =
             let rs = Array.fold_left (check_inert_subterm_rec_call renv) rs t in
             let rs = check_inert_subterm_rec_call renv rs def in
             let rs = check_inert_subterm_rec_call renv rs ty in
+            rs
+
+        | PBlock (_u,ty,entries,t) ->
+            let rs = check_inert_subterm_rec_call renv rs ty in
+            let t = Term.expand_pblock entries t in
+            let rs = check_inert_subterm_rec_call renv rs t in
+            rs
+
+        | PRun (ty,k,b,cont) ->
+            let rs = check_inert_subterm_rec_call renv rs ty in
+            let rs = check_inert_subterm_rec_call renv rs k in
+            let rs = check_inert_subterm_rec_call renv rs b in
+            let rs = check_inert_subterm_rec_call renv rs cont in
             rs
 
         (* stack is not checked because it will depend on evar definition *)
@@ -1959,7 +1972,7 @@ let check_one_cofix ?evars env nbfix def deftype =
             List.iter (check_rec_call env alreadygrd n tree) args
         | Rel _ | Var _ | Sort _ | Cast _ | Prod _ | LetIn _ | App _ | Const _
           | Ind _ | Fix _ | Proj _ | Int _ | Float _ | String _
-          | Array _ ->
+          | Array _ | PBlock _ | PRun _ ->
            raise (CoFixGuardError (env,NotGuardedForm t)) in
 
   let ((mind, _),_) = codomain_is_coind ?evars env deftype in

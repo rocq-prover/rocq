@@ -256,6 +256,13 @@ let v_cofix = v_tuple_c ("pcofixpoint",[|v_int;v_prec|]) in
 let v_case_invert = v_sum_c ("case_inversion", 1, [|[|v_array v_constr|]|]) in
 let v_case_branch = v_tuple_c ("case_branch", [|v_array (v_binder_annot v_name); v_constr|]) in
 let v_case_return = v_tuple_c ("case_return", [|v_tuple_c ("case_return'", [|v_array (v_binder_annot v_name); v_constr|]); v_relevance|]) in
+let v_rdecl = v_sum_c ("rel_declaration", 0,
+    [| [|v_binder_annot v_name; v_constr|];
+       [|v_binder_annot v_name; v_constr; v_constr|] |])
+in
+let v_pblock_entry = v_tuple_c ("pblock_entry",
+    [|v_list v_rdecl; v_constr; v_constr; v_relevance|])
+in
   v_sum_c ("constr",0,[|
     [|v_int|]; (* Rel *)
     [|v_id|]; (* Var *)
@@ -277,7 +284,9 @@ let v_case_return = v_tuple_c ("case_return", [|v_tuple_c ("case_return'", [|v_a
     [|v_uint63|]; (* v_int *)
     [|v_float64|]; (* Float *)
     [|v_string|]; (* v_string *)
-    [|v_instance;v_array v_constr;v_constr;v_constr|] (* v_array *)
+    [|v_instance;v_array v_constr;v_constr;v_constr|]; (* v_array *)
+    [|v_instance;v_constr;v_array v_pblock_entry;v_constr|]; (* PBlock *)
+    [|v_constr;v_constr;v_constr;v_constr|] (* PRun *)
   |]))
 
 let v_rdecl = v_sum "rel_declaration" 0
@@ -349,7 +358,7 @@ let v_template_universes =
   |]
 
 let v_primitive =
-  v_enum "primitive" 63 (* Number of constructors of the CPrimitives.t type *)
+  v_enum "primitive" 62 (* Number of constructors of the CPrimitives.t type *)
 
 let v_cst_def =
   v_sum "constant_def" 0
