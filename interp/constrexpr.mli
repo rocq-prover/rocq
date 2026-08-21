@@ -108,6 +108,8 @@ type explicit_flag = bool (** true = with "@" *)
 type delimiter_depth = DelimOnlyTmpScope | DelimUnboundedScope
 (** shallow (%_) vs. deep (%) scope opening *)
 
+type scope_delimiter = delimiter_depth * string
+
 type prim_token =
   | Number of NumTok.Signed.t
   | String of string

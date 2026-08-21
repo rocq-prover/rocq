@@ -126,6 +126,8 @@ let force_quality ?loc = function
    and we can't do [Rocqlib.lib_ref] at parsing time, it's only available in the interp phase. *)
 let sigref loc = Libnames.qualid_of_string ~loc "Corelib.Init.Specif.sig"
 
+let mk_delim ~loc c d = CAst.make ~loc @@ CDelimiters (fst d, snd d, c)
+
 }
 
 GRAMMAR EXTEND Gram
@@ -134,7 +136,7 @@ GRAMMAR EXTEND Gram
   global constr_pattern cpattern Constr.ident
   closed_binder open_binders binder binders binders_fixannot
   record_declaration typeclass_constraint pattern arg type_cstr
-  one_closed_binder one_open_binder;
+  one_closed_binder one_open_binder scope_delimiter;
   Constr.ident:
     [ [ id = Prim.ident -> { id } ] ]
   ;
@@ -270,7 +272,10 @@ GRAMMAR EXTEND Gram
         args = LIST0 (term LEVEL "9"); ")" ->
         { CAst.make ~loc @@ CProj(true, (f,i), List.map (fun a -> (a,None)) args, c) }
       | c = term; "%"; key = IDENT ->
-        { CAst.make ~loc @@ CDelimiters (DelimUnboundedScope,key,c) }
+        { (* we'd like to use `scope_delimiter` here but that would break left factoring
+             with potential user defined notations
+             (e.g., `Reserved Notation "x %" (at level 1).` in CoLoR) *)
+          CAst.make ~loc @@ CDelimiters (DelimUnboundedScope,key,c) }
       | c = term; "%_"; key = IDENT ->
         { CAst.make ~loc @@ CDelimiters (DelimOnlyTmpScope,key,c) } ]
     | "0"
@@ -326,9 +331,16 @@ GRAMMAR EXTEND Gram
     [ [ id = global; bl = binders; ":="; c = lconstr ->
         { (id, mkLambdaCN ~loc bl c) } ] ]
   ;
+  scope_delimiter: [
+    [ "%"; key = IDENT -> { DelimUnboundedScope, key }
+    | "%_"; key = IDENT -> { DelimOnlyTmpScope, key }
+    ] ]
+  ;
   arg:
-    [ [ test_lpar_id_coloneq; "("; id = identref; ":="; c = lconstr; ")" -> { (c,Some (CAst.make ?loc:id.CAst.loc @@ ExplByName id.CAst.v)) }
-      | test_lpar_nat_coloneq; "("; n = natural; ":="; c = lconstr; ")" -> { (c,Some (CAst.make ~loc @@ ExplByPos n)) }
+    [ [ test_lpar_id_coloneq; "("; id = identref; ":="; c = lconstr; ")"; d = LIST0 scope_delimiter ->
+        { (List.fold_left (mk_delim ~loc) c d,Some (CAst.make ?loc:id.CAst.loc @@ ExplByName id.CAst.v)) }
+      | test_lpar_nat_coloneq; "("; n = natural; ":="; c = lconstr; ")"; d = LIST0 scope_delimiter ->
+        { (List.fold_left (mk_delim ~loc) c d,Some (CAst.make ~loc @@ ExplByPos n)) }
       | c=term LEVEL "9" -> { (c,None) } ] ]
   ;
   atomic_constr:
@@ -440,7 +452,10 @@ GRAMMAR EXTEND Gram
         { CAst.make ~loc @@ CPatCstr (r, Some lp, []) } ]
     | "1" LEFTA
       [ c = pattern; "%"; key = IDENT ->
-        { CAst.make ~loc @@ CPatDelimiters (DelimUnboundedScope,key,c) }
+        { (* we'd like to use `scope_delimiter` here but that would break left factoring
+             with potential user defined notations
+             (e.g., `Reserved Notation "x %" (at level 1).` in CoLoR) *)
+          CAst.make ~loc @@ CPatDelimiters (DelimUnboundedScope,key,c) }
       | c = pattern; "%_"; key = IDENT ->
         { CAst.make ~loc @@ CPatDelimiters (DelimOnlyTmpScope,key,c) } ]
     | "0"

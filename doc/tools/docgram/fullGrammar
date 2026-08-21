@@ -173,9 +173,14 @@ field_def: [
 | global binders ":=" lconstr
 ]
 
+scope_delimiter: [
+| "%" IDENT
+| "%_" IDENT
+]
+
 arg: [
-| test_lpar_id_coloneq "(" identref ":=" lconstr ")"
-| test_lpar_nat_coloneq "(" natural ":=" lconstr ")"
+| test_lpar_id_coloneq "(" identref ":=" lconstr ")" LIST0 scope_delimiter
+| test_lpar_nat_coloneq "(" natural ":=" lconstr ")" LIST0 scope_delimiter
 | term9
 ]
 
@@ -1345,11 +1350,6 @@ args_modifier: [
 | "extra" "scopes"
 | "clear" "scopes" "and" "implicits"
 | "clear" "implicits" "and" "scopes"
-]
-
-scope_delimiter: [
-| "%" IDENT
-| "%_" IDENT
 ]
 
 argument_spec: [
