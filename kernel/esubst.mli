@@ -85,9 +85,12 @@ val comp : ('a subs -> 'b -> 'a) -> (int -> 'a -> 'a) -> 'a subs -> 'b subs -> '
     two consecutive [ELLFT] or two consecutive [ELSHFT].
 
     Relocations are a particular kind of substitutions that only contain
-    variables. In particular, [el_*] enjoys similar typing rules as the
-    equivalent substitution function [subs_*].
-*)
+    variables. [el_id] is analogous to [subs_id], and [el_lift] is analogous
+    to [subs_lift]. Note, however, that [el_shft] and [subs_shft] are
+    different operations. (This is visible in their typing rules.)
+    [el_shft] is a pre-increment (it acts on the domain of the transformation)
+    whereas [subs_shft] is a post-increment (it acts on the codomain of the
+    transformation). *)
 type lift = private
   | ELID
   | ELSHFT of lift * int
