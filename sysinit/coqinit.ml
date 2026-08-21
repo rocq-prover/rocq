@@ -149,6 +149,20 @@ let init_profile ~file =
       NewProfile.finish ();
       close_out ch)
 
+(* Warning flags given on the command line are turned into injections, which
+   are only applied once the initial state is built. Some warnings are emitted
+   before that, while computing load paths, and could not be silenced at all
+   (e.g. deprecated-coq-env-var). Apply the flags early so that -w is taken
+   into account from the start; the injection is still applied later, which is
+   harmless since it sets the same value. *)
+let init_warnings opts =
+  let open Coqargs in
+  List.iter (function
+      | OptionInjection (["Warnings"], OptionSet (Some flags)) ->
+        CWarnings.set_flags (CWarnings.normalize_flags_string flags)
+      | _ -> ())
+    (List.rev opts.pre.injections)
+
 let init_runtime ~usage opts =
   let open Coqargs in
   Vernacextend.static_linking_done ();
@@ -158,6 +172,8 @@ let init_runtime ~usage opts =
 
   (* excluded directories *)
   List.iter System.exclude_directory opts.config.exclude_dirs;
+
+  init_warnings opts;
 
   let coqenv = boot_env usage opts in
 
