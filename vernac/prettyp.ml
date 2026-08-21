@@ -950,7 +950,7 @@ let pr_located_qualid env = function
       let extra = canonical_info env ref in
       v 0 (hov 0 (str ref_str ++ spc () ++ pr_path (Nametab.path_of_global ref) ++ extra))
   | Abbreviation kn ->
-    str "Notation" ++ spc () ++ pr_path (Nametab.path_of_abbreviation kn)
+    str "Abbreviation" ++ spc () ++ pr_path (Nametab.path_of_abbreviation kn)
   | Dir dir -> pr_dir dir
   | Module mp ->
     str "Module" ++ spc () ++ pr_path (Nametab.path_of_module mp)
