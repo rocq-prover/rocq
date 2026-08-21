@@ -628,7 +628,16 @@ and to_constr_case lfts ci u pms (p,r) iv c ve env =
   let subs = comp_subs lfts env in
   let r = usubst_relevance subs r in
   if is_subs_id (fst env) && is_lift_id lfts then
-    mkCase (ci, usubst_instance subs u, pms, (p,r), iv, to_constr lfts c, ve)
+    let f_ctx (nas, c as o) =
+      let c' = subst_instance_constr (snd env) c in
+      if c == c' then o else nas, c'
+    in
+    mkCase (ci, usubst_instance subs u,
+            Array.Smart.map (subst_instance_constr (snd env)) pms,
+            (f_ctx p,r),
+            map_invert (subst_instance_constr (snd env)) iv,
+            to_constr lfts c,
+            Array.Smart.map f_ctx ve)
   else
     let f_ctx (nas, c) =
       let nas = Array.map (usubst_binder subs) nas in
@@ -639,7 +648,7 @@ and to_constr_case lfts ci u pms (p,r) iv c ve env =
             usubst_instance subs u,
             Array.map (fun c -> subst_constr subs c) pms,
             (f_ctx p,r),
-            iv,
+            map_invert (subst_constr subs) iv,
             to_constr lfts c,
             Array.map f_ctx ve)
 

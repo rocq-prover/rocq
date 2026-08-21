@@ -334,6 +334,20 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit / GH issue: [#22021](https://github.com/rocq-prover/rocq/issues/22021)
 - risk: low (no known way to exploit the issue)
 
+#### incorrect reification in lazy machine of matches with universe polymorphism
+- component: "lazy" reduction
+- introduced: V8.17
+- impacted released versions: V8.17 to V9.2.0
+- impacted rocqchk versions: same
+- fixed in: V9.2.1, V9.3
+- found by: OpenAI
+- issue: #22380
+- risk: reification of the lazy machine is only trusted
+  when it is used to check an application or match/proj
+  (typically in `f x`, the inferred type of `f` is reduced to expose a `forall`).
+  The bug occurs when the reduced type has a stuck match on a universe polymorphic inductive.
+  The exploit in the issue uses Definitional UIP but the code is incorrect even without that flag.
+
 ### Module system
 
 #### missing universe constraints in typing "with" clause of a module type
