@@ -17,6 +17,8 @@ open Nativevalues
 compiler. mllambda represents a fragment of ML, and can easily be printed
 to OCaml code. *)
 
+exception NeedsAccumulators (* raise by functions that compile without accumulators when they are needed for correctness *)
+
 type cenv
 
 val make_cenv : unit -> cenv
@@ -29,6 +31,18 @@ val debug_native_compiler : CDebug.t
 val keep_debug_files : unit -> bool
 
 val pp_global : Format.formatter -> global -> unit
+
+val global_to_mlf_name : global -> string option
+
+val pp_global_interface : Format.formatter -> global -> unit
+
+type compiled_library_flag =
+  | Supports_accumulators
+  | Generates_accumulators
+
+val pp_custom_flag : Format.formatter -> compiled_library_flag -> bool -> unit
+
+val get_custom_flag_value : string -> compiled_library_flag -> bool
 
 val mk_open : string -> global
 
@@ -55,21 +69,26 @@ type linkable_code = global list * symbols * code_location_updates
 
 val empty_updates : code_location_updates
 
-val register_native_file : string -> unit
+val register_native_file : string -> prefix:string -> unit
 
 val is_loaded_native_file : string -> bool
 
-val compile_constant_field : cenv -> env -> Constant.t ->
+val compile_constant_field : bool -> cenv -> env -> Constant.t ->
   global list -> constant_body -> global list
 
-val compile_mind_field : cenv -> ModPath.t -> Id.t ->
+val compile_mind_field : bool -> cenv -> ModPath.t -> Id.t ->
   global list -> mutual_inductive_body -> global list
 
 val compile_rewrite_rules : env -> Id.t ->
   global list -> rewrite_rules_body -> global list
 
-val mk_conv_code : env -> Genlambda.evars -> string -> constr -> constr -> linkable_code
-val mk_norm_code : env -> Genlambda.evars -> string -> constr -> linkable_code
+(** this function may raise the errror NeedsAccumulators when accumulators are needed*)
+val check_accu_need_for_evaluation: global list -> unit
+
+(** this function may raise the errror NeedsAccumulators when compiling without them *)
+val mk_conv_code : bool -> env -> Genlambda.evars -> string -> constr -> constr -> linkable_code
+(** this function may raise the errror NeedsAccumulators when compiling without them *)
+val mk_norm_code : bool -> env -> Genlambda.evars -> string -> constr -> linkable_code
 
 val mk_library_header : Nativevalues.symbols -> global list
 

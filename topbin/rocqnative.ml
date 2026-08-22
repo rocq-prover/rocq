@@ -116,7 +116,8 @@ let register_loaded_library senv libname file =
   let () = assert (not @@ DirPath.Map.mem libname !libraries_table) in
   let () = libraries_table := DirPath.Map.add libname file !libraries_table in
   let prefix = Nativecode.mod_uid_of_dirpath libname ^ "." in
-  let () = Nativecode.register_native_file prefix in
+  let fn = (Filename.dirname file) ^"/.coq-native/"^ Nativecode.mod_uid_of_dirpath libname in (* TODOME: this may not work in the general case if the target directory for native is changed *)
+  let () = Nativecode.register_native_file fn ~prefix in
   senv
 
 let mk_library sd f md digests vm =
@@ -179,9 +180,9 @@ let register_library senv m =
 
 let save_library_to env dir f lib =
   let mp = MPfile dir in
-  let ast = Nativelibrary.dump_library mp env lib in
+  let lib = Nativelibrary.dump_library mp env lib in
   let fn = Filename.dirname f ^"/"^ Nativecode.mod_uid_of_dirpath dir in
-  Nativelib.compile_library ast fn
+  Nativelib.compile_library lib fn
 
 let get_used_load_paths () =
   String.Set.elements

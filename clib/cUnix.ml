@@ -113,9 +113,9 @@ let run_command ?(hook=(fun _ ->())) c =
     (against whitespace or other funny chars in paths), hence no need
     to care about the different quoting conventions of /bin/sh and cmd.exe. *)
 
-let sys_command prog args =
+let sys_command ?(out_file_descr=Unix.stdout) prog args =
   let argv = Array.of_list (prog::args) in
-  let pid = Unix.create_process prog argv Unix.stdin Unix.stdout Unix.stderr in
+  let pid = Unix.create_process prog argv Unix.stdin out_file_descr Unix.stderr in
   waitpid_non_intr pid
 
 (*
