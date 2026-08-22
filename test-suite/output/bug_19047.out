@@ -13,10 +13,9 @@ P : A -> Type
 f :
   forall x : A,
   (forall y : A, R x y -> coAcc R y) -> (forall y : A, R x y -> P y) -> P x
-F : forall x : A, coAcc R x -> P x
-x : R
-a : coAcc P x
-The codomain is "f x"
+x : A
+a : coAcc R x
+The codomain is "P x"
 which should be a coinductive type.
 Recursive definition is:
 "fun (x : A) (a : coAcc R x) =>
