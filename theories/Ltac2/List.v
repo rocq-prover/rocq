@@ -790,3 +790,27 @@ Ltac2 rec map_filter (f : 'a -> 'b option) (l : 'a list) : 'b list :=
     | None => map_filter f l
     end
   end.
+
+(** [shared_prefix_full eq xs ys] splits [xs] and [ys] into their
+    longest common prefix (according to [eq]) and the two remaining
+    suffixes.  The prefix is returned as a list of pairs of the (equal
+    according to [eq], but possibly not identical) elements. *)
+Ltac2 rec shared_prefix_full (eq : 'a -> 'a -> bool) (xs : 'a list) (ys : 'a list)
+  : ('a * 'a) list * ('a list * 'a list) :=
+  match xs, ys with
+  | x :: xs', y :: ys'
+    => match eq x y with
+       | true
+         => let (prefix, rest) := shared_prefix_full eq xs' ys' in
+            ((x, y) :: prefix, rest)
+       | false => ([], (xs, ys))
+       end
+  | _, _ => ([], (xs, ys))
+  end.
+
+(** [shared_prefix eq xs ys] is like [shared_prefix_full], with the
+    common prefix taken from the first list. *)
+Ltac2 shared_prefix (eq : 'a -> 'a -> bool) (xs : 'a list) (ys : 'a list)
+  : 'a list * ('a list * 'a list) :=
+  let (prefix, rest) := shared_prefix_full eq xs ys in
+  (map (fun (x, _) => x) prefix, rest).
