@@ -10,3 +10,8 @@
 
 val set_local_flags : Declarations.typing_flags -> Environ.env -> Environ.env
 (** Set flags except for those ignored by the checker (see .ml file for those). *)
+
+(** Turn off in [env] every check that the given flags turn off, leaving the
+    other typing flags of [env] alone. Used for the flags recorded on a module
+    by the operation that built it. *)
+val weaken_checks : Declarations.typing_flags -> Environ.env -> Environ.env

@@ -414,6 +414,10 @@ let clean_bounded_mod_expr sign =
 
 let inline_delta_resolver env inl mp mbid mtb delta =
   let constants = inline_of_delta inl (mod_delta mtb) in
+  (* Inlining a body leaves nothing pointing at the constant it came from, so
+     the checks that were skipped to accept it have to be recorded on the
+     module the body ends up in (#12155). *)
+  let flags = ref (Declareops.safe_flags (Environ.oracle env)) in
   let rec make_inline delta = function
     | [] -> delta
     | (lev,kn)::r ->
@@ -428,8 +432,12 @@ let inline_delta_resolver env inl mp mbid mtb delta =
         match constant.const_body with
         | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> l
         | Def constr ->
+          let () =
+            flags := Declareops.weaken_checks ~weak:constant.const_typing_flags !flags
+          in
           let ctx = Declareops.constant_polymorphic_context constant in
           let constr = {UVars.univ_abstracted_value=constr; univ_abstracted_binder=ctx} in
           add_inline_delta_resolver kn (lev, Some constr) l
   in
-  make_inline delta constants
+  let delta = make_inline delta constants in
+  delta, !flags

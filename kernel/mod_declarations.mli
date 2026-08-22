@@ -62,6 +62,12 @@ val mod_type : 'a generic_module_body -> module_signature
 val mod_type_alg : 'a generic_module_body -> module_expression option
 val mod_delta : 'a generic_module_body -> delta_resolver
 
+(** The checks that were performed by the module operation which built this
+    module: its subtyping checks, and the bodies it inlined. Not the flags the
+    module's own declarations were written under -- those are recorded on the
+    declarations. *)
+val mod_typing_flags : 'a generic_module_body -> Declarations.typing_flags
+
 val mod_global_delta : 'a generic_module_body -> delta_resolver option
 (** [None] if the argument is a functor, [mod_delta] otherwise *)
 
@@ -89,6 +95,12 @@ val functorize_module : (Names.MBId.t * module_type_body) list -> module_body ->
 
 val set_implementation : module_implementation -> module_body -> module_body
 val set_algebraic_type : module_type_body -> module_expression -> module_type_body
+
+(** [weaken_typing_flags flags mb] records that the operation which produced
+    [mb] ran with the checks of [flags]. Physically equal to [mb] when that
+    adds nothing. *)
+val weaken_typing_flags : Declarations.typing_flags ->
+  'a generic_module_body -> 'a generic_module_body
 
 (** {6 Substitution} *)
 
