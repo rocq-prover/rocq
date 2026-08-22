@@ -553,7 +553,10 @@ and extract_really_ind table env kn inst mib =
         if p.ip_logical then raise (I Standard);
         if not (Int.equal (Array.length p.ip_types) 1) then raise (I Standard);
         let typ = p.ip_types.(0) in
-        let l = if conservative_types () then [] else List.filter (fun t -> not (isTdummy (expand table env t))) typ in
+        let gcstr = p.ip_consnames_ref.(0) in
+        let l = if conservative_types () then [] else
+          filter_extracted_constructor_types table env npar gcstr typ
+        in
         if List.is_empty l then raise (I Standard);
         if mip0.mind_record == Declarations.NotRecord then
           if not (keep_singleton ()) && Int.equal (List.length l) 1 && not (type_mem_kn kn (List.hd l))
@@ -571,7 +574,7 @@ and extract_really_ind table env kn inst mib =
           List.skipn mib.mind_nparams (names_prod mip0.mind_user_lc.(0)) in
         assert (Int.equal (List.length field_names) (List.length typ));
         let mp = MutInd.modpath kn in
-        let implicits = implicits_of_global { glob = (GlobRef.ConstructRef (ip,1)); inst } in
+        let implicits = implicits_of_global gcstr in
         let ty = Inductive.type_of_inductive ((mib,mip0),u) in
         let nparams = nb_default_params env sg (EConstr.of_constr ty) in
         let rec select_fields i l typs = match l,typs with
@@ -645,6 +648,18 @@ and mlt_env table env r = let open GlobRef in match r.glob with
            | _ -> None
 
 and expand table env = type_expand (mlt_env table env)
+(* Filter constructor arguments that are removed from the extracted type.
+   [ind_nparams] accounts for the inductive parameters in constructor
+   argument numbers used by [Extraction Implicit]. *)
+and filter_extracted_constructor_types table env ind_nparams r types =
+  let implicits = implicits_of_global r in
+  let rec filter i = function
+    | [] -> []
+    | t::l ->
+        let l' = filter (succ i) l in
+        if isTdummy (expand table env t) || Int.Set.mem i implicits then l'
+        else t::l'
+  in filter (1+ind_nparams) types
 and type2signature table env = type_to_signature (mlt_env table env)
 let type2sign table env = type_to_sign (mlt_env table env)
 let type_expunge table env = type_expunge (mlt_env table env)
@@ -1228,14 +1243,7 @@ let extract_inductive table env kn inst =
   let () = add_recursors (Common.State.get_table table) env kn in
   let f i j l =
     let r = { glob = GlobRef.ConstructRef ((kn, i), j + 1); inst } in
-    let implicits = implicits_of_global r in
-    let rec filter i = function
-      | [] -> []
-      | t::l ->
-          let l' = filter (succ i) l in
-          if isTdummy (expand table env t) || Int.Set.mem i implicits then l'
-          else t::l'
-    in filter (1+ind.ind_nparams) l
+    filter_extracted_constructor_types table env ind.ind_nparams r l
   in
   let packets =
     Array.mapi (fun i p -> { p with ip_types = Array.mapi (f i) p.ip_types })
