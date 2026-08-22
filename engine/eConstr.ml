@@ -728,6 +728,82 @@ let iter_with_full_binders env sigma g f n c =
     Array.iter (f n') bl
   | Array (_u,t,def,ty) -> Array.Fun1.iter f n t; f n def; f n ty
 
+let map_with_full_binders env sigma g f n c0 =
+  let open Context.Rel.Declaration in
+  match kind sigma c0 with
+  | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
+    | Construct _ | Int _ | Float _ | String _) -> c0
+  | Cast (c,k,t) ->
+    let c' = f n c in
+    let t' = f n t in
+    if c' == c && t' == t then c0
+    else mkCast (c', k, t')
+  | Prod (na,t,c) ->
+    let t' = f n t in
+    let c' = f (g (LocalAssum (na, t)) n) c in
+    if t' == t && c' == c then c0
+    else mkProd (na, t', c')
+  | Lambda (na,t,c) ->
+    let t' = f n t in
+    let c' = f (g (LocalAssum (na, t)) n) c in
+    if t' == t && c' == c then c0
+    else mkLambda (na, t', c')
+  | LetIn (na,b,t,c) ->
+    let b' = f n b in
+    let t' = f n t in
+    let c' = f (g (LocalDef (na, b, t)) n) c in
+    if b' == b && t' == t && c' == c then c0
+    else mkLetIn (na, b', t', c')
+  | App (c,l) ->
+    let c' = f n c in
+    let l' = Array.Fun1.Smart.map f n l in
+    if c' == c && l' == l then c0
+    else mkApp (c', l')
+  | Evar ev ->
+    let ev' = map_existential sigma (fun c -> f n c) ev in
+    if ev' == ev then c0
+    else mkEvar ev'
+  | Case (ci,u,pms,(p,r),iv,c,bl) ->
+    (* The annotated case only serves to compute the contexts bound by the
+       return clause and by the branches; the terms under those contexts are
+       shared with the compact representation, which is the one we rebuild. *)
+    let (_, _, _, (pctx,_), _, _, blctx) =
+      annotate_case env sigma (ci, u, pms, (p,r), iv, c, bl)
+    in
+    let f_ctx (ctx, c) (nas, _ as br) =
+      let c' = f (List.fold_right g ctx n) c in
+      if c' == c then br else (nas, c')
+    in
+    let pms' = Array.Fun1.Smart.map f n pms in
+    let p' = f_ctx pctx p in
+    let iv' = map_invert (f n) iv in
+    let c' = f n c in
+    let bl' = Array.Smart.map2 f_ctx blctx bl in
+    if pms' == pms && p' == p && iv' == iv && c' == c && bl' == bl then c0
+    else mkCase (ci, u, pms', (p',r), iv', c', bl')
+  | Proj (p,r,c) ->
+    let c' = f n c in
+    if c' == c then c0
+    else mkProj (p, r, c')
+  | Fix (ln,(lna,tl,bl)) ->
+    let tl' = Array.Fun1.Smart.map f n tl in
+    let n' = Array.fold_left2_i (fun i n na t -> g (LocalAssum (na, lift i t)) n) n lna tl in
+    let bl' = Array.Fun1.Smart.map f n' bl in
+    if tl' == tl && bl' == bl then c0
+    else mkFix (ln,(lna,tl',bl'))
+  | CoFix (ln,(lna,tl,bl)) ->
+    let tl' = Array.Fun1.Smart.map f n tl in
+    let n' = Array.fold_left2_i (fun i n na t -> g (LocalAssum (na,lift i t)) n) n lna tl in
+    let bl' = Array.Fun1.Smart.map f n' bl in
+    if tl' == tl && bl' == bl then c0
+    else mkCoFix (ln,(lna,tl',bl'))
+  | Array (u,t,def,ty) ->
+    let t' = Array.Fun1.Smart.map f n t in
+    let def' = f n def in
+    let ty' = f n ty in
+    if t' == t && def' == def && ty' == ty then c0
+    else mkArray (u, t', def', ty')
+
 let iter_with_binders sigma g f n c =
   let f l c = f l (of_constr c) in
   let c = unsafe_to_constr @@ whd_evar sigma c in
