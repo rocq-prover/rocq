@@ -34,11 +34,31 @@ rocq compile specific options:\
 \n"
 }
 
+let fixpoint_message copts =
+  let open Inductive in
+  let proportion i = Pp.(int nb_fix.(i) ++ str " " ++ surround (int (100 * nb_fix.(i) / nb_fix.(0)) ++ str "%")) in
+  Pp.(h (
+  pr_opt_no_spc_default (fun () -> str "Out") (fun file -> str "In file " ++ str file ++ str ", out") copts.Coqcargs.compile_file ++
+  str " of a total of " ++ int nb_fix.(0) ++ str " fixpoints, " ++ proportion 1 ++ str " pass the minimal condition"
+  ++ (if nb_fix.(2) > 0 then str ", " ++ proportion 2 ++ str " require extrusion of uniform arguments in nested fixpoints" else mt())
+  ++ (if nb_fix.(3) > 0 then str ", " ++ proportion 3 ++ str " require erasure of non-SN-breaking recursive calls" else mt())
+  ++ (if nb_fix.(4) > 0 then str ", " ++ proportion 4 ++ str " require fine recursive tree computations" else mt())
+  ++ (if nb_fix.(5) > 0 then str ", " ++ proportion 5 ++ str " require beta-iota cuts" else mt())
+  ++ (if nb_fix.(6) > 0 then str ", " ++ proportion 6 ++ str " make recursive calls on non-variable subterms" else mt())
+  ++ (if nb_fix.(7) > 0 then str ", " ++ proportion 7 ++ str " require reduction of beta-redexes" else mt())
+  ++ (if nb_fix.(8) > 0 then str ", " ++ proportion 8 ++ str " trust evars" else mt())
+  ++ (if nb_fix.(9) > 0 then str ", " ++ proportion 9 ++ str " don't pass the minimal condition for other reasons" else mt())
+  ++ (if nb_fix.(0) > nb_fix.(1) + nb_fix.(2) + nb_fix.(3) + nb_fix.(4) + nb_fix.(5) + nb_fix.(6) + nb_fix.(7) + nb_fix.(8) + nb_fix.(9) then str ". Not all fixpoints were accounted for" else mt())
+  ++ str "."))
+
 let coqc_main ((copts,_),stm_opts) injections ~opts =
   Topfmt.(in_phase ~phase:CompilationPhase)
     Ccompile.compile_file opts stm_opts copts injections;
 
   flush_all();
+
+  if Inductive.nb_fix.(0) > 0 then
+    Feedback.msg_notice (fixpoint_message copts);
 
   if copts.Coqcargs.output_context then begin
     let sigma, env = let e = Global.env () in Evd.from_env e, e in
