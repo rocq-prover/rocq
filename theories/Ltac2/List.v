@@ -790,3 +790,41 @@ Ltac2 rec map_filter (f : 'a -> 'b option) (l : 'a list) : 'b list :=
     | None => map_filter f l
     end
   end.
+
+(** [take_while f xs] returns the longest prefix of [xs] all of whose
+    elements satisfy [f]. *)
+Ltac2 rec take_while (f : 'a -> bool) (xs : 'a list) : 'a list :=
+  match xs with
+  | [] => []
+  | x :: xs
+    => match f x with
+       | true => x :: take_while f xs
+       | false => []
+       end
+  end.
+
+(** [drop_while f xs] removes the longest prefix of [xs] all of whose
+    elements satisfy [f]. *)
+Ltac2 rec drop_while (f : 'a -> bool) (xs : 'a list) : 'a list :=
+  match xs with
+  | [] => []
+  | x :: tl
+    => match f x with
+       | true => drop_while f tl
+       | false => x :: tl
+       end
+  end.
+
+(** [take_drop_while f xs] returns
+    [(take_while f xs, drop_while f xs)], computed in a single pass. *)
+Ltac2 take_drop_while (f : 'a -> bool) (xs : 'a list) : 'a list * 'a list :=
+  let rec aux acc xs :=
+    match xs with
+    | [] => (rev acc, [])
+    | x :: tl
+      => match f x with
+         | true => aux (x :: acc) tl
+         | false => (rev acc, x :: tl)
+         end
+    end in
+  aux [] xs.
