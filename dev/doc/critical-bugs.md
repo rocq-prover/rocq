@@ -80,6 +80,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [tactic code could mutate a global cache of values for section variables](#tactic-code-could-mutate-a-global-cache-of-values-for-section-variables)
       - [incorrect handling of universe polymorphism](#incorrect-handling-of-universe-polymorphism)
       - [Forgotten universe substitution with Register Inline on universe polymorphic definition](#forgotten-universe-substitution-with-register-inline-on-universe-polymorphic-definition)
+      - [conversion under contexts is done in the wrong environment](#conversion-under-contexts-is-done-in-the-wrong-environment)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -953,6 +954,18 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - additional note: does not seem to be exploitable before 8.8 (until 8.6 Register
   Inline fails with anomaly on universe polymorphic constants, and before
   8.8 Register Inline only affects native which fails in ocamlopt)
+
+#### conversion under contexts is done in the wrong environment
+
+- component: lazy conversion
+- introduced: 8.14 ([d72e5c154f, PR #13563](https://github.com/rocq-prover/rocq/pull/13563))
+- impacted versions: until 9.2.0 (included)
+- impacted coqchk versions: same
+- fixed in: 9.2.1, 9.3.0 ([rocq-prover/rocq#22379](https://github.com/rocq-prover/rocq/pull/22379))
+- found by: Daniel Selsam
+- GH issue number: ([rocq-prover/rocq#22378](https://github.com/rocq-prover/rocq/pull/22378))
+- exploit: see issue
+- risk: ?
 
 ### Side-effects
 
