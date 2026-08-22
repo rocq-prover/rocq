@@ -100,6 +100,9 @@ val env_of_rel     : int -> env -> env
 val fold_rel_context :
   (env -> Constr.rel_declaration -> 'a -> 'a) -> env -> init:'a -> 'a
 
+val fold_constr_with_binders_env :
+  (env -> 'a -> Constr.t -> 'a) -> env -> 'a -> Constr.t -> 'a
+
 (** {5 Context of variables (section variables and goal assumptions) } *)
 
 type var_status = SecVar | ProofVar
