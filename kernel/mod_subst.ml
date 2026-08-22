@@ -152,11 +152,32 @@ module Umap :
   let join map1 map2 = fold add_mp map1 map2
 end
 
-type substitution = delta_resolver Umap.t
+type flat_substitution = delta_resolver Umap.t
 
-let empty_subst = Umap.empty
+(* Substitutions are kept as a bounded sequence of flat maps.
+   [Compose (left, right)] means that [left] is applied before [right].
+   The representation is deliberately made only of serializable values: module
+   substitutive objects retain substitutions in compiled files. *)
+type substitution =
+  | Flat of flat_substitution
+  | Compose of {
+      left : substitution;
+      right : substitution;
+      leaves : int;
+    }
 
-let is_empty_subst = Umap.is_empty
+let empty_subst = Flat Umap.empty
+
+let is_empty_subst = function
+  | Flat subst -> Umap.is_empty subst
+  | Compose _ -> false
+
+let rec fold_substitution f subst accu =
+  match subst with
+  | Flat subst -> f subst accu
+  | Compose { left; right; _ } ->
+    let accu = fold_substitution f left accu in
+    fold_substitution f right accu
 
 (* <debug> *)
 
@@ -181,7 +202,8 @@ let debug_string_of_delta resolve =
 let list_contents subst =
   let one_pair reso = (ModPath.to_string (Deltamap.root reso), debug_string_of_delta reso) in
   let mp_one_pair mp0 p l = (ModPath.to_string mp0, one_pair p)::l in
-  Umap.fold mp_one_pair subst []
+  let flat_contents subst l = Umap.fold mp_one_pair subst l in
+  fold_substitution flat_contents subst []
 
 let debug_string_of_subst subst =
   let l = List.map (fun (s1,(s2,s3)) -> s1^"|->"^s2^"["^s3^"]")
@@ -208,18 +230,17 @@ let add_kn_delta_resolver kn kn' =
 
 let add_mp_delta_resolver mp1 mp2 = Deltamap.add_mp mp1 mp2
 
-(** Extending a [substitution] without sequential composition *)
-
-let add_mbid mbid mp resolve s =
+let map_mbid_flat mbid mp resolve =
   let () = assert (ModPath.equal mp (Deltamap.root resolve)) in
-  Umap.add_mbi mbid resolve s
-let add_mp mp1 mp2 resolve s =
-  let () = assert (ModPath.equal mp2 (Deltamap.root resolve)) in
-  Umap.add_mp mp1 resolve s
+  Umap.add_mbi mbid resolve Umap.empty
 
-let map_mbid mbid mp resolve =
-  add_mbid mbid mp resolve empty_subst
-let map_mp mp1 mp2 resolve = add_mp mp1 mp2 resolve empty_subst
+let map_mp_flat mp1 mp2 resolve =
+  let () = assert (ModPath.equal mp2 (Deltamap.root resolve)) in
+  Umap.add_mp mp1 resolve Umap.empty
+
+let map_mbid mbid mp resolve = Flat (map_mbid_flat mbid mp resolve)
+
+let map_mp mp1 mp2 resolve = Flat (map_mp_flat mp1 mp2 resolve)
 
 let mp_in_delta mp = Deltamap.mem_mp mp
 
@@ -288,7 +309,7 @@ let search_delta_inline resolve kn1 kn2 =
       try find kn2
       with Not_found -> None
 
-let subst_mp_opt subst mp = (* 's like subst *)
+let subst_mp_opt_flat subst mp = (* 's like subst *)
   let repr r = Deltamap.root r, r in
   let rec aux mp = match mp with
     | MPfile _ | MPbound _ -> repr @@ Umap.find mp subst
@@ -302,31 +323,31 @@ let subst_mp_opt subst mp = (* 's like subst *)
  in
  try Some (aux mp) with Not_found -> None
 
-let subst_mp subst mp =
- match subst_mp_opt subst mp with
+let subst_mp_flat subst mp =
+ match subst_mp_opt_flat subst mp with
     None -> mp
   | Some (mp',_) -> mp'
 
-let subst_kn_delta subst kn =
+let subst_kn_delta_flat subst kn =
  let mp,l = KerName.repr kn in
-  match subst_mp_opt subst mp with
+  match subst_mp_opt_flat subst mp with
      Some (mp',resolve) ->
       solve_delta_kn resolve (KerName.make mp' l)
    | None -> Equiv kn
 
 
-let subst_kn subst kn =
+let subst_kn_flat subst kn =
  let mp,l = KerName.repr kn in
-  match subst_mp_opt subst mp with
+  match subst_mp_opt_flat subst mp with
      Some (mp',_) ->
       (KerName.make mp' l)
    | None -> kn
 
 exception No_subst
 
-let subst_dual_mp subst mp1 mp2 =
-  let o1 = subst_mp_opt subst mp1 in
-  let o2 = if mp1 == mp2 then o1 else subst_mp_opt subst mp2 in
+let subst_dual_mp_flat subst mp1 mp2 =
+  let o1 = subst_mp_opt_flat subst mp1 in
+  let o2 = if mp1 == mp2 then o1 else subst_mp_opt_flat subst mp2 in
   match o1, o2 with
     | None, None -> raise No_subst
     | Some (mp1',resolve), None -> mp1', mp2, resolve, true
@@ -337,11 +358,11 @@ let progress f x ~orelse =
   let y = f x in
   if y != x then y else orelse
 
-let subst_mind subst mind =
+let subst_mind_flat subst mind =
   let mpu,l = KerName.repr (MutInd.user mind) in
   let mpc = KerName.modpath (MutInd.canonical mind) in
   try
-    let mpu,mpc,resolve,user = subst_dual_mp subst mpu mpc in
+    let mpu,mpc,resolve,user = subst_dual_mp_flat subst mpu mpc in
     let knu = KerName.make mpu l in
     let knc = if mpu == mpc then knu else KerName.make mpc l in
     let knc' =
@@ -350,22 +371,22 @@ let subst_mind subst mind =
     MutInd.make knu knc'
   with No_subst -> mind
 
-let subst_ind subst (ind,i as indi) =
-  let ind' = subst_mind subst ind in
+let subst_ind_flat subst (ind,i as indi) =
+  let ind' = subst_mind_flat subst ind in
     if ind' == ind then indi else ind',i
 
-let subst_constructor subst (ind,j as ref) =
-  let ind' = subst_ind subst ind in
+let subst_constructor_flat subst (ind,j as ref) =
+  let ind' = subst_ind_flat subst ind in
   if ind==ind' then ref
   else (ind',j)
 
-let subst_pind subst (ind,u) =
-  (subst_ind subst ind, u)
+let subst_pind_flat subst (ind,u) =
+  (subst_ind_flat subst ind, u)
 
-let subst_con0 subst cst =
+let subst_con0_flat subst cst =
   let mpu,l = KerName.repr (Constant.user cst) in
   let mpc = KerName.modpath (Constant.canonical cst) in
-  let mpu,mpc,resolve,user = subst_dual_mp subst mpu mpc in
+  let mpu,mpc,resolve,user = subst_dual_mp_flat subst mpu mpc in
   let knu = KerName.make mpu l in
   let knc = if mpu == mpc then knu else KerName.make mpc l in
   let knc' =
@@ -373,34 +394,13 @@ let subst_con0 subst cst =
   let cst' = Constant.make knu knc' in
   cst', search_delta_inline resolve knu knc
 
-let subst_con subst cst =
-  try subst_con0 subst cst
+let subst_con_flat subst cst =
+  try subst_con0_flat subst cst
   with No_subst -> cst, None
 
-let subst_pcon subst (con,u as pcon) =
-  try let con', _can = subst_con0 subst con in
-        con',u
-  with No_subst -> pcon
-
-let subst_constant subst con =
-  try fst (subst_con0 subst con)
+let subst_constant_flat subst con =
+  try fst (subst_con0_flat subst con)
   with No_subst -> con
-
-let subst_proj_repr subst p =
-  Projection.Repr.map (subst_mind subst) p
-
-let subst_proj subst p =
-  Projection.map (subst_mind subst) p
-
-let subst_retro_action subst action =
-  let open Retroknowledge in
-  match action with
-  | Register_ind(prim,ind) ->
-    let ind' = subst_ind subst ind in
-    if ind == ind' then action else Register_ind(prim, ind')
-  | Register_type(prim,c) ->
-    let c' = subst_constant subst c in
-    if c == c' then action else Register_type(prim, c')
 
 let rec map_kn f f' c =
   let func = map_kn f f' in
@@ -479,22 +479,80 @@ let rec map_kn f f' c =
             else mkCoFix (ln,(lna,tl',bl'))
       | _ -> c
 
-let subst_mps subst c =
+let subst_mps_flat subst c =
   let subst_pcon_term subst (con,u) =
-    let con', can = subst_con0 subst con in
+    let con', can = subst_con0_flat subst con in
     match can with
     | None -> mkConstU (con',u)
     | Some t -> Vars.univ_instantiate_constr u t
   in
-  if is_empty_subst subst then c
-  else map_kn (subst_mind subst) (subst_pcon_term subst) c
+  if Umap.is_empty subst then c
+  else map_kn (subst_mind_flat subst) (subst_pcon_term subst) c
+
+let subst_mp subst mp =
+  fold_substitution (fun subst mp -> subst_mp_flat subst mp) subst mp
+
+let subst_kn subst kn =
+  fold_substitution (fun subst kn -> subst_kn_flat subst kn) subst kn
+
+let subst_mind subst mind =
+  fold_substitution (fun subst mind -> subst_mind_flat subst mind) subst mind
+
+let subst_ind subst ind =
+  fold_substitution (fun subst ind -> subst_ind_flat subst ind) subst ind
+
+let subst_constructor subst cstr =
+  fold_substitution
+    (fun subst cstr -> subst_constructor_flat subst cstr) subst cstr
+
+let subst_pind subst pind =
+  fold_substitution (fun subst pind -> subst_pind_flat subst pind) subst pind
+
+let subst_con subst con =
+  let apply subst (con, body) =
+    match body with
+    | None -> subst_con_flat subst con
+    | Some body ->
+      let con = subst_constant_flat subst con in
+      let body = UVars.map_univ_abstracted (subst_mps_flat subst) body in
+      con, Some body
+  in
+  fold_substitution apply subst (con, None)
+
+let subst_pcon subst (con, u as pcon) =
+  let con' = fold_substitution
+    (fun subst con -> subst_constant_flat subst con) subst con
+  in
+  if con' == con then pcon else con', u
+
+let subst_constant subst con =
+  fold_substitution
+    (fun subst con -> subst_constant_flat subst con) subst con
+
+let subst_proj_repr subst p =
+  Projection.Repr.map (subst_mind subst) p
+
+let subst_proj subst p =
+  Projection.map (subst_mind subst) p
+
+let subst_retro_action subst action =
+  let open Retroknowledge in
+  match action with
+  | Register_ind (prim, ind) ->
+    let ind' = subst_ind subst ind in
+    if ind == ind' then action else Register_ind (prim, ind')
+  | Register_type (prim, c) ->
+    let c' = subst_constant subst c in
+    if c == c' then action else Register_type (prim, c')
+
+let subst_mps subst c =
+  fold_substitution (fun subst c -> subst_mps_flat subst c) subst c
 
 let subst_mps_aux subst = function
 | Inl (con, u) ->
-  begin match subst_con0 subst con with
+  begin match subst_con subst con with
   | con', None -> Inl (con', u)
   | _, Some t -> Inr (Vars.univ_instantiate_constr u t)
-  | exception No_subst -> Inl (con, u)
   end
 | Inr t -> Inr (subst_mps subst t)
 
@@ -553,20 +611,23 @@ let subset_prefixed_by mp resolver =
   in
   Deltamap.fold mp_prefix kn_prefix resolver (empty_delta_resolver mp)
 
-let subst_dom_delta_resolver mp_from mp_to resolver =
-  let () = assert (ModPath.equal mp_from resolver.Deltamap.root) in
-  let subst = map_mp mp_from mp_to (empty_delta_resolver mp_to) in
+let subst_dom_delta_resolver_flat subst resolver =
   let mp_apply_subst mkey mequ rslv =
-    Deltamap.add_mp (subst_mp subst mkey) mequ rslv
+    Deltamap.add_mp (subst_mp_flat subst mkey) mequ rslv
   in
   let kn_apply_subst kkey hint rslv =
-    Deltamap.add_kn (subst_kn subst kkey) hint rslv
+    Deltamap.add_kn (subst_kn_flat subst kkey) hint rslv
   in
-  let root = subst_mp subst (Deltamap.root resolver) in
+  let root = subst_mp_flat subst (Deltamap.root resolver) in
   Deltamap.fold mp_apply_subst kn_apply_subst resolver (empty_delta_resolver root)
 
-let subst_mp_delta subst mp mkey =
- match subst_mp_opt subst mp with
+let subst_dom_delta_resolver mp_from mp_to resolver =
+  let () = assert (ModPath.equal mp_from resolver.Deltamap.root) in
+  let subst = map_mp_flat mp_from mp_to (empty_delta_resolver mp_to) in
+  subst_dom_delta_resolver_flat subst resolver
+
+let subst_mp_delta_flat subst mp mkey =
+ match subst_mp_opt_flat subst mp with
     None -> empty_delta_resolver mp, mp
   | Some (mp',resolve) ->
     (* root(resolve) ⊆ mp' *)
@@ -574,26 +635,37 @@ let subst_mp_delta subst mp mkey =
       let resolve1 = subset_prefixed_by mp1 resolve in
       subst_dom_delta_resolver mp1 mkey resolve1, mp1
 
-let gen_subst_delta_resolver dom subst resolver =
+let gen_subst_delta_resolver_flat dom subst resolver =
   let mp_apply_subst mkey mequ rslv =
-    let mkey' = if dom then subst_mp subst mkey else mkey in
-    let rslv',mequ' = subst_mp_delta subst mequ mkey' in
+    let mkey' = if dom then subst_mp_flat subst mkey else mkey in
+    let rslv',mequ' = subst_mp_delta_flat subst mequ mkey' in
     Deltamap.join rslv' (Deltamap.add_mp mkey' mequ' rslv)
   in
   let kn_apply_subst kkey hint rslv =
-    let kkey' = if dom then subst_kn subst kkey else kkey in
+    let kkey' = if dom then subst_kn_flat subst kkey else kkey in
     let hint' = match hint with
-      | Equiv kequ -> subst_kn_delta subst kequ
-      | Inline (lev,Some t) -> Inline (lev,Some (UVars.map_univ_abstracted (subst_mps subst) t))
+      | Equiv kequ -> subst_kn_delta_flat subst kequ
+      | Inline (lev,Some t) ->
+        Inline (lev,Some (UVars.map_univ_abstracted (subst_mps_flat subst) t))
       | Inline (_,None) -> hint
     in
     Deltamap.add_kn kkey' hint' rslv
   in
-  let root = if dom then subst_mp subst (Deltamap.root resolver) else Deltamap.root resolver in
+  let root =
+    if dom then subst_mp_flat subst (Deltamap.root resolver)
+    else Deltamap.root resolver
+  in
   Deltamap.fold mp_apply_subst kn_apply_subst resolver (empty_delta_resolver root)
 
-let subst_codom_delta_resolver = gen_subst_delta_resolver false
-let subst_dom_codom_delta_resolver = gen_subst_delta_resolver true
+let subst_codom_delta_resolver subst resolver =
+  fold_substitution
+    (fun subst resolver -> gen_subst_delta_resolver_flat false subst resolver)
+    subst resolver
+
+let subst_dom_codom_delta_resolver subst resolver =
+  fold_substitution
+    (fun subst resolver -> gen_subst_delta_resolver_flat true subst resolver)
+    subst resolver
 
 let update_delta_resolver resolver1 resolver2 =
   let mp_apply_rslv mkey mequ rslv =
@@ -619,34 +691,92 @@ let add_delta_resolver resolver1 resolver2 =
   in
   update_delta_resolver resolver1 resolver2
 
-let substitution_prefixed_by k mp subst =
+let substitution_prefixed_by_flat k mp subst =
   let mp_prefixmp kmp reso subst =
     if mp_in_mp mp kmp && not (ModPath.equal mp kmp) then
       let new_key = replace_mp_in_mp mp k kmp in
       Umap.add_mp new_key reso subst
     else subst
   in
-  Umap.fold mp_prefixmp subst empty_subst
+  Umap.fold mp_prefixmp subst Umap.empty
 
-let join subst1 subst2 =
+(* Eager composition is retained as the normalization oracle. It is used only
+   when a bounded composition is compacted or an API operation explicitly
+   requires a flat map. *)
+let join_flat subst1 subst2 =
+  if Umap.is_empty subst1 then subst2
+  else if Umap.is_empty subst2 then subst1
+  else
   let apply_subst mpk resolve res =
     let mp = Deltamap.root resolve in
-    let mp', resolve' = match subst_mp_opt subst2 mp with
+    let mp', resolve' = match subst_mp_opt_flat subst2 mp with
     | None ->
-      let resolve' = subst_codom_delta_resolver subst2 resolve in
+      let resolve' = gen_subst_delta_resolver_flat false subst2 resolve in
       mp, resolve'
     | Some (mp', resolve') ->
       (* root(resolve') ⊆ mp' = subst2(mp) = root(subst_dom_codom_delta_resolver subst2 resolve) *)
       let resolve' =
         add_delta_resolver
-          (subst_dom_codom_delta_resolver subst2 resolve) resolve'
+          (gen_subst_delta_resolver_flat true subst2 resolve) resolve'
       in
       (* We need to reroot, as in general we only have root(resolve'') ⊆ mp' *)
       let resolve' = Deltamap.reroot mp' resolve' in
       mp', resolve'
     in
-    let prefixed_subst = substitution_prefixed_by mpk mp' subst2 in
+    let prefixed_subst = substitution_prefixed_by_flat mpk mp' subst2 in
     Umap.join prefixed_subst (Umap.add_mp mpk resolve' res)
   in
-  let subst = Umap.fold apply_subst subst1 empty_subst in
+  let subst = Umap.fold apply_subst subst1 Umap.empty in
   Umap.join subst2 subst
+
+let substitution_leaves = function
+  | Flat subst -> if Umap.is_empty subst then 0 else 1
+  | Compose { leaves; _ } -> leaves
+
+let compose left right =
+  let leaves = substitution_leaves left + substitution_leaves right in
+  Compose { left; right; leaves }
+
+let rec flat_substitutions subst tail =
+  match subst with
+  | Flat subst -> if Umap.is_empty subst then tail else subst :: tail
+  | Compose { left; right; _ } ->
+    flat_substitutions left (flat_substitutions right tail)
+
+let rec compose_pairs accu = function
+  | [] -> List.rev accu
+  | [subst] -> List.rev (subst :: accu)
+  | subst1 :: subst2 :: rest ->
+    compose_pairs (join_flat subst1 subst2 :: accu) rest
+
+let rec normalize_substitutions = function
+  | [] -> Umap.empty
+  | [subst] -> subst
+  | substs -> normalize_substitutions (compose_pairs [] substs)
+
+let flatten_substitution subst =
+  normalize_substitutions (flat_substitutions subst [])
+
+(* Keeping at most this many flat leaves bounds lookup and term traversal while
+   allowing the common [Libobject.Ref] path to record composition without
+   eagerly traversing resolver maps. Compaction combines pairs of maps in
+   rounds instead of repeatedly rebuilding one ever-growing map. *)
+let max_composition_leaves = 64
+
+let join subst1 subst2 =
+  if is_empty_subst subst1 then subst2
+  else if is_empty_subst subst2 then subst1
+  else
+    let subst = compose subst1 subst2 in
+    if substitution_leaves subst <= max_composition_leaves then subst
+    else Flat (flatten_substitution subst)
+
+(** Extending a [substitution] without sequential composition requires a flat
+    map because the new binding overrides the composed map's domain directly. *)
+let add_mbid mbid mp resolve subst =
+  let () = assert (ModPath.equal mp (Deltamap.root resolve)) in
+  Flat (Umap.add_mbi mbid resolve (flatten_substitution subst))
+
+let add_mp mp1 mp2 resolve subst =
+  let () = assert (ModPath.equal mp2 (Deltamap.root resolve)) in
+  Flat (Umap.add_mp mp1 resolve (flatten_substitution subst))
