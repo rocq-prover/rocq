@@ -194,6 +194,8 @@ let process_extra_args arg =
   String.iter process_char arg;
   if !has_leftovers then
     out_list := buffer buf :: !out_list;
+  if !inside_quotes then
+    raise (Parsing_error ("Invalid value for -arg, unpaired single quote: \"" ^ String.escaped arg ^ "\""));
   List.rev !out_list
 
 let expand_paths project =
