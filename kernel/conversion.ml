@@ -784,11 +784,11 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
       (** FIXME: cache the presence of let-bindings in the case_info *)
       let mind = Environ.lookup_mind (fst ci1.ci_ind) (info_env infos.cnv_inf) in
       let mip = mind.Declarations.mind_packets.(snd ci1.ci_ind) in
+      let u1 = CClosure.usubst_instance e1 u1 in
+      let u2 = CClosure.usubst_instance e2 u2 in
       let cuniv =
         let ind = (mind,snd ci1.ci_ind) in
         let nargs = inductive_cumulativity_arguments ind in
-        let u1 = CClosure.usubst_instance e1 u1 in
-        let u2 = CClosure.usubst_instance e2 u2 in
         fail_check infos @@ convert_inductives CONV ind nargs u1 u2 cuniv
       in
       let pms1 = mk_clos_vect e1 pms1 in
@@ -880,12 +880,12 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
                 (** FIXME: cache the presence of let-bindings in the case_info *)
                 let mind = Environ.lookup_mind (fst ci1.ci_ind) (info_env infos.cnv_inf) in
                 let mip = mind.Declarations.mind_packets.(snd ci1.ci_ind) in
+                let u1 = CClosure.usubst_instance e1 u1 in
+                let u2 = CClosure.usubst_instance e2 u2 in
                 let cu =
                   if UVars.Instance.is_empty u1 || UVars.Instance.is_empty u2 then
                     convert_instances ~flex:false u1 u2 cu
                   else
-                    let u1 = CClosure.usubst_instance e1 u1 in
-                    let u2 = CClosure.usubst_instance e2 u2 in
                     match mind.Declarations.mind_variance with
                     | None -> convert_instances ~flex:false u1 u2 cu
                     | Some variances -> convert_instances_cumul CONV variances u1 u2 cu
