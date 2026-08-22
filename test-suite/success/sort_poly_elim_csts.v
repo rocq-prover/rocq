@@ -1,4 +1,5 @@
 Set Universe Polymorphism.
+Set Warnings "+redundant-constraint".
 
 Section Global.
   Sort s s'.
@@ -7,9 +8,12 @@ Section Global.
   Fail Constraint Type -> Prop.
   Fail Constraint SProp -> s.
 
+  Fail Constraint Type -> s.
+  Fail Constraint s -> s.
+
   Constraint Prop -> s.
   Constraint s -> Prop.
-  Constraint s -> SProp.
+  Fail Constraint s -> SProp.
 
   Polymorphic Axiom ad@{s;u} : forall A : Type@{s;u}, A.
 
