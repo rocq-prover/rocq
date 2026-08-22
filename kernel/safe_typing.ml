@@ -1646,10 +1646,10 @@ let export ~output_native_objects senv dir =
   let mp = senv.modpath in
   let str = NoFunctor (List.rev senv.revstruct) in
   let mb = Mod_declarations.make_module_body str senv.modresolver in
-  let ast, symbols =
+  let nativelib =
     if output_native_objects then
       Nativelibrary.dump_library mp senv.env str
-    else [], Nativevalues.empty_symbols
+    else [], Nativevalues.empty_symbols, false
   in
   let permanent_flags = {
     rewrite_rules_allowed = Environ.rewrite_rules_allowed senv.env;
@@ -1668,7 +1668,7 @@ let export ~output_native_objects senv dir =
     comp_retro = senv.local_retroknowledge;
   } in
   let vmlib = Vmlibrary.export @@ Environ.vm_library senv.env in
-  mp, lib, vmlib, (ast, symbols)
+  mp, lib, vmlib, nativelib
 
 let import lib vmtab vodigest senv =
   let senv = check_flags_for_library lib senv in

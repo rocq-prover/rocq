@@ -56,7 +56,7 @@ val run_command :
     (against whitespace or other funny chars in paths), hence no need
     to care about the different quoting conventions of /bin/sh and cmd.exe. *)
 
-val sys_command : string -> string list -> Unix.process_status
+val sys_command : ?out_file_descr:(Unix.file_descr) -> string -> string list -> Unix.process_status
 
 (** A version of [Unix.waitpid] immune to EINTR exceptions *)
 
