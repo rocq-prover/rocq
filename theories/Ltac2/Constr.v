@@ -430,6 +430,13 @@ Ltac2 map_with_binders (lift : 'a -> binder -> 'a) (f : 'a -> constr -> constr) 
       make (Array u t def ty)
   end.
 
+Ltac2 @ external in_context : ident -> constr -> constr option -> (unit -> unit) -> binder * constr := "rocq-runtime.plugins.ltac2" "constr_unsafe_in_context".
+(** On a focused goal [Γ ⊢ A], [in_context id ty body_opt tac] evaluates [tac]
+    in a focused goal [Γ, id : ty ⊢ ?X] (when [body_opt] is [None]) or
+    [Γ, id : ty := body ⊢ ?X] (when [body_opt] is [Some body]) and returns
+    a pair [(binder, t)] where [binder] is the binder and [t] is the proof
+    built by the tactic. *)
+
 End Unsafe.
 
 Module Cast.
@@ -442,10 +449,28 @@ Module Cast.
 
 End Cast.
 
-Ltac2 @ external in_context : ident -> constr -> (unit -> unit) -> constr := "rocq-runtime.plugins.ltac2" "constr_in_context".
+Ltac2 in_context (id : ident) (ty : constr) (f : unit -> unit) : constr :=
+  let (b, body) := Unsafe.in_context id ty None f in
+  Unsafe.make (Unsafe.Lambda b body).
 (** On a focused goal [Γ ⊢ A], [in_context id c tac] evaluates [tac] in a
     focused goal [Γ, id : c ⊢ ?X] and returns [fun (id : c) => t] where [t] is
     the proof built by the tactic. *)
+
+Ltac2 in_context_prod (id : ident) (ty : constr) (f : unit -> unit) : constr :=
+  let (b, body) := Unsafe.in_context id ty None f in
+  Unsafe.make (Unsafe.Prod b body).
+(** On a focused goal [Γ ⊢ A], [in_context_prod id c tac] evaluates [tac] in a
+    focused goal [Γ, id : c ⊢ ?X] and returns [forall (id : c), t] where [t] is
+    the proof built by the tactic. *)
+
+Ltac2 in_context_letin (id : ident) (ty : constr) (defn : constr) (f : unit -> unit) : constr :=
+  let (b, body) := Unsafe.in_context id ty (Some defn) f in
+  Unsafe.make (Unsafe.LetIn b defn body).
+(** On a focused goal [Γ ⊢ A], [in_context_letin id ty defn tac] evaluates
+    [tac] in a focused goal [Γ, id : ty := defn ⊢ ?X] and returns
+    [let id : ty := defn in t] where [t] is the proof built by the tactic.
+    [id] is the bound variable name, [ty] is its type, and [defn] is its
+    definition. *)
 
 Module Pretype.
   Module Flags.
