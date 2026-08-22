@@ -102,30 +102,35 @@ type symbols = symbol array
 let empty_symbols = [| |]
 
 
-let accumulate_tag = 0
-
 (** Unique pointer used to drive the accumulator function *)
 let ret_accu = Obj.repr (ref ())
 
 type accu_val = { acc_atm : atom; acc_arg : t list }
 
-(** Return a pointer to [caml_curry2_1] that is also recognized as an unscannable block *)
-external get_curry2_1 : unit -> Obj.t = "rocq_curry2_1_addr"
+(** an accumulator is a closure of the [accumulate] function created by the [build_accu] function. *)
 
-type _ curry2_1_clos = Curry2_1 : Obj.t * int * 'a * ('a -> 'b -> 'c) -> ('b -> 'c) curry2_1_clos
-
-let mk_accu =
-  let curry2_1 = get_curry2_1 () in
-  let rec accumulate data x =
+(** it is important to always use this function and never directly [accumulate] to prevent inlining of the accumulate function (which would mess up accumulator recognition) *)
+let [@inline never] [@local never] rec build_accu dat =
+  let [@inline never] [@local never]
+    accumulate data x =
     if Obj.repr x == ret_accu then Obj.repr data
     else
       let data = { data with acc_arg = x :: data.acc_arg } in
-      let ans = Curry2_1 (curry2_1, 2, data, accumulate) in
-      Obj.repr ans in
-  fun (a : atom) ->
+      let ans = build_accu data in
+      assert (is_accu ans);
+      ans
+  in
+  Obj.repr @@ accumulate dat
+and mk_accu (a : atom) =
   let data = { acc_atm = a; acc_arg = [] } in
-  let ans = Curry2_1 (curry2_1, 2, data, accumulate) in
+  let ans =  Obj.repr @@ build_accu data in
+  assert (is_accu ans);
   (Obj.magic ans : t)
+
+(** differentiates an accumulator from a closure. Should only be used on memory blocks. *)
+and is_accu v =
+  let reference = Obj.repr @@ build_accu (Obj.magic 0) in (* we assume Ocaml will build all accumulators similarly *)
+  Obj.size v = Obj.size reference && Obj.field v 0 == Obj.field reference 0 (* we check the equality of the function pointer *)
 
 let get_accu (k : accumulator) =
   (Obj.magic k : Obj.t -> accu_val) ret_accu
@@ -257,21 +262,20 @@ let kind_of_value (v:t) =
   if Obj.is_int o then Vconst (Obj.magic v)
   else
     let tag = Obj.tag o in
-    if Int.equal tag accumulate_tag then
-      if Int.equal (Obj.size o) 1 then
-        let w = Obj.field o 0 in
-        let tag = Obj.tag w in
-        if Int.equal tag prod_tag then Obj.magic w
-        else Varray (Obj.magic v)
-      else Vaccu (Obj.magic v)
+    if Int.equal tag 0 then
+      let w = Obj.field o 0 in
+      let tag = Obj.tag w in
+      if Int.equal tag prod_tag then Obj.magic w
+      else Varray (Obj.magic v)
     else if Int.equal tag Obj.custom_tag then Vint64 (Obj.magic v)
     else if Int.equal tag Obj.double_tag then Vfloat64 (Obj.magic v)
     else if Int.equal tag Obj.string_tag then Vstring (Obj.magic v)
     else if (tag < Obj.lazy_tag) then Vblock (Obj.magic v)
-      else
-        (* assert (tag = Obj.closure_tag || tag = Obj.infix_tag);
-           or ??? what is 1002*)
-        Vfun (apply v)
+    else if is_accu @@ Obj.repr v then Vaccu (Obj.magic v)
+    else
+      (* assert (tag = Obj.closure_tag || tag = Obj.infix_tag);
+          or ??? what is 1002*)
+      Vfun (apply v)
 
 (** Support for machine integers *)
 
