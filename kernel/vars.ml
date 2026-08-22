@@ -309,10 +309,11 @@ let map_constr_relevance f c =
 
   | Case (ci,u,params,(ret,r),iv,v,brs) ->
     let r' = f r in
+    let iv' = if Sorts.relevance_equal r' Irrelevant then NoInvert else iv in
     let ret' = map_case_under_context_relevance f ret in
     let brs' = CArray.Smart.map (map_case_under_context_relevance f) brs in
-    if r' == r && ret' == ret && brs' == brs then c
-    else mkCase (ci,u,params,(ret',r'),iv,v,brs')
+    if r' == r && iv' == iv && ret' == ret && brs' == brs then c
+    else mkCase (ci,u,params,(ret',r'),iv',v,brs')
 
   | Fix data ->
     let data' = map_rec_declaration_relevance f data in

@@ -477,7 +477,7 @@ let nf_relevance sigma = function
   | (Sorts.Irrelevant | Sorts.Relevant) as r -> r
 
 let should_invert_case env sigma r (ci : Constr.case_info) =
-  Sorts.relevance_equal (nf_relevance sigma r) Sorts.Relevant &&
+  not (Sorts.relevance_equal (nf_relevance sigma r) Sorts.Irrelevant) &&
     let mib,mip = Inductive.lookup_mind_specif env ci.ci_ind in
     (* mind_relevance cannot be a pseudo sort poly variable so don't use check_relevance *)
     Sorts.relevance_equal mip.mind_relevance Sorts.Irrelevant &&
