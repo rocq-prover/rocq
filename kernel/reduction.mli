@@ -53,7 +53,7 @@ val whd_decompose_lambda_decls : ?evars:evar_handler -> env -> constr -> Constr.
 (** This is typically the function to use to extract the context of a
     Fix not already in normal form up to and including the decreasing
     argument, counting as many lambda's as given by the decreasing
-    index + 1 *)
+    index + 1. Does not keep let-ins (which aren't checked in fixpoints) *)
 val whd_decompose_lambda_n_assum : ?evars:evar_handler -> env -> int -> constr -> Constr.rel_context * constr
 
 exception NotArity

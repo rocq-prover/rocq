@@ -118,6 +118,19 @@ let whd_decompose_lambda ?evars env =
   in
   decrec env Context.Rel.empty
 
+let whd_decompose_lambda_n_assum ?evars env n =
+  let rec decrec env n l c =
+    if Int.equal n 0 then l,c
+    else
+    let rc = whd_all ?evars env c in
+    match kind rc with
+    | Lambda (na,a,c0) ->
+        let d = LocalAssum (na,a) in
+        decrec (push_rel d env) (n-1) (Context.Rel.add d l) c0
+    | _ -> anomaly (Pp.str "whd_decompose_lambda_n_assum: not enough abstractions")
+  in
+  decrec env n Context.Rel.empty
+
 (* The same but preserving lets in the context, not internal ones. *)
 let whd_decompose_prod_decls ?evars env =
   let rec prodec_rec env l ty =
@@ -152,25 +165,6 @@ let whd_decompose_lambda_decls ?evars env =
         else lamec_rec env l rty'
   in
   lamec_rec env Context.Rel.empty
-
-let whd_decompose_lambda_n_assum ?evars env n =
-  let rec lamec_rec env n l c =
-    if Int.equal n 0 then l,c
-    else
-    let rc = whd_allnolet ?evars env c in
-    match kind rc with
-    | Lambda (x,t,c)  ->
-        let d = LocalAssum (x,t) in
-        lamec_rec (push_rel d env) (n-1) (Context.Rel.add d l) c
-    | LetIn (x,b,t,c) ->
-        let d = LocalDef (x,b,t) in
-        lamec_rec (push_rel d env) n (Context.Rel.add d l) c
-    | _               ->
-        let c' = whd_all ?evars env c in
-        if Constr.equal c' c then anomaly (Pp.str "whd_decompose_lambda_n_assum: not enough abstractions")
-        else lamec_rec env n l c'
-  in
-  lamec_rec env n Context.Rel.empty
 
 exception NotArity
 

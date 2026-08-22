@@ -1395,7 +1395,7 @@ type check_subterm_result = Subterm.check_result =
   | NeedReduce of Int.Set.t (* empty = NoNeedReduce *)
 
 
-let find_uniform_parameters recindx nargs bodies =
+let find_uniform_parameters ?evars env recindx nargs bodies =
   let nbodies = Array.length bodies in
   (* Ensure that the structural argument is not uniform,
      so that it stays in [non_absorbed_stack] *)
@@ -1422,7 +1422,11 @@ let find_uniform_parameters recindx nargs bodies =
         nuniformparams
     | _ -> fold_constr_with_binders succ aux k nuniformparams c
   in
-  Array.fold_left (aux 0) min_indx bodies
+  Array.fold_left2 (fun nuniformparams recindx c ->
+    let ctx, c = whd_decompose_lambda_n_assum ?evars env recindx c in
+    (* Typing invariants say no recursive call happen in ctx *)
+    aux (List.length ctx) nuniformparams c)
+    min_indx recindx bodies
 
 (** Given a fixpoint [fix f x y z n {struct n} := phi(f x y u t, ..., f x y u' t')]
     with [z] not uniform we build in context [x:A, y:B(x), z:C(x,y)] a term
@@ -1582,7 +1586,7 @@ let check_one_fix ?evars renv recpos trees def =
             let nbodies = Array.length bodies in
             let rs' = Array.fold_left (check_inert_subterm_rec_call renv) (NoNeedReduce::rs) typarray in
             let renv' = push_fix_renv renv recdef in
-            let nuniformparams = find_uniform_parameters recindxs (List.length stack) bodies in
+            let nuniformparams = find_uniform_parameters ?evars renv.env recindxs (List.length stack) bodies in
             let bodies = drop_uniform_parameters nuniformparams bodies in
             let fix_stack = filter_fix_stack_domain ?evars (redex_level rs) decrArg stack nuniformparams in
             let fix_stack = if List.length stack > decrArg then List.firstn (decrArg+1) fix_stack else fix_stack in
