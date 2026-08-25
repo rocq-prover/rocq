@@ -30,6 +30,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker does not check arguments of recursive calls in uniformity analysis](#guard-checker-does-not-check-arguments-of-recursive-calls-in-uniformity-analysis)
       - [guard checker sometimes does reduction in the wrong context accepting wrong fixpoints](#guard-checker-sometimes-does-reduction-in-the-wrong-context-accepting-wrong-fixpoints)
       - [guard checker sometimes forgets to check lambda domains in nested fixpoints](#guard-checker-sometimes-forgets-to-check-lambda-domains-in-nested-fixpoints)
+      - [cofixpoint guard checker passes wrong rectree for nested mutual cofixpoints](#cofixpoint-guard-checker-passes-wrong-rectree-for-nested-mutual-cofixpoints)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -381,6 +382,16 @@ and lack of checking of relevance marks on constants in coqchk
 - risk: the bug comes from being able to bind a constructor type letin in a match,
   which means those letins cannot be irrelevant for conversion.
   Differences in reduction may mean the bug is harder to exploit before V8.19, see issue.
+
+#### cofixpoint guard checker passes wrong rectree for nested mutual cofixpoints
+- component: cofixpoints, guard checking
+- introduced: before V7.0, probably when coinductives first appeared
+- impacted released versions: all releases until V9.2.0 included
+- impacted coqchk versions: Same
+- fixed in: V9.2.1, V9.3 ([#22392](https://github.com/rocq-prover/rocq/pull/22392))
+- found by: Daniel Selsam
+- exploit / GH issue: [#22389](https://github.com/rocq-prover/rocq/issues/22389)
+- risk: ?
 
 ### Module system
 
