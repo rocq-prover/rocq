@@ -320,7 +320,7 @@ and extract_mexpr_spec table venv env mp1 (me_struct_o,me_alg) = match me_alg wi
 and extract_mexpression_spec table venv env mp1 (me_struct,me_alg) = match me_alg with
   | MEMoreFunctor me_alg' ->
       let mbid, mtb, me_struct' = match me_struct with
-      | MoreFunctor (mbid, mtb, me') -> (mbid, mtb, me')
+      | MoreFunctor (mbid, mtb, me') -> (mbid, repr_parameter mtb, me')
       | _ -> assert false
       in
       let mp = MPbound mbid in
@@ -335,6 +335,7 @@ and extract_msignature_spec table venv env mp1 reso = function
       MTsig (mp1, extract_structure_spec table venv env' mp1 reso struc)
   | MoreFunctor (mbid, mtb, me) ->
       let mp = MPbound mbid in
+      let mtb = repr_parameter mtb in
       let env' = Environ.Internal.overwrite_module_parameter mbid mtb env in
       MTfunsig (mbid, extract_mbody_spec table venv env mp mtb,
                 extract_msignature_spec table venv env' mp1 reso me)
@@ -444,7 +445,7 @@ and extract_mexpression table access venv env mp mty = function
   | MENoFunctor me -> extract_mexpr table access venv env mp me
   | MEMoreFunctor me ->
       let (mbid, mtb, mty) = match mty with
-      | MoreFunctor (mbid, mtb, mty) -> (mbid, mtb, mty)
+      | MoreFunctor (mbid, mtb, mty) -> (mbid, repr_parameter mtb, mty)
       | NoFunctor _ -> assert false
       in
       let mp1 = MPbound mbid in
@@ -460,6 +461,7 @@ and extract_msignature table access venv env mp reso ~all = function
     Miniml.MEstruct (mp, extract_structure table access venv env' mp reso ~all struc)
   | MoreFunctor (mbid, mtb, me) ->
       let mp1 = MPbound mbid in
+      let mtb = repr_parameter mtb in
       let env' = Environ.Internal.overwrite_module_parameter mbid mtb env in
       Miniml.MEfunctor
         (mbid,

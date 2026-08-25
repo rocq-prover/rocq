@@ -266,6 +266,7 @@ let rec translate_apply ustate env inl mp subst (sign, reso, cst) args = match a
   (sign, reso, cst)
 | mp1 :: args ->
   let farg_id, farg_b, sign = destr_functor sign in
+  let farg_b = repr_parameter farg_b in
   let farg_b =
     if is_empty_subst subst then farg_b
     else subst_modtype subst_codom subst (MPbound farg_id) farg_b
@@ -321,6 +322,7 @@ let rec translate_mse_funct (cst, ustate) (vm, vmstate) env ~is_mod mp inl mse =
   | (mbid, ty, ty_inl) :: params ->
     let mp_id = MPbound mbid in
     let mtb, cst, vm = translate_modtype (cst, ustate) (vm, vmstate) env mp_id ty_inl ([],ty) in
+    let mtb = make_parameter mtb in
     let env' = add_module_parameter mbid mtb env in
     let sign,alg,reso,cst,vm = translate_mse_funct (cst, ustate) (vm, vmstate) env' ~is_mod mp inl mse params in
     let alg' = MEMoreFunctor alg in

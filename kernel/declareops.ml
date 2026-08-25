@@ -67,10 +67,14 @@ let constant_is_polymorphic cb =
   | Monomorphic -> false
   | Polymorphic _ -> true
 
-
 let constant_has_body cb = match cb.const_body with
   | Undef _ | Primitive _ | Symbol _ -> false
   | Def _ | OpaqueDef _ -> true
+
+let constant_drop_body cb = match cb.const_body with
+| Undef _ | Primitive _ | Symbol _ | Def _ -> cb
+| OpaqueDef _ ->
+  { cb with const_body = Undef None }
 
 let constant_polymorphic_context cb =
   universes_context cb.const_universes

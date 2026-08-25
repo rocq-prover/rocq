@@ -357,10 +357,10 @@ let print_mod_expr env mp locals = function
 let rec print_functor fty fatom is_type extent env mp used locals = function
   | NoFunctor me -> fatom is_type extent env mp locals me
   | MoreFunctor (mbid,mtb1,me2) ->
-      let id = nametab_register_modparam !used mbid mtb1 in
+      let id = nametab_register_modparam !used mbid (repr_parameter mtb1) in
       let () = used := Id.Set.add id !used in
       let mp1 = MPbound mbid in
-      let pr_mtb1 = fty extent env mp1 used locals mtb1 in
+      let pr_mtb1 = fty extent env mp1 used locals (repr_parameter mtb1) in
       let env' = Modops.add_module_parameter mbid mtb1 env in
       let avoid = List.fold_left (fun accu (_, id) -> Id.Set.add id accu) Id.Set.empty locals in
       let locals' = (mbid, get_new_id avoid (MBId.to_id mbid))::locals in

@@ -110,7 +110,7 @@ let digest_match ~actual ~required =
 type library_info = DirPath.t * vodigest
 
 (** Functor and funsig parameters, most recent first *)
-type module_parameters = (MBId.t * module_type_body) list
+type module_parameters = (MBId.t * module_type_parameter) list
 
 type permanent_flags = {
   rewrite_rules_allowed : bool;
@@ -1428,6 +1428,7 @@ let add_module_parameter mbid mte inl senv =
   let state = check_state senv in
   let vmstate = vm_state senv in
   let mtb, _, vmtab = Mod_typing.translate_modtype state vmstate senv.env mp inl ([],mte) in
+  let mtb = make_parameter mtb in
   let senv = set_vm_library vmtab senv in
   let senv = { senv with env = Modops.add_module_parameter mbid mtb senv.env } in
   let new_variant = match senv.modvariant with
@@ -1435,7 +1436,7 @@ let add_module_parameter mbid mte inl senv =
     | SIG (params,oldenv) -> SIG ((mbid,mtb) :: params, oldenv)
     | _ -> assert false
   in
-  let new_paramresolver = match mod_global_delta mtb with
+  let new_paramresolver = match mod_global_delta (repr_parameter mtb) with
   | None -> senv.paramresolver
   | Some delta -> ParamResolver.add_delta_resolver mp delta senv.paramresolver
   in
@@ -1575,6 +1576,7 @@ let add_include me is_module inl senv =
       let state = check_state senv in
       (* Module subcomponents are already part of senv.env at this point *)
       let env = Environ.shallow_add_module mp_sup mb senv.env in
+      let mtb = repr_parameter mtb in
       let (_ : UGraph.t) = Subtyping.check_subtypes state env mp_sup (MPbound mbid) mtb in
       let mpsup_delta =
         Modops.inline_delta_resolver senv.env inl mp_sup mbid mtb senv.modresolver

@@ -68,6 +68,46 @@ and module_type_body = mod_type generic_module_body
       * the argument of [MEapply] is now directly forced to be a [ModPath.t].
 *)
 
+type module_type_parameter = module_type_body
+
+let rec drop_signature func = match func with
+| NoFunctor struc ->
+  let struc' = drop_structure_body struc in
+  if struc' == struc then func else NoFunctor struc'
+| MoreFunctor (mbid, mty, sign) ->
+  let sign' = drop_signature sign in
+  if sign' == sign then func else MoreFunctor (mbid, mty, sign)
+
+and drop_structure_body struc =
+  let map (l, e as field) =
+    let e' = drop_structure e in
+    if e' == e then field else (l, e')
+  in
+  List.Smart.map map struc
+
+and drop_structure e = match e with
+| SFBconst cb ->
+  let cb' = Declareops.constant_drop_body cb in
+  if cb' == cb then e else SFBconst cb'
+| SFBmodule mb ->
+  let mb' = drop_module_body mb in
+  if mb' == mb then e else SFBmodule mb'
+| SFBmind _ | SFBmodtype _ | SFBrules _ -> e
+
+and drop_module_body mb =
+  let mod_type = drop_signature mb.mod_type in
+  { mod_expr = ModBodyVal Abstract;
+    (* Subtyping of module bodies immediately turns them into module types *)
+    mod_type = mod_type;
+    mod_type_alg = None;
+    mod_delta = mb.mod_delta; }
+
+let make_parameter mty =
+  let sign' = drop_signature mty.mod_type in
+  if sign' == mty.mod_type then mty else { mty with mod_type = sign' }
+
+let repr_parameter mty = mty
+
 (** Builders *)
 
 let make_module_body typ delta = {

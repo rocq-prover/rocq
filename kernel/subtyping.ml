@@ -384,9 +384,9 @@ and check_modtypes (cst, ustate) trace env mp1 mtb1 mp2 mtb2 subst1 subst2 =
         MoreFunctor (arg_id2,arg_t2,body_t2) ->
         let mparg1 = MPbound arg_id1 in
         let mparg2 = MPbound arg_id2 in
-        let subst1 = join (map_mbid arg_id1 mparg2 (mod_delta arg_t2)) subst1 in
+        let subst1 = join (map_mbid arg_id1 mparg2 (mod_delta (repr_parameter arg_t2))) subst1 in
         let env = add_module_parameter arg_id2 arg_t2 env in
-        let cst = check_modtypes (cst, ustate) (FunctorArgument (nargs+1) :: trace) env mparg2 arg_t2 mparg1 arg_t1 subst2 subst1 in
+        let cst = check_modtypes (cst, ustate) (FunctorArgument (nargs+1) :: trace) env mparg2 (repr_parameter arg_t2) mparg1 (repr_parameter arg_t1) subst2 subst1 in
         (* contravariant *)
         check_structure cst ~nargs:(nargs + 1) env body_t1 body_t2 subst1 subst2
       | _ , _ -> error_incompatible_modtypes mtb1 mtb2

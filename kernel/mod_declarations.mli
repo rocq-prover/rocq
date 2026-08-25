@@ -25,6 +25,16 @@ type module_body = mod_body generic_module_body
 
 type module_type_body = mod_type generic_module_body
 
+type module_type_parameter
+(** A semantic subtype of {!module_type_body} guaranteed have all opaque data
+    stripped away *)
+
+val make_parameter : module_type_body -> module_type_parameter
+(** Drops opaque data of the the argument *)
+
+val repr_parameter : module_type_parameter -> module_type_body
+(** Effectively the identity. *)
+
 (** A [module_type_body] is just a [module_body] with no implementation. Its
     [mod_type_alg] contains the algebraic definition of this module type, or
     [None] if it has been built interactively. *)
@@ -37,7 +47,7 @@ type structure_body =
 
 (** A module signature is a structure, with possibly functors on top of it *)
 
-type module_signature = (module_type_body,structure_body) functorize
+type module_signature = (module_type_parameter,structure_body) functorize
 
 type module_implementation =
   | Abstract (** no accessible implementation *)
@@ -81,7 +91,7 @@ val replace_module_body : structure_body -> delta_resolver -> module_body -> mod
 val module_type_of_module : module_body -> module_type_body
 val module_body_of_type : module_type_body -> module_body
 
-val functorize_module : (Names.MBId.t * module_type_body) list -> module_body -> module_body
+val functorize_module : (Names.MBId.t * module_type_parameter) list -> module_body -> module_body
 
 (** {6 Setters} *)
 

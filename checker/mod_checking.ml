@@ -259,6 +259,7 @@ let rec check_mexpr env mse mp_mse res = match mse with
   | MEapply (f,mp) ->
     let sign, delta = check_mexpr env f mp_mse res in
     let farg_id, farg_b, fbody_b = Modops.destr_functor sign in
+    let farg_b = repr_parameter farg_b in
     let state = (Environ.universes env, Conversion.checked_universes) in
     let _ : UGraph.t = Subtyping.check_subtypes state env mp (MPbound farg_id) farg_b in
     let mp_delta =
@@ -344,7 +345,7 @@ and check_structure_field env opac mp lab res opacify = function
 
 and check_signature env opac sign mp_mse res opacify = match sign with
   | MoreFunctor (arg_id, mtb, body) ->
-      let () = check_module_type env (MPbound arg_id) mtb in
+      let () = check_module_type env (MPbound arg_id) (repr_parameter mtb) in
       let env' = Modops.add_module_parameter arg_id mtb env in
       let opac = check_signature env' opac body mp_mse res empty_cset in
       opac

@@ -27,6 +27,8 @@ val subst_const_body : substitution -> constant_body -> constant_body
 
 val constant_has_body : ('a, 'b) pconstant_body -> bool
 
+val constant_drop_body : ('a, 'b) pconstant_body -> ('a, 'b) pconstant_body
+
 val constant_polymorphic_context : ('a, 'b) pconstant_body -> AbstractContext.t
 
 (** Is the constant polymorphic? *)

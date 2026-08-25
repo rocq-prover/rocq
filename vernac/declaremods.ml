@@ -193,7 +193,7 @@ struct
           let resolver = match mod_global_delta mb with
           | None -> empty_delta_resolver mp
           | Some delta ->
-            Modops.inline_delta_resolver env inl mp farg_id farg_b delta
+            Modops.inline_delta_resolver env inl mp farg_id (repr_parameter farg_b) delta
           in
           mbid_left,join (map_mbid mbid mp resolver) subst
 
@@ -1048,7 +1048,7 @@ let intern_arg (acc, cst) (mbidl,(mty, base, kind, inl)) =
     let sp = Libnames.make_path DirPath.empty id in
     let mp = MPbound mbid in
     let mtb = Global.add_module_parameter mbid mty inl in
-    let resolver = mod_delta mtb in
+    let resolver = mod_delta (repr_parameter mtb) in
     let sobjs = subst_sobjs (map_mp mp0 mp resolver) sobjs in
     InterpVisitor.load_module 1 sp mp sobjs;
     (mbid, mtb, mty, inl) :: acc
@@ -1401,7 +1401,7 @@ let rec include_subst env mp reso mbids sign inline = match mbids with
     let farg_id, farg_b, fbody_b = Modops.destr_functor sign in
     let subst = include_subst env mp reso mbids fbody_b inline in
     let mp_delta =
-      Modops.inline_delta_resolver env inline mp farg_id farg_b reso
+      Modops.inline_delta_resolver env inline mp farg_id (repr_parameter farg_b) reso
     in
     join (map_mbid mbid mp mp_delta) subst
 
@@ -1454,12 +1454,12 @@ let declare_one_include_core (me,base,kind,inl) =
       let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes) in
       (* Module subcomponents are already part of env at this point *)
       let env = Environ.shallow_add_module cur_mp mb (Global.env ()) in
-      let (_, cst) = Subtyping.check_subtypes state env cur_mp (MPbound mbid) mtb in
+      let (_, cst) = Subtyping.check_subtypes state env cur_mp (MPbound mbid) (repr_parameter mtb) in
       let () = Global.add_univ_constraints cst in
       let mpsup_delta = match mod_global_delta mb with
       | None -> assert false (* mb is guaranteed not to be a functor here *)
       | Some delta ->
-        Modops.inline_delta_resolver (Global.env ()) inl cur_mp mbid mtb delta
+        Modops.inline_delta_resolver (Global.env ()) inl cur_mp mbid (repr_parameter mtb) delta
       in
       let subst = Mod_subst.map_mbid mbid cur_mp mpsup_delta in
       compute_sign (Modops.subst_signature subst cur_mp str)

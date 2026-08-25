@@ -29,7 +29,7 @@ val destr_nofunctor : ModPath.t -> ('ty,'a) functorize -> 'a
 val check_modpath_equiv : env -> ModPath.t -> ModPath.t -> unit
 
 val annotate_module_expression : module_expression -> module_signature ->
-  (module_type_body, (constr * UVars.AbstractContext.t option) module_alg_expr) functorize
+  (module_type_parameter, (constr * UVars.AbstractContext.t option) module_alg_expr) functorize
 
 val annotate_struct_body : structure_body -> module_signature -> module_signature
 
@@ -51,7 +51,7 @@ the native compiler. The linking information is updated. *)
 val add_linked_module : ModPath.t -> module_body -> link_info -> env -> env
 
 (** add an abstract module parameter to the environment *)
-val add_module_parameter : MBId.t -> module_type_body -> env -> env
+val add_module_parameter : MBId.t -> module_type_parameter -> env -> env
 
 val add_retroknowledge : Retroknowledge.action list -> env -> env
 
