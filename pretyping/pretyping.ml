@@ -93,6 +93,9 @@ let nf_fix sigma (nas, cs, ts) =
   (Array.map EConstr.Unsafe.to_binder_annot nas, Array.map inj cs, Array.map inj ts)
 
 let search_guard ?loc env sigma {possibly_cofix; possible_fix_indices} fixdefs =
+  (* The guard checker compares uniform parameter instances up to conversion,
+     which may involve universes of [sigma] not yet declared in [env] *)
+  let env = Environ.set_universes (Evd.universes sigma) env in
   let is_singleton = function [_] -> true | _ -> false in
   let one_fix_possibility = List.for_all is_singleton possible_fix_indices in
   if one_fix_possibility && not possibly_cofix then

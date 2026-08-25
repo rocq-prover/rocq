@@ -189,3 +189,21 @@ Section CofixDischargeUse.
     - apply IH, Hloop.
   Qed.
 End CofixDischargeUse.
+
+(** The comparison of uniform parameters up to conversion may involve
+    universes not yet declared in the kernel environment when guard checking
+    is called during elaboration (e.g. through [Pretyping.search_guard]),
+    which used to raise an "undefined universe" anomaly. The environment must
+    be equipped with the universes of the evar map. *)
+Fixpoint arrows (rep : Type) (dom : list Type) : Type :=
+  match dom with
+  | nil => rep
+  | cons d dom' => d -> arrows rep dom'
+  end.
+
+Fixpoint from_arrows {rep : Type} {dom : list Type}
+  (c : arrows rep dom) (r : rep) {struct dom} : Prop :=
+  match dom return arrows rep dom -> rep -> Prop with
+  | nil => fun c r => True
+  | cons D dom' => fun c r => exists d : D, from_arrows (c d) r
+  end c r.
