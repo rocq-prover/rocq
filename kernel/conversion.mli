@@ -14,9 +14,11 @@ open Environ
 (***********************************************************************
   s conversion functions *)
 
+type on_evars = AbortImmediately | ConsiderOpaque
+
 type 'a kernel_conversion_function = env -> 'a -> 'a -> (unit, unit) result
 type 'a extended_conversion_function =
-  ?l2r:bool -> ?reds:TransparentState.t -> env ->
+  ?l2r:bool -> ?on_evars:on_evars -> ?reds:TransparentState.t -> env ->
   ?evars:CClosure.evar_handler ->
   'a -> 'a -> (unit, unit) result
 
@@ -61,7 +63,7 @@ val conv_leq : types extended_conversion_function
 
 (** The failure values depend on the universe state functions
     (for better error messages). *)
-val generic_conv : conv_pb -> l2r:bool
+val generic_conv : conv_pb -> l2r:bool -> ?on_evars:on_evars
   -> TransparentState.t -> env -> ?evars:CClosure.evar_handler
   -> ('a, 'err) generic_conversion_function
 
