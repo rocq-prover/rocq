@@ -1921,18 +1921,19 @@ let check_one_cofix ?evars env nbfix def deftype =
             else
               raise (CoFixGuardError (env,RecCallInTypeOfAbstraction a))
 
-        | CoFix (_j,(_,varit,vdefs as recdef)) ->
-            if List.for_all (noccur_with_meta n nbfix) args
-            then
-              if Array.for_all (noccur_with_meta n nbfix) varit then
-                let nbfix = Array.length vdefs in
-                let env' = push_rec_types recdef env in
-                (Array.iter (check_rec_call env' alreadygrd (n+nbfix) tree) vdefs;
-                 List.iter (check_rec_call env alreadygrd n tree) args)
-              else
-                raise (CoFixGuardError (env,RecCallInTypeOfDef c))
-            else
-              raise (CoFixGuardError (env,UnguardedRecursiveCall c))
+        | CoFix (i, (_, varit, vdefs as recdef)) ->
+          let () = if not (List.for_all (noccur_with_meta n nbfix) args) then
+            raise (CoFixGuardError (env, UnguardedRecursiveCall c))
+          in
+          let () = if not (Array.for_all (noccur_with_meta n nbfix) varit) then
+            raise (CoFixGuardError (env, RecCallInTypeOfDef c))
+          in
+          let nbfixinner = Array.length vdefs in
+          let env' = push_rec_types recdef env in
+          let () = if not (Array.for_all_i (fun j c -> Int.equal i j || noccur_with_meta (n + nbfixinner) nbfix c) 0 vdefs) then
+            raise (CoFixGuardError (env, RecCallInNonMainMutual c))
+          in
+          check_rec_call env' alreadygrd (n + nbfixinner) tree vdefs.(i)
 
         | Case (ci, u, pms, p, iv, tm, br) -> (* iv ignored: just a cache *)
           begin

@@ -32,6 +32,7 @@ type 'constr pcofix_guard_error =
   | RecCallInTypeOfAbstraction of 'constr
   | RecCallInNonRecArgOfConstructor of 'constr
   | RecCallInTypeOfDef of 'constr
+  | RecCallInNonMainMutual of 'constr
   | RecCallInCaseFun of 'constr
   | RecCallInCaseArg of 'constr
   | RecCallInCasePred of 'constr
@@ -206,6 +207,7 @@ let map_pcofix_guard_error f = function
 | RecCallInTypeOfAbstraction c -> RecCallInTypeOfAbstraction (f c)
 | RecCallInNonRecArgOfConstructor c -> RecCallInNonRecArgOfConstructor (f c)
 | RecCallInTypeOfDef c -> RecCallInTypeOfDef (f c)
+| RecCallInNonMainMutual c -> RecCallInNonMainMutual (f c)
 | RecCallInCaseFun c -> RecCallInCaseFun (f c)
 | RecCallInCaseArg c -> RecCallInCaseArg (f c)
 | RecCallInCasePred c -> RecCallInCasePred (f c)
