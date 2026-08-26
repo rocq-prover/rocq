@@ -25,7 +25,7 @@ type module_body = mod_body generic_module_body
 
 type module_type_body = mod_type generic_module_body
 
-type module_type_parameter
+type module_type_parameter = module_type_body
 (** A semantic subtype of {!module_type_body} guaranteed have all opaque data
     stripped away *)
 
