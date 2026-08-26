@@ -117,7 +117,8 @@ let val_tag t mem ctx o =
 
 let val_block mem ctx o =
   if is_block mem o then
-    (if tag mem o > Obj.no_scan_tag then
+    let t = tag mem o in
+    (if not (Obj.first_non_constant_constructor_tag <= t && t <= Obj.last_non_constant_constructor_tag) then
       fail mem ctx o "block: found no scan tag")
   else fail mem ctx o "expected block obj"
 
