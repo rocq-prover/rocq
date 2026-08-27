@@ -394,6 +394,16 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit / GH issue: [#22389](https://github.com/rocq-prover/rocq/issues/22389)
 - risk: ?
 
+#### cofixpoint guard checker computes rectree in the wrong environment
+- component: cofixpoints, guard checking
+- introduced: before V7.0, probably when coinductives first appeared
+- impacted released versions: all releases until V9.2.0 included
+- impacted coqchk versions: Same
+- fixed in: V9.2.1, V9.3 ([#22388](https://github.com/rocq-prover/rocq/pull/22388))
+- found by: Daniel Selsam
+- exploit / GH issue: [#22386](https://github.com/rocq-prover/rocq/issues/22386)
+- risk: ?
+
 ### Module system
 
 #### missing universe constraints in typing "with" clause of a module type
