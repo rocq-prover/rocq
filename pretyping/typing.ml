@@ -328,6 +328,9 @@ let judge_of_cast env sigma cj k tj =
 
 let check_fix_with_elims env sigma fix =
   let evars = Evd.evar_handler sigma in
+  (* The guard checker compares uniform parameter instances up to conversion,
+     which may involve universes of [sigma] not yet declared in [env] *)
+  let env = Environ.set_universes (Evd.universes sigma) env in
   let sorts_opt = check_fix_pre_sorts ~evars env fix in
   Option.fold_left (List.fold_left (fun sigma (ind_sort, out_sort) ->
       let elim_to = Inductive.eliminates_to @@ Evd.elim_graph sigma in
@@ -348,6 +351,7 @@ let check_cofix env sigma pcofix =
   let inj c = EConstr.to_constr sigma c in
   let (idx, (ids, cs, ts)) = pcofix in
   let ids = Array.map EConstr.Unsafe.to_binder_annot ids in
+  let env = Environ.set_universes (Evd.universes sigma) env in
   check_cofix ~evars:(Evd.evar_handler sigma) env (idx, (ids, Array.map inj cs, Array.map inj ts))
 
 (* The typing machine with universes and existential variables. *)
