@@ -224,7 +224,7 @@ let strengthen_const mp_from l cb resolver =
 let rec strengthen_module mp mb = match mod_type mb with
 | NoFunctor struc ->
   let delta_mb = get_global_delta mb in
-  if mp_in_delta mp delta_mb then mb
+  if mp_is_alias delta_mb mp then mb (* already strengthened *)
   else
     let reso, struc' = strengthen_signature mp struc delta_mb in
     let reso = add_mp_delta_resolver mp mp (add_delta_resolver delta_mb reso) in
@@ -255,7 +255,7 @@ let strengthen mtb mp = match mod_type mtb with
 | NoFunctor struc ->
   let delta_mtb = get_global_delta mtb in
   (* Has mtb already been strengthened ? *)
-  if mp_in_delta mp delta_mtb then mtb
+  if mp_is_alias delta_mtb mp then mtb
   else
     let reso', struc' = strengthen_signature mp struc delta_mtb in
     let reso' = add_delta_resolver delta_mtb (add_mp_delta_resolver mp mp reso') in
@@ -268,7 +268,7 @@ let rec strengthen_and_subst_module mb subst mp_from mp_to =
   match mod_type mb with
   | NoFunctor struc ->
     let delta_mb = get_global_delta mb in
-    let mb_is_an_alias = mp_in_delta mp_from delta_mb in
+    let mb_is_an_alias = mp_is_alias delta_mb mp_from in
     if mb_is_an_alias then
       subst_module subst_dom_codom subst mp_from mb
     else
@@ -375,7 +375,7 @@ and strengthen_and_subst_struct struc subst mp_from mp_to alias incl reso =
 let strengthen_and_subst_module_body mp_from mb mp include_b = match mod_type mb with
   | NoFunctor struc ->
     let delta_mb = get_global_delta mb in
-    let mb_is_an_alias = mp_in_delta mp_from delta_mb in
+    let mb_is_an_alias = mp_is_alias delta_mb mp_from in
     (* if mb.mod_mp is an alias then the strengthening is useless
        (i.e. it is already done)*)
     let mp_alias = mp_of_delta delta_mb mp_from in
