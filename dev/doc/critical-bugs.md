@@ -446,6 +446,16 @@ and lack of checking of relevance marks on constants in coqchk
 - risk: high when combining module subyping with sort polymorphism
   (but not possible in non-rc version)
 
+### Including functor application generates garbage delta-resolvers
+
+- component: module inclusion and functors
+- introduced: unclear, only exploitable since #21905
+- impacted released versions: V9.3+rc1
+- fixed in: 9.2.1, 9.3.0
+- found by: Pierre-Marie Pédrot flanked by Claude Opus 5
+- issue: #22409
+- risk: any development relying on inclusion of functor applications
+
 ### Universes
 
 #### issue with two parameters in the same universe level

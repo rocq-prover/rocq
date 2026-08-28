@@ -128,6 +128,9 @@ let set_algebraic_type mb alg =
 let set_retroknowledge mb rk =
   { mb with mod_retroknowledge = ModBodyVal rk }
 
+let set_delta : type a. delta_resolver -> a generic_module_body -> a generic_module_body =
+  fun delta mb -> { mb with mod_delta = delta }
+
 (** Accessors *)
 
 let mod_expr { mod_expr = ModBodyVal v; _ } = v
