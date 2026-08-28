@@ -216,9 +216,9 @@ let shelve_dependencies gls =
 
 let hintmap_of env sigma hdc secvars concl =
   match hdc with
-  | None -> fun db -> ModeMatch (NoMode, Hint_db.map_none ~secvars db)
+  | None -> fun db -> Some ([NoMode], Hint_db.map_none ~secvars db)
   | Some hdc ->
-    fun db -> Hint_db.map_eauto env sigma ~secvars hdc concl db
+    fun db -> Hint_db.map_eauto_modes env sigma ~secvars hdc concl db
 
 type hint_v = {
   hint_tac : unit Proofview.tactic;
@@ -313,8 +313,8 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
   in
   let hint_of_db = hintmap_of env sigma hdc secvars concl in
   let hintl = List.map_filter (fun db -> match hint_of_db db with
-      | ModeMatch (m, l) -> Some (db, m, l)
-      | ModeMismatch -> None)
+      | Some (modes, hints) -> Some (db, modes, hints)
+      | None -> None)
       (local_db :: db_list)
   in
   (* In case there is a mode mismatch in all the databases we get stuck.
@@ -324,22 +324,39 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
   else
     let hintl =
       CList.map
-        (fun (db, m, tacs) ->
+        (fun (db, modes, tacs) ->
            let all = Evarsolve.AllowedEvars.all in
-           let allowed_evars = match allowed_evars, m with
-             | _, NoMode -> Option.default all allowed_evars
+           let allowed_evars = match allowed_evars, modes with
+             | _, [NoMode] -> [Option.default all allowed_evars]
              (* [allowed_evars] from [Strict Resolution] take precedence over
-                the (necessarily less restrictive) set of allowed evars from
+                the (necessarily less restrictive) sets of allowed evars from
                 [Hint Mode =] *)
-             | Some allowed_evars, WithMode _ -> allowed_evars
-             | None, WithMode evars -> evars
+             | Some allowed_evars, _ -> [allowed_evars]
+             | None, modes ->
+               List.map (function
+                 | WithMode evars -> evars
+                 | NoMode -> assert false)
+                 modes
            in
-          let flags = auto_unif_flags ~allowed_evars (Hint_db.transparent_state db) in
-          m, List.map (fun x -> tac_of_hint (flags, x)) tacs)
+           let map_hint hint =
+             let make_tac allowed_evars =
+               let flags = auto_unif_flags ~allowed_evars (Hint_db.transparent_state db) in
+               tac_of_hint (flags, hint)
+             in
+             match FullHint.repr hint, allowed_evars with
+             (* These hints do not use the unification flags, so mode
+                alternatives would produce identical tactics. *)
+             | (Extern _ | Unfold_nth _), allowed_evars :: _ ->
+               [make_tac allowed_evars]
+             | _, [] -> assert false
+             | _ -> List.map make_tac allowed_evars
+           in
+           modes, List.concat_map map_hint tacs)
         hintl
     in
     let modes, hintl = List.split hintl in
-    let all_mode_match = List.for_all (fun m -> m != NoMode) modes in
+    let has_mode = List.for_all (function NoMode -> false | WithMode _ -> true) in
+    let all_mode_match = List.for_all has_mode modes in
     let hintl = match hintl with
       (* Optim: only sort if multiple hint sources were involved *)
       | [hintl] -> hintl
