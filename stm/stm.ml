@@ -1955,11 +1955,14 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
             (str "Unknown proof block delimiter " ++ str name ++ str ".")
   in
 
+  (* Error resilience is an interactive feature. Queue workers do not call
+     [VCS.init], so they retain the interactive default and remain resilient. *)
+  let error_resilience_allowed () = VCS.is_interactive () in
+
   (* Absorb tactic errors from f () *)
   let resilient_tactic id blockname f =
     if (cur_opt()).async_proofs_tac_error_resilience = FNone ||
-       (async_proofs_is_master (cur_opt()) &&
-        (cur_opt()).async_proofs_mode = APoff)
+       not (error_resilience_allowed ())
     then f ()
     else
       try f ()
@@ -1969,8 +1972,7 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
   (* Absorb errors from f x *)
   let resilient_command f x =
     if not (cur_opt()).async_proofs_cmd_error_resilience ||
-       (async_proofs_is_master (cur_opt()) &&
-        (cur_opt()).async_proofs_mode = APoff)
+       not (error_resilience_allowed ())
     then f x
     else
       try f x
