@@ -1,0 +1,16 @@
+Axioms:
+bad : False
+used in two_types to prove
+ bool
+used in two_types to prove
+ nat
+Axioms:
+bad : False
+used in second to prove
+ nat
+used in first to prove
+ nat
+Axioms:
+foo : nat
+Axioms:
+bad : False

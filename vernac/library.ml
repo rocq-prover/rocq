@@ -214,6 +214,10 @@ let find_opaque dp i =
     let what = "opaque proofs" in
     access_table what opaque_tables dp i
 
+let stored_opaque o =
+  let (_, _, dp, i) = Opaqueproof.repr o in
+  Option.map fst (find_opaque dp i)
+
 let access_opaque_table o =
   let (sub, ci, dp, i) = Opaqueproof.repr o in
   match find_opaque dp i with
@@ -229,9 +233,32 @@ let access_opaque_unchecked o =
   | None -> false
   | Some (_, unchecked) -> unchecked
 
+(* The same term, with the module substitutions applied but not the section
+   discharge, plus what the discharge would have done.  [None] when the
+   discharge generalizes an inductive of the section, since a [Case]
+   node of the stored term then has fewer parameters than the discharged
+   inductive declares. *)
+let uncooked_opaque_table o =
+  let (sub, ci, _, _) = Opaqueproof.repr o in
+  if List.exists Cooking.discharges_inductive ci then None
+  else match stored_opaque o with
+  | None -> None
+  | Some (c, _) ->
+    let subst = Mod_subst.subst_mps_list sub in
+    let fold info (bound, ctx) =
+      let cache = Cooking.create_cache info in
+      (Id.Set.union bound (Cooking.names_info info),
+       Context.Rel.map subst (Cooking.rel_context_of_cooking_cache cache) @ ctx)
+    in
+    let (bound, context) = List.fold_right fold ci (Id.Set.empty, []) in
+    Some { Global.uncooked_body = subst c;
+           Global.uncooked_bound = bound;
+           Global.uncooked_context = context }
+
 let indirect_accessor = {
   Global.access_proof = access_opaque_table;
   Global.access_unchecked = access_opaque_unchecked;
+  Global.access_uncooked_proof = uncooked_opaque_table;
 }
 
 (************************************************************************)

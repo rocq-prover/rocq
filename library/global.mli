@@ -143,12 +143,19 @@ val constant_of_delta_kn : KerName.t -> Constant.t
 val mind_of_delta_kn : KerName.t -> MutInd.t
 [@@deprecated "(9.4) Use [mind_of_kn]"]
 
+type uncooked_proofterm = {
+  uncooked_body : Constr.t;
+  uncooked_bound : Names.Id.Set.t;
+  uncooked_context : Constr.rel_context;
+}
+
 type indirect_accessor = {
   access_proof : Opaqueproof.opaque -> Opaqueproof.opaque_proofterm option;
   access_unchecked : Opaqueproof.opaque -> bool;
   (** Whether the kernel did not type this opaque proof when it was declared,
       because of the [Skip Qed Typecheck] flag; [false] if the proof cannot be
       read. *)
+  access_uncooked_proof : Opaqueproof.opaque -> uncooked_proofterm option;
 }
 
 val force_proof : indirect_accessor -> Opaqueproof.opaque -> Opaqueproof.opaque_proofterm
