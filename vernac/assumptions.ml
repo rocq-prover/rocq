@@ -230,13 +230,12 @@ let get_constant_body access kn =
     can be reachable along many paths, and walking it once per path costs
     the size of the term's TREE unfolding rather than of its DAG.
 
-    Skipping a node already walked IN THIS TERM is sound: [traverse] only ever
-    adds to [data] and [ax2ty]; everything the node contains was added to
-    [data] when it was first walked; and the [contents] set that the second
-    walk would have grown is read by [assumptions] only through
-    [Option.has_some].  The one visible effect is on [ax2ty]: a
-    [match ... with end] that is one shared node reached along several paths
-    contributes one "used in" entry rather than one per path.
+    Skipping a node already walked IN THIS TERM leaves the answer alone:
+    [traverse] only ever adds to [data] and [ax2ty]; everything the node
+    contains was added to [data] when it was first walked; the [contents] set
+    that the second walk would have grown is read by [assumptions] only
+    through [Option.has_some]; and a node that added to [ax2ty] is put back to
+    unseen, below, so it is never skipped.
 
     A fixed-size, direct-mapped, LOSSY cache rather than a hash table: the key
     would have to be physical identity, and a hash of a term that is itself
@@ -310,6 +309,13 @@ let seen gen c =
     false
   end
 
+(* Undo a [seen]: walk the node again if it is met again. *)
+let unsee gen c =
+  let i = hash_top c land (cache_size - 1) in
+  let keys = !cache_key and gens = !cache_gen in
+  if Int.equal (Array.unsafe_get gens i) gen && Array.unsafe_get keys i == c
+  then Array.unsafe_set gens i (-1)
+
 let rec traverse access gen bound (current:GlobRef.t) ctx accu t =
   match Constr.kind t with
   | Constr.Rel _ | Constr.Meta _ | Constr.Sort _ | Constr.Int _
@@ -318,7 +324,12 @@ let rec traverse access gen bound (current:GlobRef.t) ctx accu t =
     traverse_node access gen bound current ctx accu t
   | _ ->
     if seen gen t then accu
-    else traverse_node access gen bound current ctx accu t
+    else
+      let (_, _, ax2ty) = accu in
+      let ans = traverse_node access gen bound current ctx accu t in
+      let (_, _, ax2ty') = ans in
+      let () = if ax2ty' != ax2ty then unsee gen t in
+      ans
 
 and traverse_node access gen bound (current:GlobRef.t) ctx accu t =
   let open GlobRef in
