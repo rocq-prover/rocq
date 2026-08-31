@@ -382,8 +382,8 @@ let rec depcheck_se table nd = function
     let refs = declared_refs d in
     let refs' = List.filter (fun r -> is_needed !nd r) refs in
     if List.is_empty refs' then
-      (List.iter (fun r -> remove_info_axiom table r) refs;
-       List.iter (fun r -> remove_opaque table r) refs;
+      (List.iter (fun r -> remove_info_axiom table r.glob) refs;
+       List.iter (fun r -> remove_opaque table r.glob) refs;
        se')
     else
       let () = List.iter (fun r -> found_needed nd r) refs' in
