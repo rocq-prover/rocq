@@ -45,6 +45,24 @@ struct
     in
     Opaqueproof.HandleMap.iter iter !state
 
+  let inline ?(except=Future.UUIDSet.empty) () =
+    let () = join ~except () in
+    let map _ pf = match pf with
+    | OpaqueValue _ -> pf
+    | OpaqueCertif cert ->
+      if Future.UUIDSet.mem (Future.uuid cert) except then pf
+      else match Future.peek_val cert with
+        | None -> pf
+        | Some cert ->
+          let c, ctx = Safe_typing.repr_certificate cert in
+          let ctx = match ctx with
+          | Opaqueproof.PrivateMonomorphic _ -> Opaqueproof.PrivateMonomorphic ()
+          | Opaqueproof.PrivatePolymorphic _ as ctx -> ctx
+          in
+          OpaqueValue (c, ctx)
+    in
+    state := Opaqueproof.HandleMap.mapi map !state
+
 end
 
 type opaque_disk = Opaqueproof.opaque_proofterm option array

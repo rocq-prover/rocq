@@ -31,4 +31,5 @@ sig
   val freeze : unit -> t
   val unfreeze : t -> unit
   val join : ?except:Future.UUIDSet.t -> unit -> unit
+  val inline : ?except:Future.UUIDSet.t -> unit -> unit
 end
