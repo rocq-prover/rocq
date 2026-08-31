@@ -150,6 +150,7 @@ let make_senv () =
   let senv = Safe_typing.empty_environment in
   let senv = Safe_typing.set_impredicative_set !impredicative_set senv in
   let senv = Safe_typing.set_indices_matter !indices_matter senv in
+  CheckFlags.enable_vm := !enable_vm;
   let senv = Safe_typing.set_VM !enable_vm senv in
   let senv = Safe_typing.set_allow_sprop true senv in (* be smarter later *)
   Safe_typing.set_native_compiler false senv
