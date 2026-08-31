@@ -1,3 +1,3 @@
-Notation Y := M.Y
+Abbreviation Y := M.Y
 
 *** [ M.Y : Prop ]

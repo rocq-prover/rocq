@@ -1,4 +1,4 @@
-Notation pow := Nat.pow
+Abbreviation pow := Nat.pow
 
 Nat.pow =
 fix pow (n m : nat) {struct m} : nat :=
@@ -9,7 +9,7 @@ fix pow (n m : nat) {struct m} : nat :=
      : nat -> nat -> nat
 
 Arguments Nat.pow (n m)%_nat_scope
-Notation pow := Nat.pow
+Abbreviation pow := Nat.pow
 Expands to: Notation wish_18097.pow
 Declared in library wish_18097, line 1, characters 0-28
 
