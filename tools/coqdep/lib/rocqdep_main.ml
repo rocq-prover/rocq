@@ -50,7 +50,14 @@ let coqdep args =
   if args.Args.sort then
     sort st
   else
-    compute_deps st |> Seq.iter (Makefile.print_dep Format.std_formatter)
+    let deps = compute_deps st in
+    let worker = Dep_info.Dep.Other (Loadpath.get_worker_path @@ Common.State.loadpath st) in
+    let add_worker ({Dep_info.deps; _} as dep_info) =
+      let deps = deps @ [worker] in
+      {dep_info with deps}
+    in
+    let deps = Seq.map add_worker deps in
+    deps |> Seq.iter (Makefile.print_dep Format.std_formatter)
 
 let main args =
   try

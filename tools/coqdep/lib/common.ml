@@ -151,19 +151,6 @@ module VCache = Set.Make(VData)
     (those loaded by [Require]) from other dependencies, e.g. dependencies
     on ".v" files (for [Load]) or ".cmx", ".cmo", etc... (for [Declare]). *)
 
-(* Transform "Declare ML %DECL" to a pair of (meta, cmxs). Something
-   very similar is in ML top *)
-let declare_ml_to_file file (decl : string) =
-  let legacy_decl = String.split_on_char ':' decl in
-  match legacy_decl with
-  | [package] ->
-    Fl.findlib_deep_resolve ~file ~package
-  | [cmxs; package] ->
-    (* rocq compile will warn *)
-    Fl.findlib_deep_resolve ~file ~package
-  | bad_pkg ->
-    CErrors.user_err Pp.(str "Failed to resolve plugin: " ++ str decl)
-
 let coq_to_stdlib from strl =
   let tr_qualid = function
     | "Coq" :: l -> "Stdlib" :: l
@@ -194,7 +181,7 @@ end
 (* recursive because of Load *)
 let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basename =
   (* Visited marks *)
-  let visited_ml = ref CString.Set.empty in
+  let visited_package = ref CString.Set.empty in
   let visited_v = ref VCache.empty in
   let should_visit_v_and_mark from str =
     if not (VCache.mem (from, str) !visited_v) then begin
@@ -207,9 +194,6 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
   let dependencies = ref DepSet.empty in
   let add_dep dep = dependencies := DepSet.add dep !dependencies in
   let add_dep_other s = add_dep (Dep_info.Dep.Other s) in
-
-  (* worker dep *)
-  let () = add_dep_other (Loadpath.get_worker_path loadpath) in
 
   (* Reading file contents *)
   let f = basename ^ ".v" in
@@ -247,16 +231,11 @@ let rec find_dependencies ({State.vAccu; separator_hack; loadpath} as st) basena
         List.iter decl strl;
         loop ()
       | Declare sl ->
-        (* We resolve "pkg_name" to a .cma file, using the META *)
-        let sl = List.map (declare_ml_to_file f) sl in
-        let decl (meta_file, str) =
-          List.iter add_dep_other meta_file;
-          str |> List.iter (fun str ->
-          let plugin_file = Filename.chop_extension str in
-          if not (CString.Set.mem plugin_file !visited_ml) then begin
-            visited_ml := CString.Set.add plugin_file !visited_ml;
-            add_dep (Dep_info.Dep.Ml plugin_file)
-          end)
+        let decl dep =
+          if not (CString.Set.mem dep !visited_package) then begin
+            visited_package := CString.Set.add dep !visited_package;
+            add_dep (Dep_info.Dep.Ml dep)
+          end
         in
         List.iter decl sl;
         loop ()

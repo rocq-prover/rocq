@@ -13,9 +13,11 @@ module Dep : sig
   | Require of string
   (** module basename, to which we later append .vo or .vos *)
   | Ml of string
-  (** plugin basename and byte extension, resolved from Declare Ml Module *)
+  (** fully qualified findlib package as given in Declare Ml Module *)
   | Other of string
   (** load, meta, and external dependencies *)
+
+  val compare : t -> t -> int
 
   module Set : CSet.ExtS with type elt = t
 end

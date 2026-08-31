@@ -137,7 +137,7 @@ module Context = struct
     ; rule : Coq_module.Rule_type.t (* rule kind *)
     ; boot : Boot_type.t        (* type of library *)
     ; dep_info : Dep_info.t
-    ; async_deps : string list  (* whether coqc needs the workers *)
+    ; worker_deps : string list  (* we always need rocqworker and thus rocq-runtime *)
     ; root_lvl : int
     }
 
@@ -154,14 +154,11 @@ module Context = struct
           ; A "-native-compiler"; A native_string
           ]
 
-  (* XXX: we could put the workers here, but they need a complete OCaml runtime so this is better *)
-  let build_async_deps = ["(package rocq-runtime)"]
-
   (* args are for coqdep *)
   let build_dep_info ~coqdep_args dir_info =
     Dep_info.make ~args:coqdep_args ~dir_info
 
-  let make ~root_lvl ~theory ~user_flags ~boot ~rule ~async ~dir_info ~split =
+  let make ~root_lvl ~theory ~user_flags ~boot ~rule ~async:(_) ~dir_info ~split =
 
     let flags =
       let boot_paths = match boot with
@@ -176,12 +173,13 @@ module Context = struct
       { Flags.user = user_flags; common; loadpath; native_common; native_coqc }
     in
 
+    let worker_deps = ["(package rocq-runtime)"] in
+
     (* coqdep and dep info *)
     let coqdep_args = flags.loadpath in
     let dep_info = build_dep_info ~coqdep_args dir_info in
 
-    let async_deps = if async then build_async_deps else [] in
-    { theory; flags; rule; boot; dep_info; async_deps; root_lvl }
+    { theory; flags; rule; boot; dep_info; worker_deps; root_lvl }
 
 end
 
@@ -211,7 +209,12 @@ let module_rule ~(cctx : Context.t) coq_module =
   (* retrieve deps *)
   let vfile = Coq_module.source coq_module in
   let vo_ext = ".vo" in
-  let vfile_deps = Dep_info.lookup ~dep_info:cctx.dep_info vfile |> List.map (path_of_dep ~vo_ext) in
+  let vfile_deps = Dep_info.lookup ~dep_info:cctx.dep_info vfile in
+  let vfile_deps, vfile_packages =
+    let open Coqdeplib.Dep_info in
+    List.partition (function Dep.Ml _ -> false | Dep.Require _ | Dep.Other _ -> true) vfile_deps
+  in
+  let vfile_deps = List.map (path_of_dep ~vo_ext) vfile_deps in
   (* handle -noinit, inject prelude.vo if needed *)
   let boot_flags, boot_deps = boot_module_setup ~cctx coq_module in
   let coqc_flags = cctx.flags.loadpath @ cctx.flags.user @ cctx.flags.common @ cctx.flags.native_coqc in
@@ -225,8 +228,18 @@ let module_rule ~(cctx : Context.t) coq_module =
   let lvl = cctx.root_lvl + (Coq_module.prefix coq_module |> List.length) in
   let flags = (* flags are relative to the root path *) Arg.List.to_string (flags @ timeflags) in
   let deps = List.map (Path.adjust ~lvl) vfile_deps |> List.map Path.to_string in
-  (* Depend on the workers if async *)
-  let deps = cctx.async_deps @ deps in
+  (* Depend on the workers *)
+  let deps = cctx.worker_deps @ deps in
+  let deps =
+    let open Coqdeplib.Dep_info in
+    List.map (
+      function
+      | Dep.Ml package ->
+        let root = List.nth (String.split_on_char '.' package) 0 in
+        "(package "^root^")"
+      | Dep.Other _ | Dep.Require _ -> assert false) vfile_packages
+    @ deps
+  in
   (* Build rule *)
   let updir = Path.(to_string (adjust ~lvl (make "."))) in
   let action = Format.asprintf "(chdir %s (run rocq c %s %%{dep:%s}))" updir flags vfile_base in
