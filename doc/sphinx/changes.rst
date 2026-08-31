@@ -189,6 +189,11 @@ Kernel
   (`#22379 <https://github.com/rocq-prover/rocq/pull/22379>`_,
   fixes `#22378 <https://github.com/rocq-prover/rocq/issues/22378>`_,
   by Yann Leray).
+- **Fixed:**
+  incorrect reification in `lazy` machine of matches with universe polymorphism
+  (`#22381 <https://github.com/rocq-prover/rocq/pull/22381>`_,
+  fixes `#22380 <https://github.com/rocq-prover/rocq/issues/22380>`_,
+  by Gaëtan Gilbert).
 
 Specification language, type inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
