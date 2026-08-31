@@ -637,6 +637,10 @@ Infrastructure and dependencies
   (path normalization in custom Rocq rules went awry)
   (`#22198 <https://github.com/rocq-prover/rocq/pull/22198>`_,
   by Gaëtan Gilbert).
+- **Fixed:**
+  Fix `dunestrap` rule generation to work with dune 3.25
+  (`#22356 <https://github.com/rocq-prover/rocq/pull/22356>`_,
+  by Jan-Oliver Kaiser).
 
 Miscellaneous
 ^^^^^^^^^^^^^
