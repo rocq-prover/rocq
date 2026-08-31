@@ -673,28 +673,30 @@ let warns table =
   warning_opaques table (access_opaque ());
   warning_axioms table
 
-(* From a list of [reference], let's retrieve whether they correspond
-   to modules or [global_reference]. Warn the user if both is possible. *)
+(* For a qualid, let's retrieve whether it corresponds
+   to a module or globref. If both, Warn the user and return the module. *)
+let locate_ref qid =
+  let open Either in
+  let mpo = try Some (Nametab.locate_module qid) with Not_found -> None
+  and ro =
+    try
+      let gr = Smartlocate.global_with_alias qid in
+      let inst = Environ.universes_of_global (Global.env ()) gr in
+      Some (List.map (fun inst -> { glob = gr; inst }) (InfvInst.generate inst))
+    with Nametab.GlobalizationError _ | UserError _ -> None
+  in
+  match mpo, ro with
+  | None, None -> Nametab.error_global_not_found ~info:Exninfo.null qid
+  | None, Some r ->
+    Left r
+  | Some mp, None -> Right mp
+  | Some mp, Some r ->
+    let () = warning_ambiguous_name ?loc:qid.CAst.loc (qid, mp, (List.hd r).glob) in
+    Right mp
 
-let rec locate_ref = function
-  | [] -> [],[]
-  | qid::l ->
-      let mpo = try Some (Nametab.locate_module qid) with Not_found -> None
-      and ro =
-        try
-          let gr = Smartlocate.global_with_alias qid in
-          let inst = Environ.universes_of_global (Global.env ()) gr in
-          Some (List.map (fun inst -> { glob = gr; inst }) (InfvInst.generate inst))
-        with Nametab.GlobalizationError _ | UserError _ -> None
-      in
-      match mpo, ro with
-        | None, None -> Nametab.error_global_not_found ~info:Exninfo.null qid
-        | None, Some r ->
-          let refs, mps = locate_ref l in r @ refs,mps
-        | Some mp, None -> let refs,mps = locate_ref l in refs,mp::mps
-        | Some mp, Some r ->
-          let () = warning_ambiguous_name ?loc:qid.CAst.loc (qid, mp, (List.hd r).glob) in
-          let refs,mps = locate_ref l in refs,mp::mps
+let locate_refs l =
+  let refs, mods = List.partition_map locate_ref l in
+  List.flatten refs, mods
 
 (*s Recursive extraction in the Rocq toplevel. The vernacular command is
     \verb!Recursive Extraction! [qualid1] ... [qualidn]. Also used when
@@ -709,14 +711,14 @@ let full_extr opaque_access f (refs,mps) =
   print_structure_to_file table (mono_filename f) false struc
 
 let full_extraction ~opaque_access f lr =
-  full_extr opaque_access f (locate_ref lr)
+  full_extr opaque_access f (locate_refs lr)
 
 (*s Separate extraction is similar to recursive extraction, with the output
    decomposed in many files, one per Rocq .v file *)
 
 let separate_extraction ~opaque_access lr =
   let table = init ~modular:true ~library:false () in
-  let refs,mps = locate_ref lr in
+  let refs,mps = locate_refs lr in
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = List.iter (function
     | MPfile _, _ -> ()
@@ -737,20 +739,22 @@ let separate_extraction ~opaque_access lr =
     is \verb!Extraction! [qualid]. *)
 
 let simple_extraction ~opaque_access r =
-  match locate_ref [r] with
-  | ([], [mp]) as p -> full_extr opaque_access None p
-  | [r],[] ->
-      let table = init ~modular:false ~library:false () in
-      let struc = optimize_struct table ([r],[]) (mono_environment table ~opaque_access [r] []) in
-      let d = get_decl_in_structure r struc in
-      let () = warns table in
-      let flag =
-        if is_custom r then str "(** User defined extraction *)" ++ fnl()
-        else mt ()
-      in
-      let ans = flag ++ print_one_decl table struc (modpath_of_r r) d in
-      Feedback.msg_notice ans
-  | _ -> assert false
+  match locate_ref r with
+  | Right mp -> full_extr opaque_access None ([], [mp])
+  | Left (r::_) ->
+    (* locate_ref returns all sort poly instantiations, should we extract all or just the Type one?
+       (currently just the Type one) *)
+    let table = init ~modular:false ~library:false () in
+    let struc = optimize_struct table ([r],[]) (mono_environment table ~opaque_access [r] []) in
+    let d = get_decl_in_structure r struc in
+    let () = warns table in
+    let flag =
+      if is_custom r then str "(** User defined extraction *)" ++ fnl()
+      else mt ()
+    in
+    let ans = flag ++ print_one_decl table struc (modpath_of_r r) d in
+    Feedback.msg_notice ans
+  | Left [] -> assert false
 
 
 (*s (Recursive) Extraction of a library. The vernacular command is
