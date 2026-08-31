@@ -355,11 +355,12 @@ let search env sigma items mods pr_search =
   let filter ref kind env sigma typ =
     let eqb b1 b2 = if b1 then b2 else not b2 in
     module_filter mods ref kind env sigma typ &&
+    blacklist_filter ref kind env sigma typ &&
       let rec aux = function
         | GlobSearchLiteral i -> search_filter i ref kind env sigma typ
         | GlobSearchDisjConj l -> List.exists (List.for_all aux') l
       and aux' (b,s) = eqb b (aux s) in
-      List.for_all aux' items && blacklist_filter ref kind env sigma typ
+      List.for_all aux' items
   in
   let iter ref kind env sigma typ =
     if filter ref kind env sigma typ then pr_search ref kind env sigma typ
