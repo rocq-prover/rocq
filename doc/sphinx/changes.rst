@@ -184,6 +184,11 @@ Kernel
   (`#22377 <https://github.com/rocq-prover/rocq/pull/22377>`_,
   fixes `#22376 <https://github.com/rocq-prover/rocq/issues/22376>`_,
   by Gaëtan Gilbert).
+- **Fixed:**
+  Compare terms under contexts in the right relevance environment
+  (`#22379 <https://github.com/rocq-prover/rocq/pull/22379>`_,
+  fixes `#22378 <https://github.com/rocq-prover/rocq/issues/22378>`_,
+  by Yann Leray).
 
 Specification language, type inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
