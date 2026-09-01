@@ -340,8 +340,11 @@ let library_seg : library_disk ObjFile.id = ObjFile.make_id "library"
 let opaques_seg : seg_proofs ObjFile.id = ObjFile.make_id "opaques"
 let vm_seg = Vmlibrary.vm_segment
 
-let intern_from_file ~intern_mode ~enable_VM (dir, f) =
-  let validate = intern_mode <> Dep in
+(* [validated] is the set of libraries which must be validated when read even
+   if they are interned as a dependency, namely those named on the command
+   line and not admitted. *)
+let intern_from_file ~intern_mode ~validated ~enable_VM (dir, f) =
+  let validate = intern_mode <> Dep || LibrarySet.mem dir validated in
   Flags.if_verbose chk_pp (str"[intern "++str f++str" ...");
   let (sd,md,table,vmlib,digest) =
     try
@@ -377,15 +380,15 @@ let intern_from_file ~intern_mode ~enable_VM (dir, f) =
   opaque_tables := LibraryMap.add sd.md_name table !opaque_tables;
   mk_library sd md f table digest (Vmlibrary.inject vmlib)
 
-let intern_from_file ~intern_mode ~enable_VM dirf : library_t =
+let intern_from_file ~intern_mode ~validated ~enable_VM dirf : library_t =
   NewProfile.profile "intern_from_file"
     ~args:(fun () -> [("name", `String (DirPath.to_string (fst dirf)))])
-    (fun () -> intern_from_file ~intern_mode ~enable_VM dirf)
+    (fun () -> intern_from_file ~intern_mode ~validated ~enable_VM dirf)
     ()
 
 (* Read a compiled library and all dependencies, in reverse order.
    Do not include files that are already in the context. *)
-let rec intern_library ~intern_mode ~enable_VM seen (dir, f) needed =
+let rec intern_library ~intern_mode ~validated ~enable_VM seen (dir, f) needed =
   if LibrarySet.mem dir seen then failwith "Recursive dependencies!";
   (* Look if in the current logical environment *)
   try let _ = find_library dir in needed
@@ -394,13 +397,13 @@ let rec intern_library ~intern_mode ~enable_VM seen (dir, f) needed =
   if List.mem_assoc_f DirPath.equal dir needed then needed
   else
     (* [dir] is an absolute name which matches [f] which must be in loadpath *)
-    let m = intern_from_file ~intern_mode ~enable_VM (dir,f) in
+    let m = intern_from_file ~intern_mode ~validated ~enable_VM (dir,f) in
     let seen' = LibrarySet.add dir seen in
     let deps =
       Array.map (fun (d,_) -> try_locate_absolute_library d) m.library_deps
     in
     let intern_mode = match intern_mode with Rec -> Rec | Root | Dep -> Dep in
-    (dir,m) :: Array.fold_right (intern_library ~intern_mode ~enable_VM seen') deps needed
+    (dir,m) :: Array.fold_right (intern_library ~intern_mode ~validated ~enable_VM seen') deps needed
 
 (* Compute the reflexive transitive dependency closure *)
 let rec fold_deps seen ff (dir,f) (s,acc) =
@@ -428,8 +431,17 @@ let recheck_library senv ~norec ~admit ~check =
   let ml = List.map try_locate_qualified_library check in
   let nrl = List.map try_locate_qualified_library norec in
   let al =  List.map try_locate_qualified_library admit in
-  let needed = List.fold_right (intern_library ~intern_mode:Rec ~enable_VM LibrarySet.empty) ml [] in
-  let needed = List.fold_right (intern_library ~intern_mode:Root ~enable_VM LibrarySet.empty) nrl needed in
+  (* A library named on the command line may also be a dependency of another
+     one, in which case it may happen to be interned in [Dep] mode, which does
+     not validate the marshalled data. Force its validation, unless it was
+     admitted. *)
+  let validated =
+    let fold f l s = List.fold_right (fun (dir, _) s -> f dir s) l s in
+    fold LibrarySet.remove al
+      (fold LibrarySet.add nrl (fold LibrarySet.add ml LibrarySet.empty))
+  in
+  let needed = List.fold_right (intern_library ~intern_mode:Rec ~validated ~enable_VM LibrarySet.empty) ml [] in
+  let needed = List.fold_right (intern_library ~intern_mode:Root ~validated ~enable_VM LibrarySet.empty) nrl needed in
   let needed = List.rev needed in
   (* first compute the closure of norec, remove closure of check,
      add closure of admit, and finally remove norec and check *)
