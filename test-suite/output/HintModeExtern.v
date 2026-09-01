@@ -16,7 +16,20 @@ Global Hint Mode C - = : typeclass_instances.
 Goal exists x y, C x y.
 Proof.
   eexists; eexists.
-  (* Although both mode declarations match with distinct restrictions, the
-     extern hint is run only once because it does not use those restrictions. *)
+  (* Each mode for [C] generates an application attempt. *)
+  Fail typeclasses eauto.
+Abort.
+
+Class D (n : nat).
+
+Axiom d_0 : D 0.
+Global Hint Extern 0 (D _) =>
+  idtac "guarded extern called"; exact d_0 : typeclass_instances.
+Global Hint Mode D = : typeclass_instances.
+
+Goal exists n, D n.
+Proof.
+  eexists.
+  (* The proof-state change is rolled back, but output is non-logical. *)
   Fail typeclasses eauto.
 Abort.
