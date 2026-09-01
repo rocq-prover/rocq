@@ -88,7 +88,7 @@ let interp_search_item env sigma =
              untyped pattern as a fallback (i.e w/o no insertion of
              coercions, no compilation of pattern-matching) *)
           snd (Constrintern.interp_constr_pattern env sigma ~as_type:head pat) in
-      GlobSearchSubPattern (where,head,pat)
+      GlobSearchSubPattern (where,head,pat,Constr_matching.make_subterm_cache())
   | SearchString ((Anywhere,false),s,None)
       when Id.is_valid_ident_part s && String.equal (String.drop_simple_quotes s) s ->
       GlobSearchString s
@@ -97,7 +97,7 @@ let interp_search_item env sigma =
       let ref =
         Notation.interp_notation_as_global_reference
           ~head:false (fun _ -> true) s sc in
-      GlobSearchSubPattern (where,head,Pattern.PRef ref)
+      GlobSearchSubPattern (where,head,Pattern.PRef ref,Constr_matching.make_subterm_cache())
   | SearchKind (d,k) ->
      match kind_searcher env k with
      | Inl k -> GlobSearchKind (d,k)

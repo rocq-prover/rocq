@@ -33,7 +33,7 @@ editors (like emacs), to generate a list of completion candidates
 without having to parse through the types of all symbols. *)
 
 type glob_search_item =
-  | GlobSearchSubPattern of glob_search_where * bool * constr_pattern
+  | GlobSearchSubPattern of glob_search_where * bool * constr_pattern * Constr_matching.subterm_cache
   | GlobSearchString of string
   | GlobSearchKind of (Vernacexpr.discharge * Decls.logical_kind)
   | GlobSearchFilter of (GlobRef.t -> bool)
@@ -302,7 +302,7 @@ let string_contains_upto ?limit ~pattern s =
      d <= limit
 
 let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> match query with
-| GlobSearchSubPattern (where,head,pat) ->
+| GlobSearchSubPattern (where,head,pat,subterm_cache) ->
   let open Context.Rel.Declaration in
   let rec collect env hyps typ =
     match Constr.kind typ with
@@ -316,7 +316,7 @@ let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> ma
   List.exists (fun (env,typ) ->
       let f =
         if head then Constr_matching.is_matching_head
-        else Constr_matching.is_matching_appsubterm ~closed:false in
+        else Constr_matching.is_matching_appsubterm_cached subterm_cache in
       f env sigma pat (EConstr.of_constr typ)) typl
 | GlobSearchString s -> string_contains_upto ~pattern:s (name_of_reference gr)
 | GlobSearchKind k -> (match kind with None -> false | Some k' -> k = k')

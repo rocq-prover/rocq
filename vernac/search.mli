@@ -17,7 +17,7 @@ open Vernacexpr
 (** {6 Search facilities. } *)
 
 type glob_search_item =
-  | GlobSearchSubPattern of glob_search_where * bool * constr_pattern
+  | GlobSearchSubPattern of glob_search_where * bool * constr_pattern * Constr_matching.subterm_cache
   | GlobSearchString of string
   | GlobSearchKind of (Vernacexpr.discharge * Decls.logical_kind)
   | GlobSearchFilter of (GlobRef.t -> bool)
