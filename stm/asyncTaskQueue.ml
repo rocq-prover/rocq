@@ -81,14 +81,19 @@ module Make(T : Task) () = struct
     with Failure s | Invalid_argument s | Sys_error s ->
       marshal_err ("marshal_request: "^s)
 
+  (* [unmarshal_request] and [marshal_response] are used by the worker
+     only, where a [Sys_error] means the channel to the master is gone.
+     We let it through so that the main loop can tell a lost connection
+     apart from a genuine marshalling failure, which alone becomes
+     [MarshalError]. *)
   let unmarshal_request ic =
     try (CThread.thread_friendly_input_value ic : request)
-    with Failure s | Invalid_argument s | Sys_error s ->
+    with Failure s | Invalid_argument s ->
       marshal_err ("unmarshal_request: "^s)
 
   let marshal_response oc (res : response) =
     try marshal_to_channel oc res
-    with Failure s | Invalid_argument s | Sys_error s ->
+    with Failure s | Invalid_argument s ->
       marshal_err ("marshal_response: "^s)
 
   let unmarshal_response ic =
@@ -311,7 +316,11 @@ module Make(T : Task) () = struct
       with
       | MarshalError s ->
         stm_pr_err Pp.(prlist str ["Fatal marshal error: "; s]); flush_all (); exit 2
-      | End_of_file ->
+      (* The master going away shows up either as [End_of_file] or as a
+         [Sys_error] (a connection reset on Windows, a broken pipe
+         elsewhere).  The worker is being torn down, so neither is worth
+         reporting. *)
+      | End_of_file | Sys_error _ ->
         stm_prerr_endline "connection lost"; flush_all (); exit 2
       | e ->
         stm_pr_err Pp.(seq [str "Slave: critical exception: "; print e]);
