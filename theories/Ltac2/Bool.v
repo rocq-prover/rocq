@@ -82,3 +82,9 @@ Ltac2 Notation x(self) "||" y(thunk(self)) : 3 :=
   end.
 
 End BoolNotations.
+
+Ltac2 to_string (b : bool) : string :=
+  match b with
+  | true => "true"
+  | false => "false"
+  end.
