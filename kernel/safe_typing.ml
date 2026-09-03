@@ -892,6 +892,12 @@ let make_hbody = function
       assert (c == HConstr.self hc);
       snd @@ HConstr.hcons hc)
 
+let warn_inline_in_module =
+  CWarnings.create ~name:"inline-parameter-in-module"
+    ~category:CWarnings.CoreCategories.vernacular
+    (fun kn -> Pp.(str "Ignoring the Inline annotation of " ++
+      Constant.print kn ++ strbrk " outside of a module  type."))
+
 let add_constant_aux senv ?hbody (kn, cb) =
   let l = Constant.label kn in
   (* This is the only place where we hashcons the contents of a constant body *)
@@ -902,8 +908,13 @@ let add_constant_aux senv ?hbody (kn, cb) =
   let senv' = add_field (l,SFBconst cb) (C kn) senv in
   let senv'' = match cb.const_body with
     | Undef (Some lev) ->
-      update_resolver
-        (Mod_subst.add_inline_delta_resolver (Constant.user kn) (lev,None)) senv'
+      (* An inlining declaration only makes sense in a module type *)
+      if is_modtype senv' then
+        update_resolver
+          (Mod_subst.add_inline_delta_resolver (Constant.user kn) (lev,None)) senv'
+      else
+        let () = warn_inline_in_module kn in
+        senv'
     | _ -> senv'
   in
   senv''
