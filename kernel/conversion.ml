@@ -194,12 +194,92 @@ let convert_inductives_gen cmp_instances cmp_cumul cv_pb (mind,ind) nargs u1 u2 
     else
       cmp_cumul cv_pb variances u1 u2 s
 
+(* Conversion result cache. Within one conversion session the same pair of
+   cells is typically compared many times over, because β-substitution
+   shares payload cells across all the occurrences of a variable. Entries
+   record the outcome (success or failure) for a pair of cells — identified
+   by their stable ids, modulo FLIFT wrappers — at a given lift pair and
+   conversion problem. Lifts are interned to small ids so that keys and
+   payloads fit in machine integers, stored in a flat open-addressing
+   table. Only sound for checked conversion, where results are
+   deterministic and no universe constraints are accumulated. *)
+
+module LiftTbl = Hashtbl.Make(struct
+  type t = lift
+  let equal = eq_lift
+  let hash = hash_lift
+end)
+
+type conv_cache = {
+  (* cc_key.(i) = (fid1 lsl 31) lor fid2; 0 = empty slot *)
+  mutable cc_key : int array;
+  (* cc_meta.(i) = (lid1 lsl 18) lor (lid2 lsl 3) lor (pb lsl 1) lor result *)
+  mutable cc_meta : int array;
+  mutable cc_cnt : int;
+  cc_lifts : int LiftTbl.t;
+  mutable cc_nlifts : int;
+}
+
+let cc_intern cache l =
+  match LiftTbl.find_opt cache.cc_lifts l with
+  | Some id -> id
+  | None ->
+    let id = cache.cc_nlifts in
+    if id >= 1 lsl 15 then -1
+    else begin
+      cache.cc_nlifts <- id + 1;
+      LiftTbl.add cache.cc_lifts l id;
+      id
+    end
+
+let cc_mix pk m =
+  let h = pk + m * 0x9E3779B97F4A7C1 in
+  let h = h lxor (h lsr 29) in
+  let h = h * 0x3F58476D1CE4E5B9 in
+  h lxor (h lsr 32)
+
+(* -1 = absent, 0 = cached failure, 1 = cached success.
+   [meta0] must have the result bit clear. *)
+let cc_find cache pk meta0 =
+  let mask = Array.length cache.cc_key - 1 in
+  let rec go i =
+    let k = Array.unsafe_get cache.cc_key i in
+    if k == 0 then -1
+    else if k == pk
+         && (Array.unsafe_get cache.cc_meta i) lor 1 == meta0 lor 1 then
+      (Array.unsafe_get cache.cc_meta i) land 1
+    else go ((i + 1) land mask)
+  in
+  go ((cc_mix pk meta0) land mask)
+
+let cc_insert_raw key meta pk m =
+  let mask = Array.length key - 1 in
+  let rec go i =
+    if Array.unsafe_get key i == 0 then begin
+      Array.unsafe_set key i pk;
+      Array.unsafe_set meta i m
+    end else go ((i + 1) land mask)
+  in
+  go ((cc_mix pk (m land lnot 1)) land mask)
+
+let cc_resize cache =
+  let old_k = cache.cc_key and old_m = cache.cc_meta in
+  let n = Array.length old_k * 2 in
+  let key = Array.make n 0 and meta = Array.make n 0 in
+  for i = 0 to Array.length old_k - 1 do
+    let pk = Array.unsafe_get old_k i in
+    if pk != 0 then cc_insert_raw key meta pk (Array.unsafe_get old_m i)
+  done;
+  cache.cc_key <- key;
+  cache.cc_meta <- meta
+
 type 'e conv_tab = {
   cnv_inf : clos_infos;
   cnv_typ : bool; (* true if the input terms were well-typed *)
   lft_tab : clos_tab;
   rgt_tab : clos_tab;
   err_ret : 'e -> payload;
+  cnv_cache : conv_cache option;
 }
 (** Invariant: for any tl ∈ lft_tab and tr ∈ rgt_tab, there is no mutable memory
     location contained both in tl and in tr. *)
@@ -402,12 +482,69 @@ let assert_reduced_constructor s =
   if not @@ CList.is_empty s then
     CErrors.anomaly Pp.(str "conversion was given unreduced term (FConstruct).")
 
+let rec strip_flift k v = match fterm_of v with
+| FLIFT (n, v') -> strip_flift (k + n) v'
+| _ -> (k, v)
+
+(* Optional cap on cached entries per session (ROCQ_CONV_CACHE_MAX; 0 means
+   unlimited). Unbounded by default: like [clos_tab], the table is
+   session-scoped, so its lifetime bounds memory. *)
+let cc_max_size =
+  match int_of_string (Sys.getenv "ROCQ_CONV_CACHE_MAX") with
+  | 0 -> max_int
+  | n -> n
+  | exception _ -> max_int
+
+(* The cache is enabled by default; set ROCQ_CONV_CACHE=0 to disable. *)
+let cc_enabled =
+  match Sys.getenv "ROCQ_CONV_CACHE" with
+  | "0" -> false
+  | _ -> true
+  | exception Not_found -> true
+
 (* Conversion between  [lft1]term1 and [lft2]term2 *)
 let rec ccnv cv_pb l2r infos lft1 lft2 term1 term2 cuniv =
   let fast = fast_test lft1 term1 lft2 term2 in
   if fast then cuniv
   else
-    eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
+    (* NOTE: entry-wise first-order comparison of same-body FCLOS pairs was
+       tried here and regressed badly (failing entries ground then thrown
+       away by the fallback); do not re-add without a failure cache. *)
+    match infos.cnv_cache with
+    | None ->
+      eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
+    | Some cache ->
+      let (k1, v1) = strip_flift 0 term1 in
+      let (k2, v2) = strip_flift 0 term2 in
+      let fid1 = CClosure.get_fid v1 in
+      let fid2 = CClosure.get_fid v2 in
+      let lid1 = cc_intern cache (el_shft k1 lft1) in
+      let lid2 = if lid1 < 0 then -1 else cc_intern cache (el_shft k2 lft2) in
+      if lid2 < 0 || fid1 >= 1 lsl 31 || fid2 >= 1 lsl 31 then
+        (* out of packing range: run uncached *)
+        eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv
+      else begin
+        let pk = (fid1 lsl 31) lor fid2 in
+        let pb = match cv_pb with CONV -> 0 | CUMUL -> 1 in
+        let meta0 = (lid1 lsl 18) lor (lid2 lsl 3) lor (pb lsl 1) in
+        match cc_find cache pk meta0 with
+        | 1 -> cuniv
+        | 0 -> raise NotConvertible
+        | _ ->
+          let add r =
+            if cache.cc_cnt < cc_max_size then begin
+              if 2 * (cache.cc_cnt + 1) > Array.length cache.cc_key then
+                cc_resize cache;
+              cache.cc_cnt <- cache.cc_cnt + 1;
+              cc_insert_raw cache.cc_key cache.cc_meta pk (meta0 lor r)
+            end
+          in
+          (* NOTE: a post-whd second cache probe on the reduced bare states
+             was tried here and measured useless (2 hits in 13.2M probes). *)
+          match eqappr cv_pb l2r infos (lft1, (term1,[])) (lft2, (term2,[])) cuniv with
+          | cuniv -> add 1; cuniv
+          | exception NotConvertible -> add 0; raise NotConvertible
+      end
 
 (* Conversion between [lft1](hd1 v1) and [lft2](hd2 v2) *)
 and eqappr cv_pb l2r infos (lft1,st1) (lft2,st2) cuniv =
@@ -984,18 +1121,25 @@ and convert_list l2r infos lft1 lft2 v1 v2 cuniv = match v1, v2 with
   convert_list l2r infos lft1 lft2 v1 v2 cuniv
 | _, _ -> raise NotConvertible
 
-let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 =
+let clos_gen_conv (type err) ~typed ~use_cache trans cv_pb l2r evars env graph univs t1 t2 =
   NewProfile.profile "Conversion" begin fun () ->
       let reds = RedFlags.red_add_transparent RedFlags.betaiotazeta trans in
       let infos = create_conv_infos ~univs:graph ~evars reds env in
       let module Error = struct type payload += Error of err end in
       let box e = Error.Error e in
+      let cache =
+        if use_cache && cc_enabled then
+          Some { cc_key = Array.make 256 0; cc_meta = Array.make 256 0;
+                 cc_cnt = 0; cc_lifts = LiftTbl.create 16; cc_nlifts = 0 }
+        else None
+      in
       let infos = {
         cnv_inf = infos;
         cnv_typ = typed;
         lft_tab = create_tab ();
         rgt_tab = create_tab ();
         err_ret = box;
+        cnv_cache = cache;
       } in
       try Result.Ok (ccnv cv_pb l2r infos el_id el_id (inject t1) (inject t2) univs)
       with
@@ -1044,7 +1188,7 @@ let () =
       let box = Empty.abort in
       let state = info_univs infos in
       let qual_equal q1 q2 = CClosure.eq_quality infos q1 q2 in
-      let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box; } in
+      let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box; cnv_cache = None; } in
       let state', _ = ccnv CONV false infos el_id el_id a b (state, checked_universes_gen qual_equal) in
       assert (state==state');
       true
@@ -1062,7 +1206,7 @@ let gen_conv ~typed cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars
     else eq_constr_univs univs t1 t2
   in
     if b then Result.Ok ()
-    else match clos_gen_conv ~typed reds cv_pb l2r evars env univs (state, checked_universes) t1 t2 with
+    else match clos_gen_conv ~typed ~use_cache:true reds cv_pb l2r evars env univs (state, checked_universes) t1 t2 with
     | Result.Ok (_ : 'a * ('a, Empty.t) universe_compare)-> Result.Ok ()
     | Result.Error None -> Result.Error ()
     | Result.Error (Some e) -> Empty.abort e
@@ -1072,7 +1216,7 @@ let conv_leq = gen_conv ~typed:false CUMUL
 
 let generic_conv cv_pb ~l2r reds env ?(evars=default_evar_handler env) state t1 t2 =
   let graph = Environ.universes env in
-  match clos_gen_conv ~typed:false reds cv_pb l2r evars env graph state t1 t2 with
+  match clos_gen_conv ~typed:false ~use_cache:false reds cv_pb l2r evars env graph state t1 t2 with
   | Result.Ok (s, _) -> Result.Ok s
   | Result.Error e -> Result.Error e
 
