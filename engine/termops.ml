@@ -615,70 +615,7 @@ let map_constr_with_binders_left_to_right env sigma g f l c =
       else mkArray(u,t',def',ty')
 
 (* strong *)
-let map_constr_with_full_binders env sigma g f l cstr =
-  let open EConstr in
-  match EConstr.kind sigma cstr with
-  | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
-    | Construct _ | Int _ | Float _ | String _) -> cstr
-  | Cast (c,k, t) ->
-      let c' = f l c in
-      let t' = f l t in
-      if c==c' && t==t' then cstr else mkCast (c', k, t')
-  | Prod (na,t,c) ->
-      let t' = f l t in
-      let c' = f (g (RelDecl.LocalAssum (na, t)) l) c in
-      if t==t' && c==c' then cstr else mkProd (na, t', c')
-  | Lambda (na,t,c) ->
-      let t' = f l t in
-      let c' = f (g (RelDecl.LocalAssum (na, t)) l) c in
-      if t==t' && c==c' then cstr else  mkLambda (na, t', c')
-  | LetIn (na,b,t,c) ->
-      let b' = f l b in
-      let t' = f l t in
-      let c' = f (g (RelDecl.LocalDef (na, b, t)) l) c in
-      if b==b' && t==t' && c==c' then cstr else mkLetIn (na, b', t', c')
-  | App (c,al) ->
-      let c' = f l c in
-      let al' = Array.map (f l) al in
-      if c==c' && Array.for_all2 (==) al al' then cstr else mkApp (c', al')
-  | Proj (p,r,c) ->
-      let c' = f l c in
-        if c' == c then cstr else mkProj (p, r, c')
-  | Evar ev ->
-    let ev' = EConstr.map_existential sigma (fun c -> f l c) ev in
-    if ev' == ev then cstr else mkEvar ev'
-  | Case (ci, u, pms, (p,r), iv, c, bl) ->
-      let (ci, _, pms, (p0,_), _, c, bl0) = annotate_case env sigma (ci, u, pms, (p,r), iv, c, bl) in
-      let f_ctx (nas, _ as r) (ctx, c) =
-        let c' = f (List.fold_right g ctx l) c in
-        if c' == c then r else (nas, c')
-      in
-      let pms' = Array.Smart.map (f l) pms in
-      let p' = f_ctx p p0 in
-      let iv' = map_invert (f l) iv in
-      let c' = f l c in
-      let bl' = Array.map2 f_ctx bl bl0 in
-      if pms==pms' && p==p' && iv'==iv && c==c' && Array.for_all2 (==) bl bl' then cstr else
-        mkCase (ci, u, pms', (p',r), iv', c', bl')
-  | Fix (ln,(lna,tl,bl as fx)) ->
-      let tl' = Array.map (f l) tl in
-      let l' = fold_rec_types g fx l in
-      let bl' = Array.map (f l') bl in
-      if Array.for_all2 (==) tl tl' && Array.for_all2 (==) bl bl'
-      then cstr
-      else mkFix (ln,(lna,tl',bl'))
-  | CoFix(ln,(lna,tl,bl as fx)) ->
-      let tl' = Array.map (f l) tl in
-      let l' = fold_rec_types g fx l in
-      let bl' = Array.map (f l') bl in
-      if Array.for_all2 (==) tl tl' && Array.for_all2 (==) bl bl'
-      then cstr
-      else mkCoFix (ln,(lna,tl',bl'))
-  | Array(u,t,def,ty) ->
-      let t' = Array.Smart.map (f l) t in
-      let def' = f l def in
-      let ty' = f l ty in
-      if def==def' && t == t' && ty==ty' then cstr else mkArray (u,t', def',ty')
+let map_constr_with_full_binders = EConstr.map_with_full_binders
 
 (* [fold_constr_with_binders g f n acc c] folds [f n] on the immediate
    subterms of [c] starting from [acc] and proceeding from left to
