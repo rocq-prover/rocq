@@ -102,7 +102,7 @@ let refcount x = x.refcount
 module Tbl = struct
   type key = t
 
-  (* The API looks like Hashtbl but implemented using Int.Map ref.
+  (* The API looks like Hashtbl but implemented using balanced trees.
 
      We don't use Hashtbl for 2 reasons:
      - to provide the pre-hashconsing leaf lookup (not sure why it's so fast but it seems to be)
@@ -112,30 +112,30 @@ module Tbl = struct
        wrap [add] so that we only add [Real] keys,
        then [raw_find] is [Hashtbl.find_opt] using [Fake].)
 
-     - for unclear reasons Int.Map ref is dramatically faster on an artificial example
+     - for unclear reasons, a balanced map is dramatically faster on an artificial example
        (balanced binary tree whose leaves are all different primitive ints,
         such that there is no sharing).
        It is a bit slower in the real world.
        It seems that hashtbl produces overly large buckets which then need to be linearly scanned.
        hconsing doesn't seem to have this problem,
        perhaps because of differences between hashtbl and our hashset implementation. *)
-  type 'a t = (key * 'a) list Int.Map.t ref
+  type 'a t = (key * 'a) list Patricia.t ref
 
-  let create () = ref Int.Map.empty
+  let create () = ref Patricia.empty
 
   let add tbl key v =
-    tbl := Int.Map.update key.hash (function
+    tbl := Patricia.update key.hash (function
         | None -> Some [(key,v)]
         | Some l -> Some ((key,v)::l))
         !tbl
 
   let raw_find tbl h p =
-    match Int.Map.find_opt h !tbl with
+    match Patricia.find_opt h !tbl with
     | None -> None
     | Some l -> List.find_map (fun (k,v) -> if p k then Some v else None) l
 
   let find_opt tbl key =
-    match Int.Map.find_opt key.hash !tbl with
+    match Patricia.find_opt key.hash !tbl with
     | None -> None
     | Some l ->
       List.find_map (fun (k',v) ->
@@ -155,7 +155,7 @@ module Tbl = struct
   }
 
   let stats tbl =
-    Int.Map.fold (fun _ l acc ->
+    Patricia.fold (fun _key l acc ->
         let len = List.length l in
         {
           hashes = acc.hashes + 1;
