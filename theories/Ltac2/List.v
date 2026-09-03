@@ -790,3 +790,42 @@ Ltac2 rec map_filter (f : 'a -> 'b option) (l : 'a list) : 'b list :=
     | None => map_filter f l
     end
   end.
+
+(** [find_index_opt f xs] returns the index of the _first_ element of
+    the list [xs] satisfying [f].  Returns [None] if no element is
+    found. *)
+Ltac2 find_index_opt (f : 'a -> bool) (xs : 'a list) : int option :=
+  let rec aux i xs :=
+    match xs with
+    | [] => None
+    | x :: xs
+      => match f x with
+         | true => Some i
+         | false => aux (Int.add i 1) xs
+         end
+    end in
+  aux 0 xs.
+
+(** [find_index f xs] returns the index of the _first_ element of the
+    list [xs] satisfying [f].  Throws an exception if no element is
+    found. *)
+Ltac2 find_index (f : 'a -> bool) (xs : 'a list) : int :=
+  match find_index_opt f xs with
+  | Some i => i
+  | None => Control.throw Not_found
+  end.
+
+(** [find_rev_index_opt f xs] returns the index of the _last_ element
+    of the list [xs] satisfying [f].  Returns [None] if no element is
+    found. *)
+Ltac2 find_rev_index_opt (f : 'a -> bool) (xs : 'a list) : int option :=
+  fold_lefti (fun i acc x => match f x with true => Some i | false => acc end) None xs.
+
+(** [find_rev_index f xs] returns the index of the _last_ element of
+    the list [xs] satisfying [f].  Throws an exception if no element
+    is found. *)
+Ltac2 find_rev_index (f : 'a -> bool) (xs : 'a list) : int :=
+  match find_rev_index_opt f xs with
+  | Some i => i
+  | None => Control.throw Not_found
+  end.
