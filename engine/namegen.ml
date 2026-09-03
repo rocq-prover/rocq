@@ -201,7 +201,7 @@ let it_mkLambda_or_LetIn_name env sigma b hyps =
 
 (* Introduce a mode where auto-generated names are mangled
    to test dependence of scripts on auto-generated names.
-   We also supply a version which only adds a prefix. *)
+   We also supply a version which adds a prefix/suffix. *)
 
 let { Goptions.get = get_mangle_names } =
   Goptions.declare_bool_option_and_ref
@@ -215,11 +215,7 @@ let { Goptions.get = get_mangle_names_light } =
     ~value:false
     ()
 
-let { Goptions.get = mangle_names_prefix } =
-  Goptions.declare_interpreted_string_option_and_ref
-    ~key:["Mangle";"Names";"Prefix"]
-    ~value:("_")
-    (fun x ->
+let _fix_check x =
       Id.to_string
       (try
          Id.of_string x
@@ -227,7 +223,20 @@ let { Goptions.get = mangle_names_prefix } =
        | CErrors.UserError _ ->
          CErrors.user_err Pp.(str ("Not a valid identifier: \"" ^ x ^ "\"."))
       )
-    )
+
+let { Goptions.get = mangle_names_prefix } =
+  Goptions.declare_interpreted_string_option_and_ref
+    ~key:["Mangle";"Names";"Prefix"]
+    ~value:("_")
+    _fix_check
+    (fun x -> x)
+    ()
+
+let { Goptions.get = mangle_names_suffix } =
+  Goptions.declare_interpreted_string_option_and_ref
+    ~key:["Mangle";"Names";"Suffix"]
+    ~value:("_")
+    _fix_check
     (fun x -> x)
     ()
 
@@ -236,10 +245,11 @@ let { Goptions.get = mangle_names_prefix } =
 
 let mangle_id id =
   let prfx = mangle_names_prefix () in
+  let sffx = mangle_names_suffix () in
   if get_mangle_names () then
     if get_mangle_names_light () then
-      Id.of_string (prfx ^ Id.to_string id)
-    else Id.of_string (prfx ^ "0")
+      Id.of_string (prfx ^ Id.to_string id ^ sffx)
+    else Id.of_string (prfx ^ "0" ^ sffx)
   else id
 
 (* Looks for next "good" name by lifting subscript *)
