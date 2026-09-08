@@ -1298,7 +1298,7 @@ class IndicesMarkdownTranslator(MarkdownTranslator):
 
 
 class IndicesBuilder(TextBuilder):
-    """Custom sphinx builder to generate JSON files containing the content of our indices.
+    """Custom sphinx builder to generate JSON files containing indices of individual custom directives.
 
     It is based on the TextBuilder to be able to generate the content of the documentation for each object."""
     name = 'indices'
@@ -1338,12 +1338,10 @@ class IndicesBuilder(TextBuilder):
     def finish(self):
         domain = self.env.get_domain('rocq')
 
-        for index in RocqDomain.indices:
-            items: list[tuple[str, SubdomainItemData]] = chain(*(domain.data['objects'][subdomain].items()
-                            for subdomain in index.subdomains))
-
+        domain_data: dict[str, dict[str, SubdomainItemData]] = domain.data['objects']
+        for subdomain, collected in domain_data.items():
             output_data = {}
-            for name, data in items:
+            for name, data in collected.items():
                 output_data[name] = {
                     "documentation_path": data.docname,
                     "documentation_anchor": data.targetid,
@@ -1351,7 +1349,7 @@ class IndicesBuilder(TextBuilder):
                     "documentation": self.rendered.get(data.targetid, "")
                 }
 
-            with open(self.outdir / f"{index.name}.json", "w") as f:
+            with open(self.outdir / f"{subdomain}index.json", "w") as f:
                 json.dump(output_data, f, indent=2)
 
 ROCQ_ADDITIONAL_DIRECTIVES = [RocqtopDirective,
