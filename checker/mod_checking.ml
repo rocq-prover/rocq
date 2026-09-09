@@ -293,7 +293,9 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
   | SFBconst cb ->
       let kn = KerName.make mp lab in
       let kn = Mod_subst.constant_of_delta_kn res kn in
-      check_constant_declaration env st kn cb
+      let env', st = check_constant_declaration env st kn cb in
+      let () = Subtyping.check_constant_alias env kn cb in
+      env', st
   | SFBmind mib ->
       let kn = KerName.make mp lab in
       let kn = Mod_subst.mind_of_delta_kn res kn in
@@ -305,7 +307,9 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
         let st = { st_retro = (Mindmap.remove kn ind_retro, cst_retro) } in
         st
       in
-      CheckInductive.check_inductive env kn mib retro, st
+      let env' = CheckInductive.check_inductive env kn mib retro in
+      let () = Subtyping.check_inductive_alias env kn mib in
+      env', st
   | SFBmodule msb ->
       let mp = MPdot(mp, lab) in
       let st = check_module env st mp msb in
