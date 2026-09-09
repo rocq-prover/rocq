@@ -1530,34 +1530,18 @@ let declare_one_include_core (me,base,kind,inl) =
   let base_mp = get_module_path me in
 
   let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes) in
-  let sign, _origin, resolver, (_, cst), _ =
-    Mod_typing.translate_mse_include is_mod state vm_state (Global.env ()) (Global.current_modpath ()) inl me
-  in
-  let () = Global.add_univ_constraints cst in
-  let () = assert (ModPath.equal cur_mp (Global.current_modpath ())) in
-  (* Include Self support  *)
-  let mb =
+  (* The module being built, for [Include Self]; the inclusion is elaborated
+     once here only to collect the universe constraints it needs. *)
+  let self =
     make_module_body (RawModOps.Interp.current_struct ())
       (forget_inline_delta_resolver (RawModOps.Interp.current_modresolver ()))
   in
-  let rec compute_sign sign =
-    match sign with
-    | MoreFunctor(mbid,mtb,str) ->
-      let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes) in
-      (* Module subcomponents are already part of env at this point *)
-      let env = Environ.shallow_add_module cur_mp mb (Global.env ()) in
-      let (_, cst) = Subtyping.check_subtypes state env cur_mp (MPbound mbid) mtb in
-      let () = Global.add_univ_constraints cst in
-      let mpsup_delta = match mod_global_delta mb with
-      | None -> assert false (* mb is guaranteed not to be a functor here *)
-      | Some delta ->
-        Modops.inline_delta_resolver (Global.env ()) inl cur_mp mbid mtb delta
-      in
-      let subst = Mod_subst.map_mbid mbid cur_mp mpsup_delta in
-      compute_sign (Modops.subst_signature subst cur_mp str)
-    | NoFunctor str -> ()
+  let _str, _resolver, (_, cst), _ =
+    Mod_typing.translate_mse_include is_mod state vm_state (Global.env ())
+      (Global.current_modpath ()) self inl me
   in
-  let () = compute_sign sign in
+  let () = Global.add_univ_constraints cst in
+  let () = assert (ModPath.equal cur_mp (Global.current_modpath ())) in
 
   let inlined = RawModOps.Interp.inlined_bodies env inl ~is_mod me in
   let resolver = Global.add_include me is_mod inl in

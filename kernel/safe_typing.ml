@@ -1584,45 +1584,14 @@ let add_include me is_module inl senv =
   let mp_sup = senv.modpath in
   let state = check_state senv in
   let vmstate = vm_state senv in
-  let sign, origin, resolver, _, vmtab =
-    translate_mse_include is_module state vmstate senv.env mp_sup inl me
+  let self = NoFunctor (List.rev senv.revstruct) in
+  let self_delta = Mod_subst.forget_inline_delta_resolver senv.modresolver in
+  (* The module being built for [Include Self], its fields are already part of [senv.env]. *)
+  let self = make_module_body self self_delta in
+  let str, resolver, _, vmtab =
+    translate_mse_include is_module state vmstate senv.env mp_sup self inl me
   in
   let senv = set_vm_library vmtab senv in
-  (* Include Self support  *)
-  let struc = NoFunctor (List.rev senv.revstruct) in
-  let mb =
-    Mod_declarations.make_module_body struc
-      (Mod_subst.forget_inline_delta_resolver senv.modresolver)
-  in
-  let rec compute_sign sign resolver =
-    match sign with
-    | MoreFunctor(mbid,mtb,str) ->
-      let state = check_state senv in
-      (* Module subcomponents are already part of senv.env at this point *)
-      let env = Environ.shallow_add_module mp_sup mb senv.env in
-      let (_ : UGraph.t) = Subtyping.check_subtypes state env mp_sup (MPbound mbid) mtb in
-      let mpsup_delta =
-        Modops.inline_delta_resolver senv.env inl mp_sup mbid mtb senv.modresolver
-      in
-      let subst = Mod_subst.map_mbid mbid mp_sup mpsup_delta in
-      let resolver = Mod_subst.subst_codom_delta_resolver subst resolver in
-      compute_sign (Modops.subst_signature subst mp_sup str) resolver
-    | NoFunctor str -> resolver, str
-  in
-  let resolver, str = compute_sign sign resolver in
-  (* [Include Self]: [translate_mse_include] handed the functor back at its own
-     path rather than renaming it onto [mp_sup], which must not become the key
-     of an equivalence. Its parameters are instantiated by now, so copy the
-     fields over. *)
-  let resolver, str = match origin with
-  | None -> resolver, str
-  | Some mp_f ->
-    let str, reso =
-      Modops.include_applied_structure mp_f str
-        (Mod_subst.forget_inline_delta_resolver resolver) mp_sup
-    in
-    Mod_subst.of_body_delta_resolver reso, str
-  in
   let senv = update_resolver (Mod_subst.add_delta_resolver resolver) senv in
   let add senv ((l,elem) as field) =
     let new_name = match elem with
