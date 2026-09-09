@@ -104,7 +104,7 @@ together, as well as a means of massive abstraction.
    :cmd:`Include` commands is equivalent to giving them all in a single
    non-interactive :cmd:`Module` command.
 
-.. opt:: Inline Level
+.. opt:: Inline Level @natural
 
    Controls inlining of parameters (declared by e.g. :cmd:`Axiom`) in
    functor application. The default is 100.
