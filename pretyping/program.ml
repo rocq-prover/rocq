@@ -14,7 +14,7 @@ open Util
 let papp env sigma r args =
   let open EConstr in
   let gr = delayed_force r in
-  let evd, hd = Evd.fresh_global env sigma gr in
+  let sigma, hd = Evd.fresh_global env sigma gr in
   sigma, mkApp (hd, args)
 
 let sig_typ   () = Rocqlib.lib_ref "core.sig.type"
