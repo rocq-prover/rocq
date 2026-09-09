@@ -41,7 +41,7 @@ let check_constant_declaration env st kn cb =
       (* [env] contains De Bruijn universe variables *)
       let () = check_ucontext ctx env in
       let env = push_context ~strict:false ctx env in
-      true, env
+      not (UVars.AbstractContext.is_empty auctx), env
   in
   let ty = cb.const_type in
   let jty = Typeops.infer_type env ty in
@@ -54,7 +54,8 @@ let check_constant_declaration env st kn cb =
       let c, u = !indirect_accessor o in
       let env = match u, poly with
         | Opaqueproof.PrivateMonomorphic (), false -> env
-        | Opaqueproof.PrivatePolymorphic local, true ->
+        | Opaqueproof.PrivatePolymorphic local, _ ->
+          (* Don't have the info for checking if the initial constant was "poly" *)
           push_subgraph local env
         | _ -> assert false
       in
