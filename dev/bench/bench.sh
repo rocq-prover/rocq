@@ -45,8 +45,6 @@ check_variable () {
 : "${old_coq_opam_archive_git_uri:=https://github.com/coq/opam-coq-archive.git}"
 : "${new_coq_opam_archive_git_branch:=master}"
 : "${old_coq_opam_archive_git_branch:=master}"
-: "${new_coq_version:=dev}"
-: "${old_coq_version:=dev}"
 : "${num_of_iterations:=1}"
 : "${timeout:=3h}"
 : "${coq_opam_packages:=rocq-stdlib rocq-bignums coq-hott coq-performance-tests-lite coq-engine-bench-lite rocq-elpi rocq-mathcomp-boot rocq-mathcomp-order rocq-mathcomp-ssreflect rocq-mathcomp-finite-group rocq-mathcomp-algebra rocq-mathcomp-solvable rocq-mathcomp-field rocq-mathcomp-group-representation coq-mathcomp-odd-order rocq-mathcomp-analysis coq-math-classes coq-corn coq-compcert rocq-equations rocq-metarocq-utils rocq-metarocq-common rocq-metarocq-template rocq-metarocq-pcuic rocq-metarocq-safechecker rocq-metarocq-erasure rocq-metarocq-translations coq-color coq-coqprime coq-coqutil coq-bedrock2 coq-rewriter coq-fiat-core coq-fiat-parsers coq-fiat-crypto-with-bedrock coq-unimath coq-coquelicot coq-iris-examples coq-fourcolor coq-rewriter-perf-SuperFast coq-vst coq-category-theory coq-neural-net-interp-computed-lite}"
@@ -371,20 +369,18 @@ initial_opam_packages="num zarith ocamlfind dune yojson camlzip"
 
 # Create an opam root and install Rocq
 # $1 = root_name {ex: NEW / OLD}
-# $2 = compiler name
-# $3 = git hash of Rocq to be installed
-# $4 = directory of coq opam archive
-# $5 = use flambda if nonempty
+# $2 = compiler version
+# $3 = directory of coq opam archive
+# $4 = override urls
+# $5 = use flambda if = "1"
 create_opam() {
 
     local RUNNER="$1"
     local OPAM_DIR="$working_dir/opam.$RUNNER"
     local OCAML_VER="$2"
-    local COQ_HASH="$3"
-    local COQ_VER="$4"
-    local OPAM_COQ_DIR="$5"
-    local OPAM_OVERRIDE_URLS="$6"
-    local USE_FLAMBDA="$7"
+    local OPAM_COQ_DIR="$3"
+    local OPAM_OVERRIDE_URLS="$4"
+    local USE_FLAMBDA="$5"
 
     export OPAMROOT="$OPAM_DIR"
     export COQ_RUNNER="$RUNNER"
@@ -397,6 +393,7 @@ create_opam() {
     # Rest of default switches
     opam repo add -q --set-default iris-dev "https://github.com/rocq-iris/opam.git"
 
+    local comp_packages
     if [[ $USE_FLAMBDA = 1 ]];
     then comp_packages=--packages=ocaml-variants.${OCAML_VER}+options,ocaml-option-flambda
     else comp_packages=ocaml-base-compiler.$OCAML_VER
@@ -435,24 +432,20 @@ create_opam() {
     opam install -qy -j "$number_of_processors" $initial_opam_packages
     if [ ! -z "$BENCH_DEBUG" ]; then opam repo list; fi
 
-    cd "$coq_dir"
-    echo "$1_coq_commit = $COQ_HASH"
-
     echo "wrap-build-commands: [\"$program_path/wrapper.sh\"]" >> "$OPAM_DIR/config"
-
-    git checkout -q $COQ_HASH
-    COQ_HASH_LONG=$(git log --pretty=%H | head -n 1)
-
-    echo "$1_coq_commit_long = $COQ_HASH_LONG"
 
     if [ ! -z "$coq_native" ]; then opam install coq-native rocq-native; fi
 
 }
 
 # Create an OPAM-root to which we will install the NEW version of Rocq.
-create_opam "NEW" "$new_ocaml_version" "$new_coq_commit" "$new_coq_version" \
+create_opam "NEW" "$new_ocaml_version" \
             "$new_coq_opam_archive_dir" "$new_opam_override_urls" "$new_ocaml_flambda"
-new_coq_commit_long="$COQ_HASH_LONG"
+cd "$coq_dir"
+git checkout -q "$new_coq_commit"
+new_coq_commit_long=$(git log --pretty=%H | head -n 1)
+echo "new_coq_commit = $new_coq_commit"
+echo "new_coq_commit_long = $new_coq_commit_long"
 
 # pre build needed helpers (needs an opam switch)
 dune build --root "$program_path/../.." -- dev/bench/render_results.exe dev/bench/render_line_results.exe rocq-devtools.install
@@ -462,9 +455,12 @@ render_line_results=$(readlink -f "$program_path/../../_build/default/dev/bench/
 timelog2html=$(readlink -f "$program_path/../../_build/default/dev/bench/rocqtimelog2html.exe")
 
 # Create an OPAM-root to which we will install the OLD version of Rocq.
-create_opam "OLD" "$old_ocaml_version" "$old_coq_commit" "$old_coq_version" \
+create_opam "OLD" "$old_ocaml_version" \
             "$old_coq_opam_archive_dir" "$old_opam_override_urls" "$old_ocaml_flambda"
-old_coq_commit_long="$COQ_HASH_LONG"
+git checkout -q "$old_coq_commit"
+old_coq_commit_long=$(git log --pretty=%H | head -n 1)
+echo "old_coq_commit = $old_coq_commit"
+echo "old_coq_commit_long = $old_coq_commit_long"
 
 installable_coq_opam_packages=""
 
@@ -528,12 +524,11 @@ $coq_opam_package (unknown package)"
         if [ $RUNNER = "NEW" ]; then
           export OPAMROOT="$new_opam_root"
           COQ_HASH=$new_coq_commit_long
-          echo "Testing NEW commit: $(date)"
         else
             export OPAMROOT="$old_opam_root"
             COQ_HASH=$old_coq_commit_long
-            echo "Testing OLD commit: $(date)"
         fi
+        echo "Testing $RUNNER commit: $(date)"
 
         git checkout -q $COQ_HASH
 
