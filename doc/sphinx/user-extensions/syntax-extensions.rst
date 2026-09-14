@@ -388,6 +388,58 @@ at the time of use of the notation.
    ``only printing`` can have multiple associated interpretations,
    even in the same scope.
 
+   Since an ``only printing`` notation adds no parsing rule, it may be
+   declared at a level, and with argument levels, different from those of a
+   rule already attached to the same notation string. Parsing is left
+   untouched, and the discrepancy is reported by the
+   :warn:`notation-incompatible-level` warning.
+
+   The declared levels are still used when printing, by two separate routes.
+   How the notation itself parenthesizes is decided by its unparsing rule,
+   which is rebuilt at the declared level only when the declaration comes
+   with a format, either the explicit one of a ``format``
+   :n:`@syntax_modifier` or the implicit one that extra spaces in the
+   notation string stand for; without a format, the unparsing rule already
+   attached to the notation string is reused unchanged, level included. The
+   declared levels of the arguments, on the other hand, always reach the
+   interpretation, where they decide which
+   :ref:`coercions between entries <custom-entries>` are available for the
+   arguments. A mismatched level can therefore change what is printed even
+   when no format is given.
+
+   One case deserves separate mention. A :cmd:`Reserved Notation` declared
+   ``only printing`` with a format does not get a printing rule of its own:
+   it replaces the rule shared by every interpretation of the notation
+   string. Declaring it at a level of its own consequently changes how the
+   other, parsing notations for that string are printed, and it draws the
+   ``notation-incompatible-format`` warning alongside
+   :warn:`notation-incompatible-level`. Where the levels disagree on
+   associativity, the printed form may gain or lose parentheses; losing them
+   can leave output that reads back only through the deprecated tolerance on
+   levels, so prefer the tighter level for the ``only printing`` declaration.
+
+.. warn:: Notation @string is already defined at level @natural with arguments ... while this declaration is at level @natural with arguments ...
+   :name: notation-incompatible-level
+
+   The notation string already has a rule at a different level, and at most
+   one of the two declarations carries a parsing rule, so there is no grammar
+   for them to disagree about. This is accepted, but the levels are not fully
+   independent: the level recorded for the notation string is the one of the
+   first declaration made for it, and it is what decides whether a
+   :ref:`coercion between entries <custom-entries>` is needed when printing.
+
+   The message closes by saying which of the two declarations carries the
+   parsing rule. When it is the earlier one, this declaration leaves parsing
+   untouched and only its own levels reach printing. When it is this one, its
+   parsing rule is installed at its own level while the recorded level, which
+   printing uses, stays as the earlier declaration left it.
+
+   The warning also covers a notation re-declared without any
+   :n:`@syntax_modifier` on a string that so far carried only
+   ``only printing`` rules, which is why it does not name the ``only
+   printing`` modifier. Such a declaration reuses the recorded level, so it
+   only reports on :cmd:`Import`, when the level recorded by then may differ.
+
 .. note::
 
    When several notations can be used to print a given term, the
@@ -439,11 +491,13 @@ Reserving notations
 .. cmd:: Reserved Notation @string {? ( {+, @syntax_modifier } ) }
 
    A given notation may be used in different contexts. Rocq expects all
-   uses of the notation to be defined at the same precedence and with the
-   same associativity. To avoid giving the precedence and associativity
-   every time, this command declares a parsing rule (:token:`string`) in advance
-   without giving its interpretation. Here is an example from the initial
-   state of Rocq.
+   uses of the notation that declare a parsing rule to be defined at the same
+   precedence and with the same associativity; uses declared ``only
+   printing`` are exempt, as explained for :cmd:`Notation`, and draw the
+   :warn:`notation-incompatible-level` warning rather than an error. To avoid giving the
+   precedence and associativity every time, this command declares a parsing
+   rule (:token:`string`) in advance without giving its interpretation. Here
+   is an example from the initial state of Rocq.
 
    .. rocqtop:: in
 

@@ -904,6 +904,37 @@ let error_parsing_incompatible_level ntn ntn' oldprec oldtyps prec typs =
     spc() ++ str "while it is now required to be" ++ spc() ++
     pr_level prec typs ++ str ".")
 
+(* A notation string has at most one grammar rule, so only one level to agree
+   on.  A mismatch is therefore an error only when both sides carry a parsing
+   rule.  Every other mismatch is reported here, in both of the orders it can
+   arise in, because the levels still matter.  [Constrextern] reads the
+   recorded level to pick entry coercions.  A declaration's own levels reach
+   printing two ways: through its unparsing rule when it sets a format, either
+   explicit or implicit (see [has_implicit_format]), and through the
+   interpretation's subentry levels ([make_interpretation_vars], read by
+   [Constrextern.update_with_subscope]).  The second way applies in every case.
+
+   [no_parsing_rule] says which order we are in and picks the closing sentence.
+   The message says "this declaration" rather than "this \"only printing\"
+   declaration" because [Import] also reaches the first case with a declaration
+   that went through [recover_notation_syntax] and was never written "only
+   printing". *)
+let warn_incompatible_level =
+  CWarnings.create ~name:"notation-incompatible-level"
+    ~category:CWarnings.CoreCategories.parsing
+    (fun (ntn,oldprec,oldtyps,prec,typs,no_parsing_rule) ->
+      str "Notation " ++ pr_notation ntn ++ str " is already defined" ++ spc() ++
+      pr_level oldprec oldtyps ++
+      spc() ++ str "while this declaration is" ++ spc() ++
+      pr_level prec typs ++ str "." ++ spc() ++
+      if no_parsing_rule then
+        strbrk "It adds no parsing rule, so the parsing rule is unaffected," ++ spc() ++
+        strbrk "but its levels are still used when printing with it."
+      else
+        strbrk "Its parsing rule is installed at its own level, while the level" ++ spc() ++
+        strbrk "recorded for the notation string, which printing uses, is left" ++ spc() ++
+        strbrk "unchanged.")
+
 let warn_incompatible_format =
   CWarnings.create ~name:"notation-incompatible-format" ~category:CWarnings.CoreCategories.parsing
     (fun (specific,ntn) ->
@@ -1007,6 +1038,13 @@ let cache_one_syntax_extension (ntn,synext) =
       { notation_entry = InConstrEntry; notation_level = 10 }, snd prec
     else prec
   in
+  (* [synext_notgram = None] means this declaration adds no parsing rule.  It
+     is either an "only printing" one, or [recover_notation_syntax] on a string
+     that only ever had those.  The check below cannot fire on the second at
+     declaration time, because it reads its level back from the tables.  It can
+     on [Import], where the leaf replays the level it was built with and the
+     tables may have moved on since. *)
+  let no_parsing_rule = Option.is_empty synext.synext_notgram in
   (* Check and ensure that the level and the precomputed parsing rule is declared *)
   let oldparsing =
     try
@@ -1017,9 +1055,22 @@ let cache_one_syntax_extension (ntn,synext) =
         with Not_found -> None
       in
       let oldtyps = Notgram_ops.non_terminals_of_notation ntn in
-      if not (level_eq prec oldprec && List.for_all2 Extend.constr_entry_key_eq synext.synext_nottyps oldtyps) &&
-         (oldparsing <> None || synext.synext_notgram = None) then
-        error_incompatible_level ntn oldprec oldtyps prec synext.synext_nottyps;
+      if not (level_eq prec oldprec && List.for_all2 Extend.constr_entry_key_eq synext.synext_nottyps oldtyps) then begin
+        if no_parsing_rule || Option.is_empty oldparsing then
+          (* At most one side has a parsing rule recorded, so there is no
+             recorded grammar to disagree about.  Recorded is the word that
+             matters.  A parsing rule added on top of a declaration that
+             recorded none is not recorded either, so a third declaration also
+             goes unchecked.  That is an older gap, left alone here.  This
+             check used to reject the first case, which is what stopped VST's
+             "only printing" "_ != _" at level 17 and ssreflect's parsing one
+             at level 70 from being loaded together.  See #12465, #12589 and
+             #6078. *)
+          warn_incompatible_level (ntn,oldprec,oldtyps,prec,synext.synext_nottyps,no_parsing_rule)
+        else
+          (* Both sides have a parsing rule.  Still an error. *)
+          error_incompatible_level ntn oldprec oldtyps prec synext.synext_nottyps
+      end;
       oldparsing
     with Not_found ->
       check_prefix_incompatible_level ntn prec synext.synext_nottyps;
