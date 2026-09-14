@@ -35,10 +35,10 @@ check_variable () {
 
 : "${coq_pr_number:=}"
 : "${coq_pr_comment_id:=}"
-: "${new_ocaml_version:=4.14.2}"
-: "${old_ocaml_version:=4.14.2}"
-: "${new_ocaml_flambda:=0}"
-: "${old_ocaml_flambda:=0}"
+: "${new_ocaml_version:=5.4.1}"
+: "${old_ocaml_version:=5.4.1}"
+: "${new_ocaml_flambda:=1}"
+: "${old_ocaml_flambda:=1}"
 : "${new_coq_repository:=${CI_REPOSITORY_URL:-.}}"
 : "${old_coq_repository:=${CI_REPOSITORY_URL:-.}}"
 : "${new_coq_opam_archive_git_uri:=https://github.com/coq/opam-coq-archive.git}"
@@ -386,8 +386,6 @@ create_opam() {
     local OPAM_OVERRIDE_URLS="$6"
     local USE_FLAMBDA="$7"
 
-    local OPAM_COMP=ocaml-base-compiler.$OCAML_VER
-
     export OPAMROOT="$OPAM_DIR"
     export COQ_RUNNER="$RUNNER"
 
@@ -400,11 +398,11 @@ create_opam() {
     opam repo add -q --set-default iris-dev "https://github.com/rocq-iris/opam.git"
 
     if [[ $USE_FLAMBDA = 1 ]];
-    then flambda=--packages=ocaml-variants.${OCAML_VER}+options,ocaml-option-flambda
-    else flambda=
+    then comp_packages=--packages=ocaml-variants.${OCAML_VER}+options,ocaml-option-flambda
+    else comp_packages=ocaml-base-compiler.$OCAML_VER
     fi
 
-    opam switch create -qy -j "$number_of_processors" "ocaml-$RUNNER" "$OPAM_COMP" $flambda
+    opam switch create -qy -j "$number_of_processors" "ocaml-$RUNNER" $comp_packages
     eval $(opam env)
 
     if [ ! -z "$BENCH_DEBUG" ]; then opam config list; fi
