@@ -24,7 +24,7 @@ jobs:
           - name: Windows
             os: windows-latest
             ocaml: 4.14
-            test_disabled: misc coq-makefile precomputed-time-tests
+            test_disabled: misc precomputed-time-tests
             # we don't support rocqide on Windows yet, so we filter it, see #20631
             packages: ./rocqide-server.opam ./rocq-*.opam
           - name: Linux (latest OCaml)

@@ -39,9 +39,11 @@ user_contrib_dir=$(find "$testdir/tmp" -type d -name user-contrib)
 test -n "$pkgdir"
 test -f "$pkgdir/META"
 test -f "$pkgdir/rocq.d/A.vo"
+test -f "$pkgdir/rocq.d/Sub/A2.vo"
 grep -q 'rocqpath = "Foo"' "$pkgdir/META"
 grep -q 'directory = "."' "$pkgdir/META"
 test -f "$user_contrib_dir/Foo/A.vo"
+test -f "$user_contrib_dir/Foo/Sub/A2.vo"
 
 # plug: a plugin (and Loader.v) with only findlib install
 cd ../plug || exit 1
