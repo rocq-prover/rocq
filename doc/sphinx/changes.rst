@@ -211,6 +211,22 @@ Kernel
   (`#22393 <https://github.com/rocq-prover/rocq/pull/22393>`_,
   fixes `#22391 <https://github.com/rocq-prover/rocq/issues/22391>`_,
   by Gaëtan Gilbert).
+- **Fixed:**
+  ``rocqchk`` with ``-bytecode-compiler yes`` no longer trusts the VM bytecode
+  serialized in a ``.vo``: it does not read the ``vmlibrary`` segment at all, and
+  recompiles the bytecode of every constant from the body it typechecks, so that
+  the code the VM runs and the checked body agree by construction; a crafted
+  ``.vo`` whose serialized bytecode disagreed with its body could previously make
+  a VM conversion prove ``False`` and still pass the checker
+  (`#22353 <https://github.com/rocq-prover/rocq/pull/22353>`_,
+  fixes `#22352 <https://github.com/rocq-prover/rocq/issues/22352>`_,
+  by Archana Burra and Jason Gross).
+- **Changed:**
+  ``PrimInt63.asr x y`` is now ``-1`` when ``x < 0`` and ``y >= 63``,
+  as prescribed by its specification ``Sint63Axioms.asr_spec``
+  (`#22464 <https://github.com/rocq-prover/rocq/pull/22464>`_,
+  fixes `#22462 <https://github.com/rocq-prover/rocq/issues/22462>`_,
+  by Pierre Roux).
 
 Specification language, type inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -625,6 +641,21 @@ Command-line tools
   (`#22361 <https://github.com/rocq-prover/rocq/pull/22361>`_,
   fixes `#22360 <https://github.com/rocq-prover/rocq/issues/22360>`_,
   by Jason Gross).
+- **Fixed:**
+  ``rocqchk`` now validates the marshalled data of every library named on the
+  command line, whatever the order of the ``-norec`` arguments; a library that
+  happened to be interned first as a dependency of another explicitly named one
+  was read without validation and without checking its recorded checksums
+  (`#22363 <https://github.com/rocq-prover/rocq/pull/22363>`_,
+  fixes `#22362 <https://github.com/rocq-prover/rocq/issues/22362>`_,
+  by Jason Gross).
+- **Fixed:**
+  ``rocq dep`` no longer treats a ``. `` inside a string literal as the end of
+  a sentence, so a ``Require`` written inside a string is no longer recorded as
+  a dependency and no longer causes a spurious syntax error
+  (`#22443 <https://github.com/rocq-prover/rocq/pull/22443>`_,
+  fixes `#22442 <https://github.com/rocq-prover/rocq/issues/22442>`_,
+  by Jason Gross).
 
 Corelib
 ^^^^^^^
@@ -683,6 +714,16 @@ Infrastructure and dependencies
   Fix `dunestrap` rule generation to work with dune 3.25
   (`#22356 <https://github.com/rocq-prover/rocq/pull/22356>`_,
   by Jan-Oliver Kaiser).
+
+Extraction
+^^^^^^^^^^
+
+- **Fixed:**
+  extraction of primitive array literals
+  (`#22457 <https://github.com/rocq-prover/rocq/pull/22457>`_,
+  fixes `#22365 <https://github.com/rocq-prover/rocq/issues/22365>`_,
+  by Gaëtan Gilbert).
+
 
 Miscellaneous
 ^^^^^^^^^^^^^
