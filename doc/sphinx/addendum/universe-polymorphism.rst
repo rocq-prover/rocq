@@ -596,6 +596,18 @@ Printing universes
    terms apparently identical but internally different in the Calculus of Inductive
    Constructions.
 
+.. flag:: Printing Sorts
+
+   Turn this :term:`flag` on to display sort variables that are otherwise
+   hidden, with universe level variables replaced by ``_``.  Sorts without
+   sort variables (:g:`Type`, :g:`SProp`, :g:`Prop`, :g:`Set`) are printed
+   as usual, while sorts at a sort variable are printed like ``Type@{s;_}``
+   (or ``Type@{_}`` when :flag:`Printing Sort Qualities` is off).  Universe
+   instances of polymorphic references are displayed when they contain sort
+   qualities (with ``_`` in place of the universe levels) and stay hidden
+   otherwise.  Compared to :flag:`Printing Universes`, this makes the sort
+   structure visible without exposing internal universe level names.
+
 .. cmd:: Print {? Sorted } Universes {? Subgraph ( {* @debug_univ_name } ) } {? {| With | Without } Constraint Sources } {? @string }
    :name: Print Universes
 
@@ -1032,6 +1044,21 @@ It means that `s` and `s'` can respectively be instantiated to e.g., `Type` and 
    instead print them as though the quality was `Type` (which it will
    become at the end of the definition unless it is unified with
    another rigid quality).
+
+.. flag:: Printing Unnamed Universes Anonymously
+
+   When this :term:`flag` is on (it is off by default), universe levels
+   and sort quality variables that cannot be referred to by name are
+   printed as ``_`` (which, when parsed back, denotes a fresh level or
+   quality variable) instead of their raw representation — a library
+   name followed by a number such as ``Lib.23``, or ``α`` followed by a
+   number — which cannot be parsed back. Levels and quality variables
+   that have a name (such as the ``s`` and ``u`` of a ``@{s;u}``
+   universe declaration, in contexts where they are bound, or the
+   ``foo.u0`` of a monomorphic definition ``foo``) are printed by name
+   as usual. Since ``_`` cannot appear as one component of a ``max``,
+   a sort whose universe involves an unnamed level prints as
+   ``Type@{_}`` as a whole.
 
 Explicit Sorts
 ---------------
