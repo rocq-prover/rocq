@@ -1,0 +1,9 @@
+File "./output/notation_onlyprinting_prefix.v", line 20, characters 0-85:
+Warning: Notation "_ == _" is already defined at level 17 with arguments
+constr at level 17, constr at level 16 while this declaration is at level 70
+with arguments constr at next level, constr at next level. Its parsing rule
+is installed at its own level, while the level recorded for the notation
+string, which printing uses, is left unchanged.
+[notation-incompatible-level,parsing,default]
+0 == (1 + 1)
+     : bool
