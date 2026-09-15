@@ -4,7 +4,7 @@ Axiom foo : nat -> bool -> nat.
 Lemma bar : nat.
 Proof.
   apply foo.
-  abstract:{
+  [#abstract]:{
     exact 0.
   }
   exact true.
@@ -18,7 +18,7 @@ Check bar_subproof : nat.
 
 Lemma baz : nat.
 Proof.
-  abstract:{
+  [#abstract]:{
     shelve.
     Fail }
     Unshelve.
@@ -29,5 +29,13 @@ Qed.
 Lemma bii : forall x, x = 0 + x.
 Proof.
   intros x.
-  abstract:{ reflexivity. }
+  [#abstract]:{ reflexivity. }
 Qed.
+
+Lemma transp : nat.
+Proof.
+  [#transparent abstract using subtransp]:{ exact 2. }
+Defined.
+
+Check eq_refl : transp = 2.
+Check eq_refl : subtransp = 2.
