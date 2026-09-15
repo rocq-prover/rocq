@@ -1,0 +1,1 @@
+Definition y := 1.

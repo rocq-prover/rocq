@@ -2,3 +2,4 @@
 -Q theories Foo
 -R theories Foo
 theories/A.v
+theories/Sub/A2.v
