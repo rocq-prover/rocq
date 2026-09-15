@@ -266,7 +266,7 @@ type scheme = {
 }
 
 type subproof_kind =
-  | AbstractSubproof
+  | AbstractSubproof of Proof.abstract_args
   | GoalSubproof of Goal_select.t option
 
 type section_subset_expr =

@@ -1352,8 +1352,11 @@ let pr_synpure_vernac_expr v =
     return (str "{")
   | VernacSubproof (GoalSubproof (Some i)) ->
     return (Goal_select.pr_goal_selector i ++ str ":" ++ spc () ++ str "{")
-  | VernacSubproof AbstractSubproof ->
-    return (str "abstract:" ++ spc() ++ str "{")
+  | VernacSubproof (AbstractSubproof { transparent; using }) ->
+    return (str "[:" ++ (if transparent then str "transparent" ++ spc() else mt()) ++
+            str "abstract" ++
+            pr_opt (fun using -> spc() ++ str "using" ++ spc() ++ Id.print using) using ++
+            str "]:{")
   | VernacEndSubproof ->
     return (str "}")
 
