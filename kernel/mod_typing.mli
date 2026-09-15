@@ -53,10 +53,10 @@ val finalize_module :
   (module_type_entry * inline) option ->
   module_body * 'a * 'b
 
-(** [translate_mse_incl] translate the mse of a module or
-    module type given to an Include *)
+(** [translate_mse_include is_mod state vmstate env mp self inl me] translates
+    the mse of a module or module type given to an [Include]. *)
 
 val translate_mse_include :
-  bool -> ('a, Conversion.graph_inconsistency) Conversion.universe_state -> 'b vm_state -> Environ.env -> ModPath.t -> inline ->
-  module_struct_entry ->
-  module_signature * ModPath.t option * mod_type delta_resolver * 'a * 'b
+  bool -> ('a, Conversion.graph_inconsistency) Conversion.universe_state -> 'b vm_state ->
+  Environ.env -> ModPath.t -> module_body -> inline ->
+  module_struct_entry -> structure_body * mod_type delta_resolver * 'a * 'b

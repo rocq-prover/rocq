@@ -459,11 +459,34 @@ let translate_mse_include_module (cst, ustate) (vm, _vmstate) env mp inl = funct
     sign, Some mp_f, reso, cst, vm
   | MEwith _ -> assert false (* No 'with' syntax for modules *)
 
-let translate_mse_include is_mod (cst, ustate) (vm, vmstate) env mp inl me =
-  if is_mod then
-    let () = forbid_incl_signed_functor env me in
-    translate_mse_include_module (cst, ustate) (vm, vmstate) env mp inl me
-  else
-    let mtb, cst, vm = translate_modtype (cst, ustate) (vm, vmstate) env mp inl ([],me) in
-    let sign = clean_bounded_mod_expr (mod_type mtb) in
-    sign, None, mod_delta mtb, cst, vm
+let translate_mse_include is_mod (cst, ustate) (vm, vmstate) env mp self inl me =
+  let sign, origin, reso, cst, vm =
+    if is_mod then
+      let () = forbid_incl_signed_functor env me in
+      translate_mse_include_module (cst, ustate) (vm, vmstate) env mp inl me
+    else
+      let mtb, cst, vm = translate_modtype (cst, ustate) (vm, vmstate) env mp inl ([],me) in
+      let sign = clean_bounded_mod_expr (mod_type mtb) in
+      sign, None, mod_delta mtb, cst, vm
+  in
+  (* The fields of [self] are already in [env], only [mp] itself is missing. *)
+  let env_self = Environ.shallow_add_module mp self env in
+  let rec instantiate sign reso cst = match sign with
+  | MoreFunctor (mbid, mtb, str) ->
+    let cst = Subtyping.check_subtypes (cst, ustate) env_self mp (MPbound mbid) mtb in
+    let delta = inline_delta_resolver env inl mp mbid mtb (mod_delta self) in
+    let subst = map_mbid mbid mp delta in
+    let reso = subst_codom_delta_resolver subst reso in
+    instantiate (subst_signature subst mp str) reso cst
+  | NoFunctor str -> str, reso, cst
+  in
+  let str, reso, cst = instantiate sign reso cst in
+  (* Copy the fields of transient functor applications *)
+  let str, reso = match origin with
+  | None -> str, reso
+  | Some mp_f ->
+    let reso = forget_inline_delta_resolver reso in
+    let str, reso = include_applied_structure mp_f str reso mp in
+    str, of_body_delta_resolver reso
+  in
+  str, reso, cst, vm
