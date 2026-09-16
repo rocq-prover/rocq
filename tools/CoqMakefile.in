@@ -604,6 +604,7 @@ install: META
 	     echo SKIP "$$f" since it has no logical path;\
 	   else\
 	     if [ "$$df" = "''" ]; then df=""; fi; \
+	     if command -v cygpath >/dev/null 2>&1; then df=$$(cygpath -m "$$df"); fi; \
 	     rel="$$df"; \
 	     if [ -n "$$root" ]; then \
 	       case "$$df" in \
