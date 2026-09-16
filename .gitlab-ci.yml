@@ -41,7 +41,7 @@ variables:
   # echo $(md5sum dev/ci/docker/old_ubuntu_lts/Dockerfile | head -c 10)
   # echo $(md5sum dev/ci/docker/edge_ubuntu/Dockerfile | head -c 10)
   BASE_CACHEKEY: "old_ubuntu_lts-V2026-07-06-00242ff07f"
-  EDGE_CACHEKEY: "edge_ubuntu-V2026-09-10-2662d0ea5c"
+  EDGE_CACHEKEY: "edge_ubuntu-V2026-09-14-7e52de9986"
   BASE_IMAGE: "$CI_REGISTRY_IMAGE:$BASE_CACHEKEY"
   EDGE_IMAGE: "$CI_REGISTRY_IMAGE:$EDGE_CACHEKEY"
 
@@ -1130,10 +1130,10 @@ plugin:ci-fiat_parsers:
   - library:ci-stdlib
 
 plugin:ci-lean_importer:
-  extends: .ci-template
+  extends: .ci-template-flambda
   needs:
-  - build:base
-  - library:ci-stdlib
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
 
 plugin:ci-ltac2_compiler:
   extends: .ci-template

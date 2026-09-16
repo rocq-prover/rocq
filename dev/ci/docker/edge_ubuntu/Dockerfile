@@ -10,7 +10,7 @@ RUN dpkg --add-architecture i386
 
 RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
         # Dependencies of the image, the test-suite and external projects
-        m4 automake autoconf time wget rsync git gcc-multilib build-essential unzip jq \
+        m4 automake autoconf time wget rsync git git-lfs gcc-multilib build-essential unzip jq \
         # Dependencies of ZArith
         perl libgmp-dev libgmp-dev:i386 \
         # Dependencies of devtools
