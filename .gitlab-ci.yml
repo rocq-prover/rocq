@@ -199,7 +199,7 @@ before_script:
     - for target in $CI_TARGETS; do dev/ci/ci-wrapper.sh "$target"; done
     - touch ci-success
   after_script:
-    - if { [ "$SAVE_BUILD_CI" ] || [ "$CI_COMMIT_REF_NAME" = master ] || ! [ -e ci-success ]; } && [ -d _build_ci ]; then mv _build_ci saved_build_ci; fi
+    - if [ "$SAVE_BUILD_CI" != 0 ] && { [ "$SAVE_BUILD_CI" = 1 ] || [ "$CI_COMMIT_REF_NAME" = master ] || ! [ -e ci-success ]; } && [ -d _build_ci ]; then mv _build_ci saved_build_ci; fi
     - dev/tools/list-potential-artifacts.sh > available_artifacts.txt
     - dev/tools/cleanup-artifacts.sh downloaded_artifacts.txt available_artifacts.txt
   artifacts:
@@ -1241,6 +1241,9 @@ plugin:ci-rocq_lsp:
   needs:
   - build:edge+flambda
   - library:ci-stdlib+flambda
+  variables:
+    # test exes increase the saved _build_ci size too much so disable saving _build_ci
+    SAVE_BUILD_CI: "0"
 
 plugin:ci-vsrocq:
   extends: .ci-template-flambda
