@@ -1,0 +1,99 @@
+File "./output/notation_onlyprinting_level.v", line 8, characters 0-153:
+Warning: Notation "_ == _" is already defined at level 70 with arguments
+constr at next level, constr at next level while this declaration is
+at level 17 with arguments constr at level 17, constr at level 16. It adds no
+parsing rule, so only printing with it is affected.
+[notation-incompatible-level,parsing,default]
+0 == 1 + 1
+     : bool
+true == false == (true == false)
+     : bool
+File "./output/notation_onlyprinting_level.v", line 26, characters 0-122:
+Warning: Notation "_ << _" is already defined at level 70 with arguments
+constr at next level, constr at next level while this declaration is
+at level 17 with arguments constr at level 17, constr at level 16. It adds no
+parsing rule, so only printing with it is affected.
+[notation-incompatible-level,parsing,default]
+(true << false) << (true << false)
+     : bool
+File "./output/notation_onlyprinting_level.v", line 36, characters 0-124:
+Warning: Notation "_ >> _" is already defined at level 70 with arguments
+constr at next level, constr at next level while this declaration is
+at level 17 with arguments constr at level 17, constr at level 16. It adds no
+parsing rule, so only printing with it is affected.
+[notation-incompatible-level,parsing,default]
+true >> false >> (true >> false)
+     : bool
+<{ [1] ** [2] ** [3] }>
+     : nat
+File "./output/notation_onlyprinting_level.v", line 52, characters 0-121:
+Warning: Notation "_ ** _" in custom test_entry is already defined
+in test_entry at level 70 with arguments custom test_entry at next level,
+custom test_entry at level 70 while this declaration is in test_entry
+at level 70 with arguments custom test_entry at next level, custom test_entry
+at level 0. It adds no parsing rule, so only printing with it is affected.
+[notation-incompatible-level,parsing,default]
+<{ [1] ** ([2] ** [3]) }>
+     : nat
+<{ [1] ** [2] ** [3] }>
+     : nat
+5 <?> 2 <?> 1
+     : nat
+File "./output/notation_onlyprinting_level.v", line 66, characters 0-132:
+Warning: Notation "_ <?> _" was already defined with a different format.
+[notation-incompatible-format,parsing,default]
+File "./output/notation_onlyprinting_level.v", line 66, characters 0-132:
+Warning: Notation "_ <?> _" is already defined at level 17 with arguments
+constr at level 17, constr at level 16 while this declaration is at level 70
+with arguments constr at next level, constr at level 16. It adds no parsing
+rule, so only printing with it is affected.
+[notation-incompatible-level,parsing,default]
+(5 <?> 2) <?> 1
+     : nat
+(5 <?> 2) <?> 1
+     : nat
+File "./output/notation_onlyprinting_level.v", line 75, characters 0-75:
+Warning: Notation "_ <!> _" is already defined at level 17 with arguments
+constr at level 17, constr at level 16 while this declaration is at level 70
+with arguments constr at next level, constr at level 16. It adds no parsing
+rule, so only printing with it is affected.
+[notation-incompatible-level,parsing,default]
+5 <!> 2 <!> 1
+     : nat
+File "./output/notation_onlyprinting_level.v", line 90, characters 0-17:
+Warning: Notation "_ ## _" is already defined at level 70 with arguments
+constr at next level, constr at next level while this declaration is
+at level 17 with arguments constr at level 17, constr at level 16. It adds no
+parsing rule, so only printing with it is affected.
+[notation-incompatible-level,parsing,default]
+File "./output/notation_onlyprinting_level.v", line 90, characters 0-17:
+Warning: Notation "_ ## _" is already defined at level 70 with arguments
+constr at next level, constr at next level while this declaration is
+at level 17 with arguments constr at level 17, constr at level 16. It adds no
+parsing rule, so only printing with it is affected.
+[notation-incompatible-level,parsing,default]
+File "./output/notation_onlyprinting_level.v", line 98, characters 0-84:
+Warning: Notation "_ @@ _" is already defined at level 17 with arguments
+constr at level 17, constr at level 16 while this declaration is at level 70
+with arguments constr at next level, constr at level 16. The level recorded
+for printing is unchanged. [notation-incompatible-level,parsing,default]
+File "./output/notation_onlyprinting_level.v", line 105, characters 0-104:
+The command has indeed failed with message:
+Notation "_ <=> _" is already defined at level 70 with arguments constr
+at next level, constr at next level while it is now required to be
+at level 17 with arguments constr at level 17, constr at level 16.
+File "./output/notation_onlyprinting_level.v", line 107, characters 0-118:
+The command has indeed failed with message:
+Notation "_ <=> _" is already defined at level 70 with arguments constr
+at next level, constr at next level while it is now required to be
+at level 17 with arguments constr at level 17, constr at level 16.
+File "./output/notation_onlyprinting_level.v", line 117, characters 0-82:
+Warning: Notation "_ <%> _" is already defined at level 17 with arguments
+constr at level 17, constr at level 16 while this declaration is at level 70
+with arguments constr at next level, constr at level 16. The level recorded
+for printing is unchanged. [notation-incompatible-level,parsing,default]
+File "./output/notation_onlyprinting_level.v", line 119, characters 0-86:
+Warning: Notation "_ <%> _" is already defined at level 17 with arguments
+constr at level 17, constr at level 16 while this declaration is at level 80
+with arguments constr at next level, constr at level 16. The level recorded
+for printing is unchanged. [notation-incompatible-level,parsing,default]

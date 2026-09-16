@@ -904,6 +904,22 @@ let error_parsing_incompatible_level ntn ntn' oldprec oldtyps prec typs =
     spc() ++ str "while it is now required to be" ++ spc() ++
     pr_level prec typs ++ str ".")
 
+(* Worth reporting because the declared levels still reach printing: through the
+   unparsing rule when the declaration carries a format, and always through the
+   subentry levels of its interpretation. *)
+let warn_incompatible_level =
+  CWarnings.create ~name:"notation-incompatible-level"
+    ~category:CWarnings.CoreCategories.parsing
+    (fun (ntn,oldprec,oldtyps,prec,typs,no_parsing_rule) ->
+      str "Notation " ++ pr_notation ntn ++ str " is already defined" ++ spc() ++
+      pr_level oldprec oldtyps ++
+      spc() ++ str "while this declaration is" ++ spc() ++
+      pr_level prec typs ++ str "." ++ spc() ++
+      if no_parsing_rule then
+        strbrk "It adds no parsing rule, so only printing with it is affected."
+      else
+        strbrk "The level recorded for printing is unchanged.")
+
 let warn_incompatible_format =
   CWarnings.create ~name:"notation-incompatible-format" ~category:CWarnings.CoreCategories.parsing
     (fun (specific,ntn) ->
@@ -1007,6 +1023,9 @@ let cache_one_syntax_extension (ntn,synext) =
       { notation_entry = InConstrEntry; notation_level = 10 }, snd prec
     else prec
   in
+  (* True for an "only printing" declaration, and on [Import] for a leaf whose
+     level [recover_notation_syntax] read back from such a string. *)
+  let no_parsing_rule = Option.is_empty synext.synext_notgram in
   (* Check and ensure that the level and the precomputed parsing rule is declared *)
   let oldparsing =
     try
@@ -1017,9 +1036,15 @@ let cache_one_syntax_extension (ntn,synext) =
         with Not_found -> None
       in
       let oldtyps = Notgram_ops.non_terminals_of_notation ntn in
-      if not (level_eq prec oldprec && List.for_all2 Extend.constr_entry_key_eq synext.synext_nottyps oldtyps) &&
-         (oldparsing <> None || synext.synext_notgram = None) then
-        error_incompatible_level ntn oldprec oldtyps prec synext.synext_nottyps;
+      if not (level_eq prec oldprec && List.for_all2 Extend.constr_entry_key_eq synext.synext_nottyps oldtyps) then begin
+        if no_parsing_rule || Option.is_empty oldparsing then
+          (* A notation string has at most one grammar rule, so there is a
+             level to agree on only when both sides record one.  See #12465,
+             #12589 and #6078. *)
+          warn_incompatible_level (ntn,oldprec,oldtyps,prec,synext.synext_nottyps,no_parsing_rule)
+        else
+          error_incompatible_level ntn oldprec oldtyps prec synext.synext_nottyps
+      end;
       oldparsing
     with Not_found ->
       check_prefix_incompatible_level ntn prec synext.synext_nottyps;
