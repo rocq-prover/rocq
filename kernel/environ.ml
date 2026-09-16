@@ -765,6 +765,13 @@ let rewrite_rules_allowed env = env.rewrite_rules_allowed
 let no_link_info = NotLinked
 
 let add_constant_key kn cb linkinfo env =
+  let () =
+    let knu = Constant.user kn in
+    let knc = Constant.canonical kn in
+    if not (KerName.equal knu knc) then
+      let kn0 = lookup_constant_canonical (Constant.make1 knc) env in
+      assert (KerName.equal knc kn0)
+  in
   let new_constants =
     Cmap_env.add kn (cb,(ref linkinfo, ref None), Constant.canonical kn) env.env_constants in
   let irr_constants = if cb.const_relevance != Sorts.Relevant
@@ -971,6 +978,13 @@ let template_polymorphic_pind (ind,u) env =
   else template_polymorphic_ind ind env
 
 let add_mind_key kn mind link env =
+  let () =
+    let knu = MutInd.user kn in
+    let knc = MutInd.canonical kn in
+    if not (KerName.equal knu knc) then
+      let kn0 = lookup_mind_canonical (MutInd.make1 knc) env in
+      assert (KerName.equal knc kn0)
+  in
   let mind_key = (mind, ref link, MutInd.canonical kn) in
   let new_inds = Mindmap_env.add kn mind_key env.env_inductives in
   let irr_inds = Array.fold_left_i (fun i irr_inds mip ->

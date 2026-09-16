@@ -905,13 +905,6 @@ let warn_inline_in_module =
     (fun kn -> Pp.(str "Ignoring the Inline annotation of " ++
       Constant.print kn ++ strbrk " outside of a module  type."))
 
-let check_constant env kn =
-  let knu = Constant.user kn in
-  let knc = Constant.canonical kn in
-  if not (KerName.equal knu knc) then
-    let kn0 = Environ.lookup_constant_canonical (Constant.make1 knc) env in
-    assert (KerName.equal knc kn0)
-
 let add_constant_aux senv ?hbody (kn, cb) =
   let l = Constant.label kn in
   (* This is the only place where we hashcons the contents of a constant body *)
@@ -919,7 +912,6 @@ let add_constant_aux senv ?hbody (kn, cb) =
   let cb = if sections_are_opened senv then cb else
       Declareops.hcons_const_body ?hbody:(make_hbody hbody) cb
   in
-  let () = check_constant senv.env kn in
   let senv' = add_field (l,SFBconst cb) (C kn) senv in
   let senv'' = match cb.const_body with
     | Undef (Some lev) ->
@@ -1331,20 +1323,14 @@ let add_rewrite_rules l rules senv =
 
 (** Insertion of inductive types *)
 
-let check_mind env kn mie =
+let check_mind _env kn mie =
   let open Entries in
-  let () = match mie.mind_entry_inds with
+  match mie.mind_entry_inds with
   | [] -> assert false (* empty inductive entry *)
   | oie::_ ->
     let lab = MutInd.label kn in
     (* The label and the first inductive type name should match *)
     assert (Id.equal lab oie.mind_entry_typename)
-  in
-  let knu = MutInd.user kn in
-  let knc = MutInd.canonical kn in
-  if not (KerName.equal knu knc) then
-    let kn0 = Environ.lookup_mind_canonical (MutInd.make1 knc) env in
-    assert (KerName.equal knc kn0)
 
 let add_checked_mind kn mib senv =
   let mib =
