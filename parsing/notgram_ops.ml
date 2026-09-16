@@ -55,7 +55,7 @@ let list_prefixes ntn =
 
 let prefixes_map = Summary.ref ~stage:Summary.Stage.Synterp ~name:"notation_prefixes_map" NotationMap.empty
 
-let declare_prefixes ntn =
+let declare_notation_prefixes ntn =
   let open Summary.Ref in
   let register_prefix (pref, _) =
     if not (NotationMap.mem pref !prefixes_map) then
@@ -70,8 +70,7 @@ let declare_notation_non_terminals ntn entries =
     let _ = NotationMap.find ntn !notation_grammar_map in
     anomaly (str "Notation " ++ pr_notation ntn ++ str " is already assigned a grammar.")
   with Not_found ->
-  notation_non_terminals_map := NotationMap.add ntn entries !notation_non_terminals_map;
-  declare_prefixes ntn
+  notation_non_terminals_map := NotationMap.add ntn entries !notation_non_terminals_map
 
 let non_terminals_of_notation ntn =
   let open Summary.Ref in

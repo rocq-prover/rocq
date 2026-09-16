@@ -21,8 +21,15 @@ val grammar_of_notation : notation -> notation_grammar
 val declare_notation_non_terminals : notation -> Extend.constr_entry_key list -> unit
 val non_terminals_of_notation : notation -> Extend.constr_entry_key list
 
+(** [declare_notation_prefixes ntn] makes [ntn] eligible as an answer of
+    [longest_common_prefix].  Call it only for a notation that has a parsing
+    rule of its own: later notations sharing a prefix take their default levels
+    from [ntn], so one without a parsing rule would leak its levels into
+    theirs. *)
+val declare_notation_prefixes : notation -> unit
+
 (** [longest_common_prefix ntn] looks among notations [ntn'] already
-    registered with [declare_notation_non_terminals ntn'] for the one
+    registered with [declare_notation_prefixes ntn'] for the one
     that shares the longest common prefix with [ntn], if any returns
     [Some (ntn', k)] where [k] is the number of nonterminal symbols in
     the common prefix between [ntn] and [ntn']. *)

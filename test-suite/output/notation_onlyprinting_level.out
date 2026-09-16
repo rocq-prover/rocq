@@ -75,7 +75,7 @@ parsing rule, so only printing with it is affected.
 File "./output/notation_onlyprinting_level.v", line 98, characters 0-84:
 Warning: Notation "_ @@ _" is already defined at level 17 with arguments
 constr at level 17, constr at level 16 while this declaration is at level 70
-with arguments constr at next level, constr at level 16. The level recorded
+with arguments constr at next level, constr at next level. The level recorded
 for printing is unchanged. [notation-incompatible-level,parsing,default]
 File "./output/notation_onlyprinting_level.v", line 105, characters 0-104:
 The command has indeed failed with message:
@@ -90,10 +90,10 @@ at level 17 with arguments constr at level 17, constr at level 16.
 File "./output/notation_onlyprinting_level.v", line 117, characters 0-82:
 Warning: Notation "_ <%> _" is already defined at level 17 with arguments
 constr at level 17, constr at level 16 while this declaration is at level 70
-with arguments constr at next level, constr at level 16. The level recorded
+with arguments constr at next level, constr at next level. The level recorded
 for printing is unchanged. [notation-incompatible-level,parsing,default]
 File "./output/notation_onlyprinting_level.v", line 119, characters 0-86:
 Warning: Notation "_ <%> _" is already defined at level 17 with arguments
 constr at level 17, constr at level 16 while this declaration is at level 80
-with arguments constr at next level, constr at level 16. The level recorded
+with arguments constr at next level, constr at next level. The level recorded
 for printing is unchanged. [notation-incompatible-level,parsing,default]

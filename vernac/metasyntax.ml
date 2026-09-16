@@ -1051,6 +1051,7 @@ let cache_one_syntax_extension (ntn,synext) =
       (* Declare the level and the precomputed parsing rule *)
       let () = Notation.declare_notation_level ntn prec in
       let () = Notgram_ops.declare_notation_non_terminals ntn synext.synext_nottyps in
+      let () = if not no_parsing_rule then Notgram_ops.declare_notation_prefixes ntn in
       let () = Option.iter (Notgram_ops.declare_notation_grammar ntn) synext.synext_notgram in
       None in
   (* Declare the parsing rule *)
