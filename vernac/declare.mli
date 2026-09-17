@@ -250,8 +250,8 @@ module Proof : sig
     -> idopt:Names.lident option
     -> GlobRef.t list
 
-  (** Admit a proof *)
-  val save_admitted : pm:OblState.t -> proof:t -> OblState.t
+  (** Admit a proof. [loc] is the location of the proof-ending command. *)
+  val save_admitted : loc:Loc.t option -> pm:OblState.t -> proof:t -> OblState.t
 
   (** [by env tac] applies tactic [tac] to the 1st subgoal of the current
       focused proof.
@@ -335,7 +335,8 @@ module Proof : sig
   (** Special cases for delayed proofs, in this case we must provide the
       proof information so the proof won't be forced. *)
   val save_lemma_admitted_delayed :
-       pm:OblState.t
+       loc:Loc.t option
+    -> pm:OblState.t
     -> proof:proof_object
     -> OblState.t
 
@@ -615,7 +616,7 @@ val show_obligations : pm:OblState.t -> ?msg:bool -> Names.Id.t option -> unit
 val show_term : pm:OblState.t -> Names.Id.t option -> Pp.t
 
 (** Implementation of the [Admit Obligations of id] command *)
-val admit_obligations : pm:OblState.t -> Names.Id.t option -> OblState.t
+val admit_obligations : loc:Loc.t option -> pm:OblState.t -> Names.Id.t option -> OblState.t
 
 val check_program_libraries : unit -> unit
 

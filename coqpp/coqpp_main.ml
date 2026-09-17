@@ -462,6 +462,9 @@ let print_body_state state fmt r =
   match state with
   | None -> fprintf fmt "Vernactypes.vtdefault (fun () -> %a)" print_code r.vernac_body
   | Some "CUSTOM" -> print_code fmt r.vernac_body
+  | Some "program" ->
+    fprintf fmt "Vernactypes.vtmodifyprogram (fun ?loc:_ ~pm () -> (%a) ~pm)"
+      print_code r.vernac_body
   | Some state ->
     let state, wrap = understand_state state in
     fprintf fmt "Vernactypes.%s (%a (%a)%a)" state pr_begin_wrapper wrap

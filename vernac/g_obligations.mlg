@@ -63,6 +63,10 @@ open Declare.Obls
 let obligation ~pm obl tac = with_tac (fun t -> obligation ~pm obl t) tac
 let next_obligation ~pm ?final obl tac = with_tac (fun t -> next_obligation ~pm ?final obl t) tac
 
+let admit_obligations_command name =
+  Vernactypes.vtmodifyprogram (fun ?loc ~pm () ->
+      admit_obligations ~loc ~pm name)
+
 let classify_obbl _ = Vernacextend.(VtStartProof (Doesn'tGuaranteeOpacity,[]))
 
 }
@@ -92,9 +96,9 @@ VERNAC COMMAND EXTEND Solve_All_Obligations CLASSIFIED AS SIDEFF STATE program
     { solve_all_obligations (Option.map interp_gen t) }
 END
 
-VERNAC COMMAND EXTEND Admit_Obligations CLASSIFIED AS SIDEFF STATE program
-| [ "Admit" "Obligations" "of" identref(name) ] -> { admit_obligations (Some name.CAst.v) }
-| [ "Admit" "Obligations" ] -> { admit_obligations None }
+VERNAC COMMAND EXTEND Admit_Obligations CLASSIFIED AS SIDEFF STATE CUSTOM
+| [ "Admit" "Obligations" "of" identref(name) ] -> { admit_obligations_command (Some name.CAst.v) }
+| [ "Admit" "Obligations" ] -> { admit_obligations_command None }
 END
 
 VERNAC COMMAND EXTEND Set_Solver CLASSIFIED AS SIDEFF

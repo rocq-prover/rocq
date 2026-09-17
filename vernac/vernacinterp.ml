@@ -129,13 +129,13 @@ and interp_control ~st ({ CAst.v = cmd; loc }) =
 *)
 
 (* Interpreting a possibly delayed proof *)
-let interp_qed_delayed ~proof ~st pe =
+let interp_qed_delayed ~loc ~proof ~st pe =
   let stack = st.Vernacstate.interp.lemmas in
   let pm = st.Vernacstate.interp.program in
   let stack = Option.cata (fun stack -> snd @@ Vernacstate.LemmaStack.pop stack) None stack in
   let pm = NeList.map_head (fun pm -> match pe with
       | Admitted ->
-        Declare.Proof.save_lemma_admitted_delayed ~pm ~proof
+        Declare.Proof.save_lemma_admitted_delayed ~loc ~pm ~proof
       | Proved (_,idopt) ->
         let pm = Declare.Proof.save_lemma_proved_delayed ~pm ~proof ~idopt in
         pm)
@@ -146,7 +146,7 @@ let interp_qed_delayed ~proof ~st pe =
 let interp_qed_delayed_control ~proof ~st ~control { CAst.loc; v=pe } =
   interp_control_gen ~loc ~st control
     ~unfreeze_transient:(fun () -> ())
-    (fun () -> interp_qed_delayed ~proof ~st pe)
+    (fun () -> interp_qed_delayed ~loc ~proof ~st pe)
 
 (* General interp with management of state *)
 

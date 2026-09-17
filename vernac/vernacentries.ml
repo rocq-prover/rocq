@@ -955,9 +955,9 @@ let vernac_start_proof ~atts kind l =
     assert (Option.is_empty pm);
     Option.get proof
 
-let vernac_end_proof ~lemma ~pm = let open Vernacexpr in function
+let vernac_end_proof ~loc ~lemma ~pm = let open Vernacexpr in function
   | Admitted ->
-    Declare.Proof.save_admitted ~pm ~proof:lemma
+    Declare.Proof.save_admitted ~loc ~pm ~proof:lemma
   | Proved (opaque,idopt) ->
     let pm, _ = Declare.Proof.save ~pm ~proof:lemma ~opaque ~idopt
     in pm
@@ -2766,7 +2766,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
         with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
          vernac_definition_refine dkind lid bl red_option c typ)
     else
-      vtmodifyprogram (fun ~pm ->
+      vtmodifyprogram (fun ?loc:_ ~pm () ->
         with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
         vernac_definition ~pm dkind lid bl red_option c typ)
   | VernacDefinition ((discharge,kind as dkind),lid,ProveBody(bl,typ)) ->
@@ -2810,7 +2810,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
         assert (Option.is_empty pm);
         Option.get proof)
     else
-      vtmodifyprogram (fun ~pm ->
+      vtmodifyprogram (fun ?loc:_ ~pm () ->
         let pm, proof = with_def_attributes ~discharge ~atts (vernac_fixpoint ~refine ~pm:(Some pm)) l in
         assert (Option.is_empty proof);
         Option.get pm))
@@ -2825,7 +2825,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
         assert (Option.is_empty pm);
         Option.get proof)
     else
-      vtmodifyprogram (fun ~pm ->
+      vtmodifyprogram (fun ?loc:_ ~pm () ->
         let pm, proof = with_def_attributes ~discharge ~atts (vernac_cofixpoint ~refine ~pm:(Some pm)) l in
         assert (Option.is_empty proof);
         Option.get pm))
@@ -2880,7 +2880,8 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacInstance (name, bl, t, props, info) ->
     let atts, program = Attributes.(parse_with_extra program) atts in
     if program then
-      vtmodifyprogram (vernac_instance_program ~atts name bl t props info)
+      vtmodifyprogram (fun ?loc:_ ~pm () ->
+          vernac_instance_program ~atts name bl t props info ~pm)
     else begin match props with
     | None ->
        vtopenproof (fun () ->
@@ -3052,7 +3053,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
 
   | VernacEndProof pe ->
     unsupported_attributes atts;
-    vtcloseproof (vernac_end_proof pe)
+    vtcloseproof (vernac_end_proof ~loc pe)
 
   | VernacAbort ->
     unsupported_attributes atts;

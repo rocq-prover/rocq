@@ -2219,6 +2219,11 @@ let get_current_context pf =
 (************************************************************************)
 
 (* Admitted *)
+let warn_admitted_proof =
+  CWarnings.create ~name:"admitted-proof"
+    ~category:CWarnings.CoreCategories.vernacular ~default:CWarnings.Disabled
+    (fun () -> Pp.str "A proof was admitted.")
+
 let { Goptions.get = get_keep_admitted_vars } =
   Goptions.declare_bool_option_and_ref
     ~key:["Keep"; "Admitted"; "Variables"]
@@ -2252,7 +2257,8 @@ let check_type_evars_solved env sigma typ =
   | [] -> ()
   | evk::_ -> CErrors.user_err (str "Cannot admit: the statement has unresolved existential variables.")
 
-let finish_admitted ~pm ~pinfo ~sec_vars typs =
+let finish_admitted ~loc ~pm ~pinfo ~sec_vars typs =
+  warn_admitted_proof ?loc ();
   (* If the constant was an obligation we need to update the program map *)
   let { Proof_info.info; cinfo } = pinfo in
   match CEphemeron.default pinfo.Proof_info.proof_ending Proof_ending.Regular with
@@ -2265,7 +2271,7 @@ let finish_admitted ~pm ~pinfo ~sec_vars typs =
     let (_ : 'a list) = declare_possibly_mutual_parameters ~info ~cinfo ~sec_vars typs in
     pm
 
-let save_admitted ~pm ~proof =
+let save_admitted ~loc ~pm ~proof =
   let iproof = get proof in
   let Proof.{ entry; poly } = Proof.data iproof in
   let typs = List.map pi3 (Proofview.initial_goals entry) in
@@ -2275,7 +2281,7 @@ let save_admitted ~pm ~proof =
   let sigma = Evd.minimize_universes ~poly sigma in
   let uctx = Evd.ustate sigma in
   let typs = List.map (fun typ -> (EConstr.to_constr sigma typ, uctx)) typs in
-  finish_admitted ~pm ~pinfo:proof.pinfo ~sec_vars typs
+  finish_admitted ~loc ~pm ~pinfo:proof.pinfo ~sec_vars typs
 
 (************************************************************************)
 (* Saving a lemma-like constant                                         *)
@@ -2368,7 +2374,7 @@ let save_regular ~(proof : t) ~opaque ~idopt =
 (***********************************************************************)
 (* Special case to close a lemma without forcing a proof               *)
 (***********************************************************************)
-let save_lemma_admitted_delayed ~pm ~proof =
+let save_lemma_admitted_delayed ~loc ~pm ~proof =
   let { Proof_object.proof_object; pinfo } = proof in
   (* Drop side-effects, they will not be used anyway *)
   let _eff, entries = process_proof ~info:pinfo.info proof_object in
@@ -2379,7 +2385,7 @@ let save_lemma_admitted_delayed ~pm ~proof =
   (* If the proof is partial, do we want to take the (restriction on
      visible uvars of) uctx so far or (as done below) the initial ones
      that refers to only the types *)
-  finish_admitted ~pm ~pinfo:proof.pinfo ~sec_vars typs
+  finish_admitted ~loc ~pm ~pinfo:proof.pinfo ~sec_vars typs
 
 let save_lemma_proved_delayed ~pm ~proof ~idopt =
   (* vio2vo used to call this with invalid [pinfo], now it should work fine. *)
@@ -2740,9 +2746,9 @@ let add_mutual_definitions ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guar
   in
   pm
 
-(** [admit_obligations ~pm name] implements [Admit Obligations of name] *)
+(** [admit_obligations ~loc ~pm name] implements [Admit Obligations of name] *)
 
-let rec admit_prog ~pm prg =
+let rec admit_prog ~loc ~pm prg =
   let {obls} = Internal.get_obligations prg in
   let is_open _ x = Option.is_empty x.obl_body && List.is_empty (deps_remaining obls x.obl_deps) in
   let i = match Array.findi is_open obls with
@@ -2750,25 +2756,25 @@ let rec admit_prog ~pm prg =
     | None -> CErrors.anomaly (Pp.str "Could not find a solvable obligation.")
   in
   let proof = solve_obligation prg i None in
-  let pm = Proof.save_admitted ~pm ~proof in
+  let pm = Proof.save_admitted ~loc ~pm ~proof in
   match ProgMap.find_opt (Internal.get_name prg) pm with
-  | Some prg -> admit_prog ~pm (CEphemeron.get prg)
+  | Some prg -> admit_prog ~loc ~pm (CEphemeron.get prg)
   | None -> pm
 
-let rec admit_all_obligations ~pm =
+let rec admit_all_obligations ~loc ~pm =
   let prg = State.first_pending pm in
   match prg with
   | None -> pm
   | Some prg ->
-    let pm = admit_prog ~pm prg in
-    admit_all_obligations ~pm
+    let pm = admit_prog ~loc ~pm prg in
+    admit_all_obligations ~loc ~pm
 
-let admit_obligations ~pm name =
+let admit_obligations ~loc ~pm name =
   match name with
-  | None -> admit_all_obligations ~pm
+  | None -> admit_all_obligations ~loc ~pm
   | Some _ ->
     let prg = get_unique_prog ~pm name in
-    let pm = admit_prog ~pm prg in
+    let pm = admit_prog ~loc ~pm prg in
     pm
 
 (** Implements [Next Obligation of name with tac] and [Final Obligation of name with tac] *)

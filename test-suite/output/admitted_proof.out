@@ -1,0 +1,11 @@
+File "./output/admitted_proof.v", line 12, characters 0-9:
+Warning: A proof was admitted. [admitted-proof,vernacular]
+File "./output/admitted_proof.v", line 16, characters 0-9:
+Warning: A proof was admitted. [admitted-proof,vernacular]
+File "./output/admitted_proof.v", line 19, characters 0-42:
+Warning: A proof was admitted. [admitted-proof,vernacular]
+File "./output/admitted_proof.v", line 19, characters 0-42:
+Warning: A proof was admitted. [admitted-proof,vernacular]
+File "./output/admitted_proof.v", line 25, characters 0-14:
+The command has indeed failed with message:
+A proof was admitted. [admitted-proof,vernacular]
