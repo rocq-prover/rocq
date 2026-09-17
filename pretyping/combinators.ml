@@ -33,11 +33,17 @@ let get_sigmatypes sigma ~sort ~predsort =
     | QConstant QType, QConstant (QProp|QType) -> "sigT", qtype
     | _ -> assert false
   in
-  let sigma, ty = Evd.fresh_global (Global.env ()) sigma (lib_ref ("core."^which^".type")) in
-  let uinstance = snd (destRef sigma ty) in
+  let env = Global.env () in
+  let make_ref sigma ref = Evd.fresh_global env sigma (lib_ref ref) in
+  let sigma, ty = make_ref sigma ("core."^which^".type") in
+  let ind, uinstance = destRef sigma ty in
   let intro = mkRef (lib_ref ("core."^which^".intro"), uinstance) in
-  let p1 = mkRef (lib_ref ("core."^which^".proj1"), uinstance) in
-  let p2 = mkRef (lib_ref ("core."^which^".proj2"), uinstance) in
+  (* The inductive might be template or polymorphic while the
+     projections might be on a specific instance (e.g. ex@{Prop} for ex_proj1)
+     or polymorphic (e.g. template sig with polymorphic projections),
+     so we always get fresh instances, to be resolved by typechecking. *)
+  let sigma, p1 = make_ref sigma ("core."^which^".proj1") in
+  let sigma, p2 = make_ref sigma ("core."^which^".proj2") in
   sigma, ty, intro, p1, p2, sigsort
 
 let rec telescope sigma l =
