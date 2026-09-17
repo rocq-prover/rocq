@@ -489,4 +489,5 @@ let translate_mse_include is_mod (cst, ustate) (vm, vmstate) env mp self inl me 
     let str, reso = include_applied_structure mp_f str reso mp in
     str, of_body_delta_resolver reso
   in
+  let () = assert (not (mp_is_alias reso mp)) in
   str, reso, cst, vm
