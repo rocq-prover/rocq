@@ -10,4 +10,4 @@ cd _test
 
 rocq dep -f _CoqProject Loader.v -worker @ROCQWORKER@ > Loader.v.d.real
 
-diff -u Loader.v.d.expected Loader.v.d.real
+diff -u --strip-trailing-cr Loader.v.d.expected Loader.v.d.real
