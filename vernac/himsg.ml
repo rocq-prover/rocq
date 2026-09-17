@@ -1279,6 +1279,10 @@ let explain_not_match_error = function
     str "parameters differs:" ++ spc () ++
     str "expected" ++ spc () ++ pr_rel_context env sigma expected ++ spc () ++
     str "but found" ++ spc () ++ pr_rel_context env sigma got
+  | InductiveUniformParams { got; expected } ->
+    str "number of uniform parameters differ:" ++ spc () ++
+    str "expected" ++ spc () ++ int expected ++ spc () ++
+    str "but found" ++ spc () ++ int got
   | RecordFieldExpected isrecord ->
     str "type is expected " ++ str (if isrecord then "" else "not ") ++
     str "to be a record"
@@ -1299,6 +1303,16 @@ let explain_not_match_error = function
     let status b = if b then str"polymorphic" else str"monomorphic" in
       str "a " ++ status b ++ str" declaration was expected, but a " ++
         status (not b) ++ str" declaration was found"
+  | TemplateStatusExpected b ->
+    let status b = if b then str"template" else str"non-template" in
+    str "a " ++ status b ++ str" declaration was expected, but a " ++
+      status (not b) ++ str" declaration was found"
+  | PrivateStatusExpected b ->
+    let status = function
+    | None -> str"non-private"
+    | Some b -> if b then str"locally private" else str"private"
+    in
+    str "a " ++ status b ++ str" declaration was expected"
   | IncompatibleUniverses { err; env; t1; t2 } ->
     let sigma = Evd.from_env env in
     let t1, t2 = pr_explicit env sigma (EConstr.of_constr t1) (EConstr.of_constr t2) in

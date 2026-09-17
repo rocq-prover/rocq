@@ -39,11 +39,14 @@ type signature_mismatch_error =
   | NotConvertibleTypeField of env * types * types
   | CumulativeStatusExpected of bool
   | PolymorphicStatusExpected of bool
+  | TemplateStatusExpected of bool
+  | PrivateStatusExpected of bool option
   | NotSameConstructorNamesField of Id.t array * Id.t array
   | NotSameInductiveNameInBlockField of Id.t * Id.t
   | FiniteInductiveFieldExpected of recursivity_kind
   | InductiveNumbersFieldExpected of { got : int; expected : int }
   | InductiveParams of { env : Environ.env; got : rel_context; expected : rel_context }
+  | InductiveUniformParams of { got : int; expected : int }
   | RecordFieldExpected of bool
   | RecordProjectionsExpected of { expected : Name.t list; got : Name.t list }
   | NotEqualInductiveAliases of MutInd.t * MutInd.t
