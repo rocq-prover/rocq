@@ -1264,8 +1264,12 @@ let explain_not_match_error = function
     str "expected" ++ spc () ++ Id.print expected ++ spc () ++
     str "but found" ++ spc () ++ Id.print got
   | FiniteInductiveFieldExpected isfinite ->
-    str "type is expected to be " ++
-    str (if isfinite then "coinductive" else "inductive")
+    let pr_rec = function
+    | Declarations.Finite -> "inductive"
+    | CoFinite -> "coinductive"
+    | BiFinite -> "non-recursive"
+    in
+    str "type is expected to be " ++ str (pr_rec isfinite)
   | InductiveNumbersFieldExpected { got; expected } ->
     str "number of inductive types differs:" ++ spc () ++
     str "expected" ++ spc () ++ int expected ++ spc () ++

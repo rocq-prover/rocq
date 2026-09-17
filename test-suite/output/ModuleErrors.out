@@ -44,8 +44,8 @@ Incorrect constraint for label "x": expected type
 "nat" but found type "bool"
 File "./output/ModuleErrors.v", line 101, characters 0-40:
 The command has indeed failed with message:
-Signature components for field R do not match: constructor names differ:
-expected Build_R but found mkR.
+Signature components for field R do not match:
+type is expected to be non-recursive.
 File "./output/ModuleErrors.v", line 110, characters 0-52:
 The command has indeed failed with message:
 Signature components for field R do not match: projection names differ:
@@ -53,7 +53,7 @@ expected foo and bar but found baz and qux.
 File "./output/ModuleErrors.v", line 119, characters 0-49:
 The command has indeed failed with message:
 Signature components for field I do not match:
-type is expected to be coinductive.
+type is expected to be inductive.
 File "./output/ModuleErrors.v", line 125, characters 0-70:
 The command has indeed failed with message:
 Incorrect constraint for label "x": the body of definitions differs: expected

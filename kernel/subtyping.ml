@@ -129,6 +129,10 @@ let check_variance error v1 v2 =
   | None, Some _ -> error (CumulativeStatusExpected true)
   | Some _, None -> error (CumulativeStatusExpected false)
 
+let check_recursivity r1 r2 = match r1, r2 with
+| Finite, Finite | BiFinite, BiFinite | CoFinite, CoFinite -> true
+| (Finite | BiFinite | CoFinite), _ -> false
+
 let squash_info_equal s1 s2 = match s1, s2 with
   | AlwaysSquashed, AlwaysSquashed -> true
   | SometimesSquashed s1, SometimesSquashed s2 -> Sorts.Quality.Set.equal s1 s2
@@ -234,7 +238,7 @@ let check_inductive (cst, ustate) trace env mp1 l info1 mp2 mib2 subst1 subst2 r
       (arities_of_constructors ((mind,i), inst) (mib2, p2))
   in
   let check f test why = if not (test (f mib1) (f mib2)) then error (why (f mib2)) in
-  check (fun mib -> mib.mind_finite<>CoFinite) (==) (fun x -> FiniteInductiveFieldExpected x);
+  check (fun mib -> mib.mind_finite) check_recursivity (fun x -> FiniteInductiveFieldExpected x);
   if not (Int.equal (Declareops.mind_ntypes mib1) (Declareops.mind_ntypes mib2)) then
     error (InductiveNumbersFieldExpected { got = Declareops.mind_ntypes mib1; expected = Declareops.mind_ntypes mib2 });
   assert (List.is_empty mib1.mind_hyps && List.is_empty mib2.mind_hyps);

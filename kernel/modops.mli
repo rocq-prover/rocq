@@ -121,7 +121,7 @@ type signature_mismatch_error =
   | PolymorphicStatusExpected of bool
   | NotSameConstructorNamesField of Id.t array * Id.t array
   | NotSameInductiveNameInBlockField of Id.t * Id.t
-  | FiniteInductiveFieldExpected of bool
+  | FiniteInductiveFieldExpected of recursivity_kind
   | InductiveNumbersFieldExpected of { got : int; expected : int }
   | InductiveParams of { env : Environ.env; got : rel_context; expected : rel_context }
   | RecordFieldExpected of bool
