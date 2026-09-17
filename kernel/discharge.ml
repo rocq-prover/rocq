@@ -95,14 +95,6 @@ let cook_rel_context cache ctx =
   assert (Constr.equal t mkProp);
   ctx
 
-let cook_lc cache ~ntypes t =
-  (* Expand the recursive call to the inductive types *)
-  let diff = Context.Rel.length (rel_context_of_cooking_cache cache) in
-  let subs = List.init ntypes (fun k -> mkApp (mkRel (k+diff+1), instance_of_cooking_cache cache)) in
-  let t = Vars.substl subs t in
-  (* Apply the abstraction *)
-  abstract_as_type cache t
-
 let cook_projection cache ~params t =
   let t = mkArrowR mkProp t in (* dummy type standing in for the inductive *)
   let t = it_mkProd_or_LetIn t params in
@@ -121,14 +113,14 @@ let lift_squashed info = let open Declarations in function
     in
     SometimesSquashed s
 
-let cook_one_ind info cache ~params ~ntypes mip =
+let cook_one_ind info cache ~params mip =
   let mind_user_arity = abstract_as_type cache mip.mind_user_arity in
   let mind_sort = abstract_as_sort cache mip.mind_sort in
   let mind_arity_ctxt = cook_rel_context cache mip.mind_arity_ctxt in
-  let mind_user_lc = Array.map (cook_lc cache ~ntypes) mip.mind_user_lc in
+  let mind_user_lc = Array.map (abstract_as_type cache) mip.mind_user_lc in
   let mind_nf_lc = Array.map (fun (ctx,t) ->
       let lc = it_mkProd_or_LetIn t ctx in
-      let lc = cook_lc cache ~ntypes lc in
+      let lc = abstract_as_type cache lc in
       decompose_prod_decls lc)
       mip.mind_nf_lc
   in
@@ -168,8 +160,7 @@ let cook_inductive info mib =
   let cache = create_cache info in
   let nnewparams = Context.Rel.nhyps (rel_context_of_cooking_cache cache) in
   let mind_params_ctxt = cook_rel_context cache mib.mind_params_ctxt in
-  let ntypes = Declareops.mind_ntypes mib in
-  let mind_packets = Array.map (cook_one_ind info cache ~params:mib.mind_params_ctxt ~ntypes) mib.mind_packets in
+  let mind_packets = Array.map (cook_one_ind info cache ~params:mib.mind_params_ctxt) mib.mind_packets in
   let names = names_info info in
   let mind_hyps =
     List.filter (fun d -> not (Id.Set.mem (NamedDecl.get_id d) names))
