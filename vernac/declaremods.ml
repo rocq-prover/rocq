@@ -709,13 +709,16 @@ let rec replace_module_object idl mp0 objs0 mp1 objs1 =
   | id::idl,(ModuleObject (id', sobjs))::tail when Id.equal id id' ->
     begin
       let mp_id = MPdot(mp0, id) in
-      let objs = match idl with
-        | [] -> subst_objects (map_mp mp1 mp_id (empty_delta_resolver mp_id)) objs1
+      let mbids, objs = match idl with
+        | [] ->
+          (* Keep the bound parameters of a functor *)
+          let mbids1, _ = ModSubstObjs.get mp1 in
+          mbids1, subst_objects (map_mp mp1 mp_id (empty_delta_resolver mp_id)) objs1
         | _ ->
           let objs_id = expand_sobjs sobjs in
-          replace_module_object idl mp_id objs_id mp1 objs1
+          [], replace_module_object idl mp_id objs_id mp1 objs1
       in
-      (ModuleObject (id, ([], Objs objs)))::tail
+      (ModuleObject (id, (mbids, Objs objs)))::tail
     end
   | idl,lobj::tail -> lobj::replace_module_object idl mp0 tail mp1 objs1
 
