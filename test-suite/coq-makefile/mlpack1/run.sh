@@ -2,11 +2,16 @@
 
 . ../template/init.sh
 
+dst="$PWD/tmp"
+if command -v cygpath >/dev/null 2>&1; then
+  dst=$(cygpath -m "$dst")
+fi
+
 rocq makefile -f _CoqProject -o Makefile
 cat Makefile.conf
 make
 make html mlihtml
-make install DSTROOT="$PWD/tmp"
+make install DSTROOT="$dst"
 #make debug
 (cd "$(find tmp -name user-contrib)" && find .) | sort > actual
 sort > desired <<EOT

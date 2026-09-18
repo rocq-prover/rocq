@@ -114,10 +114,16 @@ COQPP    ?= "$(COQBIN)rocq" pp-mlg
 COQMKFILE ?= "$(COQBIN)rocq" makefile
 OCAMLLIBDEP ?= "$(COQBIN)ocamllibdep"
 
+ifeq (0,$(shell command -v cygpath >/dev/null 2>/dev/null; echo $$?))
+RUNTIMEEXECLIB=$(shell cygpath -u "$(COQCORELIB)")
+else
+RUNTIMEEXECLIB=$(COQCORELIB)
+endif
+
 # Timing scripts
-COQMAKE_ONE_TIME_FILE ?= "$(COQCORELIB)/tools/make-one-time-file.py"
-COQMAKE_BOTH_TIME_FILES ?= "$(COQCORELIB)/tools/make-both-time-files.py"
-COQMAKE_BOTH_SINGLE_TIMING_FILES ?= "$(COQCORELIB)/tools/make-both-single-timing-files.py"
+COQMAKE_ONE_TIME_FILE ?= "$(RUNTIMEEXECLIB)/tools/make-one-time-file.py"
+COQMAKE_BOTH_TIME_FILES ?= "$(RUNTIMEEXECLIB)/tools/make-both-time-files.py"
+COQMAKE_BOTH_SINGLE_TIMING_FILES ?= "$(RUNTIMEEXECLIB)/tools/make-both-single-timing-files.py"
 BEFORE ?=
 AFTER ?=
 

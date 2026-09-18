@@ -11,6 +11,11 @@ cd _test
 
 testdir=$PWD
 
+dst="$testdir/tmp"
+if command -v cygpath >/dev/null 2>&1; then
+  dst=$(cygpath -m "$dst")
+fi
+
 # foo: a package with both findlib and legacy install
 cd foo || exit 1
 rocq makefile -f _CoqProject.legacy -o Makefile.legacy 2> legacy.err
@@ -31,7 +36,7 @@ grep -q 'directory = "."' META.foo
 grep -q 'version = "1.2.3"' META.foo
 grep -q 'description = "Test package"' META.foo
 make
-make install DSTROOT="$testdir/tmp"
+make install DSTROOT="$dst"
 
 pkgdir="$(find "$testdir/tmp" -type d -name foo | head -n 1)"
 libdir="$(dirname "$pkgdir")"
@@ -51,7 +56,7 @@ grep -q 'directory = "."' src/META.plug
 grep -q 'requires = "plug.plugin"' src/META.plug
 grep -q 'package "plugin"' src/META.plug
 make
-make install DSTROOT="$testdir/tmp"
+make install DSTROOT="$dst"
 
 # installed in findlib but not user-contrib
 test "$libdir/plug/rocq.d/Loader.vo" = "$(find "$testdir/tmp" -name Loader.vo)"
@@ -76,7 +81,7 @@ make
 test -e B.vo
 
 cd ../foo || exit 1
-make uninstall DSTROOT="$testdir/tmp"
+make uninstall DSTROOT="$dst"
 test ! -e "$pkgdir/META"
 test ! -d "$pkgdir/rocq.d"
 test -z "$(find ../tmp -path '*/user-contrib/Foo/A.vo' | head -n 1)"

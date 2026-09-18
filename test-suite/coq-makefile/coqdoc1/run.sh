@@ -2,12 +2,17 @@
 
 . ../template/init.sh
 
+dst="$PWD/tmp"
+if command -v cygpath >/dev/null 2>&1; then
+  dst=$(cygpath -m "$dst")
+fi
+
 rocq makefile -f _CoqProject -o Makefile
 cat Makefile.conf
 make
 make html mlihtml
-make install DSTROOT="$PWD/tmp"
-make install-doc DSTROOT="$PWD/tmp"
+make install DSTROOT="$dst"
+make install-doc DSTROOT="$dst"
 #make debug
 
 # to learn about <(cmd) see https://www.gnu.org/software/bash/manual/html_node/Process-Substitution.html
