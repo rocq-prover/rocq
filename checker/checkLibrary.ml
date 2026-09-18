@@ -448,7 +448,19 @@ let recheck_library senv ~norec ~admit ~check =
   (* *)
   Flags.if_verbose Feedback.msg_notice (fnl()++hv 2 (str "Ordered list:" ++ fnl() ++
     prlist
-    (fun (dir,_) -> pr_dirpath dir ++ fnl()) needed));
-  let senv = List.fold_left (check_one_lib nochk) (senv, Mod_checking.empty_opaques) needed in
+      (fun (dir,_) -> pr_dirpath dir ++ fnl()) needed));
+  let module T = Domainslib.Task in
+  let pool = T.setup_pool ~num_domains:16 () in
+  let () = Mod_checking.pool := Some pool in
+  let () = Exninfo.record_backtrace true in
+  let senv = T.run pool @@ fun () ->
+    let senv = List.fold_left (check_one_lib nochk) (senv, Mod_checking.empty_opaques) needed in
+    let await = !Mod_checking.await in
+    let () = Mod_checking.await := [] in
+    let () = List.iter (T.await pool) await in
+    senv
+  in
+  let () = Mod_checking.pool := None in
+  let () = T.teardown_pool pool in
   Flags.if_verbose Feedback.msg_notice (str"Modules were successfully checked");
   senv

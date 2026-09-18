@@ -18,3 +18,6 @@ exception BadConstant of Names.Constant.t * Pp.t
 
 val constants_of_opaques : Environ.env -> opaques -> Names.Constant.t list
 val empty_opaques : opaques
+
+val pool : Domainslib.Task.pool option ref
+val await : unit Domainslib.Task.promise list ref

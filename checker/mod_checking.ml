@@ -53,6 +53,10 @@ let register_opacified_constant env chkst kn cb =
 
 exception BadConstant of Constant.t * Pp.t
 
+let pool = ref None
+
+let await = ref []
+
 let check_constant_declaration env opac kn cb opacify =
   Flags.if_verbose Feedback.msg_notice (str "  checking cst:" ++ Constant.print kn);
   let env = CheckFlags.set_local_flags cb.const_typing_flags env in
@@ -89,7 +93,14 @@ let check_constant_declaration env opac kn cb opacify =
   let () =
     match body with
     | Some bd ->
-      let j = Typeops.infer env bd in
+      (* hashconsing doesn't parallelize well because the weak hashtbl is shared *)
+      let bd = HConstr.of_constr env bd in
+      let async = match !pool with
+        | None -> fun f -> f ()
+        | Some pool -> fun f -> await := (Domainslib.Task.async pool f) :: !await
+      in
+      async @@ fun () ->
+      let j = Typeops.infer_hconstr env bd in
       begin match conv_leq env j.uj_type ty with
       | Result.Ok () -> ()
       | Result.Error () -> Type_errors.error_actual_type env j ty
