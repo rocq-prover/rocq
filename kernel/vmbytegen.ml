@@ -430,10 +430,16 @@ let rec add_pop n = function
   | cont -> if Int.equal n 0 then cont else Kpop n :: cont
 
 let add_grab arity lbl cont =
+  assert (arity >= 1);
   if Int.equal arity 1 then Klabel lbl :: cont
   else Krestart :: Klabel lbl :: Kgrab (arity - 1) :: cont
 
 let add_grabrec rec_arg arity lbl cont =
+  (* Arity 0 is possible, as exemplified by
+     "fix_0 aux := let t := ... in fun x => ... aux ...".
+     In that case, Kgrab (-1) makes the implicitly consumed argument
+     at the top of the stack explicitly available for the later closure.
+     (There is one such argument since Kgrabrec succeeded.) *)
   if Int.equal arity 1 && rec_arg < arity then
     Klabel lbl :: Kgrabrec 0 :: Krestart :: cont
   else
