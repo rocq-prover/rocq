@@ -1,6 +1,6 @@
 Type
-Type@{α1 ; SortQuality.21}
-Type@{α1 ; SortQuality.21}
+Type@{α1 ; SortQuality:21}
+Type@{α1 ; SortQuality:21}
 Type
 A
      : Type@{s ; _}
