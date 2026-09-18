@@ -173,9 +173,6 @@ let ic env sigma c =
   let c, uctx = Constrintern.interp_constr env sigma c in
   (Evd.from_ustate uctx, c)
 
-let ic_unsafe env sigma c = (*FIXME remove *)
-  fst (Constrintern.interp_constr env sigma c)
-
 let decl_constant name univs c =
   let open Constr in
   let vars = CVars.universes_of_constr c in
@@ -238,18 +235,15 @@ let exec_tactic env sigma n f args =
   let uctx = UState.check_mono_univ_decl (Evd.ustate sigma) UState.default_univ_decl in
   Array.map nf !tactic_res, uctx
 
-let gen_constant n = (); fun () -> (EConstr.of_constr (UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref n)))
 let gen_reference n = (); fun () -> (Rocqlib.lib_ref n)
 
-let rocq_mk_Setoid = gen_constant "plugins.ring.Build_Setoid_Theory"
+let rocq_mk_Setoid = gen_reference "plugins.ring.Build_Setoid_Theory"
 let rocq_None = gen_reference "core.option.None"
 let rocq_Some = gen_reference "core.option.Some"
 let rocq_eq = gen_reference "core.eq.type"
 
 let rocq_cons = gen_reference "core.list.cons"
 let rocq_nil = gen_reference "core.list.nil"
-
-let lapp f args = mkApp (f (), args)
 
 let plapp sigma f args =
   let sigma, fc = Evd.fresh_global (Global.env ()) sigma (f ()) in
@@ -278,15 +272,15 @@ let rocq_eq_smorph = gen_reference "plugins.ring.Eq_s_ext"
 
 (* ring -> almost_ring utilities *)
 let rocq_ring_theory = gen_reference "plugins.ring.ring_theory"
-let rocq_mk_reqe = gen_constant "plugins.ring.mk_reqe"
+let rocq_mk_reqe = gen_reference "plugins.ring.mk_reqe"
 
 (* semi_ring -> almost_ring utilities *)
 let rocq_semi_ring_theory = gen_reference "plugins.ring.semi_ring_theory"
-let rocq_mk_seqe = gen_constant "plugins.ring.mk_seqe"
+let rocq_mk_seqe = gen_reference "plugins.ring.mk_seqe"
 
-let rocq_abstract = gen_constant "plugins.ring.Abstract"
-let rocq_comp = gen_constant "plugins.ring.Computational"
-let rocq_morph = gen_constant "plugins.ring.Morphism"
+let rocq_abstract = gen_reference "plugins.ring.Abstract"
+let rocq_comp = gen_reference "plugins.ring.Computational"
+let rocq_morph = gen_reference "plugins.ring.Morphism"
 
 (* power function *)
 let ltac_inv_morph_nothing = zltac"inv_morph_nothing"
@@ -423,15 +417,15 @@ let setoid_of_relation env sigma a r =
     let sigma, refl = Rewrite.get_reflexive_proof env sigma a r in
     let sigma, sym = Rewrite.get_symmetric_proof env sigma a r in
     let sigma, trans = Rewrite.get_transitive_proof env sigma a r in
-    sigma, lapp rocq_mk_Setoid [|a ; r ; refl; sym; trans |]
+    plapp sigma rocq_mk_Setoid [|a ; r ; refl; sym; trans |]
   with Not_found ->
     CErrors.user_err (str "Cannot find a setoid structure for relation " ++ pr_econstr_env env sigma r ++ str ".")
 
-let op_morph r add mul opp req m1 m2 m3 =
-  lapp rocq_mk_reqe [| r; add; mul; opp; req; m1; m2; m3 |]
+let op_morph sigma r add mul opp req m1 m2 m3 =
+  plapp sigma rocq_mk_reqe [| r; add; mul; opp; req; m1; m2; m3 |]
 
-let op_smorph r add mul req m1 m2 =
-  lapp rocq_mk_seqe [| r; add; mul; req; m1; m2 |]
+let op_smorph sigma r add mul req m1 m2 =
+  plapp sigma rocq_mk_seqe [| r; add; mul; req; m1; m2 |]
 
 let ring_equality env sigma (r,add,mul,opp,req) =
   match EConstr.kind sigma req with
@@ -462,8 +456,8 @@ let ring_equality env sigma (r,add,mul,opp,req) =
            try Rewrite.Internal.default_morphism env sigma ([Some(r,Some req)],Some(r,Some req)) opp
            with Not_found ->
              CErrors.user_err (str "Ring opposite " ++ pr_econstr_env env sigma opp ++ str " should be declared as a morphism.") in
-         let op_morph =
-           op_morph r add mul opp req add_m_lem mul_m_lem opp_m_lem in
+         let sigma, op_morph =
+           op_morph sigma r add mul opp req add_m_lem mul_m_lem opp_m_lem in
          Flags.if_verbose
            Feedback.msg_info
            (str"Using setoid \""++ pr_econstr_env env sigma req++str"\""++spc()++
@@ -479,7 +473,7 @@ let ring_equality env sigma (r,add,mul,opp,req) =
             str"and morphisms \""++pr_econstr_env env sigma add_m ++
             str"\""++spc()++str"and \""++
             pr_econstr_env env sigma mul_m++str"\"");
-         sigma, op_smorph r add mul req add_m_lem mul_m_lem) in
+         op_smorph sigma r add mul req add_m_lem mul_m_lem) in
     (sigma,setoid,op_morph)
 
 let build_setoid_params env sigma r add mul opp req eqth =
@@ -502,12 +496,12 @@ let dest_ring env sigma th_spec =
     | _ -> error "bad ring structure"
 
 
-let reflect_coeff rkind =
+let reflect_coeff sigma rkind =
   (* We build an ill-typed terms on purpose... *)
   match rkind with
-      Abstract -> rocq_abstract ()
-    | Computational c -> lapp rocq_comp [|c|]
-    | Morphism m -> lapp rocq_morph [|m|]
+      Abstract -> plapp sigma rocq_abstract [||]
+    | Computational c -> plapp sigma rocq_comp [|c|]
+    | Morphism m -> plapp sigma rocq_morph [|m|]
 
 let interp_cst_tac env sigma rk kind (zero,one,add,mul,opp) cst_tac =
   match cst_tac with
@@ -547,7 +541,7 @@ let interp_power env sigma pow =
         | CstTac t -> Tacintern.glob_tactic t
         | Closed lc ->
             closed_term_ast (List.map Smartlocate.global_with_alias lc) in
-      let spec = ic_unsafe env sigma spec in
+      let sigma, spec = ic env sigma spec in
       let sigma, spec = make_hyp env sigma spec in
       let sigma, pow = plapp sigma rocq_Some [|carrier; spec|] in
       sigma, (tac, pow)
@@ -557,7 +551,8 @@ let interp_sign env sigma sign =
   match sign with
   | None -> plapp sigma rocq_None [|carrier|]
   | Some spec ->
-      let sigma, spec = make_hyp env sigma (ic_unsafe env sigma spec) in
+    let sigma, spec = ic env sigma spec in
+    let sigma, spec = make_hyp env sigma spec in
       plapp sigma rocq_Some [|carrier;spec|]
        (* Same remark on ill-typed terms ... *)
 
@@ -566,7 +561,8 @@ let interp_div env sigma div =
   match div with
   | None -> plapp sigma rocq_None [|carrier|]
   | Some spec ->
-      let sigma, spec = make_hyp env sigma (ic_unsafe env sigma spec) in
+      let sigma, spec = ic env sigma spec in
+      let sigma, spec = make_hyp env sigma spec in
       plapp sigma rocq_Some [|carrier;spec|]
        (* Same remark on ill-typed terms ... *)
 
@@ -577,7 +573,7 @@ let add_theory0 env sigma name rth eqth morphth cst_tac (pre,post) power sign di
   let sigma, (pow_tac, pspec) = interp_power env sigma power in
   let sigma, sspec = interp_sign env sigma sign in
   let sigma, dspec = interp_div env sigma div in
-  let rk = reflect_coeff morphth in
+  let sigma, rk = reflect_coeff sigma morphth in
   let params,ctx =
     exec_tactic env sigma 5 (zltac "ring_lemmas")
       [sth;ext;rth;pspec;sspec;dspec;rk] in
@@ -620,9 +616,13 @@ let add_theory0 env sigma name rth eqth morphth cst_tac (pre,post) power sign di
   ()
 
 let ic_coeff_spec env sigma = function
-  | Computational t -> Computational (ic_unsafe env sigma t)
-  | Morphism t -> Morphism (ic_unsafe env sigma t)
-  | Abstract -> Abstract
+  | Computational t ->
+    let sigma, t = ic env sigma t in
+    sigma, Computational t
+  | Morphism t ->
+    let sigma, t = ic env sigma t in
+    sigma, Morphism t
+  | Abstract -> sigma, Abstract
 
 
 let set_once s r v =
@@ -637,23 +637,31 @@ let process_ring_mods env sigma l =
   let sign = ref None in
   let power = ref None in
   let div = ref None in
+  let evd = ref sigma in
   List.iter(function
-      Ring_kind k -> set_once "ring kind" kind (ic_coeff_spec env sigma k)
+      Ring_kind k ->
+        let sigma, cs = ic_coeff_spec env !evd k in
+        evd := sigma;
+        set_once "ring kind" kind cs
     | Const_tac t -> set_once "tactic recognizing constants" cst_tac t
     | Pre_tac t -> set_once "preprocess tactic" pre t
     | Post_tac t -> set_once "postprocess tactic" post t
-    | Setoid(sth,ext) -> set_once "setoid" set (ic_unsafe env sigma sth,ic_unsafe env sigma ext)
+    | Setoid(sth,ext) ->
+      let sigma, sth = ic env !evd sth in
+      let sigma, ext = ic env sigma ext in
+      evd := sigma;
+      set_once "setoid" set (sth, ext)
     | Pow_spec(t,spec) -> set_once "power" power (t,spec)
     | Sign_spec t -> set_once "sign" sign t
     | Div_spec t -> set_once "div" div t) l;
   let k = match !kind with Some k -> k | None -> Abstract in
-  (k, !set, !cst_tac, !pre, !post, !power, !sign, !div)
+  !evd, (k, !set, !cst_tac, !pre, !post, !power, !sign, !div)
 
 let add_theory id rth l =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let sigma, rth = ic env sigma rth in
-  let (k,set,cst,pre,post,power,sign, div) = process_ring_mods env sigma l in
+  let sigma, (k,set,cst,pre,post,power,sign, div) = process_ring_mods env sigma l in
   add_theory0 env sigma id rth set k cst (pre,post) power sign div
 
 (*****************************************************************************)
@@ -880,7 +888,7 @@ let add_field_theory0 env sigma name fth eqth morphth cst_tac inj (pre,post) pow
   let sigma, sspec = interp_sign env sigma sign in
   let sigma, dspec = interp_div env sigma odiv in
   let sigma, inv_m = field_equality env sigma r inv req in
-  let rk = reflect_coeff morphth in
+  let sigma, rk = reflect_coeff sigma morphth in
   let params,ctx =
     exec_tactic env sigma 9 (field_ltac"field_lemmas")
       [sth;ext;inv_m;fth;pspec;sspec;dspec;rk] in
@@ -940,19 +948,30 @@ let process_field_mods env sigma l =
   let sign = ref None in
   let power = ref None in
   let div = ref None in
+  let evd = ref sigma in
   List.iter(function
-      Ring_mod(Ring_kind k) -> set_once "field kind" kind (ic_coeff_spec env sigma k)
+      Ring_mod(Ring_kind k) ->
+        let sigma, cs = ic_coeff_spec env !evd k in
+        evd := sigma;
+        set_once "field kind" kind cs
     | Ring_mod(Const_tac t) ->
         set_once "tactic recognizing constants" cst_tac t
     | Ring_mod(Pre_tac t) -> set_once "preprocess tactic" pre t
     | Ring_mod(Post_tac t) -> set_once "postprocess tactic" post t
-    | Ring_mod(Setoid(sth,ext)) -> set_once "setoid" set (ic_unsafe env sigma sth,ic_unsafe env sigma ext)
+    | Ring_mod(Setoid(sth,ext)) ->
+      let sigma, sth = ic env !evd sth in
+      let sigma, ext = ic env sigma ext in
+      evd := sigma;
+      set_once "setoid" set (sth, ext)
     | Ring_mod(Pow_spec(t,spec)) -> set_once "power" power (t,spec)
     | Ring_mod(Sign_spec t) -> set_once "sign" sign t
     | Ring_mod(Div_spec t) -> set_once "div" div t
-    | Inject i -> set_once "infinite property" inj (ic_unsafe env sigma i)) l;
+    | Inject i ->
+      let sigma, i = ic env !evd i in
+      evd := sigma;
+      set_once "infinite property" inj i) l;
   let k = match !kind with Some k -> k | None -> Abstract in
-  (env, sigma, k, !set, !inj, !cst_tac, !pre, !post, !power, !sign, !div)
+  (env, !evd, k, !set, !inj, !cst_tac, !pre, !post, !power, !sign, !div)
 
 let add_field_theory id t mods =
   let env = Global.env () in
