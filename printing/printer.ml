@@ -713,9 +713,10 @@ type theory_assumptions = {
 let pr_assumptionset ?(flags=current_combined()) env sigma theory_info s =
   let print_all = print_all_assumptions () in
   let dominated_by_env ax =
+    not print_all &&
     match ax with
-    | IndicesNotMattering _ -> not print_all && not (indices_matter env)
-    | ImpredicativeSet _ -> not print_all && not (is_impredicative_set env)
+    | IndicesNotMattering _ -> not (indices_matter env)
+    | ImpredicativeSet _ -> not (is_impredicative_set env)
     | _ -> false
   in
   let s = ContextObjectMap.filter (fun k _v -> match k with
