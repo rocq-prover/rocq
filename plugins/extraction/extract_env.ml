@@ -520,6 +520,7 @@ let descr () = match lang () with
   | Haskell -> Haskell.haskell_descr
   | Scheme -> Scheme.scheme_descr
   | JSON -> Json.json_descr
+  | Scala -> Scala.scala_descr
 
 (* From a filename string "foo.ml" or "foo", builds "foo.ml" and "foo.mli"
    Works similarly for the other languages. *)
@@ -537,7 +538,11 @@ let mono_filename f =
           else f
         in
         let id =
-          if lang () != Haskell then default_id
+          (* Haskell needs this for its [module Foo where] header;
+             Scala for the single [object Foo { ... }] every file is
+             now wrapped in (see scala.ml's [preamble]). Every other
+             backend ignores [mod_name]. *)
+          if lang () != Haskell && lang () != Scala then default_id
           else
             try Id.of_string (Filename.basename f)
             with UserError _ ->
@@ -670,6 +675,7 @@ let init ?(inner=false) ~modular ~library () =
   let keywords = (descr ()).keywords in
   let state = State.make ~modular ~library ~keywords () in
   if modular && lang () == Scheme then error_scheme ();
+  if modular && lang () == Scala then error_scala_modular ();
   state
 
 let warns table =

@@ -37,6 +37,7 @@ val error_no_module_expr : ModPath.t -> 'a
 val error_singleton_become_prop : inductive -> 'a
 val error_unknown_module : ?loc:Loc.t -> qualid -> 'a
 val error_scheme : unit -> 'a
+val error_scala_modular : unit -> 'a
 val error_not_visible : global -> 'a
 val error_MPfile_as_mod : ModPath.t -> bool -> 'a
 val check_inside_section : unit -> unit
@@ -156,9 +157,14 @@ val conservative_types : unit -> bool
 
 val file_comment : unit -> string
 
+(*s The package clause the Scala backend prints at the top of the file
+    (empty by default). *)
+
+val scala_package : unit -> string
+
 (*s Target language. *)
 
-type lang = Ocaml | Haskell | Scheme | JSON
+type lang = Ocaml | Haskell | Scheme | JSON | Scala
 val lang : unit -> lang
 
 (*s Table for custom inlining *)
