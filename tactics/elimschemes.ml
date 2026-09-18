@@ -101,7 +101,7 @@ let sind_dep =
       build_induction_scheme_in_type env true QualityOrSet.sprop x)
 
 let poly_dep =
-  declare_individual_scheme_object "poly_dep" (fun env _ x ->
+  declare_individual_scheme_object "poly_dep" ~force_poly:true (fun env _ x ->
       build_induction_scheme_in_sort_var env true x)
 
 let rect_nodep =
@@ -121,7 +121,7 @@ let sind_nodep =
       build_induction_scheme_in_type env false QualityOrSet.sprop x)
 
 let poly_nodep =
-  declare_individual_scheme_object "poly_nodep" (fun env _ x ->
+  declare_individual_scheme_object "poly_nodep" ~force_poly:true (fun env _ x ->
       build_induction_scheme_in_sort_var env false x)
 
 let elim_scheme ~dep ~to_kind =
