@@ -1,3 +1,4 @@
 --no-rocq-package-warning
 -R theories Foo
 theories/A.v
+theories/Sub/A2.v
