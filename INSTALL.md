@@ -18,9 +18,7 @@ Build Requirements
 To compile Rocq yourself, you need:
 
 - [OCaml](https://ocaml.org/) (version >= 4.14.0)
-  (This version of Rocq has been tested up to OCaml 4.14.1, for the 4.x series)
-
-  Support for OCaml 5.x remains experimental.
+  (This version of Rocq has been tested up to OCaml 5.4.1)
 
 - The [Dune OCaml build system](https://github.com/ocaml/dune/) >= 3.21
 
