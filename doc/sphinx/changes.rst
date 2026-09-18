@@ -392,6 +392,13 @@ Tactics
   `...` (:cmd:`Proof with`) is not deprecated anymore and is expected to remain available
   (`#22251 <https://github.com/rocq-prover/rocq/pull/22251>`_,
   by Gaëtan Gilbert).
+- **Changed:**
+  :cmd:`Hint Mode` containing mode ``=`` now prevent :cmd:`Hint Extern` from
+  instantiating the corresponding existential variables. Code that relied on
+  :cmd:`Hint Extern` instantiating an argument marked with ``=`` will no longer
+  work.
+  (`#22415 <https://github.com/rocq-prover/rocq/pull/22415>`_,
+  by Jan-Oliver Kaiser).
 - **Removed:**
   the ability to use non-reference hints in `using` clauses
   of :tacn:`auto`-like tactics
@@ -433,6 +440,12 @@ Tactics
   fixes `#22076 <https://github.com/rocq-prover/rocq/issues/22076>`_
   and `#21831 <https://github.com/rocq-prover/rocq/issues/21831>`_,
   by Gaëtan Gilbert).
+- **Fixed:**
+  :cmd:`Hint Mode` declarations are now treated as alternatives when several
+  matching modes contain ``=``
+  (`#22415 <https://github.com/rocq-prover/rocq/pull/22415>`_,
+  fixes `#22413 <https://github.com/rocq-prover/rocq/issues/22413>`_,
+  by Jan-Oliver Kaiser).
 
 Ltac2 language
 ^^^^^^^^^^^^^^
