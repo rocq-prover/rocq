@@ -254,7 +254,7 @@ project coinduction 'https://github.com/damien-pous/coinduction' '81ecd5f1ffa3e4
 ########################################################################
 # rocq-lsp
 ########################################################################
-project rocq_lsp 'https://github.com/rocq-community/rocq-lsp' '2ac2a159f551859aa266b15602362430e30c29f5'
+project rocq_lsp 'https://github.com/rocq-community/rocq-lsp' '2635f097ef1fa6523aa8367d69bd809125197d7a'
 # Contact @SkySkimmer on github
 
 ########################################################################
