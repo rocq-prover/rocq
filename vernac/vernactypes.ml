@@ -169,15 +169,16 @@ let no_state = { prog = (); proof = (); opaque_access = (); }
 let ignore_state = { prog = Prog.Ignore; proof = Proof.Ignore; opaque_access = OpaqueAccess.Ignore }
 
 type 'r typed_vernac_gen =
-    TypedVernac : {
-      spec : (('inprog, 'outprog) Prog.t,
-              ('inproof, 'outproof) Proof.t,
-              'inaccess OpaqueAccess.t) state_gen;
-      run : ('inprog, 'inproof, 'inaccess) state_gen -> ('outprog, 'outproof, unit) state_gen * 'r;
-    } -> 'r typed_vernac_gen
+  TypedVernac : {
+    spec : (('inprog, 'outprog) Prog.t,
+            ('inproof, 'outproof) Proof.t,
+            'inaccess OpaqueAccess.t) state_gen;
+    run : ?loc:Loc.t -> ('inprog, 'inproof, 'inaccess) state_gen ->
+      ('outprog, 'outproof, unit) state_gen * 'r;
+  } -> 'r typed_vernac_gen
 
 let map_typed_vernac f (TypedVernac {spec; run}) =
-  TypedVernac {spec; run = (fun st -> Util.on_snd f (run st)) }
+  TypedVernac {spec; run = (fun ?loc st -> Util.on_snd f (run ?loc st)) }
 
 type typed_vernac = unit typed_vernac_gen
 
@@ -187,13 +188,18 @@ let run ?loc (TypedVernac { spec = { prog; proof; opaque_access }; run }) (st:fu
   let ( * ) = combine_runners in
   let runner = Prog.runner prog * Proof.runner proof * OpaqueAccess.runner opaque_access in
   let st, v = runner.run ?loc (tuple st) @@ fun st ->
-    let st, v= run @@ untuple st in tuple st, v
+    let st, v = run ?loc @@ untuple st in tuple st, v
   in
   untuple st, v
 
-let typed_vernac_gen spec run = TypedVernac { spec; run }
+let typed_vernac_gen spec run =
+  TypedVernac { spec; run = (fun ?loc:_ st -> run st) }
 
-let typed_vernac spec run = TypedVernac { spec; run = (fun st -> run st, () ) }
+let typed_vernac spec run =
+  TypedVernac { spec; run = (fun ?loc:_ st -> run st, ()) }
+
+let typed_vernac_with_loc spec run =
+  TypedVernac { spec; run = (fun ?loc st -> run ~loc st, ()) }
 
 let vtdefault f = typed_vernac ignore_state
     (fun (_:no_state) -> let () = f () in no_state)
@@ -221,8 +227,8 @@ let vtreadproof f = typed_vernac { ignore_state with proof = Read }
 let vtreadprogram f = typed_vernac { ignore_state with prog = Read }
     (fun {prog} -> let () = f ~pm:prog in no_state)
 
-let vtmodifyprogram f = typed_vernac { ignore_state with prog = Modify }
-    (fun {prog} -> let prog = f ~pm:prog in { no_state with prog })
+let vtmodifyprogram f = typed_vernac_with_loc { ignore_state with prog = Modify }
+    (fun ~loc {prog} -> let prog = f ?loc ~pm:prog () in { no_state with prog })
 
 let vtdeclareprogram f = typed_vernac { ignore_state with prog = Read; proof = Open }
     (fun {prog} -> let proof = f ~pm:prog in { no_state with proof })

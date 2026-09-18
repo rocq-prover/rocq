@@ -54,12 +54,13 @@ val no_state : no_state
 val ignore_state : ((unit, unit) Prog.t, (unit, unit) Proof.t, unit OpaqueAccess.t) state_gen
 
 type 'r typed_vernac_gen =
-    TypedVernac : {
-      spec : (('inprog, 'outprog) Prog.t,
-              ('inproof, 'outproof) Proof.t,
-              'inaccess OpaqueAccess.t) state_gen;
-      run : ('inprog, 'inproof, 'inaccess) state_gen -> ('outprog, 'outproof, unit) state_gen * 'r;
-    } -> 'r typed_vernac_gen
+  TypedVernac : {
+    spec : (('inprog, 'outprog) Prog.t,
+            ('inproof, 'outproof) Proof.t,
+            'inaccess OpaqueAccess.t) state_gen;
+    run : ?loc:Loc.t -> ('inprog, 'inproof, 'inaccess) state_gen ->
+      ('outprog, 'outproof, unit) state_gen * 'r;
+  } -> 'r typed_vernac_gen
 
 type typed_vernac = unit typed_vernac_gen
 
@@ -89,7 +90,8 @@ val vtmodifyproof : ?check_late_init:bool -> (pstate:Declare.Proof.t -> Declare.
 val vtreadproofopt : (pstate:Declare.Proof.t option -> unit) -> typed_vernac
 val vtreadproof : (pstate:Declare.Proof.t -> unit) -> typed_vernac
 val vtreadprogram : (pm:Declare.OblState.t -> unit) -> typed_vernac
-val vtmodifyprogram : (pm:Declare.OblState.t -> Declare.OblState.t) -> typed_vernac
+val vtmodifyprogram :
+  (?loc:Loc.t -> pm:Declare.OblState.t -> unit -> Declare.OblState.t) -> typed_vernac
 val vtdeclareprogram : (pm:Declare.OblState.t -> Declare.Proof.t) -> typed_vernac
 val vtopenproofprogram : (pm:Declare.OblState.t -> Declare.OblState.t * Declare.Proof.t) -> typed_vernac
 val vtopaqueaccess : (opaque_access:Global.indirect_accessor -> unit) -> typed_vernac
