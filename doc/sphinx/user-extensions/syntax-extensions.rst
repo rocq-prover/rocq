@@ -2690,19 +2690,19 @@ Tactic notations allow customizing the syntax of tactics.
         - a global reference of term
         - :tacn:`unfold`, :tacn:`with_strategy`
 
-      * - ``constr``
-        - :token:`one_term`
-        - a term
+      * - ``constr``\ *n* (*n* in 0..200)
+        - :token:`one_term`\ *n*
+        - a term at level *n*
         - :tacn:`exact`
 
-      * - ``open_constr``
-        - :token:`one_term`
-        - a term where all `_` which are not resolved by unification become evars; typeclass resolution is not triggered
+      * - ``open_constr``\ *n* (*n* in 0..200)
+        - :token:`one_term`\ *n*
+        - a term at level *n* where all `_` which are not resolved by unification become evars; typeclass resolution is not triggered
         - tacn:`epose`, tacn:`eapply`
 
-      * - ``uconstr``
-        - :token:`one_term`
-        - an untyped term
+      * - ``uconstr``\ *n* (*n* in 0..200)
+        - :token:`one_term`\ *n*
+        - an untyped term at level *n*
         - :tacn:`refine`
 
       * - ``integer``
