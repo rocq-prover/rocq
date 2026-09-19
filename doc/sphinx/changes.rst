@@ -110,10 +110,10 @@ the GitHub issue and pull request system,
 the `Discourse forum <https://discourse.rocq-prover.org>`__ and the
 `Rocq Zulip chat <https://rocq-prover.zulipchat.com>`_.
 
-Enrico Tassi is the release manager of Rocq 9.2.
+Enrico Tassi is the release manager of Rocq 9.3.
 This release is the result of 437 merged PRs, closing 65 issues.
 
-| Sophia-Antipolis, July 2026
+| Sophia-Antipolis, September 2026
 | Enrico Tassi for the Rocq development team
 
 Changes in 9.3.0
