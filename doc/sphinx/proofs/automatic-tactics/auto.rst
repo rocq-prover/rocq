@@ -603,7 +603,7 @@ Creating Hints
       imported, whereas a :attr:`global` hint is activated whenever the module
       is loaded.  For example:
 
-      .. rocqtop:: all
+      .. rocqtop:: all reset
 
          Create HintDb section_hints.
          Inductive section_inhabited (A : Type) : Prop :=
