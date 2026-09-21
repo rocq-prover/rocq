@@ -211,7 +211,7 @@ let expand_paths project =
     if Sys.file_exists path && Sys.is_directory path then
       System.process_directory (fun fname ->
         match fname with
-        | FileRegular f -> add_file (if path <> "." then Filename.concat path f else f)
+        | FileRegular f -> add_file (if path <> "." then System.(path // f) else f)
         | FileDir (p,_) -> expand_dir p rv
       ) path
     else
