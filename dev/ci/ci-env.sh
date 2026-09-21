@@ -5,7 +5,7 @@ if which cygpath >/dev/null 2>&1; then OCAMLFINDSEP=\;; else OCAMLFINDSEP=:; fi
 if [ "${BASH_SOURCE[0]}" ]; then
   root="$(dirname "${BASH_SOURCE[0]}")/../.."
   # make path absolute if relative
-  root=$(cd "$root" && echo "$PWD")
+  root=$(cd "$root" > /dev/null && echo "$PWD")
 elif [ -e "$PWD/dev/ci/ci-env.sh" ]; then
   root=$PWD
 else
