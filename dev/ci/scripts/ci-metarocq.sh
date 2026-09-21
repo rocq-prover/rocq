@@ -9,7 +9,7 @@ git_download metarocq
 
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
-export COQEXTRAFLAGS='-native-compiler no'
+export COQEXTRAFLAGS='-native-compiler no -w -rewrite-rw'
 ( cd "${CI_BUILD_DIR}/metarocq"
   [ -e pcuic/metarocq-config ] || ./configure.sh local
   make template-rocq TIMED=pretty-timed
