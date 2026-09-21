@@ -1034,13 +1034,23 @@ type arguments_scope_discharge_request =
   | ArgsScopeManual
   | ArgsScopeNoDischarge
 
-let load_arguments_scope _ (_,r,scl,cls,allscopes) =
-  List.iter (List.iter check_scope) scl;
+type arguments_scope_obj = {
+  asc_discharge_request : arguments_scope_discharge_request;
+  asc_gref : GlobRef.t;
+  asc_scopes : scope_name list list;
+  asc_classes : scope_class option list;
+  asc_available_scopes : scope_class_map;
+}
+
+let load_arguments_scope _ asc =
+  List.iter (List.iter check_scope) asc.asc_scopes;
   (* force recomputation to take into account the possible extra "Bind
      Scope" of the current environment (e.g. so that after inlining of a
      parameter in a functor, it takes the current environment into account *)
   let initial_stamp = initial_scope_class_map in
-  arguments_scope := GlobRefMap.add (Global.env ()) r (scl,cls,initial_stamp) !arguments_scope
+  arguments_scope :=
+    GlobRefMap.add (Global.env ()) asc.asc_gref
+      (asc.asc_scopes, asc.asc_classes, initial_stamp) !arguments_scope
 
 let cache_arguments_scope o =
   load_arguments_scope 1 o
@@ -1048,8 +1058,8 @@ let cache_arguments_scope o =
 let subst_scope_class env subst cs =
   try Some (subst_cl_typ env subst cs) with Not_found -> None
 
-let subst_arguments_scope (subst,(req,r,scl,cls,allscopes)) =
-  let r' = fst (subst_global subst r) in
+let subst_arguments_scope (subst, asc) =
+  let asc_gref = fst (subst_global subst asc.asc_gref) in
   let subst_cl ocl = match ocl with
     | None -> ocl
     | Some cl ->
@@ -1057,8 +1067,11 @@ let subst_arguments_scope (subst,(req,r,scl,cls,allscopes)) =
         match subst_scope_class env subst cl with
         | Some cl'  as ocl' when cl' != cl -> ocl'
         | _ -> ocl in
-  let cls' = List.Smart.map subst_cl cls in
-  (ArgsScopeNoDischarge,r',scl,cls',allscopes)
+  let asc_classes = List.Smart.map subst_cl asc.asc_classes in
+  { asc with
+    asc_discharge_request = ArgsScopeNoDischarge;
+    asc_gref;
+    asc_classes }
 
 let discharge_available_scopes map =
   (* Remove local scopes *)
@@ -1067,52 +1080,48 @@ let discharge_available_scopes map =
       let lbot = List.filter (fun x -> not (snd x)) lbot in
       if List.is_empty ltop && List.is_empty lbot then None else Some (ltop, lbot)) map
 
-let discharge_arguments_scope (req,r,scs,_cls,available_scopes) =
-  if req == ArgsScopeNoDischarge || (isVarRef r && Global.is_in_section r) then None
+let discharge_arguments_scope asc =
+  if asc.asc_discharge_request == ArgsScopeNoDischarge
+     || (isVarRef asc.asc_gref && Global.is_in_section asc.asc_gref) then None
   else
     let n =
       try
-        Array.length (Global.section_instance r)
+        Array.length (Global.section_instance asc.asc_gref)
       with
         Not_found (* Not a ref defined in this section *) -> 0 in
-    let available_scopes = discharge_available_scopes available_scopes in
-    (* Hack: use list cls to encode an integer to pass to rebuild for Manual case *)
-    (* since cls is anyway recomputed in rebuild *)
-    let n_as_cls = List.make n None in
-    Some (req,r,scs,n_as_cls,available_scopes)
+    let asc_available_scopes = discharge_available_scopes asc.asc_available_scopes in
+    (* Hack: use list asc_classes to encode an integer to pass to rebuild for Manual case *)
+    (* since asc_classes is anyway recomputed in rebuild *)
+    let asc_classes = List.make n None in
+    Some { asc with asc_classes; asc_available_scopes }
 
-let classify_arguments_scope (req,_,_,_,_) =
-  if req == ArgsScopeNoDischarge then Dispose else Substitute
+let classify_arguments_scope asc =
+  if asc.asc_discharge_request == ArgsScopeNoDischarge then Dispose else Substitute
 
-let rebuild_arguments_scope (req,r,scs,n_as_cls,available_scopes) =
-  match req with
+let rebuild_arguments_scope asc =
+  match asc.asc_discharge_request with
     | ArgsScopeNoDischarge -> assert false
     | ArgsScopeAuto ->
       let env = Global.env () in
       let sigma = Evd.from_env env in
-      let typ = EConstr.of_constr @@ fst (Typeops.type_of_global_in_context env r) in
-      let scs,cls = compute_arguments_scope_full env sigma available_scopes typ in
-      (* Note: cls is fixed, but scs can be recomputed in find_arguments_scope *)
-      (req,r,scs,cls,available_scopes)
+      let typ = EConstr.of_constr @@ fst (Typeops.type_of_global_in_context env asc.asc_gref) in
+      let asc_scopes, asc_classes = compute_arguments_scope_full env sigma asc.asc_available_scopes typ in
+      (* Note: asc_classes is fixed, but asc_scopes can be recomputed in find_arguments_scope *)
+      { asc with asc_scopes; asc_classes }
     | ArgsScopeManual ->
       (* Add to the manually given scopes the one found automatically
          for the extra parameters of the section. Discard the classes
          of the manually given scopes to avoid further re-computations. *)
       let env = Global.env () in
       let sigma = Evd.from_env env in
-      let n = List.length n_as_cls in
-      let typ = EConstr.of_constr @@ fst (Typeops.type_of_global_in_context env r) in
-      let scs',cls = compute_arguments_scope_full env sigma available_scopes typ in
-      let scs1 = List.firstn n scs' in
-      let cls1 = List.firstn n cls in
-      (* Note: the extra cls1 is fixed, but its associated scs can be recomputed *)
-      (* on the undefined part of cls, scs is however fixed *)
-      (req,r,scs1@scs,cls1,available_scopes)
-
-type arguments_scope_obj =
-    arguments_scope_discharge_request * GlobRef.t *
-    scope_name list list * scope_class option list *
-    scope_class_map
+      let n = List.length asc.asc_classes in
+      let typ = EConstr.of_constr @@ fst (Typeops.type_of_global_in_context env asc.asc_gref) in
+      let scs, cls = compute_arguments_scope_full env sigma asc.asc_available_scopes typ in
+      let asc_scopes = List.firstn n scs @ asc.asc_scopes in
+      let asc_classes = List.firstn n cls in
+      (* Note: the extra asc_classes is fixed, but its associated asc_scopes can be recomputed *)
+      (* on the undefined part of asc_classes, asc_scopes is however fixed *)
+      { asc with asc_scopes; asc_classes }
 
 let inArgumentsScope : arguments_scope_obj -> obj =
   declare_object {(default_object "ARGUMENTS-SCOPE") with
@@ -1126,7 +1135,13 @@ let inArgumentsScope : arguments_scope_obj -> obj =
 let is_local local ref = local || isVarRef ref && Global.is_in_section ref
 
 let declare_arguments_scope_gen req r (scl,cls) =
-  Lib.add_leaf (inArgumentsScope (req,r,scl,cls,!scope_class_map))
+  Lib.add_leaf
+    (inArgumentsScope
+       { asc_discharge_request = req;
+         asc_gref = r;
+         asc_scopes = scl;
+         asc_classes = cls;
+         asc_available_scopes = !scope_class_map })
 
 let declare_arguments_scope local r scl =
   let req = if is_local local r then ArgsScopeNoDischarge else ArgsScopeManual in
