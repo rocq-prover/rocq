@@ -63,7 +63,12 @@ type code_descr =
 
 let code_max = 0x19
 
-let magic_number = "\132\149\166\190"
+(* See runtime/caml/intext.h. OCaml writes the 20-byte "small" header, with
+   four 32-bit fields, when both the length of the marshalled data and the
+   number of shared objects fit in 32 bits, and the 32-byte "big" header, with
+   three 64-bit fields, otherwise. *)
+let magic_number_small = "\132\149\166\190"
+let magic_number_big = "\132\149\166\191"
 
 (** Memory reification *)
 
@@ -170,14 +175,44 @@ let input_binary_int chan =
 let input_char chan = Char.chr (input_byte chan)
 let input_string len chan = String.init len (fun _ -> input_char chan)
 
+(* Unsigned big-endian integer on [n] bytes, or [None] if it does not fit in
+   a native int. *)
+let input_uint n chan =
+  let rec loop acc n =
+    if Int.equal n 0 then acc
+    else
+      let b = input_byte chan in
+      let acc = match acc with
+      | Some acc when acc <= max_int lsr 8 -> Some ((acc lsl 8) lor b)
+      | _ -> None
+      in
+      loop acc (pred n)
+  in
+  loop (Some 0) n
+
+let input_nobjects n chan = match input_uint n chan with
+| Some n -> n
+| None -> failwith "Too many marshalled objects for this architecture"
+
+(* Returns the number of shared objects. The other header fields (data length
+   and sizes in words) are not needed to parse the data and may exceed the
+   native int range on 32-bit architectures. *)
 let parse_header chan =
   let () = current_offset := 0 in
   let magic = input_string 4 chan in
-  let length = input_binary_int chan in
-  let objects = input_binary_int chan in
-  let size32 = input_binary_int chan in
-  let size64 = input_binary_int chan in
-  (magic, length, size32, size64, objects)
+  if String.equal magic magic_number_small then
+    let _length = input_uint 4 chan in
+    let objects = input_nobjects 4 chan in
+    let _size32 = input_uint 4 chan in
+    let _size64 = input_uint 4 chan in
+    objects
+  else if String.equal magic magic_number_big then
+    let _reserved = input_uint 4 chan in
+    let _length = input_uint 8 chan in
+    let objects = input_nobjects 8 chan in
+    let _size64 = input_uint 8 chan in
+    objects
+  else failwith "Not marshalled data"
 
 let input_int8s chan =
   let i = input_byte chan in
@@ -377,8 +412,7 @@ let parse_object chan =
     -> Printf.eprintf "Unhandled code %04x\n%!" data; assert false
 
 let parse chan =
-  let (magic, len, _, _, size) = parse_header chan in
-  let () = assert (magic = magic_number) in
+  let size = parse_header chan in
   let memory = LargeArray.make size (Struct ((-1), [||])) in
   let current_object = ref 0 in
   let fill_obj = function
