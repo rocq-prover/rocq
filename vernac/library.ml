@@ -148,8 +148,7 @@ let library_full_filename dir =
   with Not_found -> "<unavailable filename>"
 
 let library_is_loaded dir =
-  try let _ = find_library dir in true
-  with Not_found -> false
+  Option.has_some (find_library dir)
 
   (* If a library is loaded several time, then the first occurrence must
      be performed first, thus the libraries_loaded_list ... *)
