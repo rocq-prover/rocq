@@ -507,15 +507,23 @@ let default_vm_flags = {
   vm_normalize_params = false;
 }
 
-let cbv_vm ?(flags = default_vm_flags) ?readback_check env sigma c t  =
+let vm_value env sigma c =
   if not (Environ.typing_flags env).enable_VM then
     CErrors.user_err Pp.(str "vm_compute reduction has been disabled.");
   if Termops.occur_meta sigma c then
     CErrors.user_err Pp.(str "vm_compute does not support metas.");
-  (* This evar-normalizes terms beforehand *)
+  (* This evar-normalizes terms beforehand. *)
   let c = EConstr.Unsafe.to_constr c in
+  Vmsymtable.val_of_constr env (evars_of_evar_map sigma) c
+
+let check_vm readback_check env sigma c t =
+  let v = vm_value env sigma c in
+  let whd = Vmvalues.whd_val v in
+  readback_check { readback_depth = 0 } env sigma t whd
+
+let cbv_vm ?(flags = default_vm_flags) ?readback_check env sigma c t  =
+  let v = vm_value env sigma c in
   let t = EConstr.Unsafe.to_constr t in
-  let v = Vmsymtable.val_of_constr env (evars_of_evar_map sigma) c in
   let env = {
     env;
     norm_params = flags.vm_normalize_params;

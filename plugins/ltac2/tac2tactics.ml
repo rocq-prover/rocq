@@ -307,6 +307,14 @@ let vm where =
   let where = Option.map map_pattern_with_occs where in
   CbvVm where
 
+let vm_no_stuck where =
+  let where = Option.map map_pattern_with_occs where in
+  CbvVmNoStuck where
+
+let vm_whnf where =
+  let where = Option.map map_pattern_with_occs where in
+  CbvVmWhnf where
+
 let native where =
   let where = Option.map map_pattern_with_occs where in
   CbvNative where

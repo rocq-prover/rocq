@@ -23,5 +23,9 @@ type readback_check = readback_info -> Environ.env -> Evd.evar_map -> types -> V
 
 val no_readback_check : readback_check
 
+(** [check_vm check env sigma c t] evaluates [c] with the VM and invokes
+    [check] on the resulting outer value without reading it back. *)
+val check_vm : readback_check -> env -> Evd.evar_map -> constr -> types -> unit
+
 (** {6 Reduction functions } *)
 val cbv_vm : ?flags:vm_flags -> ?readback_check:readback_check -> env -> Evd.evar_map -> constr -> types -> constr
