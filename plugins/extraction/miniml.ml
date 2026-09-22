@@ -34,11 +34,6 @@ struct
     in
     List.init (1 lsl quals) init
 
-  let default actx =
-    let names = UVars.AbstractContext.names actx in
-    let quals = Array.length names.UVars.quals in
-    Array.make quals true
-
   let ground inst =
     let qvars, _ = UVars.Instance.to_array inst in
     let map q = match q with
