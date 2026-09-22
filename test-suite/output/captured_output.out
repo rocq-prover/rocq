@@ -72,5 +72,15 @@ File "./output/captured_output.v", line 41, characters 44-46:
 Output OK.
 1
      : nat
-File "./output/captured_output.v", line 47, characters 44-58:
+File "./output/captured_output.v", line 47, characters 53-67:
 Output OK.
+True
+     : Prop
+Error: There remains captured output in file ./output/captured_output.v:
+"1
+     : nat
+True
+     : Prop"
+
+
+coqc exited with code 1

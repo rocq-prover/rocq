@@ -44,5 +44,7 @@ Assert Captured Output (printing width 102) "".
 Module Type T.
   Capture Output Check 1.
 End T.
-Assert Captured Output (printing width 102) "1
+Assert Captured Output (printing width 102, no drop) "1
      : nat".
+
+Capture Output Check True.
