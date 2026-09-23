@@ -421,6 +421,13 @@ and fold_deps_list seen ff modl needed =
 let fold_deps_list ff modl acc =
   snd (fold_deps_list LibrarySet.empty ff modl (LibrarySet.empty,acc))
 
+let rec parallel_check () =
+  match Mod_checking.(take await) with
+  | None -> ()
+  | Some todo ->
+    todo(); (* TODO catch exns *)
+    parallel_check()
+
 let recheck_library senv ~norec ~admit ~check =
   let ml = List.map try_locate_qualified_library check in
   let nrl = List.map try_locate_qualified_library norec in
@@ -449,18 +456,25 @@ let recheck_library senv ~norec ~admit ~check =
   Flags.if_verbose Feedback.msg_notice (fnl()++hv 2 (str "Ordered list:" ++ fnl() ++
     prlist
       (fun (dir,_) -> pr_dirpath dir ++ fnl()) needed));
-  let module T = Domainslib.Task in
-  let pool = T.setup_pool ~num_domains:16 () in
-  let () = Mod_checking.pool := Some pool in
+  let use_async = true in
+  let () = Mod_checking.use_async := use_async in
   let () = Exninfo.record_backtrace true in
-  let senv = T.run pool @@ fun () ->
-    let senv = List.fold_left (check_one_lib nochk) (senv, Mod_checking.empty_opaques) needed in
-    let await = !Mod_checking.await in
-    let () = Mod_checking.await := [] in
-    let () = List.iter (T.await pool) await in
-    senv
+  let domains =
+    let is_prof = NewProfile.is_profiling() in
+    Array.init (if use_async then 8 else 0) (fun _ ->
+      Domain.spawn (fun () ->
+            if is_prof then Some (NewProfile.with_profiling parallel_check)
+            else begin parallel_check(); None end))
   in
-  let () = Mod_checking.pool := None in
-  let () = T.teardown_pool pool in
+  let senv = List.fold_left (check_one_lib nochk) (senv, Mod_checking.empty_opaques) needed in
+  let () = Mod_checking.(set_done await) in
+  let () = parallel_check() in
+  let () = Array.iter (fun dom ->
+      match Domain.join dom with
+      | None -> ()
+      | Some (events, sums, ()) ->
+        NewProfile.insert_results events sums)
+      domains
+  in
   Flags.if_verbose Feedback.msg_notice (str"Modules were successfully checked");
   senv

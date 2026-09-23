@@ -53,9 +53,41 @@ let register_opacified_constant env chkst kn cb =
 
 exception BadConstant of Constant.t * Pp.t
 
-let pool = ref None
+let use_async = ref false
 
-let await = ref []
+type 'a safe_queue =
+  { queue : 'a Queue.t; mutable is_done : bool; mutex : Mutex.t; nonempty_or_done : Condition.t }
+
+let create () =
+  { queue = Queue.create(); mutex = Mutex.create();
+    is_done = false;
+    nonempty_or_done = Condition.create() }
+
+let set_done q =
+  Mutex.lock q.mutex;
+  q.is_done <- true;
+  if Queue.is_empty q.queue then Condition.broadcast q.nonempty_or_done;
+  Mutex.unlock q.mutex
+
+let add v q =
+  Mutex.lock q.mutex;
+  assert (not q.is_done);
+  let was_empty = Queue.is_empty q.queue in
+  Queue.add v q.queue;
+  if was_empty then Condition.broadcast q.nonempty_or_done;
+  Mutex.unlock q.mutex
+
+let take q =
+  Mutex.lock q.mutex;
+  while not q.is_done && Queue.is_empty q.queue do
+    Condition.wait q.nonempty_or_done q.mutex
+  done;
+  let v = Queue.take_opt q.queue in
+  assert (q.is_done || Option.has_some v);
+  Mutex.unlock q.mutex;
+  v
+
+let await = create ()
 
 let check_constant_declaration env opac kn cb opacify =
   Flags.if_verbose Feedback.msg_notice (str "  checking cst:" ++ Constant.print kn);
@@ -95,16 +127,18 @@ let check_constant_declaration env opac kn cb opacify =
     | Some bd ->
       (* hashconsing doesn't parallelize well because the weak hashtbl is shared *)
       let bd = HConstr.of_constr env bd in
-      let async = match !pool with
-        | None -> fun f -> f ()
-        | Some pool -> fun f -> await := (Domainslib.Task.async pool f) :: !await
+      let async = match !use_async with
+        | false -> fun f -> f ()
+        | true -> fun f -> add f await
       in
       async @@ fun () ->
+      NewProfile.profile "check_body" ~args:(fun () ->
+          [("name", `String (Constant.to_string kn))]) (fun () ->
       let j = Typeops.infer_hconstr env bd in
       begin match conv_leq env j.uj_type ty with
       | Result.Ok () -> ()
       | Result.Error () -> Type_errors.error_actual_type env j ty
-      end
+      end) ()
     | None -> ()
   in
   let retro, opac = match Cmap_env.find_opt kn (snd opac.st_retro) with

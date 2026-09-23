@@ -59,10 +59,10 @@ module MiniJson = struct
   let pid = Unix.getpid()
 
   let pids = string_of_int pid
-  let base = [("pid", `Intlit pids); ("tid", `Intlit pids)]
+  let base = [("pid", `Intlit pids)]
 
   let duration ~name ~ph ~ts ?args () =
-    let l = ("name", `String name) :: ("ph", `String ph) :: ("ts", `Intlit ts) :: base in
+    let l = ("name", `String name) :: ("ph", `String ph) :: ("ts", `Intlit ts) :: ("tid", `Intlit (string_of_int (Domain.self() :> int))) :: base in
     let l = match args with
       | None -> l
       | Some args -> ("args", `Assoc args) :: l
