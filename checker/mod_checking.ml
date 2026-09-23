@@ -125,8 +125,6 @@ let check_constant_declaration env opac kn cb opacify =
   let () =
     match body with
     | Some (opaque,bd) ->
-      (* hashconsing doesn't parallelize well because the weak hashtbl is shared *)
-      let bd = HConstr.of_constr env bd in
       let async = match opaque && !use_async with
         | false -> fun f -> f ()
         | true -> fun f -> add f await
@@ -134,7 +132,7 @@ let check_constant_declaration env opac kn cb opacify =
       async @@ fun () ->
       NewProfile.profile "check_body" ~args:(fun () ->
           [("name", `String (Constant.to_string kn))]) (fun () ->
-      let j = Typeops.infer_hconstr env bd in
+      let j = Typeops.infer env bd in
       begin match conv_leq env j.uj_type ty with
       | Result.Ok () -> ()
       | Result.Error () -> Type_errors.error_actual_type env j ty
