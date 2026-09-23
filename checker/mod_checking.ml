@@ -111,7 +111,7 @@ let check_constant_declaration env opac kn cb opacify =
   then raise Pp.(BadConstant (kn, str "incorrect const_relevance"));
   let body, env = match cb.const_body with
     | Undef _ | Primitive _ | Symbol _ -> None, env
-    | Def c -> Some c, env
+    | Def c -> Some (false,c), env
     | OpaqueDef o ->
       let c, u = !indirect_accessor o in
       let env = match u, cb.const_universes with
@@ -120,14 +120,14 @@ let check_constant_declaration env opac kn cb opacify =
           push_subgraph local env
         | _ -> assert false
       in
-      Some c, env
+      Some (true,c), env
   in
   let () =
     match body with
-    | Some bd ->
+    | Some (opaque,bd) ->
       (* hashconsing doesn't parallelize well because the weak hashtbl is shared *)
       let bd = HConstr.of_constr env bd in
-      let async = match !use_async with
+      let async = match opaque && !use_async with
         | false -> fun f -> f ()
         | true -> fun f -> add f await
       in
@@ -149,7 +149,7 @@ let check_constant_declaration env opac kn cb opacify =
     Some retro, opac
   in
   match body with
-  | Some body when opacify -> retro, register_opacified_constant env opac kn body
+  | Some (_,body) when opacify -> retro, register_opacified_constant env opac kn body
   | Some _ | None -> retro, opac
 
 let check_constant_declaration env opac kn cb opacify =
