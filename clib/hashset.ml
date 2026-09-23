@@ -53,6 +53,7 @@ module Make (E : EqType) =
   let additional_values = Obj.size (Obj.repr emptybucket)
 
   type t = {
+    lock : Mutex.t;
     mutable table : elt Weak.t array;
     mutable hashes : int array array;
     mutable limit : int;               (* bucket size limit *)
@@ -69,6 +70,7 @@ module Make (E : EqType) =
     let sz = if sz < 7 then 7 else sz in
     let sz = if sz > Sys.max_array_length then Sys.max_array_length else sz in
     {
+      lock = Mutex.create();
       table = Array.make sz emptybucket;
       hashes = Array.make sz [| |];
       limit = limit;
@@ -76,7 +78,14 @@ module Make (E : EqType) =
       rover = 0;
     }
 
+  let locked t f =
+    Memprof_coq.Masking.with_resource
+      ~acquire:(fun () -> Mutex.lock t.lock) ()
+      ~scope:f
+      ~release:(fun () -> Mutex.unlock t.lock)
+
   let clear t =
+    locked t @@ fun () ->
     for i = 0 to Array.length t.table - 1 do
       t.table.(i) <- emptybucket;
       t.hashes.(i) <- [| |];
@@ -186,6 +195,7 @@ module Make (E : EqType) =
   external unsafe_weak_get : 'a Weak.t -> int -> 'a option = "caml_weak_get"
 
   let repr h d t =
+    locked t @@ fun () ->
     let table = t.table in
     let index = get_index table h in
     let bucket = Array.unsafe_get table index in
@@ -208,6 +218,7 @@ module Make (E : EqType) =
       d
 
   let stats t =
+    locked t @@ fun () ->
     let fold accu bucket = max (count_bucket 0 bucket 0) accu in
     let max_length = Array.fold_left fold 0 t.table in
     let histogram = Array.make (max_length + 1) 0 in
