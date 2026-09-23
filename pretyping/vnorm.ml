@@ -90,6 +90,7 @@ let no_readback_check _ _ _ _ _ = ()
 type env = {
   env : Environ.env;
   norm_params : bool;
+  lossy : bool;
   readback_check : readback_check;
   readback_info : readback_info;
 }
@@ -211,7 +212,7 @@ and nf_whd env sigma whd typ =
   | Vprod p ->
       let dom = nf_vtype env sigma (dom p) in
       let name = Name (Id.of_string "x") in
-      let vc = reduce_fun (nb_rel !!env) (codom p) in
+      let vc = reduce_fun ~lossy:env.lossy (nb_rel !!env) (codom p) in
       let r = Retyping.relevance_of_type !!env sigma (EConstr.of_constr dom) in
       let r = EConstr.Unsafe.to_relevance r in
       let name = make_annot name r in
@@ -257,6 +258,8 @@ and nf_whd env sigma whd typ =
      nf_univ_args ~nb_univs mk env sigma stk
   | Vaccu (Asort s, stk) ->
     assert (List.is_empty stk); mkSort s
+  | Vaccu (Ahole, _) ->
+    CErrors.user_err Pp.(str "vm_compute reduction has produced an incomplete term.")
 
 and nf_univ_args ~nb_univs mk env sigma stk =
   let u =
@@ -349,11 +352,14 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
         let nas = List.rev_map RelDecl.get_annot realdecls @ [nameR (Id.of_string "c")] in
         expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
       in
-      let p, relevance = nf_predicate env sigma (ind,u) mip params (type_of_switch sw) pctx in
+      let p, relevance =
+        nf_predicate env sigma (ind,u) mip params
+          (type_of_switch ~lossy:env.lossy sw) pctx
+      in
       (* Calcul du type des branches *)
       let btypes = build_branches_type !!env sigma ind mib mip u params (pctx, p) in
       (* calcul des branches *)
-      let bsw = branch_of_switch (nb_rel !!env) sw in
+      let bsw = branch_of_switch ~lossy:env.lossy (nb_rel !!env) sw in
       let mkbranch i (n,v) =
         let decl, nas, lft, codom = btypes.(i) in
         let b = nf_val (push_rels_assum decl env) sigma v codom in
@@ -392,7 +398,7 @@ and nf_predicate env sigma ind mip params v pctx =
   | LocalDef _ -> (k + 1, v)
   | LocalAssum _ ->
     match whd_val v with
-    | Vfun f -> (k + 1, reduce_fun k f)
+    | Vfun f -> (k + 1, reduce_fun ~lossy:env.lossy k f)
     | _ -> assert false
   in
   let (_, v) = List.fold_right fold pctx (nb_rel !!env, v) in
@@ -434,7 +440,7 @@ and nf_bargs env sigma b ofs t =
 
 and nf_fun env sigma f typ =
   let k = nb_rel !!env in
-  let vb = reduce_fun k f in
+  let vb = reduce_fun ~lossy:env.lossy k f in
   let name,dom,codom =
     try decompose_prod !!env sigma typ
     with DestKO ->
@@ -449,7 +455,7 @@ and nf_fix env sigma f =
   let init = current_fix f in
   let rec_args = rec_args f in
   let k = nb_rel !!env in
-  let vb, vt = reduce_fix k f in
+  let vb, vt = reduce_fix ~lossy:env.lossy k f in
   let ndef = Array.length vt in
   let ft = Array.map (fun v -> nf_val env sigma v crazy_type) vt in
   let name = Name (Id.of_string "Ffix") in
@@ -475,7 +481,7 @@ and nf_fix_app env sigma f vargs =
 and nf_cofix env sigma cf =
   let init = current_cofix cf in
   let k = nb_rel !!env in
-  let vb,vt = reduce_cofix k cf in
+  let vb,vt = reduce_cofix ~lossy:env.lossy k cf in
   let cft = Array.map (fun v -> nf_val env sigma v crazy_type) vt in
   let name = Name (Id.of_string "Fcofix") in
   let names = Array.map (fun t ->
@@ -507,26 +513,27 @@ let default_vm_flags = {
   vm_normalize_params = false;
 }
 
-let vm_value env sigma c =
+let vm_value ~lossy env sigma c =
   if not (Environ.typing_flags env).enable_VM then
     CErrors.user_err Pp.(str "vm_compute reduction has been disabled.");
   if Termops.occur_meta sigma c then
     CErrors.user_err Pp.(str "vm_compute does not support metas.");
   (* This evar-normalizes terms beforehand. *)
   let c = EConstr.Unsafe.to_constr c in
-  Vmsymtable.val_of_constr env (evars_of_evar_map sigma) c
+  Vmsymtable.val_of_constr ~lossy env (evars_of_evar_map sigma) c
 
 let check_vm readback_check env sigma c t =
-  let v = vm_value env sigma c in
+  let v = vm_value ~lossy:false env sigma c in
   let whd = Vmvalues.whd_val v in
   readback_check { readback_depth = 0 } env sigma t whd
 
-let cbv_vm ?(flags = default_vm_flags) ?readback_check env sigma c t  =
-  let v = vm_value env sigma c in
+let cbv_vm ?(flags = default_vm_flags) ?(lossy=false) ?readback_check env sigma c t  =
+  let v = vm_value ~lossy env sigma c in
   let t = EConstr.Unsafe.to_constr t in
   let env = {
     env;
     norm_params = flags.vm_normalize_params;
+    lossy;
     readback_check = no_readback_check;
     readback_info = {
       readback_depth = 0;

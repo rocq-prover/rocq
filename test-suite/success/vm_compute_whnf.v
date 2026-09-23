@@ -12,7 +12,7 @@ Eval vm_compute_whnf in opaque n.
 
 #[projections(primitive)] Record R := { field : nat }.
 Parameter r : R.
-Eval vm_compute_whnf in field r.
+Fail Eval vm_compute_whnf in field r.
 
 (* Only the outermost term is checked. *)
 Eval vm_compute_whnf in (fun x => Nat.add x 1).

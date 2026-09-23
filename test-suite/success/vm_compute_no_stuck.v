@@ -20,13 +20,29 @@ CoFixpoint zeros : stream := Cons 0 zeros.
 Eval vm_compute_no_stuck in
   match zeros with Cons n _ => n end.
 
-(* Other neutral terms, including stuck projections, are accepted. *)
+(* Neutral applications are preserved until an eliminator actually blocks. *)
 Parameter opaque : nat -> nat.
 Eval vm_compute_no_stuck in opaque 0.
 
 #[projections(primitive)] Record R := { field : nat }.
 Parameter r : R.
-Eval vm_compute_no_stuck in field r.
+
+(* A blocked primitive projection is turned into a payload-free VM hole. *)
+Fail Eval vm_compute_no_stuck in field r.
+Fail Eval vm_compute_no_stuck in Some (field r).
+Fail Eval vm_compute_no_stuck in (fun r : R => field r).
+
+(* Let-bound values are evaluated normally; aliases of neutral values remain
+   neutral and fail only when eliminated. *)
+Eval vm_compute_no_stuck in
+  let r := {| field := 0 |} in field r.
+Fail Eval vm_compute_no_stuck in
+  (fun r : R => let r' := r in field r').
+
+(* The lossy interpreter mode is exclusive to [vm_compute_no_stuck]. *)
+Eval vm_compute in field r.
+Eval vm_compute in Some (field r).
+Eval vm_compute in (fun r : R => field r).
 
 (* Stuck cofixpoints and fixpoints are rejected at any readback depth. *)
 Fail Eval vm_compute_no_stuck in zeros.
@@ -34,9 +50,17 @@ Fail Eval vm_compute_no_stuck in Cons 0 zeros.
 Fail Eval vm_compute_no_stuck in Nat.add.
 Fail Eval vm_compute_no_stuck in (fun n => Nat.add n 1).
 
-(* Stuck matches are rejected. *)
+(* Stuck matches are rejected, whether their scrutinee is a variable or an
+   opaque constant.  Ordinary [vm_compute] retains both neutral terms. *)
+Parameter opaque_nat : nat.
 Fail Eval vm_compute_no_stuck in
-  (fun b => if b then 1 else 2).
+  (fun b : bool => if b then 1 else 2).
+Fail Eval vm_compute_no_stuck in
+  match opaque_nat with O => 0 | S n => n end.
+Eval vm_compute in
+  (fun b : bool => if b then 1 else 2).
+Eval vm_compute in
+  match opaque_nat with O => 0 | S n => n end.
 
 (* Fully applied primitive operations that are stuck are rejected. *)
 Open Scope uint63_scope.

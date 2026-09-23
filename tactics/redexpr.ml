@@ -51,8 +51,8 @@ let cbv_native env sigma c =
 let vm_readback_is_stuck env whd =
   let stuck_stack =
     List.exists (function
-      | Vmvalues.Zfix _ | Vmvalues.Zswitch _ -> true
-      | Vmvalues.Zapp _ | Vmvalues.Zproj _ -> false)
+      | Vmvalues.Zfix _ | Vmvalues.Zswitch _ | Vmvalues.Zproj _ -> true
+      | Vmvalues.Zapp _ -> false)
   in
   let fully_applied_primitive atom stack = match atom, stack with
   | Vmvalues.Aid (Vmvalues.ConstKey cst), Vmvalues.Zapp args :: _ ->
@@ -67,10 +67,11 @@ let vm_readback_is_stuck env whd =
     end
   | Vmvalues.Aid (Vmvalues.ConstKey _ | Vmvalues.VarKey _ | Vmvalues.RelKey _ |
       Vmvalues.EvarKey _), _
-  | Vmvalues.Aind _, _ | Vmvalues.Asort _, _ -> false
+  | Vmvalues.Aind _, _ | Vmvalues.Asort _, _ | Vmvalues.Ahole, _ -> false
   in
   match whd with
   | Values.Vfix _ | Values.Vcofix _ -> true
+  | Values.Vaccu (Vmvalues.Ahole, _) -> true
   | Values.Vaccu (atom, stack) ->
     stuck_stack stack || fully_applied_primitive atom stack
   | Values.Vfun _ | Values.Vprod _ | Values.Vconst _ | Values.Vblock _
@@ -107,7 +108,7 @@ let whnf_is_stuck env sigma c =
 let cbv_vm_no_stuck env sigma c =
   if (Environ.typing_flags env).enable_VM then
     let ctyp = Retyping.get_type_of env sigma c in
-    Vnorm.cbv_vm ~readback_check:vm_compute_no_stuck_readback_check env sigma c ctyp
+    Vnorm.cbv_vm ~lossy:true ~readback_check:vm_compute_no_stuck_readback_check env sigma c ctyp
   else begin
     warn_vm_disabled ();
     compute env sigma c
