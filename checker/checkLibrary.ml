@@ -466,14 +466,19 @@ let recheck_library senv ~norec ~admit ~check =
             if is_prof then Some (NewProfile.with_profiling parallel_check)
             else begin parallel_check(); None end))
   in
-  let senv = List.fold_left (check_one_lib nochk) (senv, Mod_checking.empty_opaques) needed in
+  let senv =
+    NewProfile.profile "main_thread" (fun () ->
+        List.fold_left (check_one_lib nochk) (senv, Mod_checking.empty_opaques) needed)
+      ()
+  in
   let () = Mod_checking.(set_done await) in
   let () = parallel_check() in
   let () = Array.iter (fun dom ->
       match Domain.join dom with
       | None -> ()
       | Some (events, sums, ()) ->
-        NewProfile.insert_results events sums)
+        NewProfile.profile "insert_results" (fun () ->
+        NewProfile.insert_results events sums) ())
       domains
   in
   Flags.if_verbose Feedback.msg_notice (str"Modules were successfully checked");
