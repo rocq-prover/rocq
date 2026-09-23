@@ -22,7 +22,7 @@ sig
   val empty : t
   (** No bound sort variables *)
 
-  val generate : UVars.AbstractContext.t -> t list
+  val generate : Environ.env -> UVars.AbstractContext.t -> t list
   (** 2^n possible instances for this context *)
 
   val ground : UVars.Instance.t -> t
