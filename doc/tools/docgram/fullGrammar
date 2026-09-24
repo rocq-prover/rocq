@@ -21,19 +21,15 @@ cpattern: [
 | lconstr
 ]
 
-typeloc: [
-| "Type"
-]
-
 sort: [
 | "Set"
 | "Prop"
 | "SProp"
-| typeloc
-| typeloc "@{" "_" "}"
-| typeloc "@{" test_old_sort_qvar reference "|" universe "}"
-| typeloc "@{" test_sort_qvar reference ";" universe "}"
-| typeloc "@{" universe "}"
+| "Type"
+| "Type" "@{" "_" "}"
+| "Type" "@{" test_old_sort_qvar reference "|" universe "}"
+| "Type" "@{" test_sort_qvar reference ";" universe "}"
+| "Type" "@{" universe "}"
 | "Univ" "@{" test_sort_qvar reference ";" universe "}"
 | "Univ" "@{" universe "}"
 | "Univ"
