@@ -3,3 +3,4 @@
 *.real
 _test
 load-succeed/
+locate-library/
