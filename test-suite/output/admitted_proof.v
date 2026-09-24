@@ -23,6 +23,5 @@ Set Warnings "+admitted-proof".
 Lemma rejected_admission : True.
 Proof.
 Fail Admitted.
-Set Warnings "admitted-proof".
 exact I.
 Qed.
