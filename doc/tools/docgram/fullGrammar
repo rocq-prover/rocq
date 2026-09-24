@@ -29,7 +29,7 @@ sort: [
 | "Type" "@{" test_sort_qvar reference ";" universe "}"
 | "Type" "@{" universe "}"
 | "Univ" "@{" test_sort_qvar reference ";" universe "}"
-| "Univ" "@{" universe "}"
+| "Univ" "@{" OPT [ "_" ";" ] universe "}"
 | "Univ"
 ]
 

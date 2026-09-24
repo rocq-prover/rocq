@@ -331,6 +331,9 @@ sort: [
 | REPLACE "Type" "@{" reference ";" universe "}"
 | WITH "Type" "@{" OPT [ qualid ";" ] universe "}"
 | DELETE "Type" "@{" universe "}"
+| REPLACE "Univ" "@{" reference ";" universe "}"
+| WITH "Univ" "@{" OPT [ [ qualid | "_" ] ";" ] universe "}"
+| DELETE "Univ" "@{" OPT [ "_" ";" ] universe "}"
 ]
 
 term100: [

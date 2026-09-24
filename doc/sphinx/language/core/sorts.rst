@@ -16,10 +16,9 @@ Sorts
    | Prop
    | SProp
    | Type
-   | Type @%{ {? @qualid ; } @universe %}
-   | Univ @%{ @qualid ; @universe %}
-   | Univ @%{ @universe %}
    | Univ
+   | Type @%{ {? @qualid ; } @universe %}
+   | Univ @%{ {? {| @qualid | _ } ; } @universe %}
    universe ::= max ( {+, @universe_expr } )
    | _
    | @universe_expr

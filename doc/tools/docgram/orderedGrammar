@@ -288,10 +288,9 @@ sort: [
 | "Prop"
 | "SProp"
 | "Type"
-| "Type" "@{" OPT [ qualid ";" ] universe "}"
-| "Univ" "@{" qualid ";" universe "}"
-| "Univ" "@{" universe "}"
 | "Univ"
+| "Type" "@{" OPT [ qualid ";" ] universe "}"
+| "Univ" "@{" OPT [ [ qualid | "_" ] ";" ] universe "}"
 ]
 
 universe: [
