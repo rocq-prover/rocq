@@ -24,18 +24,18 @@ Extraction TestCompile hell.
 
 Module Foo.
 
-Definition foo@{s1 s2| |} := fun (A : Type@{s1|Set}) (x : A) => x.
+Definition foo@{s1 s2; |} := fun (A : Type@{s1;Set}) (x : A) => x.
 
-Definition foo0 := foo@{SProp Type|}.
-Definition foo1 := foo@{Type SProp|}.
+Definition foo0 := foo@{SProp Type;}.
+Definition foo1 := foo@{Type SProp;}.
 
-Inductive T@{s| |} : Type@{s|Set} := O : T | S : T -> T.
+Inductive T@{s; |} : Type@{s;Set} := O : T | S : T -> T.
 
-Inductive box@{s1 s2| |} (A : Type@{s1|Set}) (B : Type@{s2|Set}) : Type@{Set} := Box : A -> B -> box A B.
+Inductive box@{s1 s2; |} (A : Type@{s1;Set}) (B : Type@{s2;Set}) : Type@{Set} := Box : A -> B -> box A B.
 
 Definition bar (A : Type) (x : A) := 0.
 
-Definition qux := bar (forall A : Prop, A -> A) foo@{Prop Type|}.
+Definition qux := bar (forall A : Prop, A -> A) foo@{Prop Type;}.
 
 End Foo.
 
@@ -44,11 +44,11 @@ Extraction TestCompile Foo.
 (* Check module subtyping *)
 
 Module Type S.
-Inductive box@{s1 s2| |} (A : Type@{s1|Set}) (B : Type@{s2|Set}) : Type@{Set} := Box : A -> B -> box A B.
+Inductive box@{s1 s2; |} (A : Type@{s1;Set}) (B : Type@{s2;Set}) : Type@{Set} := Box : A -> B -> box A B.
 End S.
 
 Module Bar : S.
-Inductive box@{s1 s2| |} (A : Type@{s1|Set}) (B : Type@{s2|Set}) : Type@{Set} := Box : A -> B -> box A B.
+Inductive box@{s1 s2; |} (A : Type@{s1;Set}) (B : Type@{s2;Set}) : Type@{Set} := Box : A -> B -> box A B.
 End Bar.
 
 Extraction TestCompile Bar.

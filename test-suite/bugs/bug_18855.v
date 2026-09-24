@@ -1,6 +1,6 @@
 (* -*- mode: coq; coq-prog-args: ("-allow-rewrite-rules") -*- *)
 
-#[universes(polymorphic)] Inductive I@{q| |} (A : Type@{q|Set}) (a : A) : Set := C.
+#[universes(polymorphic)] Inductive I@{q; |} (A : Type@{q;Set}) (a : A) : Set := C.
 
 Inductive sbool : SProp := strue | sfalse.
 
