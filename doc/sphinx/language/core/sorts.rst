@@ -16,7 +16,6 @@ Sorts
    | Prop
    | SProp
    | Type
-   | Type @%{ _ %}
    | Type @%{ {? @qualid ; } @universe %}
    | Univ @%{ @qualid ; @universe %}
    | Univ @%{ @universe %}

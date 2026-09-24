@@ -26,7 +26,6 @@ sort: [
 | "Prop"
 | "SProp"
 | "Type"
-| "Type" "@{" "_" "}"
 | "Type" "@{" test_sort_qvar reference ";" universe "}"
 | "Type" "@{" universe "}"
 | "Univ" "@{" test_sort_qvar reference ";" universe "}"
