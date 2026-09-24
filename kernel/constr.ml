@@ -998,9 +998,6 @@ let leq_constr_univs univs m n =
     and leq_constr' nargs m n = m == n || compare_leq nargs m n in
     compare_leq 0 m n
 
-let rec eq_constr_nounivs m n =
-  (m == n) || compare_head_gen (fun _ _ _ -> true) (fun _ _ -> true) (eq_existential eq_constr_nounivs) (fun _ -> eq_constr_nounivs) 0 m n
-
 (*******************)
 (*  hash-consing   *)
 (*******************)

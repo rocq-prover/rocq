@@ -297,6 +297,15 @@ let elaborate_to_post_params env sigma ty_ind params =
     if (List.for_all only_copy to_post_0) then [||] else [|to_post_0|] in
   to_post, pt_refs
 
+let rec eq_constr_nounivs m n =
+  m == n || Constr.compare_head_gen_leq_with Constr.kind Constr.kind
+    (fun _ _ _ -> true) (fun _ _ -> true) eq_evars eq_constr_nounivs0 eq_constr_nounivs0 0 m n
+
+and eq_evars (evk1, args1) (evk2, args2) =
+  Evar.equal evk1 evk2 && SList.equal eq_constr_nounivs args1 args2
+
+and eq_constr_nounivs0 _ m n = eq_constr_nounivs m n
+
 (* [elaborate_to_post_via env sigma ty_name ty_ind l] builds the [to_post]
    translation (c.f., interp/notation.mli) for the number notation to
    parse/print type [ty_name] through the inductive [ty_ind] according
@@ -368,7 +377,7 @@ let elaborate_to_post_via env sigma ty_name ty_ind l =
         match CMap.find_opt ckey m with
         | None -> CMap.add ckey cval m
         | Some old_cval ->
-           if not (Constr.eq_constr_nounivs old_cval cval) then
+           if not (eq_constr_nounivs old_cval cval) then
              warn_via_remapping ?loc (env, sigma, ckey, old_cval, cval);
            m in
       List.fold_left
@@ -390,7 +399,7 @@ let elaborate_to_post_via env sigma ty_name ty_ind l =
     List.iter (fun (_, cnst, tcnst, loc, indc, tindc, impls) ->
         let tcnst = rm_impls impls tcnst in
         let tcnst' = replace CMap.empty tcnst in
-        if not (Constr.eq_constr_nounivs tcnst' (replace ind2ty tindc)) then
+        if not (eq_constr_nounivs tcnst' (replace ind2ty tindc)) then
           let actual = replace CMap.empty tindc in
           let expected = replace ty2ind tcnst in
           warn_via_type_mismatch ?loc (env, sigma, indc, cnst, expected, actual))

@@ -422,10 +422,6 @@ val eq_constr_univs : UGraph.t -> constr -> constr -> bool
     alpha, casts, application grouping and the universe inequalities in [u]. *)
 val leq_constr_univs : UGraph.t -> constr -> constr -> bool
 
-(** [eq_constr_univs a b] [true, c] if [a] equals [b] modulo alpha, casts,
-   application grouping and ignoring universe instances. *)
-val eq_constr_nounivs : constr -> constr -> bool
-
 (** {6 Extension of Context with declarations on constr} *)
 
 type rel_declaration = (constr, types, Sorts.relevance) Context.Rel.Declaration.pt

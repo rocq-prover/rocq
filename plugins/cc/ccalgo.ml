@@ -136,6 +136,15 @@ type 'a term =
   | Appli of 'a * 'a
   | Constructor of cinfo (* constructor arity + nhyps *)
 
+let rec eq_constr_nounivs m n =
+  m == n || Constr.compare_head_gen_leq_with Constr.kind Constr.kind
+    (fun _ _ _ -> true) (fun _ _ -> true) eq_evars eq_constr_nounivs0 eq_constr_nounivs0 0 m n
+
+and eq_evars (evk1, args1) (evk2, args2) =
+  Evar.equal evk1 evk2 && SList.equal eq_constr_nounivs args1 args2
+
+and eq_constr_nounivs0 _ m n = eq_constr_nounivs m n
+
 (* terms with eagerly cached constr and hash *)
 module ATerm :
 sig
