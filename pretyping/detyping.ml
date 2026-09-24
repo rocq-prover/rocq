@@ -289,12 +289,12 @@ let detype_sort ~universes ~qualities sigma = function
     if universes then
       let q = if qualities || Evd.is_rigid_qvar sigma q then
           Some (detype_qvar sigma q)
-        else None
+        else Some (GLocalQVar (CAst.make Anonymous))
       in
       q, detype_universe sigma u
     else if Evd.is_rigid_qvar sigma q then
       Some (detype_qvar sigma q), UAnonymous {rigid=UState.univ_flexible}
-    else glob_Type_sort
+    else glob_Univ_sort
 
 let detype_sort_f ~flags sigma s =
   detype_sort ~universes:flags.flg.universes ~qualities:flags.flg.qualities sigma s

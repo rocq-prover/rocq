@@ -154,13 +154,13 @@ the actual instantiation of sorts.
 
     Set Universe Polymorphism.
 
-    Inductive eq@{s; u} (A : Type@{s;u}) (a : A) : A -> Prop :=
+    Inductive eq@{s; u} (A : Univ@{s;u}) (a : A) : A -> Prop :=
       eq_refl : eq A a a.
 
     Arguments eq {_}.
     Arguments eq_refl {_ _}.
 
-   Record RSToS'@{s s'; u u'| s' -> s +} (A : Type@{s;u}): Type@{s';u'} := {
+   Record RSToS'@{s s'; u u'| s' -> s +} (A : Univ@{s;u}): Univ@{s';u'} := {
      rsprj : A
    }.
 

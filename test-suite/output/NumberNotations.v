@@ -44,7 +44,7 @@ Module Test4.
   Declare Scope utp.
   Declare Scope upp.
   Declare Scope ppps.
-  Polymorphic NonCumulative Inductive punit := ptt.
+  Polymorphic NonCumulative Inductive punit@{i} : Type@{i} := ptt.
   Polymorphic Definition pto_punit (v : Number.uint) : option punit := match Nat.of_num_uint v with O => Some ptt | _ => None end.
   Polymorphic Definition pto_punit_all (v : Number.uint) : punit := ptt.
   Polymorphic Definition pof_punit (v : punit) : Number.uint := Nat.to_num_uint 0.

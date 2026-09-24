@@ -11,12 +11,12 @@ Module Poly.
   Set Universe Polymorphism.
   Unset Collapse Sorts ToType.
 
-  Inductive pTrue : Type := pI.
+  Inductive pTrue : Univ := pI.
 
   (* sanity check instance length *)
   Check pTrue@{_;_}.
 
-  Class Foo (x : Type) : Type := foo : x.
+  Class Foo (x : Univ) : Type := foo : x.
   Definition Bar := Foo pTrue.
 
   (* sanity check instance length *)

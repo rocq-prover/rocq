@@ -184,6 +184,11 @@ let build_type_telescope ~unconstrained_sorts newps env0 sigma { DataI.arity; _ 
     let impls = Constrintern.empty_internalization_env in
     let sigma, s =
       let t = Constrintern.intern_gen IsType ~impls env sigma t in
+      let t =
+        match ComInductive.Internal.make_anonymous_conclusion_flexible t with
+        | Some t -> t
+        | None -> t
+      in
       let flags = { Pretyping.all_no_fail_flags with program_mode = false; unconstrained_sorts } in
       Pretyping.understand_tcc ~flags env sigma ~expected_type:IsType t
     in
