@@ -542,8 +542,8 @@ Explicit Universes
    | SProp
    | Type
    | @qualid
-   univ_decl ::= @%{ {? {* @ident } ; } {* @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
-   cumul_univ_decl ::= @%{ {? {* @ident } ; } {* {? {| + | = | * } } @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
+   univ_decl ::= @%{ {? {* @ident } {? + } ; } {* @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
+   cumul_univ_decl ::= @%{ {? {* @ident } {? + } ; } {* {? {| + | = | * } } @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
    sort_constraint ::= @universe_name {| < | = | <= } @universe_name
    | @sort_quality_var -> @sort_quality_var
 

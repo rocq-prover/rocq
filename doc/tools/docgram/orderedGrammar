@@ -332,11 +332,11 @@ sort_quality_var: [
 ]
 
 univ_decl: [
-| "@{" OPT [ LIST0 ident ";" ] LIST0 ident OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
+| "@{" OPT [ LIST0 ident OPT "+" ";" ] LIST0 ident OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
 ]
 
 cumul_univ_decl: [
-| "@{" OPT [ LIST0 ident ";" ] LIST0 ( OPT [ "+" | "=" | "*" ] ident ) OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
+| "@{" OPT [ LIST0 ident OPT "+" ";" ] LIST0 ( OPT [ "+" | "=" | "*" ] ident ) OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
 ]
 
 sort_constraint: [

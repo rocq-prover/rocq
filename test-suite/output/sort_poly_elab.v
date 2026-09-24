@@ -11,7 +11,7 @@ Module Reduction.
   (* qsort@{α ; u |} = Univ@{α ; u} : Univ@{u+1} *)
   About qsort.
 
-  Definition qsort' : Univ := Univ.
+  Definition qsort'@{+;+} : Univ := Univ.
   (* qsort'@{α ; u u0 |} = Univ@{α ; u0} : Univ@{u} *)
   About qsort'.
 
