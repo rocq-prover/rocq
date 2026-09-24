@@ -953,9 +953,6 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
    [compare_head_gen_with] is a variant taking kind-of-term functions,
    to expose subterms of [c1] and [c2], as arguments. *)
 
-let compare_head_gen_with kind1 kind2 eq_universes eq_sorts eq_evars eq t1 t2 =
-  compare_head_gen_leq_with kind1 kind2 eq_universes eq_sorts eq_evars eq eq t1 t2
-
 let compare_head_gen eq_universes eq_sorts eq_evars eq t1 t2 =
   compare_head_gen_leq_with kind kind eq_universes eq_sorts eq_evars eq eq t1 t2
 

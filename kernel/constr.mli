@@ -563,19 +563,6 @@ val compare_head_gen_leq_with :
   'v constr_compare_fn ->
   'v constr_compare_fn
 
-(** [compare_head_gen_with k1 k2 u s f c1 c2] compares [c1] and [c2]
-    like [compare_head_gen u s f c1 c2], except that [k1] (resp. [k2])
-    is used,rather than {!kind}, to expose the immediate subterms of
-    [c1] (resp. [c2]). *)
-val compare_head_gen_with :
-  ('v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term) ->
-  ('v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term) ->
-  'univs instance_compare_fn ->
-  ('sort -> 'sort -> bool) ->
-  ('v pexistential -> 'v pexistential -> bool) ->
-  'v constr_compare_fn ->
-  'v constr_compare_fn
-
 val eq_invert : ('a -> 'a -> bool)
   -> 'a pcase_invert -> 'a pcase_invert -> bool
 

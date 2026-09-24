@@ -807,6 +807,6 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
   let kind1 = kind_of_term_upto evd in
   let kind2 = kind_of_term_upto extended_evd in
   let rec eq_constr' nargs m n =
-    Constr.compare_head_gen_with kind1 kind2 eq_universes eq_sorts (eq_existential eq_constr') eq_constr' nargs m n
+    Constr.compare_head_gen_leq_with kind1 kind2 eq_universes eq_sorts (eq_existential eq_constr') eq_constr' eq_constr' nargs m n
   in
-  Constr.compare_head_gen_with kind1 kind2 eq_universes eq_sorts (eq_existential eq_constr') eq_constr' 0 t u
+  compare_head_gen_leq_with kind1 kind2 eq_universes eq_sorts (eq_existential eq_constr') eq_constr' eq_constr' 0 t u
