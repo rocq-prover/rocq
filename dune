@@ -4,7 +4,7 @@
           (rocq (flags :standard -w +default)))
  (sl_timing
           (flags :standard)
-          (ocamlopt_flags :standard -O3 -unbox-closures))
+          (ocamlopt_flags :standard -O3))
  (release (flags :standard)
           (ocamlopt_flags :standard -O3 -unbox-closures))
  (ireport (flags :standard -w -9-27+60-70)
