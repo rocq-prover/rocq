@@ -414,11 +414,12 @@ let type_of_constructors (_, u) (mib, mip) =
   let u = get_template_instance mib u in
   Array.map (subst_instance_constr u) mip.mind_user_lc
 
+(* This function is only used by plugins, who cares about name aliasing? *)
 let abstract_constructor_type_relatively_to_inductive_types_context ntyps mind t =
   let rec replace_ind k c =
     let hd, args = decompose_app c in
     match kind hd with
-    | Ind ((mind',i),_) when MutInd.CanOrd.equal mind mind' ->
+    | Ind ((mind',i),_) when MutInd.UserOrd.equal mind mind' ->
        mkApp (mkRel (ntyps+k-i), Array.map (replace_ind k) args)
     | _ -> map_with_binders succ replace_ind k c
   in
@@ -773,12 +774,12 @@ let lambda_implicit n a =
   let lambda_implicit a = mkLambda (anon, dummy_implicit_sort, a) in
   iterate lambda_implicit n a
 
-let abstract_mind_lc ntyps npars mind lc =
+let abstract_mind_lc env ntyps npars mind lc =
   let lc = Array.map (fun (ctx, c) -> Term.it_mkProd_or_LetIn c ctx) lc in
   let rec replace_ind k c =
     let hd, args = decompose_app_list c in
     match kind hd with
-    | Ind ((mind',i),_) when MutInd.CanOrd.equal mind mind' ->
+    | Ind ((mind',i),_) when QMutInd.equal env mind mind' ->
       let rec drop_params n = function
         | _ :: args when n > 0 -> drop_params (n-1) args
         | args -> lambda_implicit n (Term.applist (mkRel (ntyps+n+k-i), List.Smart.map (replace_ind (n+k)) args))
@@ -1027,7 +1028,7 @@ let get_recargs_approx ?evars env tree ind args =
     in
     let mk_irecargs j mip =
       (* The nested inductive type with parameters removed *)
-      let auxlcvect = abstract_mind_lc auxntyp mib.mind_nparams_rec mind mip.mind_nf_lc in
+      let auxlcvect = abstract_mind_lc env auxntyp mib.mind_nparams_rec mind mip.mind_nf_lc in
       let paths = Array.mapi
         (fun k c ->
          let c' = hnf_prod_applist ?evars env' c lpar' in

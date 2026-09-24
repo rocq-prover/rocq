@@ -307,7 +307,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
       let auxntyp = Declareops.mind_ntypes mib in
         if not (Int.equal auxntyp 1) then raise (IllFormedInd (LocalNonPos n));
         (* The nested inductive type with parameters removed *)
-        let auxlcvect = abstract_mind_lc auxntyp auxnrecpar mind mip.mind_nf_lc in
+        let auxlcvect = abstract_mind_lc env auxntyp auxnrecpar mind mip.mind_nf_lc in
           (* Extends the environment with a variable corresponding to
              the inductive def *)
         let (env',_,_,_ as ienv') = ienv_push_inductive ienv ((ind, u), auxrecparams, mib.mind_finite) in
