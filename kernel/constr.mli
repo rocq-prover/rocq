@@ -551,28 +551,11 @@ val fold_constr_with_binders :
 
 type 'constr constr_compare_fn = int -> 'constr -> 'constr -> bool
 
-(** [compare_head f c1 c2] compare [c1] and [c2] using [f] to compare
-   the immediate subterms of [c1] of [c2] if needed; Cast's, binders
-   name and Cases annotations are not taken into account *)
-
-val compare_head : (existential -> existential -> bool) -> constr constr_compare_fn -> constr constr_compare_fn
-
 (** Convert a global reference applied to 2 instances. The int says
    how many arguments are given (as we can only use cumulativity for
    fully applied inductives/constructors) .*)
 type 'univs instance_compare_fn = (GlobRef.t * int) option ->
   'univs -> 'univs -> bool
-
-(** [compare_head_gen u s f c1 c2] compare [c1] and [c2] using [f] to
-   compare the immediate subterms of [c1] of [c2] if needed, [u] to
-   compare universe instances, [s] to compare sorts; Cast's, binders
-   name and Cases annotations are not taken into account *)
-
-val compare_head_gen : UVars.Instance.t instance_compare_fn ->
-  (Sorts.t -> Sorts.t -> bool) ->
-  (existential -> existential -> bool) ->
-  constr constr_compare_fn ->
-  constr constr_compare_fn
 
 val compare_head_gen_leq_with :
   ('v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term) ->
@@ -596,20 +579,6 @@ val compare_head_gen_with :
   ('v pexistential -> 'v pexistential -> bool) ->
   'v constr_compare_fn ->
   'v constr_compare_fn
-
-(** [compare_head_gen_leq u s f fle c1 c2] compare [c1] and [c2] using
-    [f] to compare the immediate subterms of [c1] of [c2] for
-    conversion, [fle] for cumulativity, [u] to compare universe
-    instances (the first boolean tells if they belong to a Constant.t),
-    [s] to compare sorts for for subtyping; Cast's, binders name and
-    Cases annotations are not taken into account *)
-
-val compare_head_gen_leq : UVars.Instance.t instance_compare_fn ->
-  (Sorts.t -> Sorts.t -> bool) ->
-  (existential -> existential -> bool) ->
-  constr constr_compare_fn ->
-  constr constr_compare_fn ->
-  constr constr_compare_fn
 
 val eq_invert : ('a -> 'a -> bool)
   -> 'a pcase_invert -> 'a pcase_invert -> bool
