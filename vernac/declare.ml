@@ -2222,7 +2222,10 @@ let get_current_context pf =
 let warn_admitted_proof =
   CWarnings.create ~name:"admitted-proof"
     ~category:CWarnings.CoreCategories.vernacular ~default:CWarnings.Disabled
-    (fun () -> Pp.str "A proof was admitted.")
+    Pp.(fun cinfo ->
+        str "Admitting" ++ spc() ++
+        prlist_with_sep spc (fun {CInfo.name} -> Id.print name) cinfo ++
+        str ".")
 
 let { Goptions.get = get_keep_admitted_vars } =
   Goptions.declare_bool_option_and_ref
@@ -2258,9 +2261,9 @@ let check_type_evars_solved env sigma typ =
   | evk::_ -> CErrors.user_err (str "Cannot admit: the statement has unresolved existential variables.")
 
 let finish_admitted ~pm ~pinfo ~sec_vars typs =
-  warn_admitted_proof ();
   (* If the constant was an obligation we need to update the program map *)
   let { Proof_info.info; cinfo } = pinfo in
+  warn_admitted_proof cinfo;
   match CEphemeron.default pinfo.Proof_info.proof_ending Proof_ending.Regular with
   | Proof_ending.End_obligation oinfo ->
     let declare_fun ~uctx ~mono_uctx_extra typ =
