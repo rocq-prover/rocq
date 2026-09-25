@@ -530,7 +530,7 @@ Explicit Universes
    universe_name ::= @qualid
    | Set
    | Prop
-   univ_annot ::= @%{ {* @univ_level_or_quality } {? {| %| | ; } {* @univ_level_or_quality } } %}
+   univ_annot ::= @%{ {* @univ_level_or_quality } {? ; {* @univ_level_or_quality } } %}
    univ_level_or_quality ::= 0
    | Set
    | SProp
@@ -542,8 +542,8 @@ Explicit Universes
    | SProp
    | Type
    | @qualid
-   univ_decl ::= @%{ {? {* @ident } {| %| | ; } } {* @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
-   cumul_univ_decl ::= @%{ {? {* @ident } {| %| | ; } } {* {? {| + | = | * } } @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
+   univ_decl ::= @%{ {? {* @ident } {? + } ; } {* @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
+   cumul_univ_decl ::= @%{ {? {* @ident } {? + } ; } {* {? {| + | = | * } } @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
    sort_constraint ::= @universe_name {| < | = | <= } @universe_name
    | @sort_quality_var -> @sort_quality_var
 
@@ -807,16 +807,6 @@ We have the equivalences `Univ@{Prop;_} = Prop`, `Univ@{SProp;_} = SProp` and
 .. rocqtop:: all
 
    Polymorphic Definition sort@{s ; u} := Univ@{s;u}.
-
-.. note::
-
-   The following deprecated syntax is equivalent:
-
-   .. rocqtop:: all warn
-
-      Polymorphic Definition sort'@{s | u |} := Univ@{s;u}.
-
-   To help the parser, both `|` in the :n:`@univ_decl` are required.
 
 Sort quality variables of a sort polymorphic definition may be
 instantiated by the concrete values `SProp`, `Prop` and `Type` or by a

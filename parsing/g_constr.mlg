@@ -80,12 +80,6 @@ let test_array_closing =
     lk_kw "|" >> lk_kw "]" >> check_no_space
   end
 
-let test_old_sort_qvar =
-  let open Procq.Lookahead in
-  to_entry "test_old_sort_qvar" begin
-    lk_ident >> lk_list lk_field >> lk_kw "|"
-  end
-
 let test_sort_qvar =
   let open Procq.Lookahead in
   to_entry "test_sort_qvar" begin
@@ -97,11 +91,6 @@ let test_record_nowith =
   to_entry "test_record_nowith" begin
     lk_kw "}" <+> lk_kw "|}" <+> (lk_ident >> lk_list lk_field >> lk_except_kws ["with"; ".("])
   end
-
-
-let warn_old_sort_syntax =
-  CWarnings.create ~name:"deprecated-sort-poly-syntax" ~category:Deprecation.Version.v9_1
-    Pp.(fun () -> str "Support for Type@{s|l} is deprecated." ++ spc () ++ str"Use \"Univ@{s;l}\" instead.")
 
 let warn_old_type_univ_syntax =
   CWarnings.create ~name:"deprecated-type-sort-poly-syntax" ~category:Deprecation.Version.v9_3
@@ -165,19 +154,13 @@ GRAMMAR EXTEND Gram
       | "Prop" -> { None, UNamed [CProp, 0] }
       | "SProp" -> { None, UNamed [CSProp, 0] }
       | "Type" -> { None, UAnonymous {rigid=UnivRigid} }
-      | "Type"; "@{"; "_"; "}" -> { None, UAnonymous {rigid=UnivFlexible false} }
-      | "Type"; "@{"; test_old_sort_qvar; q = reference; pipe_loc = [ "|" -> { loc } ]; u = universe; "}" -> {
-          warn_old_type_univ_syntax ~loc ();
-          warn_old_sort_syntax ~loc:pipe_loc ();
-          Some (CQVar q), u
-        }
       | "Type"; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> {
           warn_old_type_univ_syntax ~loc ();
           Some (CQVar q), u
         }
       | "Type"; "@{"; u = universe; "}" -> { None, u }
       | "Univ"; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> { Some (CQVar q), u }
-      | "Univ"; "@{"; u = universe; "}" -> { Some (CQAnon (Some loc)), u }
+      | "Univ"; "@{"; OPT [ "_"; ";" -> { () } ]; u = universe; "}" -> { Some (CQAnon (Some loc)), u }
       | "Univ" -> { Some (CQAnon (Some loc)), UAnonymous {rigid=UnivRigid} }
 
       ] ]
@@ -373,12 +356,12 @@ GRAMMAR EXTEND Gram
       | -> { [] } ] ]
   ;
   univ_annot:
-    [ [ "@{"; l = LIST0 univ_level_or_quality; l' = OPT [ is_pipe = [ "|" -> { Some loc } | ";" -> { None } ]; l' = LIST0 univ_level_or_quality -> { is_pipe, l' } ]; "}" ->
+    [ [ "@{"; l = LIST0 univ_level_or_quality;
+              l' = OPT [ ";"; l' = LIST0 univ_level_or_quality -> { l' } ]; "}" ->
         {
           let l, l' = match l' with
             | None -> [], List.map (force_univ_level ~loc) l
-            | Some (is_pipe, l') ->
-              let () = Option.iter (fun loc -> warn_old_sort_syntax ~loc ()) is_pipe in
+            | Some l' ->
               List.map (force_quality ~loc) l, List.map (force_univ_level ~loc) l'
           in
           Some (l,l')

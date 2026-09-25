@@ -16,11 +16,9 @@ Sorts
    | Prop
    | SProp
    | Type
-   | Type @%{ _ %}
-   | Type @%{ {? @qualid {| %| | ; } } @universe %}
-   | Univ @%{ @qualid ; @universe %}
-   | Univ @%{ @universe %}
    | Univ
+   | Type @%{ {? @qualid ; } @universe %}
+   | Univ @%{ {? {| @qualid | _ } ; } @universe %}
    universe ::= max ( {+, @universe_expr } )
    | _
    | @universe_expr
@@ -98,8 +96,9 @@ solved. From the user point of view we consequently have :math:`\Type:\Type`. We
 shall make precise in the typing rules the constraints between the
 indices.
 
-The syntax :n:`Type@{@qualid | @universe}` is used with
-:ref:`polymorphicuniverses` when quantifying over all sorts including
-:math:`\Prop` and :math:`\SProp`.
+The syntax :n:`Univ@{@qualid ; @universe}` is used with
+:ref:`sort-polymorphism` when quantifying over all sorts including
+:math:`\Prop` and :math:`\SProp`. :n:`Type@{@qualid ; @universe}` is a
+deprecated equivalent.
 
 .. seealso:: :ref:`printing-universes`, :ref:`explicit-universes`.

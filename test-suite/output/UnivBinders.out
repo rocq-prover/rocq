@@ -288,20 +288,11 @@ Tactic failure: Not equal (due to universes).
 eq_rect
      : forall (A : Type@{eq_rect.u1}) (x : A) (P : A -> Type@{eq_rect.u0}),
        P x -> forall y : A, x = y -> P y
-File "./output/UnivBinders.v", line 268, characters 18-19:
-Warning: Support for Type@{s|l} is deprecated. Use "Univ@{s;l}" instead.
-[deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/UnivBinders.v", line 268, characters 26-36:
+File "./output/UnivBinders.v", line 266, characters 26-36:
 Warning: Support for Type@{s;l} is deprecated. Use "Univ@{s;l}" instead.
 [deprecated-type-sort-poly-syntax,deprecated-since-9.3,deprecated,default]
 Quickfix:
-Replace File "./output/UnivBinders.v", line 268, characters 26-30 with Univ
-File "./output/UnivBinders.v", line 268, characters 33-34:
-Warning: Support for Type@{s|l} is deprecated. Use "Univ@{s;l}" instead.
-[deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/UnivBinders.v", line 274, characters 16-17:
-Warning: Support for Type@{s|l} is deprecated. Use "Univ@{s;l}" instead.
-[deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
+Replace File "./output/UnivBinders.v", line 266, characters 26-30 with Univ
 id@{Prop ; Set}
      : forall A : Prop, A -> A
 id@{SProp ; Set}
