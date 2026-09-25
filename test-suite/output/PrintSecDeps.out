@@ -2,25 +2,25 @@ bla : Prop
 
 bla is not universe polymorphic
 bla uses section variables A x.
-bla is transparent
+bla is transparent (level -1)
 Expands to: Constant PrintSecDeps.S.bla
 Declared in library PrintSecDeps, line 6, characters 13-16
 bli : nat
 
 bli is not universe polymorphic
-bli is transparent
+bli is transparent (level -1)
 Expands to: Constant PrintSecDeps.S.bli
 Declared in library PrintSecDeps, line 10, characters 13-16
 bla : forall A : Type, A -> Prop
 
 bla is not universe polymorphic
 Arguments bla A%_type_scope x
-bla is transparent
+bla is transparent (level -1)
 Expands to: Constant PrintSecDeps.bla
 Declared in library PrintSecDeps, line 6, characters 13-16
 bli : nat
 
 bli is not universe polymorphic
-bli is transparent
+bli is transparent (level -1)
 Expands to: Constant PrintSecDeps.bli
 Declared in library PrintSecDeps, line 10, characters 13-16

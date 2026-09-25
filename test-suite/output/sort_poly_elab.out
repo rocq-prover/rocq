@@ -2,14 +2,14 @@ qsort@{α ; u} : Type@{u+1}
 (* α ; u |  *)
 
 qsort is universe polymorphic
-qsort is transparent
+qsort is transparent (level -1)
 Expands to: Constant sort_poly_elab.Reduction.qsort
 Declared in library sort_poly_elab, line 10, characters 13-18
 qsort'@{α ; u u0} : Type@{u}
 (* α ; u u0 | u0 < u *)
 
 qsort' is universe polymorphic
-qsort' is transparent
+qsort' is transparent (level -1)
 Expands to: Constant sort_poly_elab.Reduction.qsort'
 Declared in library sort_poly_elab, line 14, characters 13-19
 @eq_refl Type@{sort_poly_elab.26} q1
@@ -56,7 +56,7 @@ exfalso@{α ; u} : forall (A : Univ@{α ; u}) (_ : False), A
 
 exfalso is universe polymorphic
 Arguments exfalso A%_type_scope H
-exfalso is transparent
+exfalso is transparent (level -1)
 Expands to: Constant sort_poly_elab.Reduction.exfalso
 Declared in library sort_poly_elab, line 32, characters 13-20
 iter@{α ; u} :
@@ -86,7 +86,7 @@ forall (A : Univ@{α ; u}) (_ : A) (_ : A), Box@{α α0 ; u} A
 
 t1 is universe polymorphic
 Arguments t1 A%_type_scope x y
-t1 is transparent
+t1 is transparent (level -1)
 Expands to: Constant sort_poly_elab.Conversion.t1
 Declared in library sort_poly_elab, line 58, characters 13-15
 t2@{α α0 ; u} :
@@ -95,7 +95,7 @@ forall (A : Univ@{α ; u}) (_ : A) (_ : A), Box@{α α0 ; u} A
 
 t2 is universe polymorphic
 Arguments t2 A%_type_scope x y
-t2 is transparent
+t2 is transparent (level -1)
 Expands to: Constant sort_poly_elab.Conversion.t2
 Declared in library sort_poly_elab, line 62, characters 13-15
 t1'@{α ; u} : forall (A : Univ@{α ; u}) (_ : A) (_ : A), A
@@ -103,7 +103,7 @@ t1'@{α ; u} : forall (A : Univ@{α ; u}) (_ : A) (_ : A), A
 
 t1' is universe polymorphic
 Arguments t1' A%_type_scope x y
-t1' is transparent
+t1' is transparent (level -1)
 Expands to: Constant sort_poly_elab.Conversion.t1'
 Declared in library sort_poly_elab, line 66, characters 13-16
 t2'@{α ; u} : forall (A : Univ@{α ; u}) (_ : A) (_ : A), A
@@ -111,7 +111,7 @@ t2'@{α ; u} : forall (A : Univ@{α ; u}) (_ : A) (_ : A), A
 
 t2' is universe polymorphic
 Arguments t2' A%_type_scope x y
-t2' is transparent
+t2' is transparent (level -1)
 Expands to: Constant sort_poly_elab.Conversion.t2'
 Declared in library sort_poly_elab, line 70, characters 13-16
 File "./output/sort_poly_elab.v", line 73, characters 13-20:
@@ -196,7 +196,7 @@ ignore@{α ; u} : forall {A : Univ@{α ; u}} (_ : A), unit
 
 ignore is universe polymorphic
 Arguments ignore {A}%_type_scope x
-ignore is transparent
+ignore is transparent (level -1)
 Expands to: Constant sort_poly_elab.Conversion.ignore
 Declared in library sort_poly_elab, line 91, characters 13-19
 unfold_ignore@{α α0 α1 ; u} :
@@ -210,7 +210,7 @@ forall A : Univ@{α1 ; u},
 
 unfold_ignore is universe polymorphic
 Arguments unfold_ignore A%_type_scope
-unfold_ignore is transparent
+unfold_ignore is transparent (level -2)
 Expands to: Constant sort_poly_elab.Conversion.unfold_ignore
 Declared in library sort_poly_elab, line 95, characters 13-26
 t@{α ; u} :
@@ -219,7 +219,7 @@ forall (A : SProp) (_ : A) (_ : A), Box@{SProp α ; u} A
 
 t is universe polymorphic
 Arguments t A%_type_scope x y
-t is transparent
+t is transparent (level -1)
 Expands to: Constant sort_poly_elab.Conversion.t
 Declared in library sort_poly_elab, line 104, characters 13-14
 v@{α ; u} : forall (A : Univ@{α ; u}) (_ : bool), A
@@ -260,7 +260,7 @@ zog@{α ; u} : forall _ : Univ@{α ; u}, Univ@{α ; u}
 
 zog is universe polymorphic
 Arguments zog A%_type_scope
-zog is transparent
+zog is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inference.zog
 Declared in library sort_poly_elab, line 118, characters 13-16
 zag@{α ; u} : forall _ : Univ@{α ; u}, Univ@{α ; u}
@@ -268,7 +268,7 @@ zag@{α ; u} : forall _ : Univ@{α ; u}, Univ@{α ; u}
 
 zag is universe polymorphic
 Arguments zag A%_type_scope
-zag is transparent
+zag is transparent (level -2)
 Expands to: Constant sort_poly_elab.Inference.zag
 Declared in library sort_poly_elab, line 123, characters 13-16
 zig@{α ; u} : forall _ : Univ@{α ; u}, Univ@{α ; u}
@@ -276,7 +276,7 @@ zig@{α ; u} : forall _ : Univ@{α ; u}, Univ@{α ; u}
 
 zig is universe polymorphic
 Arguments zig A%_type_scope
-zig is transparent
+zig is transparent (level -2)
 Expands to: Constant sort_poly_elab.Inference.zig
 Declared in library sort_poly_elab, line 128, characters 13-16
 File "./output/sort_poly_elab.v", line 133, characters 66-67:
@@ -322,7 +322,7 @@ foo1_False@{s ; u} : forall _ : foo1@{s ; u}, False
 
 foo1_False is universe polymorphic
 Arguments foo1_False x
-foo1_False is transparent
+foo1_False is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo1_False
 Declared in library sort_poly_elab, line 152, characters 13-23
 foo1_False'@{α ; u} : forall _ : foo1@{α ; u}, False
@@ -330,7 +330,7 @@ foo1_False'@{α ; u} : forall _ : foo1@{α ; u}, False
 
 foo1_False' is universe polymorphic
 Arguments foo1_False' x
-foo1_False' is transparent
+foo1_False' is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo1_False'
 Declared in library sort_poly_elab, line 157, characters 13-24
 foo2@{α α0 ; u} : Univ@{α ; u+1}
@@ -381,7 +381,7 @@ P
 
 foo5_ind' is universe polymorphic
 Arguments foo5_ind' (A P)%_type_scope _%_function_scope _
-foo5_ind' is transparent
+foo5_ind' is transparent (level -2)
 Expands to: Constant sort_poly_elab.Inductives.foo5_ind'
 Declared in library sort_poly_elab, line 178, characters 13-22
 foo5_Prop_rect@{α ; u} :
@@ -392,7 +392,7 @@ P f
 
 foo5_Prop_rect is universe polymorphic
 Arguments foo5_Prop_rect A%_type_scope (P H)%_function_scope f
-foo5_Prop_rect is transparent
+foo5_Prop_rect is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo5_Prop_rect
 Declared in library sort_poly_elab, line 182, characters 13-27
 foo5_Prop_rect'@{α ; u} :
@@ -403,7 +403,7 @@ P f
 
 foo5_Prop_rect' is universe polymorphic
 Arguments foo5_Prop_rect' A%_type_scope (P H)%_function_scope f
-foo5_Prop_rect' is transparent
+foo5_Prop_rect' is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo5_Prop_rect'
 Declared in library sort_poly_elab, line 193, characters 13-28
 foo6@{α ; u} : Univ@{α ; u}
@@ -430,7 +430,7 @@ P f
 
 foo6_rect is universe polymorphic
 Arguments foo6_rect P%_function_scope H f
-foo6_rect is transparent
+foo6_rect is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo6_rect
 Declared in library sort_poly_elab, line 209, characters 13-22
 foo6_prop_rect@{α ; u u0} :
@@ -441,7 +441,7 @@ P f
 
 foo6_prop_rect is universe polymorphic
 Arguments foo6_prop_rect P%_function_scope H f
-foo6_prop_rect is transparent
+foo6_prop_rect is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo6_prop_rect
 Declared in library sort_poly_elab, line 218, characters 13-27
 foo6_Type_rect@{α ; u u0} :
@@ -452,7 +452,7 @@ P f
 
 foo6_Type_rect is universe polymorphic
 Arguments foo6_Type_rect P%_function_scope H f
-foo6_Type_rect is transparent
+foo6_Type_rect is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo6_Type_rect
 Declared in library sort_poly_elab, line 227, characters 13-27
 foo7@{α ; } : Univ@{α ; Set}
@@ -482,7 +482,7 @@ P f
 
 foo7_prop_ind is universe polymorphic
 Arguments foo7_prop_ind P%_function_scope H H' f
-foo7_prop_ind is transparent
+foo7_prop_ind is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo7_prop_ind
 Declared in library sort_poly_elab, line 241, characters 13-26
 foo7_prop_rect@{α ; u} :
@@ -494,7 +494,7 @@ P f
 
 foo7_prop_rect is universe polymorphic
 Arguments foo7_prop_rect P%_function_scope H H' f
-foo7_prop_rect is transparent
+foo7_prop_rect is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.foo7_prop_rect
 Declared in library sort_poly_elab, line 248, characters 13-27
 sigma@{α α0 α1 ; u u0} :
@@ -521,7 +521,7 @@ P s
 
 sigma_srect is universe polymorphic
 Arguments sigma_srect A%_type_scope (B P H)%_function_scope s
-sigma_srect is transparent
+sigma_srect is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.sigma_srect
 Declared in library sort_poly_elab, line 263, characters 13-24
 pr1@{α α0 α1 ; u u0} :
@@ -532,7 +532,7 @@ A
 
 pr1 is universe polymorphic
 Arguments pr1 {A}%_type_scope {B}%_function_scope s
-pr1 is transparent
+pr1 is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.pr1
 Declared in library sort_poly_elab, line 273, characters 13-16
 pr2@{α α0 α1 ; u u0} :
@@ -544,7 +544,7 @@ B (@pr1@{α α0 α1 ; u u0} A B s)
 
 pr2 is universe polymorphic
 Arguments pr2 {A}%_type_scope {B}%_function_scope s
-pr2 is transparent
+pr2 is transparent (level -2)
 Expands to: Constant sort_poly_elab.Inductives.pr2
 Declared in library sort_poly_elab, line 278, characters 13-16
 π2 not a defined object.
@@ -600,7 +600,7 @@ P x
 
 sum_elim is universe polymorphic
 Arguments sum_elim (A B)%_type_scope (P fl fr)%_function_scope x
-sum_elim is transparent
+sum_elim is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.sum_elim
 Declared in library sort_poly_elab, line 329, characters 13-21
 File "./output/sort_poly_elab.v", line 344, characters 2-66:
@@ -616,7 +616,7 @@ sum@{α0 α1 Type ; u u0} A B
 
 idT is universe polymorphic
 Arguments idT (A B)%_type_scope x
-idT is transparent
+idT is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.idT
 Declared in library sort_poly_elab, line 356, characters 13-16
 idP@{α α0 α1 ; u u0} :
@@ -627,7 +627,7 @@ sum@{α0 α1 Prop ; u u0} A B
 
 idP is universe polymorphic
 Arguments idP (A B)%_type_scope x
-idP is transparent
+idP is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.idP
 Declared in library sort_poly_elab, line 366, characters 13-16
 idS@{α α0 α1 ; u u0} :
@@ -638,7 +638,7 @@ sum@{α0 α1 SProp ; u u0} A B
 
 idS is universe polymorphic
 Arguments idS (A B)%_type_scope x
-idS is transparent
+idS is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.idS
 Declared in library sort_poly_elab, line 376, characters 13-16
 idV@{α α0 α1 α2 ; u u0} :
@@ -649,7 +649,7 @@ sum@{α1 α2 α0 ; u u0} A B
 
 idV is universe polymorphic
 Arguments idV (A B)%_type_scope x
-idV is transparent
+idV is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.idV
 Declared in library sort_poly_elab, line 386, characters 13-16
 File "./output/sort_poly_elab.v", line 395, characters 2-57:
@@ -681,7 +681,7 @@ P l
 
 list_elim is universe polymorphic
 Arguments list_elim A%_type_scope P%_function_scope fn fc%_function_scope l
-list_elim is transparent
+list_elim is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.list_elim
 Declared in library sort_poly_elab, line 408, characters 13-22
 list_idT@{α α0 ; u} :
@@ -739,7 +739,7 @@ forall _ : False'@{α ; u}, False
 
 False'_False is universe polymorphic
 Arguments False'_False x
-False'_False is transparent
+False'_False is transparent (level -1)
 Expands to: Constant sort_poly_elab.Inductives.False'_False
 Declared in library sort_poly_elab, line 461, characters 13-25
 bool@{α ; } : Univ@{α ; Set}
@@ -1003,7 +1003,7 @@ P s
 
 Rsigma_srect is universe polymorphic
 Arguments Rsigma_srect A%_type_scope (B P H)%_function_scope s
-Rsigma_srect is transparent
+Rsigma_srect is transparent (level -1)
 Expands to: Constant sort_poly_elab.Records.Rsigma_srect
 Declared in library sort_poly_elab, line 598, characters 13-25
 sexists@{α ; u} :

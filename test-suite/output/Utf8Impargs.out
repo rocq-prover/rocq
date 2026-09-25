@@ -2,6 +2,6 @@ id : ∀ {A : Type}, A -> A
 
 id is not universe polymorphic
 Arguments id {A}%_type_scope a
-id is transparent
+id is transparent (level -1)
 Expands to: Constant Utf8Impargs.id
 Declared in library Utf8Impargs, line 6, characters 11-13

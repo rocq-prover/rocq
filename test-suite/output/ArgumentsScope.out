@@ -12,21 +12,21 @@ negb'' : bool -> bool
 
 negb'' is not universe polymorphic
 Arguments negb'' b%_bool_scope
-negb'' is transparent
+negb'' is transparent (level -2)
 Expands to: Constant ArgumentsScope.A.B.negb''
 Declared in library ArgumentsScope, line 9, characters 11-17
 negb' : bool -> bool
 
 negb' is not universe polymorphic
 Arguments negb' b%_bool_scope
-negb' is transparent
+negb' is transparent (level -2)
 Expands to: Constant ArgumentsScope.A.negb'
 Declared in library ArgumentsScope, line 6, characters 11-16
 negb : bool -> bool
 
 negb is not universe polymorphic
 Arguments negb b%_bool_scope
-negb is transparent
+negb is transparent (level -1)
 Expands to: Constant Corelib.Init.Datatypes.negb
 Declared in library Corelib.Init.Datatypes, line 86, characters 11-15
 a : bool -> bool
@@ -41,21 +41,21 @@ negb : bool -> bool
 
 negb is not universe polymorphic
 Arguments negb b
-negb is transparent
+negb is transparent (level -1)
 Expands to: Constant Corelib.Init.Datatypes.negb
 Declared in library Corelib.Init.Datatypes, line 86, characters 11-15
 negb' : bool -> bool
 
 negb' is not universe polymorphic
 Arguments negb' b
-negb' is transparent
+negb' is transparent (level -2)
 Expands to: Constant ArgumentsScope.A.negb'
 Declared in library ArgumentsScope, line 6, characters 11-16
 negb'' : bool -> bool
 
 negb'' is not universe polymorphic
 Arguments negb'' b
-negb'' is transparent
+negb'' is transparent (level -2)
 Expands to: Constant ArgumentsScope.A.B.negb''
 Declared in library ArgumentsScope, line 9, characters 11-17
 a : bool -> bool
@@ -66,28 +66,28 @@ negb : bool -> bool
 
 negb is not universe polymorphic
 Arguments negb b
-negb is transparent
+negb is transparent (level -1)
 Expands to: Constant Corelib.Init.Datatypes.negb
 Declared in library Corelib.Init.Datatypes, line 86, characters 11-15
 negb' : bool -> bool
 
 negb' is not universe polymorphic
 Arguments negb' b
-negb' is transparent
+negb' is transparent (level -2)
 Expands to: Constant ArgumentsScope.negb'
 Declared in library ArgumentsScope, line 6, characters 11-16
 negb'' : bool -> bool
 
 negb'' is not universe polymorphic
 Arguments negb'' b
-negb'' is transparent
+negb'' is transparent (level -2)
 Expands to: Constant ArgumentsScope.negb''
 Declared in library ArgumentsScope, line 9, characters 11-17
 f : bool -> bool
 
 f is not universe polymorphic
 Arguments f x%_A_scope%_B_scope
-f is transparent
+f is transparent (level -1)
 Expands to: Constant ArgumentsScope.f
 Declared in library ArgumentsScope, line 41, characters 11-12
 f tt
@@ -98,7 +98,7 @@ f : bool -> bool
 
 f is not universe polymorphic
 Arguments f x%_B_scope%_A_scope
-f is transparent
+f is transparent (level -1)
 Expands to: Constant ArgumentsScope.f
 Declared in library ArgumentsScope, line 41, characters 11-12
 f tt
@@ -109,34 +109,34 @@ g : bool -> bool
 
 g is not universe polymorphic
 Arguments g x%_A_scope%_B_scope
-g is transparent
+g is transparent (level -1)
 Expands to: Constant ArgumentsScope.g
 Declared in library ArgumentsScope, line 64, characters 11-12
 g' : nat -> nat
 
 g' is not universe polymorphic
 Arguments g' x%_B_scope%_A_scope
-g' is transparent
+g' is transparent (level -1)
 Expands to: Constant ArgumentsScope.g'
 Declared in library ArgumentsScope, line 71, characters 11-13
 g'' : unit -> unit
 
 g'' is not universe polymorphic
 Arguments g'' x%_B_scope
-g'' is transparent
+g'' is transparent (level -1)
 Expands to: Constant ArgumentsScope.g''
 Declared in library ArgumentsScope, line 78, characters 11-14
 f : A -> B -> A
 
 f is not universe polymorphic
 Arguments f _%_X _%_Y
-f is transparent
+f is transparent (level -1)
 Expands to: Constant ArgumentsScope.SectionTest1.S.f
 Declared in library ArgumentsScope, line 91, characters 15-16
 f : A -> B -> A
 
 f is not universe polymorphic
-f is transparent
+f is transparent (level -1)
 Expands to: Constant ArgumentsScope.SectionTest1.f
 Declared in library ArgumentsScope, line 91, characters 15-16
 N.f : A -> A
