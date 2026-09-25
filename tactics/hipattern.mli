@@ -47,7 +47,6 @@ type 'a matching_function = Environ.env -> evar_map -> constr -> 'a option
 type testing_function = Environ.env -> evar_map -> constr -> bool
 
 val match_with_non_recursive_type : (constr * constr list) matching_function
-val is_non_recursive_type         : testing_function
 
 (** Non recursive type with no indices and exactly one argument for each
    constructor; canonical definition of n-ary disjunction if strict *)
@@ -65,7 +64,6 @@ val is_record              : testing_function
 
 (** Like record but supports and tells if recursive (e.g. Acc) *)
 val match_with_tuple       : (constr * constr list * bool) matching_function
-val is_tuple               : testing_function
 
 (** No constructor, possibly with indices *)
 val match_with_empty_type  : constr matching_function
@@ -75,36 +73,23 @@ val is_empty_type          : testing_function
 val match_with_unit_or_eq_type : constr matching_function
 val is_unit_or_eq_type     : testing_function
 
-(** type with only one constructor and no arguments, no indices *)
-val is_unit_type           : testing_function
-
 (** type with only one constructor, no arguments and at least one dependency *)
 val is_inductive_equality  : Environ.env -> inductive -> bool
 val match_with_equality_type : (constr * constr list) matching_function
-val is_equality_type       : testing_function
 
 val match_with_nottype     : (constr * constr) matching_function
-val is_nottype             : testing_function
 
 val match_with_forall_term    : (Name.t EConstr.binder_annot * constr * constr) matching_function
-val is_forall_term            : testing_function
 
 val match_with_imp_term    : (constr * constr) matching_function
-val is_imp_term            : testing_function
 
 (** I added these functions to test whether a type contains dependent
   products or not, and if an inductive has constructors with dependent types
  (excluding parameters). this is useful to check whether a conjunction is a
  real conjunction and not a dependent tuple. (Pierre Corbineau, 13/5/2002) *)
 
-val has_nodep_prod_after   : int -> testing_function
-val has_nodep_prod         : testing_function
-
 val match_with_nodep_ind   : (constr * constr list * int) matching_function
-val is_nodep_ind           : testing_function
-
 val match_with_sigma_type   : (constr * constr list) matching_function
-val is_sigma_type           : testing_function
 
 (** Recongnize inductive relation defined by reflexivity *)
 
@@ -140,15 +125,9 @@ val find_sigma_data_decompose : Environ.env -> evar_map -> constr ->
 (** Match a term of the form [{x:A|P}], returns [A] and [P] *)
 val match_sigma : Environ.env -> evar_map -> constr -> constr * constr
 
-val is_matching_sigma : Environ.env -> evar_map -> constr -> bool
-
 (** Match a decidable equality judgement (e.g [{t=u:>T}+{~t=u}]), returns
    [t,u,T] and a boolean telling if equality is on the left side *)
 val match_eqdec : Environ.env -> evar_map -> constr -> bool * GlobRef.t * constr * constr * constr
-
-(** Match a negation *)
-val is_matching_not : Environ.env -> evar_map -> constr -> bool
-val is_matching_imp_False : Environ.env -> evar_map -> constr -> bool
 
 (** Test if a homogeneous relation (in Prop) and, if so, returns the domain *)
 val is_homogeneous_relation : ?loc:Loc.t -> Environ.env -> evar_map -> constr -> types
