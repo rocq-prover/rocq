@@ -40,7 +40,7 @@ or only for reals by ``Require Import Lra``.
    :tacn:`nia`, :tacn:`lra`, :tacn:`nra` and :tacn:`psatz` to print the
    list of hypotheses needed by the proof. The default is unset.
 
-.. opt:: Dump Arith
+.. opt:: Dump Arith @string
 
    This :term:`option` (unset by default) may be set to a file path where
    debug info will be written.

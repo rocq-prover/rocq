@@ -558,7 +558,7 @@ Settings
 
 .. _TypeclassesDefaultMode:
 
-.. opt:: Typeclasses Default Mode {| "+" | "-" | "!" }.
+.. opt:: Typeclasses Default Mode {| "+" | "-" | "!" }
 
    Sets the default mode declaration associated with a :cmd:`Class` or :cmd:`Existing Class`
    declaration. It is set by default to "-", i.e. doing no mode filtering
