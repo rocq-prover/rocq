@@ -23,7 +23,7 @@ exception InductiveMismatch of MutInd.t * string
 let check mind field b = if not b then raise (InductiveMismatch (mind,field))
 
 let template_univ_entry {template_context; template_defaults=default_univs; _} =
-  Entries.Template_ind_entry {uctx = AbstractContext.repr template_context; default_univs}
+  Entries.Template_ind_entry {uctx = template_context; default_univs}
 
 let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
   let open Entries in
@@ -52,7 +52,7 @@ let to_entry mind (mb:mutual_inductive_body) : Entries.mutual_inductive_entry =
       | None -> Monomorphic_ind_entry
       | Some template -> template
       end
-    | Polymorphic auctx -> Polymorphic_ind_entry (AbstractContext.repr auctx)
+    | Polymorphic auctx -> Polymorphic_ind_entry auctx
   in
   let ntyps = Array.length mb.mind_packets in
   let mind_entry_params = match mb.mind_template with

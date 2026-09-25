@@ -220,8 +220,11 @@ let default_named_univ_entry = default_univ_entry, UnivNames.empty_binders
 
 let extract_monomorphic = function
   | UState.Monomorphic_entry ctx ->
-    Entries.Monomorphic_entry, ctx
-  | UState.Polymorphic_entry uctx -> Entries.Polymorphic_entry uctx, Univ.ContextSet.empty
+    UVars.empty_sort_subst, Entries.Monomorphic_entry, ctx
+  | UState.Polymorphic_entry uctx ->
+    let uinst, auctx = UVars.abstract_universes uctx in
+    let usubst = UVars.make_instance_subst uinst in
+    usubst, Entries.Polymorphic_entry auctx, Univ.ContextSet.empty
 
 let instance_of_univs = function
   | UState.Monomorphic_entry _, _ -> UVars.Instance.empty
@@ -538,10 +541,10 @@ let record_aux env s_ty s_bo =
   Aux_file.record_in_aux "context_used" v
 
 let cast_pure_proof_entry (e : Constr.constr pproof_entry) =
-  let univ_entry, ctx = extract_monomorphic (fst (e.proof_entry_universes)) in
-  { Entries.definition_entry_body = e.proof_entry_body;
+  let usubst, univ_entry, ctx = extract_monomorphic (fst (e.proof_entry_universes)) in
+  { Entries.definition_entry_body = Vars.subst_univs_level_constr usubst e.proof_entry_body;
     definition_entry_secctx = e.proof_entry_secctx;
-    definition_entry_type = e.proof_entry_type;
+    definition_entry_type = Option.map (fun c -> Vars.subst_univs_level_constr usubst c) e.proof_entry_type;
     definition_entry_universes = univ_entry;
     definition_entry_inline_code = e.proof_entry_inline_code;
   },
@@ -577,7 +580,7 @@ let section_context_of_opaque_proof_entry (type a b) (entry : (a, b) effect_entr
   let () = if Aux_file.recording () then record_aux env hyp_typ hyp_def in
   Environ.really_needed env (Id.Set.union hyp_typ hyp_def)
 
-let cast_opaque_proof_entry (type a b) (entry : (a, b) effect_entry) (e : a pproof_entry) : b Entries.opaque_entry * _ =
+let cast_opaque_proof_entry (type a b) (entry : (a, b) effect_entry) (e : a pproof_entry) : b Entries.opaque_entry * _ * _ =
   let typ = match e.proof_entry_type with
   | None -> assert false
   | Some typ -> typ
@@ -586,18 +589,24 @@ let cast_opaque_proof_entry (type a b) (entry : (a, b) effect_entry) (e : a ppro
   | None -> section_context_of_opaque_proof_entry entry e.proof_entry_body typ
   | Some hyps -> hyps
   in
+  let usubst, univ_entry, ctx = extract_monomorphic (fst (e.proof_entry_universes)) in
   let body : b = match entry with
-  | PureEntry -> e.proof_entry_body
+  | PureEntry -> Vars.subst_univs_level_constr usubst e.proof_entry_body
   | ImmediateEffectEntry -> ()
   | DeferredEffectEntry -> ()
   in
-  let univ_entry, ctx = extract_monomorphic (fst (e.proof_entry_universes)) in
   { Entries.opaque_entry_body = body;
     opaque_entry_secctx = secctx;
-    opaque_entry_type = typ;
+    opaque_entry_type = Vars.subst_univs_level_constr usubst typ;
     opaque_entry_universes = univ_entry;
   },
+  usubst,
   ctx
+
+let subst_delayed_body usubst ((body,ctx),eff) : _ Entries.proof_output =
+  let body = Vars.subst_univs_level_constr usubst body in
+  let ctx = on_snd (UVars.subst_univs_constraints (snd usubst)) ctx in
+  (body, ctx), eff
 
 let feedback_axiom () = Feedback.(feedback AddedAxiom)
 
@@ -621,23 +630,24 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
       | Default { body; opaque = Opaque (body_uctx, eff) } ->
         let body = ((body, body_uctx), SideEff.get eff) in
         let de = { de with proof_entry_body = body } in
-        let cd, ctx = cast_opaque_proof_entry ImmediateEffectEntry de in
+        let cd, usubst, ctx = cast_opaque_proof_entry ImmediateEffectEntry de in
         let ubinders = make_ubinders ctx de.proof_entry_universes in
+        let body = subst_delayed_body usubst body in
         Entries.OpaqueEntry cd, false, ubinders, Some (Future.from_val body, None), ctx
       | DeferredOpaque { body; feedback_id } ->
         let map (body, eff) = body, SideEff.get eff in
         let body = Future.chain body map in
         let de = { de with proof_entry_body = body } in
-        let cd, ctx = cast_opaque_proof_entry DeferredEffectEntry de in
+        let cd, usubst, ctx = cast_opaque_proof_entry DeferredEffectEntry de in
         let ubinders = make_ubinders ctx de.proof_entry_universes in
-        Entries.OpaqueEntry cd, false, ubinders, Some (body, feedback_id), ctx
+        Entries.OpaqueEntry cd, false, ubinders, Some (Future.chain body (subst_delayed_body usubst), feedback_id), ctx
       end
     | ParameterEntry e ->
-      let univ_entry, ctx = extract_monomorphic (fst e.parameter_entry_universes) in
+      let usubst, univ_entry, ctx = extract_monomorphic (fst e.parameter_entry_universes) in
       let ubinders = make_ubinders ctx e.parameter_entry_universes in
       let e = {
         Entries.parameter_entry_secctx = e.parameter_entry_secctx;
-        Entries.parameter_entry_type = e.parameter_entry_type;
+        Entries.parameter_entry_type = Vars.subst_univs_level_constr usubst e.parameter_entry_type;
         Entries.parameter_entry_universes = univ_entry;
         Entries.parameter_entry_inline_code = e.parameter_entry_inline_code;
       } in
@@ -647,8 +657,8 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
       | None ->
         None, (UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders), Univ.ContextSet.empty
       | Some (typ, entry_univs) ->
-        let univ_entry, ctx = extract_monomorphic (fst entry_univs) in
-        Some (typ, univ_entry), entry_univs, ctx
+        let usubst, univ_entry, ctx = extract_monomorphic (fst entry_univs) in
+        Some (Vars.subst_univs_level_constr usubst typ, univ_entry), entry_univs, ctx
       in
       let e = {
         Entries.prim_entry_type = typ;
@@ -657,9 +667,9 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
       let ubinders = make_ubinders ctx univ_entry in
       Entries.PrimitiveEntry e, false, ubinders, None, ctx
     | SymbolEntry { symb_entry_type=typ; symb_entry_unfold_fix=un_fix; symb_entry_universes=entry_univs } ->
-      let univ_entry, ctx = extract_monomorphic (fst entry_univs) in
+      let usubst, univ_entry, ctx = extract_monomorphic (fst entry_univs) in
       let e = {
-        Entries.symb_entry_type = typ;
+        Entries.symb_entry_type = Vars.subst_univs_level_constr usubst typ;
         Entries.symb_entry_unfold_fix = un_fix;
         Entries.symb_entry_universes = univ_entry;
       } in
@@ -701,7 +711,7 @@ let declare_private_constant ?role ?ts ~name ~opaque de effs =
       let de, ctx = cast_pure_proof_entry de in
       DefinitionEff de, ctx
     else
-      let de, ctx = cast_opaque_proof_entry PureEntry de in
+      let de, _, ctx = cast_opaque_proof_entry PureEntry de in
       OpaqueEff de, ctx
 
   in

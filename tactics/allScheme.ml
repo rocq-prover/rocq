@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+module CVars = Vars
+
 open Declarations
 open Util
 open Names
@@ -971,23 +973,26 @@ let generate_all_aux cache suffix kn u sub_temp mib uparams strpos nuparams =
   let uctx = UState.normalize_variables uctx in
   let uctx = UState.minimize uctx in
   dbg Pp.(fun () -> str "After Simpl, Ustate.t = " ++ UState.pr (Evd.ustate sigma) ++ str "\n");
+  let (inst, auctx) = UVars.abstract_universes @@ UState.context uctx in
+  let usubst = UVars.make_instance_subst inst in
+  let nf_univs c = CVars.subst_univs_level_constr usubst (UState.nf_universes uctx c) in
   let ind_bodies = Array.map (fun ind ->
     { ind with
-    mind_entry_arity = UState.nf_universes uctx ind.mind_entry_arity;
-    mind_entry_lc = List.map (UState.nf_universes uctx) ind.mind_entry_lc
+    mind_entry_arity = nf_univs ind.mind_entry_arity;
+    mind_entry_lc = List.map nf_univs ind.mind_entry_lc
     }
     ) ind_bodies
   in
   (* build mentry *)
   let mie =
-    let uctx = UState.context uctx in
-    let _qlen, ulen = UVars.UContext.size uctx in
+    let _qlen, ulen = UVars.UContext.size (UState.context uctx) in
+    let mind_entry_params = CVars.subst_univs_level_context usubst (EConstr.to_rel_context sigma ctxt_params) in
     {
       mind_entry_record = None;
       mind_entry_finite = mib.mind_finite;
-      mind_entry_params = EConstr.to_rel_context sigma ctxt_params ;
+      mind_entry_params;
       mind_entry_inds = Array.to_list ind_bodies;
-      mind_entry_universes = Polymorphic_ind_entry uctx;
+      mind_entry_universes = Polymorphic_ind_entry auctx;
       mind_entry_variance = Some (Array.make ulen None);
       mind_entry_private = mib.mind_private;
       }
