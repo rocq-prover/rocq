@@ -1,0 +1,14 @@
+File "./output/admitted_proof.v", line 12, characters 0-9:
+Warning: Admitting admitted_lemma. [admitted-proof,vernacular]
+File "./output/admitted_proof.v", line 16, characters 0-9:
+Warning: Admitting admitted_obligation_obligation_1.
+[admitted-proof,vernacular]
+File "./output/admitted_proof.v", line 19, characters 0-42:
+Warning: Admitting admitted_obligations_obligation_1.
+[admitted-proof,vernacular]
+File "./output/admitted_proof.v", line 19, characters 0-42:
+Warning: Admitting admitted_obligations_obligation_2.
+[admitted-proof,vernacular]
+File "./output/admitted_proof.v", line 25, characters 0-14:
+The command has indeed failed with message:
+Admitting rejected_admission. [admitted-proof,vernacular]
