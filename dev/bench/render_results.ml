@@ -132,7 +132,7 @@ end
 let add_timings a b =
   { user_time = a.user_time +. b.user_time;
     num_instr = a.num_instr + b.num_instr;
-    num_mem = a.num_mem + b.num_mem;
+    num_mem = max a.num_mem b.num_mem;
   }
 
 let mk_pkg_timings work_dir pkg_name suffix iteration =
