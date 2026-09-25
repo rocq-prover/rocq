@@ -598,25 +598,22 @@ end
 
 module Constant = KerPair
 
-module Cmap = HMap.Make(Constant.CanOrd)
-(** A map whose keys are constants (values of the {!Constant.t} type).
-    Keys are ordered wrt. "canonical form" of the constant. *)
-
-module Cmap_env = HMap.Make(Constant.UserOrd)
+module Cmap = HMap.Make(Constant.UserOrd)
+module Cmap_env = Cmap
 (** A map whose keys are constants (values of the {!Constant.t} type).
     Keys are ordered wrt. "user form" of the constant. *)
 
 module Cpred = Predicate.Make(Constant.CanOrd)
 module Cset = Cmap.Set
-module Cset_env = Cmap_env.Set
+module Cset_env = Cset
 
 (** {6 Names of mutual inductive types } *)
 
 module MutInd = KerPair
 
-module Mindmap = HMap.Make(MutInd.CanOrd)
+module Mindmap = HMap.Make(MutInd.UserOrd)
 module Mindset = Mindmap.Set
-module Mindmap_env = HMap.Make(MutInd.UserOrd)
+module Mindmap_env = Mindmap
 
 module Ind =
 struct
@@ -705,15 +702,15 @@ let ith_constructor_of_inductive ind i = (ind, i)
 let inductive_of_constructor (ind, _i) = ind
 let index_of_constructor (_ind, i) = i
 
-module Indset = Set.Make(Ind.CanOrd)
-module Indset_env = Set.Make(Ind.UserOrd)
-module Indmap = Map.Make(Ind.CanOrd)
-module Indmap_env = Map.Make(Ind.UserOrd)
+module Indset = Set.Make(Ind.UserOrd)
+module Indset_env = Indset
+module Indmap = Map.Make(Ind.UserOrd)
+module Indmap_env = Indmap
 
-module Constrset = Set.Make(Construct.CanOrd)
-module Constrset_env = Set.Make(Construct.UserOrd)
-module Constrmap = Map.Make(Construct.CanOrd)
-module Constrmap_env = Map.Make(Construct.UserOrd)
+module Constrset = Set.Make(Construct.UserOrd)
+module Constrset_env = Constrset
+module Constrmap = Map.Make(Construct.UserOrd)
+module Constrmap_env = Constrmap
 
 (** {6 Hash-consing of name objects } *)
 
@@ -955,12 +952,12 @@ struct
 
 end
 
-module PRmap = HMap.Make(Projection.Repr.CanOrd)
+module PRmap = HMap.Make(Projection.Repr.UserOrd)
 module PRset = PRmap.Set
 module PRpred = Predicate.Make(Projection.Repr.CanOrd)
 
-module PRmap_env = HMap.Make(Projection.Repr.UserOrd)
-module PRset_env = PRmap_env.Set
+module PRmap_env = PRmap
+module PRset_env = PRset
 
 module GlobRefInternal = struct
 
@@ -1046,13 +1043,13 @@ module GlobRef = struct
   | ConstRef cst -> ModPath.is_bound (Constant.modpath cst)
   | IndRef (ind,_) | ConstructRef ((ind,_),_) -> ModPath.is_bound (MutInd.modpath ind)
 
-  module Map = HMap.Make(CanOrd)
+  module Map = HMap.Make(UserOrd)
   module Set = Map.Set
 
   (* Alternative sets and maps indexed by the user part of the kernel names *)
 
-  module Map_env = HMap.Make(UserOrd)
-  module Set_env = Map_env.Set
+  module Map_env = Map
+  module Set_env = Set
 
   let print = function
     | VarRef x -> Id.print x
