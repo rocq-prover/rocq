@@ -344,10 +344,21 @@ let hcons_mind mib =
     mind_template = Option.Smart.map hcons_template_universe mib.mind_template;
     mind_universes = hcons_universes mib.mind_universes }
 
+let subst_named_declaration subst =
+  Context.Named.Declaration.map_constr (subst_mps subst)
+
+let subst_named_context subst = List.Smart.map (subst_named_declaration subst)
+
 let subst_rewrite_rules subst ({ rewrules_rules } as rules) =
-  let body' = List.Smart.map (fun (name, ({ rhs; _ } as rule) as orig) ->
+  let body' = List.Smart.map (fun (name, ({ rhs; test; _ } as rule) as orig) ->
+      let name' = subst_constant subst name in
       let rhs' = subst_mps subst rhs in
-      if rhs == rhs' then orig else name, { rule with rhs = rhs' })
+      let ctx, test_lhs, test_rhs = test in
+      let ctx' = subst_named_context subst ctx in
+      let test_lhs' = subst_mps subst test_lhs in
+      let test_rhs' = subst_mps subst test_rhs in
+      if name == name' && rhs == rhs' && ctx == ctx' && test_lhs == test_lhs' && test_rhs == test_rhs' then orig else
+        name', { rule with rhs = rhs'; test = ctx', test_lhs', test_rhs' })
       rewrules_rules
   in
   if rewrules_rules == body' then rules else
