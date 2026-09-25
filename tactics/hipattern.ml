@@ -54,8 +54,6 @@ let match_with_non_recursive_type env sigma t =
            | _ -> None)
     | _ -> None
 
-let is_non_recursive_type env sigma t = Option.has_some (match_with_non_recursive_type env sigma t)
-
 (* Test dependencies *)
 
 (* NB: we consider also the let-in case in the following function,
@@ -153,9 +151,6 @@ let match_with_tuple env sigma t =
     let isrec = mis_is_recursive mip in
     (hd,l,isrec)) t
 
-let is_tuple env sigma t =
-  Option.has_some (match_with_tuple env sigma t)
-
 (* A general disjunction type is a non-recursive with-no-indices inductive
    type with of which all constructors have a single argument;
    it is strict if it has the form
@@ -232,15 +227,6 @@ let match_with_unit_or_eq_type env sigma t =
     | _ -> None
 
 let is_unit_or_eq_type env sigma t = Option.has_some (match_with_unit_or_eq_type env sigma t)
-
-(* A unit type is an inductive type with no indices but possibly
-   (useless) parameters, and that has no arguments in its unique
-   constructor *)
-
-let is_unit_type env sigma t =
-  match match_with_conjunction env sigma t with
-  | Some (_,[]) -> true
-  | _ -> false
 
 (* Checks if a given term is an application of an
    inductive binary relation R, so that R has only one constructor
@@ -329,8 +315,6 @@ let match_with_equality_type env sigma t =
   | Ind (ind,_) when is_inductive_equality env ind -> Some (hdapp,args)
   | _ -> None
 
-let is_equality_type env sigma t = Option.has_some (match_with_equality_type env sigma t)
-
 (* Arrows/Implication/Negation *)
 
 (** X1 -> X2 **)
@@ -348,15 +332,11 @@ let match_with_imp_term env sigma c =
     | Prod (_,a,b) when Vars.noccurn sigma 1 b -> Some (a,b)
     | _              -> None
 
-let is_imp_term env sigma c = Option.has_some (match_with_imp_term env sigma c)
-
 let match_with_nottype env sigma t =
   try
     let (arg,mind) = match_arrow_pattern env sigma t in
     if is_empty_type env sigma mind then Some (mind,arg) else None
   with PatternMatchingFailure -> None
-
-let is_nottype env sigma t = Option.has_some (match_with_nottype env sigma t)
 
 (* Forall *)
 
@@ -364,8 +344,6 @@ let match_with_forall_term env sigma c =
   match EConstr.kind sigma c with
     | Prod (nam,a,b) -> Some (nam,a,b)
     | _            -> None
-
-let is_forall_term env sigma c = Option.has_some (match_with_forall_term env sigma c)
 
 let match_with_nodep_ind env sigma t =
   let (hdapp,args) = decompose_app_list sigma t in
@@ -385,8 +363,6 @@ let match_with_nodep_ind env sigma t =
          None
   | _ -> None
 
-let is_nodep_ind env sigma t = Option.has_some (match_with_nodep_ind env sigma t)
-
 let match_with_sigma_type env sigma t =
   let (hdapp,args) = decompose_app_list sigma t in
   match EConstr.kind sigma hdapp with
@@ -403,8 +379,6 @@ let match_with_sigma_type env sigma t =
      else
        None
   | _ -> None
-
-let is_sigma_type env sigma t = Option.has_some (match_with_sigma_type env sigma t)
 
 (*** Equality *)
 
@@ -483,8 +457,6 @@ let match_sigma env sigma t =
     | [(_,a); (_,p)] -> (a,p)
     | _ -> anomaly (Pp.str "Unexpected pattern.")
 
-let is_matching_sigma env sigma t = is_matching env sigma (Lazy.force rocq_sig_pattern) t
-
 (*** Decidable equalities *)
 
 (* The expected form of the goal for the tactic Decide Equality *)
@@ -528,13 +500,6 @@ let match_eqdec env sigma t =
   | [(_,typ);(_,c1);(_,c2)] ->
       eqonleft, lib_ref op, c1, c2, typ
   | _ -> anomaly (Pp.str "Unexpected pattern.")
-
-(* Patterns "~ ?" and "? -> False" *)
-let rocq_not_pattern () = mkPAppRef "core.not.type" [mkPHole]
-let rocq_imp_False_pattern () = mkPArrow mkPHole (mkPRef "core.False.type")
-
-let is_matching_not env sigma t = is_matching env sigma (rocq_not_pattern()) t
-let is_matching_imp_False env sigma t = is_matching env sigma (rocq_imp_False_pattern()) t
 
 (* Remark: patterns that have references to the standard library must
    be evaluated lazily (i.e. at the time they are used, not a the time
