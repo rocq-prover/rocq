@@ -346,8 +346,9 @@ let hcons_mind mib =
 
 let subst_rewrite_rules subst ({ rewrules_rules } as rules) =
   let body' = List.Smart.map (fun (name, ({ rhs; _ } as rule) as orig) ->
+      let name' = subst_constant subst name in
       let rhs' = subst_mps subst rhs in
-      if rhs == rhs' then orig else name, { rule with rhs = rhs' })
+      if name == name' && rhs == rhs' then orig else name', { rule with rhs = rhs' })
       rewrules_rules
   in
   if rewrules_rules == body' then rules else
