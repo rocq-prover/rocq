@@ -291,7 +291,7 @@ eq_rect
 File "./output/UnivBinders.v", line 268, characters 18-19:
 Warning: Support for Type@{s|l} is deprecated. Use "Univ@{s;l}" instead.
 [deprecated-sort-poly-syntax,deprecated-since-9.1,deprecated,default]
-File "./output/UnivBinders.v", line 268, characters 26-30:
+File "./output/UnivBinders.v", line 268, characters 26-36:
 Warning: Support for Type@{s;l} is deprecated. Use "Univ@{s;l}" instead.
 [deprecated-type-sort-poly-syntax,deprecated-since-9.3,deprecated,default]
 Quickfix:

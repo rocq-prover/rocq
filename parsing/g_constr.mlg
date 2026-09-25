@@ -105,7 +105,10 @@ let warn_old_sort_syntax =
 
 let warn_old_type_univ_syntax =
   CWarnings.create ~name:"deprecated-type-sort-poly-syntax" ~category:Deprecation.Version.v9_3
-    ~quickfix:(fun ~loc () -> [Quickfix.make ~loc Pp.(str"Univ")])
+    ~quickfix:(fun ~loc () ->
+        (* 4 = length "Type" *)
+        let loc = Loc.sub loc 0 4 in
+        [Quickfix.make ~loc Pp.(str"Univ")])
     Pp.(fun _ -> str "Support for Type@{s;l} is deprecated." ++ spc () ++ str"Use \"Univ@{s;l}\" instead.")
 
 type univ_level_or_quality =
@@ -157,25 +160,22 @@ GRAMMAR EXTEND Gram
   cpattern:
     [ [ c = lconstr -> { c } ] ]
   ;
-  typeloc:
-    [ [ "Type" -> { loc } ] ]
-  ;
   sort:
     [ [ "Set"  -> { None, UNamed [CSet, 0] }
       | "Prop" -> { None, UNamed [CProp, 0] }
       | "SProp" -> { None, UNamed [CSProp, 0] }
-      | _ = typeloc -> { None, UAnonymous {rigid=UnivRigid} }
-      | _ = typeloc; "@{"; "_"; "}" -> { None, UAnonymous {rigid=UnivFlexible false} }
-      | tyloc = typeloc; "@{"; test_old_sort_qvar; q = reference; pipe_loc = [ "|" -> { loc } ]; u = universe; "}" -> {
-          warn_old_type_univ_syntax ~loc:tyloc ();
+      | "Type" -> { None, UAnonymous {rigid=UnivRigid} }
+      | "Type"; "@{"; "_"; "}" -> { None, UAnonymous {rigid=UnivFlexible false} }
+      | "Type"; "@{"; test_old_sort_qvar; q = reference; pipe_loc = [ "|" -> { loc } ]; u = universe; "}" -> {
+          warn_old_type_univ_syntax ~loc ();
           warn_old_sort_syntax ~loc:pipe_loc ();
           Some (CQVar q), u
         }
-      | tyloc = typeloc; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> {
-          warn_old_type_univ_syntax ~loc:tyloc ();
+      | "Type"; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> {
+          warn_old_type_univ_syntax ~loc ();
           Some (CQVar q), u
         }
-      | _ = typeloc; "@{"; u = universe; "}" -> { None, u }
+      | "Type"; "@{"; u = universe; "}" -> { None, u }
       | "Univ"; "@{"; test_sort_qvar; q = reference; ";"; u = universe; "}" -> { Some (CQVar q), u }
       | "Univ"; "@{"; u = universe; "}" -> { Some (CQAnon (Some loc)), u }
       | "Univ" -> { Some (CQAnon (Some loc)), UAnonymous {rigid=UnivRigid} }
