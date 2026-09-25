@@ -203,7 +203,7 @@ val check_fix : ?evars:evar_handler -> env -> fixpoint -> unit
 
 val check_cofix : ?evars:evar_handler -> env -> cofixpoint -> unit
 
-val abstract_mind_lc : int -> int -> MutInd.t -> (rel_context * constr) array -> constr array
+val abstract_mind_lc : env -> int -> int -> MutInd.t -> (rel_context * constr) array -> constr array
 
 val get_template_instance : mutual_inductive_body -> Instance.t -> Instance.t
 
