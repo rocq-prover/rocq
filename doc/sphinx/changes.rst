@@ -110,10 +110,10 @@ the GitHub issue and pull request system,
 the `Discourse forum <https://discourse.rocq-prover.org>`__ and the
 `Rocq Zulip chat <https://rocq-prover.zulipchat.com>`_.
 
-Enrico Tassi is the release manager of Rocq 9.2.
+Enrico Tassi is the release manager of Rocq 9.3.
 This release is the result of 437 merged PRs, closing 65 issues.
 
-| Sophia-Antipolis, July 2026
+| Sophia-Antipolis, September 2026
 | Enrico Tassi for the Rocq development team
 
 Changes in 9.3.0
@@ -176,6 +176,61 @@ Kernel
   (`#21896 <https://github.com/rocq-prover/rocq/pull/21896>`_,
   fixes `#21892 <https://github.com/rocq-prover/rocq/issues/21892>`_,
   by Yann Leray).
+- **Fixed:**
+  incorrect variance inference for :ref:`cumulative inductives <cumulative>`
+  with applied stuck matches from irrelevant to relevant types
+  (eg match from `sFalse : SProp` or identity in SProp (the later needing :flag:`Definitional UIP`)
+  to a relevant type)
+  (`#22377 <https://github.com/rocq-prover/rocq/pull/22377>`_,
+  fixes `#22376 <https://github.com/rocq-prover/rocq/issues/22376>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  Compare terms under contexts in the right relevance environment
+  (`#22379 <https://github.com/rocq-prover/rocq/pull/22379>`_,
+  fixes `#22378 <https://github.com/rocq-prover/rocq/issues/22378>`_,
+  by Yann Leray).
+- **Fixed:**
+  incorrect reification in `lazy` machine of matches with universe polymorphism
+  (`#22381 <https://github.com/rocq-prover/rocq/pull/22381>`_,
+  fixes `#22380 <https://github.com/rocq-prover/rocq/issues/22380>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  Only count uniform arguments that correponds to lambdas in the guard checker
+  (`#22384 <https://github.com/rocq-prover/rocq/pull/22384>`_,
+  fixes `#22382 <https://github.com/rocq-prover/rocq/issues/22382>`_,
+  by Yann Leray).
+- **Fixed:**
+  incorrect variance inference for :ref:`cumulative inductives <cumulative>`
+  with letins in the constructor type (bodies of constructor letins can be extracted by `match` without appearing in the `match` term, so they must be considered invariant positions instead of irrelevant)
+  (`#22385 <https://github.com/rocq-prover/rocq/pull/22385>`_,
+  fixes `#22383 <https://github.com/rocq-prover/rocq/issues/22383>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  incorrect substitution of polymorphic universes when converting stuck matches
+  involving an inductive with letins in the indexes or constructor types
+  (`#22393 <https://github.com/rocq-prover/rocq/pull/22393>`_,
+  fixes `#22391 <https://github.com/rocq-prover/rocq/issues/22391>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  ``rocqchk`` with ``-bytecode-compiler yes`` no longer trusts the VM bytecode
+  serialized in a ``.vo``: it does not read the ``vmlibrary`` segment at all, and
+  recompiles the bytecode of every constant from the body it typechecks, so that
+  the code the VM runs and the checked body agree by construction; a crafted
+  ``.vo`` whose serialized bytecode disagreed with its body could previously make
+  a VM conversion prove ``False`` and still pass the checker
+  (`#22353 <https://github.com/rocq-prover/rocq/pull/22353>`_,
+  fixes `#22352 <https://github.com/rocq-prover/rocq/issues/22352>`_,
+  by Archana Burra and Jason Gross).
+- **Changed:**
+  ``PrimInt63.asr x y`` is now ``-1`` when ``x < 0`` and ``y >= 63``,
+  as prescribed by its specification ``Sint63Axioms.asr_spec``
+  (`#22464 <https://github.com/rocq-prover/rocq/pull/22464>`_,
+  fixes `#22462 <https://github.com/rocq-prover/rocq/issues/22462>`_,
+  by Pierre Roux).
+- **Fixed:**
+  Restored support for `native_compute` with OCaml 5 on ARM64 processors
+  (`#22447 <https://github.com/rocq-prover/rocq/pull/22447>`_,
+  by Guillaume Melquiond).
 
 Specification language, type inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -237,6 +292,11 @@ Specification language, type inference
   it will be collapsed to `Prop` instead of `Type`
   (`#22170 <https://github.com/rocq-prover/rocq/pull/22170>`_,
   fixes `#22152 <https://github.com/rocq-prover/rocq/issues/22152>`_,
+  by Gaëtan Gilbert).
+- **Fixed:**
+  ``f (x:=e)%s`` is now parsed as ``f (x:=e%s)`` instead of ``(f (x:=e))%s``
+  (`#22357 <https://github.com/rocq-prover/rocq/pull/22357>`_,
+  fixes `#22324 <https://github.com/rocq-prover/rocq/issues/22324>`_,
   by Gaëtan Gilbert).
 
 Notations
@@ -337,6 +397,13 @@ Tactics
   `...` (:cmd:`Proof with`) is not deprecated anymore and is expected to remain available
   (`#22251 <https://github.com/rocq-prover/rocq/pull/22251>`_,
   by Gaëtan Gilbert).
+- **Changed:**
+  :cmd:`Hint Mode` containing mode ``=`` now prevent :cmd:`Hint Extern` from
+  instantiating the corresponding existential variables. Code that relied on
+  :cmd:`Hint Extern` instantiating an argument marked with ``=`` will no longer
+  work.
+  (`#22415 <https://github.com/rocq-prover/rocq/pull/22415>`_,
+  by Jan-Oliver Kaiser).
 - **Removed:**
   the ability to use non-reference hints in `using` clauses
   of :tacn:`auto`-like tactics
@@ -378,6 +445,12 @@ Tactics
   fixes `#22076 <https://github.com/rocq-prover/rocq/issues/22076>`_
   and `#21831 <https://github.com/rocq-prover/rocq/issues/21831>`_,
   by Gaëtan Gilbert).
+- **Fixed:**
+  :cmd:`Hint Mode` declarations are now treated as alternatives when several
+  matching modes contain ``=``
+  (`#22415 <https://github.com/rocq-prover/rocq/pull/22415>`_,
+  fixes `#22413 <https://github.com/rocq-prover/rocq/issues/22413>`_,
+  by Jan-Oliver Kaiser).
 
 Ltac2 language
 ^^^^^^^^^^^^^^
@@ -576,6 +649,28 @@ Command-line tools
   (`#21423 <https://github.com/rocq-prover/rocq/pull/21423>`_,
   fixes `#21422 <https://github.com/rocq-prover/rocq/issues/21422>`_,
   by Johannes Hostert).
+- **Fixed:**
+  ``rocqchk -bytecode-compiler yes`` no longer refuses to load files that use
+  primitive strings; the VM data validator accepted only the six array
+  primitives, so the bytecode of any string primitive failed to intern
+  (`#22361 <https://github.com/rocq-prover/rocq/pull/22361>`_,
+  fixes `#22360 <https://github.com/rocq-prover/rocq/issues/22360>`_,
+  by Jason Gross).
+- **Fixed:**
+  ``rocqchk`` now validates the marshalled data of every library named on the
+  command line, whatever the order of the ``-norec`` arguments; a library that
+  happened to be interned first as a dependency of another explicitly named one
+  was read without validation and without checking its recorded checksums
+  (`#22363 <https://github.com/rocq-prover/rocq/pull/22363>`_,
+  fixes `#22362 <https://github.com/rocq-prover/rocq/issues/22362>`_,
+  by Jason Gross).
+- **Fixed:**
+  ``rocq dep`` no longer treats a ``. `` inside a string literal as the end of
+  a sentence, so a ``Require`` written inside a string is no longer recorded as
+  a dependency and no longer causes a spurious syntax error
+  (`#22443 <https://github.com/rocq-prover/rocq/pull/22443>`_,
+  fixes `#22442 <https://github.com/rocq-prover/rocq/issues/22442>`_,
+  by Jason Gross).
 
 Corelib
 ^^^^^^^
@@ -630,6 +725,20 @@ Infrastructure and dependencies
   (path normalization in custom Rocq rules went awry)
   (`#22198 <https://github.com/rocq-prover/rocq/pull/22198>`_,
   by Gaëtan Gilbert).
+- **Fixed:**
+  Fix `dunestrap` rule generation to work with dune 3.25
+  (`#22356 <https://github.com/rocq-prover/rocq/pull/22356>`_,
+  by Jan-Oliver Kaiser).
+
+Extraction
+^^^^^^^^^^
+
+- **Fixed:**
+  extraction of primitive array literals
+  (`#22457 <https://github.com/rocq-prover/rocq/pull/22457>`_,
+  fixes `#22365 <https://github.com/rocq-prover/rocq/issues/22365>`_,
+  by Gaëtan Gilbert).
+
 
 Miscellaneous
 ^^^^^^^^^^^^^
