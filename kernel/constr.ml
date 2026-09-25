@@ -944,15 +944,6 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
     | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
 
-(* [compare_head_gen_leq u s eq leq c1 c2] compare [c1] and [c2] using [eq] to compare
-   the immediate subterms of [c1] of [c2] for conversion if needed, [leq] for cumulativity,
-   [u] to compare universe instances and [s] to compare sorts; Cast's,
-   application associativity, binders name and Cases annotations are
-   not taken into account *)
-
-let compare_head_gen_leq leq_universes leq_sorts eq_evars eq leq t1 t2 =
-  compare_head_gen_leq_with kind kind leq_universes leq_sorts eq_evars eq leq t1 t2
-
 (* [compare_head_gen u s f c1 c2] compare [c1] and [c2] using [f] to
    compare the immediate subterms of [c1] of [c2] if needed, [u] to
    compare universe instances and [s] to compare sorts; Cast's,
@@ -962,13 +953,8 @@ let compare_head_gen_leq leq_universes leq_sorts eq_evars eq leq t1 t2 =
    [compare_head_gen_with] is a variant taking kind-of-term functions,
    to expose subterms of [c1] and [c2], as arguments. *)
 
-let compare_head_gen_with kind1 kind2 eq_universes eq_sorts eq_evars eq t1 t2 =
-  compare_head_gen_leq_with kind1 kind2 eq_universes eq_sorts eq_evars eq eq t1 t2
-
 let compare_head_gen eq_universes eq_sorts eq_evars eq t1 t2 =
-  compare_head_gen_leq eq_universes eq_sorts eq_evars eq eq t1 t2
-
-let compare_head = compare_head_gen (fun _ -> UVars.Instance.equal) Sorts.equal
+  compare_head_gen_leq_with kind kind eq_universes eq_sorts eq_evars eq eq t1 t2
 
 (*******************************)
 (*  alpha conversion functions *)
@@ -1005,12 +991,9 @@ let leq_constr_univs univs m n =
       m == n || compare_head_gen eq_universes eq_sorts (eq_existential (eq_constr' 0)) eq_constr' nargs m n
     in
     let rec compare_leq nargs m n =
-      compare_head_gen_leq eq_universes leq_sorts (eq_existential (eq_constr' 0)) eq_constr' leq_constr' nargs m n
+      compare_head_gen_leq_with kind kind eq_universes leq_sorts (eq_existential (eq_constr' 0)) eq_constr' leq_constr' nargs m n
     and leq_constr' nargs m n = m == n || compare_leq nargs m n in
     compare_leq 0 m n
-
-let rec eq_constr_nounivs m n =
-  (m == n) || compare_head_gen (fun _ _ _ -> true) (fun _ _ -> true) (eq_existential eq_constr_nounivs) (fun _ -> eq_constr_nounivs) 0 m n
 
 (*******************)
 (*  hash-consing   *)

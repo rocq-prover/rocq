@@ -755,8 +755,8 @@ let fold_with_binders sigma g f e acc c =
     List.fold_left (fun acc c -> f e acc c) acc args
   | _ -> Constr.fold_constr_with_binders g f e acc c
 
-let compare_gen k eq_inst eq_sort eq_constr eq_evars nargs c1 c2 =
-  (c1 == c2) || Constr.compare_head_gen_with k k eq_inst eq_sort eq_constr eq_evars nargs c1 c2
+let compare_gen k eq_inst eq_sort eq_evars eq_constr nargs c1 c2 =
+  (c1 == c2) || Constr.compare_head_gen_leq_with k k eq_inst eq_sort eq_evars eq_constr eq_constr nargs c1 c2
 
 let eq_existential sigma eq (evk1, args1) (evk2, args2) =
   if Evar.equal evk1 evk2 then
@@ -874,7 +874,7 @@ let test_constr_universes env sigma leq ?(nargs=0) m n =
         and leq_constr' nargs m n = m == n || compare_leq nargs m n in
         compare_leq nargs m n
       else
-        Constr.compare_head_gen_with kind kind eq_universes eq_sorts (eq_existential eq_constr') eq_constr' nargs m n
+        Constr.compare_head_gen_leq_with kind kind eq_universes eq_sorts (eq_existential eq_constr') eq_constr' eq_constr' nargs m n
     in
     if res then Some !cstrs else None
 
@@ -895,7 +895,7 @@ let compare_head_gen_proj env sigma equ eqs eqev eqc' nargs m n =
             eqc' 0 c args.(npars)
           else false
       | _ -> false)
-  | _ -> Constr.compare_head_gen_with kind kind equ eqs eqev eqc' nargs m n
+  | _ -> Constr.compare_head_gen_leq_with kind kind equ eqs eqev eqc' eqc' nargs m n
 
 let eq_constr_universes_proj env sigma m n =
   let open UnivProblem in
