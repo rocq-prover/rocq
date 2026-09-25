@@ -61,6 +61,7 @@ val add_mind :
   ?typing_flags:typing_flags ->
   Id.t -> Entries.mutual_inductive_entry ->
   MutInd.t * IndTyping.NotPrimRecordReason.t option
+val set_constant_def_height : Constant.t -> int -> unit
 
 (** Extra universe constraints *)
 val add_univ_constraints : Univ.UnivConstraints.t -> unit
@@ -193,6 +194,8 @@ val set_strategy : Conv_oracle.evaluable -> Conv_oracle.level -> unit
 val set_share_reduction : bool -> unit
 
 val set_unfold_dep_heuristic : bool -> unit
+
+val set_unfold_height_heuristic : bool -> unit
 
 val set_VM : bool -> unit
 val set_native_compiler : bool -> unit

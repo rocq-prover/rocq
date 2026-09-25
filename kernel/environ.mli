@@ -196,6 +196,8 @@ val mem_constant : Constant.t -> env -> bool
 val add_rewrite_rules : (Constant.t * machine_rewrite_rule) list -> env -> env
 val lookup_rewrite_rules : Constant.t -> env -> machine_rewrite_rule list
 
+val set_constant_def_height : Constant.t -> int -> env -> env
+
 (** New-style polymorphism *)
 val polymorphic_constant  : Constant.t -> env -> bool
 val polymorphic_pconstant : pconstant -> env -> bool
@@ -560,3 +562,10 @@ module Internal : sig
   (** Overwriting variant of Modops.add_structure, see above. *)
 
 end
+
+(** {5 Definitional height of constants } *)
+
+(** [constant_definitional_height e c] computes the maximum number of constants
+    that must be unfolded until a term with no further constants.
+*)
+val constant_definitional_height : env -> Constant.t -> int

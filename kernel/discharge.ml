@@ -81,6 +81,7 @@ let cook_constant _env info cb =
     const_relevance =  lift_relevance info cb.const_relevance;
     const_inline_code = cb.const_inline_code;
     const_typing_flags = cb.const_typing_flags;
+    const_def_height = cb.const_def_height;
   }
 
 (********************************)
