@@ -169,6 +169,7 @@ let infer_primitive env { prim_entry_type = utyp; prim_entry_content = p; } =
     const_relevance = Sorts.Relevant;
     const_inline_code = false;
     const_typing_flags = Environ.typing_flags env;
+    const_def_height = None
   }
 
 let infer_symbol env { symb_entry_universes; symb_entry_unfold_fix; symb_entry_type } =
@@ -186,6 +187,7 @@ let infer_symbol env { symb_entry_universes; symb_entry_unfold_fix; symb_entry_t
     const_relevance = r;
     const_inline_code = false;
     const_typing_flags = Environ.typing_flags env;
+    const_def_height = None;
   }
 
 
@@ -211,6 +213,7 @@ let infer_parameter ~sec_univs env entry =
     const_relevance = r;
     const_inline_code = false;
     const_typing_flags = Environ.typing_flags env;
+    const_def_height = None;
   }
 
 let infer_definition ~sec_univs env entry =
@@ -241,6 +244,7 @@ let infer_definition ~sec_univs env entry =
     const_relevance = Relevanceops.relevance_of_term env body;
     const_inline_code = entry.definition_entry_inline_code;
     const_typing_flags = Environ.typing_flags env;
+    const_def_height = None
   }
 
 (** Definition is opaque (Qed), so we delay the typing of its body. *)
@@ -262,6 +266,7 @@ let infer_opaque ~sec_univs env entry =
     const_relevance = Sorts.relevance_of_sort typj.utj_type;
     const_inline_code = false;
     const_typing_flags = Environ.typing_flags env;
+    const_def_height = None
   }, context
 
 let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_output) =

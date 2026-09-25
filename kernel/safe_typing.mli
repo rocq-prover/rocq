@@ -99,6 +99,9 @@ val add_constant :
 val add_private_constant :
   Id.t -> Univ.ContextSet.t -> side_effect_declaration -> (Constant.t * private_constants) safe_transformer
 
+(** Records the definitional height of a constant. *)
+val set_constant_def_height : Constant.t -> int -> safe_transformer0
+
 (** {5 Delayed proofs} *)
 
 (** Witness that a delayed Qed hole has a proof. This datatype is marshallable
@@ -171,6 +174,7 @@ val set_indices_matter : bool -> safe_transformer0
 val set_typing_flags : Declarations.typing_flags -> safe_transformer0
 val set_share_reduction : bool -> safe_transformer0
 val set_unfold_dep_heuristic : bool -> safe_transformer0
+val set_unfold_height_heuristic : bool -> safe_transformer0
 val set_check_guarded : bool -> safe_transformer0
 val set_check_positive : bool -> safe_transformer0
 val set_check_universes : bool -> safe_transformer0

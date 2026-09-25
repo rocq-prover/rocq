@@ -105,6 +105,7 @@ let add_mind ?typing_flags id mie = globalize (Safe_typing.add_mind ?typing_flag
 let add_modtype id me inl = globalize (Safe_typing.add_modtype id me inl)
 let add_module id me inl = globalize (Safe_typing.add_module id me inl)
 let add_include me ismod inl = globalize (Safe_typing.add_include me ismod inl)
+let set_constant_def_height kn dh = globalize0 (Safe_typing.set_constant_def_height kn dh)
 
 let open_section () = globalize0 Safe_typing.open_section
 let close_section fs = globalize0_with_summary fs Safe_typing.close_section
@@ -251,6 +252,9 @@ let set_share_reduction b =
 
 let set_unfold_dep_heuristic b =
   globalize0 (Safe_typing.set_unfold_dep_heuristic b)
+
+let set_unfold_height_heuristic b =
+  globalize0 (Safe_typing.set_unfold_height_heuristic b)
 
 let set_VM b = globalize0 (Safe_typing.set_VM b)
 let set_native_compiler b = globalize0 (Safe_typing.set_native_compiler b)

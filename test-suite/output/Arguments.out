@@ -50,7 +50,7 @@ forall {D1 C1 : Type},
 pf is not universe polymorphic
 Arguments pf {D1}%_foo_scope {C1}%_type_scope f [D2 C2] g x : simpl never
 The reduction tactics never unfold pf
-pf is transparent
+pf is transparent (level -2)
 Expands to: Constant Arguments.pf
 Declared in library Arguments, line 12, characters 11-13
 fcomp : forall {A B C : Type}, (B -> C) -> (A -> B) -> A -> C
@@ -58,7 +58,7 @@ fcomp : forall {A B C : Type}, (B -> C) -> (A -> B) -> A -> C
 fcomp is not universe polymorphic
 Arguments fcomp {A B C}%_type_scope f g x /
 The reduction tactics unfold fcomp when applied to 6 arguments
-fcomp is transparent
+fcomp is transparent (level -1)
 Expands to: Constant Arguments.fcomp
 Declared in library Arguments, line 19, characters 11-16
 volatile : nat -> nat
@@ -66,7 +66,7 @@ volatile : nat -> nat
 volatile is not universe polymorphic
 Arguments volatile / x%_nat_scope
 The reduction tactics always unfold volatile
-volatile is transparent
+volatile is transparent (level -1)
 Expands to: Constant Arguments.volatile
 Declared in library Arguments, line 22, characters 11-19
 f : T1 -> T2 -> nat -> unit -> nat -> nat
@@ -136,7 +136,7 @@ volatilematch is not universe polymorphic
 Arguments volatilematch / n%_nat_scope : simpl nomatch
 The reduction tactics always unfold volatilematch
   but avoid exposing match constructs
-volatilematch is transparent
+volatilematch is transparent (level -1)
 Expands to: Constant Arguments.volatilematch
 Declared in library Arguments, line 58, characters 11-24
      = fun n : nat => volatilematch n

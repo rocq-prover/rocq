@@ -129,7 +129,7 @@ insec0@{i i0} : Type@{i} -> Type@{i} -> Type@{i0} -> Type@{i}
 
 insec0 is universe polymorphic
 Arguments insec0 (foo bar baz)%_type_scope
-insec0 is transparent
+insec0 is transparent (level -1)
 Expands to: Constant UnivBinders.insec0
 Declared in library UnivBinders, line 114, characters 13-19
 File "./output/UnivBinders.v", line 120, characters 0-50:

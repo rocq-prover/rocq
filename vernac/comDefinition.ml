@@ -118,6 +118,9 @@ let interp_statement ~program_mode env evd ~(flags : Pretyping.inference_flags) 
   let ids = List.map Context.Rel.Declaration.get_name ctx in
   evd, ids, EConstr.it_mkProd_or_LetIn t' ctx, imps @ imps'
 
+(* REMOVE *)
+let debug = CDebug.create ~name:"comDefinition" ()
+
 let do_definition ?loc ?hook ~name ?scope ?clearbody ~poly ?typing_flags ~kind ?using ?user_warns udecl bl red_option c ctypopt =
   let program_mode = false in
   let env = Global.env() in
@@ -130,9 +133,26 @@ let do_definition ?loc ?hook ~name ?scope ?clearbody ~poly ?typing_flags ~kind ?
   let kind = Decls.IsDefinition kind in
   let cinfo = Declare.CInfo.make ?loc ~name ~impargs ~typ:types () in
   let info = Declare.Info.make ?scope ?clearbody ~kind ?hook ~udecl ~poly ?typing_flags ?user_warns () in
-  let _ : Names.GlobRef.t =
+  let gref : Names.GlobRef.t =
     Declare.declare_definition ~info ~cinfo ~opaque:false ~body ?using evd
-  in ()
+  in
+  if (Global.typing_flags ()).unfold_height_heuristic then
+    let open Names.GlobRef in
+      (match gref with
+      | ConstRef c ->
+        let def_height_c = Environ.constant_definitional_height (Global.env ()) c in
+        Global.set_constant_def_height c def_height_c;
+        Redexpr.set_strategy false [(Conv_oracle.Level (-def_height_c), [Evaluable.EvalConstRef c])];
+        debug (fun () ->
+          Pp.str "Definition declared: " ++
+          Names.GlobRef.print gref ++
+          Pp.str ", definitional height: " ++
+          Pp.int def_height_c ++
+          Pp.str ", strat. lvl. set to " ++
+          Pp.int (-def_height_c))
+      | _ -> ())
+  else ()
+
 
 let do_definition_program ?loc ?hook ~pm ~name ~scope ?clearbody ~poly ?typing_flags ~kind ?using ?user_warns udecl bl red_option c ctypopt =
   let env = Global.env() in
@@ -165,7 +185,12 @@ let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~
   let info = Declare.Info.make ?hook ~poly ~scope ?clearbody ~kind ~udecl ?typing_flags ?user_warns () in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~args ~impargs () in
   let evd = if PolyFlags.univ_poly poly then evd else Evd.fix_undefined_variables evd in
-  Declare.Proof.start_definition ~info ~cinfo ?using evd
+  let proof = Declare.Proof.start_definition ~info ~cinfo ?using evd in
+  let _ = debug (fun () ->
+    Pp.str "Interactive definition." ++
+    Pp.str "Proof done?:" ++ Pp.bool (Proof.is_done (Declare.Proof.get proof)))
+  in
+  proof
 
 let do_definition_refine ?loc ?hook ~name ~scope ?clearbody ~poly ~typing_flags ~kind ?using ?user_warns udecl bl c ctypopt =
   let env = Global.env() in

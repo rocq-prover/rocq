@@ -13,6 +13,17 @@ open Synterp
 
 let vernac_pperr_endline = CDebug.create ~name:"vernacinterp" ()
 
+let cmd_ends_transparent (v : vernac_entry) : bool =
+  match v with
+  | VernacSynPure (VernacEndProof (Proved (Transparent, _))) -> true
+  | _ -> false
+
+let end_cmd_override_name (vc : vernac_entry) (curr_name : Names.variable) : Names.Id.t =
+  match vc with
+  | VernacSynPure (VernacEndProof (Proved (Transparent, Some n))) -> CAst.with_val (fun x -> x) n
+  | VernacSynPure (VernacEndProof (Proved (Opaque, Some n))) -> CAst.with_val (fun x -> x) n
+  | _ -> curr_name
+
 let real_error_loc ~cmdloc ~eloc =
   if Loc.finer eloc cmdloc then eloc
   else cmdloc
@@ -73,8 +84,8 @@ and interp_expr_core ?loc ~atts ~st c =
     Attributes.unsupported_attributes atts;
     vernac_load ~verbosely ~st fname
 
-  | v ->
-    let fv = Vernacentries.translate_vernac ?loc ~atts v in
+  | vc ->
+    let fv = Vernacentries.translate_vernac ?loc ~atts vc in
     let stack = st.Vernacstate.interp.lemmas in
     let program = st.Vernacstate.interp.program in
     let {Vernactypes.prog; proof; opaque_access=(); }, () = Vernactypes.run ?loc fv {
@@ -83,7 +94,22 @@ and interp_expr_core ?loc ~atts ~st c =
         opaque_access=();
       }
     in
-    proof, prog
+    if (Global.typing_flags ()).unfold_height_heuristic && cmd_ends_transparent vc then
+      match stack with
+      | None -> CErrors.anomaly (Pp.str "Proof ending command ran on empty lemma stack.")
+      | Some s ->
+        let (p,s) = Vernacstate.LemmaStack.pop s in
+        let uname = end_cmd_override_name vc (Declare.Proof.get_name p) in
+        let kn = Names.Constant.make1 (Lib.make_kn uname) in
+        let def_height_c = Environ.constant_definitional_height (Global.env ()) kn in
+        Global.set_constant_def_height kn def_height_c;
+        Redexpr.set_strategy false [(Conv_oracle.Level (-def_height_c), [Evaluable.EvalConstRef kn])];
+        vernac_pperr_endline Pp.(fun () ->
+          str "Strategy level " ++ int (-def_height_c) ++ str " set for constant: " ++
+          Names.Constant.debug_print kn);
+        proof, prog
+    else
+      proof, prog
 
 and vernac_load ~verbosely ~st entries =
   let v_mod = if verbosely then Flags.verbosely else Flags.silently in
