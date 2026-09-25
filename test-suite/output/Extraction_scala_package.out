@@ -1,0 +1,44 @@
+object Main {
+
+sealed trait Nat
+final case class O() extends Nat
+final case class S(_1: Nat) extends Nat
+
+
+val answer: Nat =
+  S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(O()))))))))))))))))))))))))))))))))))))))))))
+
+}
+
+package com.foo.bar
+
+object Main {
+
+sealed trait Nat
+final case class O() extends Nat
+final case class S(_1: Nat) extends Nat
+
+
+val answer: Nat =
+  S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(O()))))))))))))))))))))))))))))))))))))))))))
+
+}
+
+File "./output/Extraction_scala_package.v", line 26, characters 0-45:
+The command has indeed failed with message:
+Extraction Scala Package must be a dotted sequence of valid ASCII identifiers, e.g. "com.foo.bar".
+File "./output/Extraction_scala_package.v", line 27, characters 0-45:
+The command has indeed failed with message:
+Extraction Scala Package must be a dotted sequence of valid ASCII identifiers, e.g. "com.foo.bar".
+object Main {
+
+sealed trait Nat
+final case class O() extends Nat
+final case class S(_1: Nat) extends Nat
+
+
+val answer: Nat =
+  S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(S(O()))))))))))))))))))))))))))))))))))))))))))
+
+}
+

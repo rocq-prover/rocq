@@ -8,9 +8,9 @@ Program extraction
 We present here the Rocq extraction commands, used to build certified
 and relatively efficient functional programs, extracting them from
 either Rocq functions or Rocq proofs of specifications. The
-functional languages available as output are currently OCaml, Haskell
-and Scheme. In the following, "ML" will be used (abusively) to refer
-to any of the three.
+functional languages available as output are currently OCaml, Haskell,
+Scheme and Scala. In the following, "ML" will be used (abusively) to refer
+to any of these languages.
 
 .. versionchanged:: 8.11
 
@@ -126,6 +126,7 @@ Setting the target language
       | Haskell
       | Scheme
       | JSON
+      | Scala
 
    The ability to fix target language is the first and most important
    of the extraction options. Default is ``OCaml``.
@@ -371,8 +372,9 @@ native boolean type instead of the Rocq one. The syntax is the following:
 
    When the initial :n:`{| @ident | @string }` matches the name of the type of characters or strings
    (``char`` and ``string`` for OCaml, ``Prelude.Char`` and ``Prelude.String``
-   for Haskell), extraction of literals is handled in a specialized way, so as
-   to generate literals in the target language. This feature requires the type
+   for Haskell, ``Char`` and ``String`` for Scala), extraction of literals is
+   handled in a specialized way, so as to generate literals in the target
+   language. This feature requires the type
    designated by :n:`@qualid` to be registered as the standard char or string type,
    using the :cmd:`Register` command.
 

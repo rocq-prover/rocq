@@ -1303,6 +1303,7 @@ language: [
 | "Haskell"      (* extraction plugin *)
 | "Scheme"      (* extraction plugin *)
 | "JSON"      (* extraction plugin *)
+| "Scala"      (* extraction plugin *)
 ]
 
 ring_mod: [

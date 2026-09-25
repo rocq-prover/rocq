@@ -470,6 +470,9 @@ let error_unknown_module ?loc m =
 let error_scheme () =
   err (str "No Scheme modular extraction available yet.")
 
+let error_scala_modular () =
+  err (str "No Scala modular extraction available yet.")
+
 let error_not_visible r =
   err (safe_pr_global r ++ str " is not directly visible.\n" ++
        str "For example, it may be inside an applied functor.\n" ++
@@ -684,9 +687,28 @@ let { Goptions.get = file_comment } =
     ~value:""
     ()
 
+(* The package clause the Scala backend prints at the top of every
+   extracted file (empty - the default - means no [package] clause at
+   all). Only meaningful for [Extraction Language Scala], but declared
+   here alongside every other Extraction string option. *)
+let { Goptions.get = scala_package } =
+  declare_interpreted_string_option_and_ref
+    (fun s ->
+       let valid_segment seg =
+         not (String.is_empty seg) && Unicode.is_basic_ascii seg && Id.is_valid seg
+       in
+       if String.is_empty s || List.for_all valid_segment (String.split_on_char '.' s)
+       then s
+       else user_err Pp.(str "Extraction Scala Package must be a dotted sequence of \
+                              valid ASCII identifiers, e.g. \"com.foo.bar\"."))
+    Fun.id
+    ~key:["Extraction"; "Scala"; "Package"]
+    ~value:""
+    ()
+
 (*s Extraction Lang *)
 
-type lang = Ocaml | Haskell | Scheme | JSON
+type lang = Ocaml | Haskell | Scheme | JSON | Scala
 
 let lang_ref = Summary.ref Ocaml ~name:"ExtrLang"
 
