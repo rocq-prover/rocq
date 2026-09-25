@@ -145,10 +145,11 @@ val interp_notation : ?loc:Loc.t -> notation -> subscopes ->
       interpretation * (notation_location * scope_name option)
 
 (** Test if a notation is available in the scopes
-   context [scopes]; if available, the result is not None; the first
-   argument is itself not None if a delimiters is needed *)
+   context [scopes]; if available, the result is not None;
+   the returned subscopes is itself not the empty list
+   if delimiters are needed *)
 val availability_of_notation : specific_notation -> subscopes ->
-  (scope_name option * delimiters option) option
+  (subscopes * delimiters option) option
 
 val is_printing_inactive_rule : Notationextern.interp_rule -> interpretation -> bool
 

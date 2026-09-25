@@ -203,8 +203,8 @@ let push_scope sc scopes = OpenScopeItem sc :: scopes
 
 let push_scopes = List.fold_right push_scope
 
-let make_current_scopes (tmp_scopes,scopes) =
-  push_scopes tmp_scopes (push_scopes scopes !scope_stack)
+let make_current_scopes scopes =
+  push_scopes (List.map snd scopes) !scope_stack
 
 (**********************************************************************)
 (* Delimiters *)
@@ -365,7 +365,7 @@ let find_with_delimiters = function
   | LastLonelyNotation -> None
   | NotationInScope scope ->
       match (String.Map.find scope !scope_map).delimiters with
-        | Some key -> Some (Some scope, Some key)
+        | Some key -> Some ([DelimUnboundedScope, scope], Some key)
         | None -> None
         | exception Not_found -> None
 
@@ -374,7 +374,7 @@ let rec find_without_delimiters find (ntn_scope,ntn) = function
       (* Is the expected ntn/numpr attached to the most recently open scope? *)
       begin match ntn_scope with
       | NotationInScope scope' when String.equal scope scope' ->
-        Some (None,None)
+        Some ([], None)
       | _ ->
         (* If the most recently open scope has a notation/number printer
            but not the expected one then we need delimiters *)
@@ -391,7 +391,7 @@ let rec find_without_delimiters find (ntn_scope,ntn) = function
           (* If the first notation with same string in the visibility stack
              is the one we want to print, then it can be used without
              risking a collision *)
-           Some (None, None)
+           Some ([], None)
         | NotationInScope _ ->
           (* A lonely notation is liable to hide the scoped notation
              to print, we check if the lonely notation is active to
@@ -531,7 +531,7 @@ let find_prim_token check_allowed ?loc p sc =
   check_allowed pat;
   pat
 
-let interp_prim_token_gen ?loc g p local_scopes =
+let interp_prim_token_gen ?loc g p (local_scopes : subscopes) =
   let scopes = make_current_scopes local_scopes in
   let p_as_ntn = try notation_of_prim_token p with Not_found -> InConstrEntry,"" in
   try
@@ -1579,8 +1579,13 @@ let interp_notation_as_global_reference_expanded ?loc ~head test ntn sc =
 let interp_notation_as_global_reference ?loc ~head test ntn sc =
   let _,_,_,_,ref = interp_notation_as_global_reference_expanded ?loc ~head test ntn sc in ref
 
-let pr_id_infos (id, ((level,(tmp_scopes, scopes)), under_binders, kind)) =
-  let scopes = List.map (fun x -> "_"^x) tmp_scopes @ scopes in
+let pr_delimiter_depth = function
+  | DelimOnlyTmpScope -> str "%_"
+  | DelimUnboundedScope -> str "%"
+
+let pr_scope_delimiter (d, sc) = pr_delimiter_depth d ++ str sc
+
+let pr_id_infos (id, ((level, scopes), under_binders, kind)) =
   match scopes with
   | [] -> None
   | _ ->
@@ -1592,7 +1597,7 @@ let pr_id_infos (id, ((level,(tmp_scopes, scopes)), under_binders, kind)) =
        This is why we print comment syntax "(* x in scope foo *)" instead of "(x in scope foo)". *)
     let pp =
       Id.print id ++ str " in " ++ str (CString.lplural scopes "scope") ++ spc() ++
-      prlist_with_sep spc str scopes
+      prlist pr_scope_delimiter scopes
     in
     Some pp
 
