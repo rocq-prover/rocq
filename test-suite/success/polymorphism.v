@@ -16,7 +16,7 @@ Module ParseSet.
 
   Sort s.
 
-  Check Type@{s; 0} : Type@{1}.
+  Check Univ@{s; 0} : Type@{1}.
 
   Polymorphic Definition apply A B (f:A -> B) x := f x.
   Check eq_refl : apply@{0 0} = apply@{Set Set}.

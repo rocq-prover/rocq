@@ -27,7 +27,7 @@ Proof.
   Fail Validate Proof.
 Abort.
 
-Polymorphic Record Box@{s;} (A:Prop) : Type@{s;Set} := box { unbox : A }.
+Polymorphic Record Box@{s;} (A:Prop) : Univ@{s;Set} := box { unbox : A }.
 Arguments box {_}. Arguments unbox {_}.
 
 From Ltac2 Require Import Ltac2 Constr.

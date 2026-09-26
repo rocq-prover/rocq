@@ -3,9 +3,9 @@ Set Universe Polymorphism.
 Section S.
   Sort s.
 
-  Inductive foo@{s1 s2;u} (A:Type@{s2;u}) : Type@{s1;u} := X (_:A).
+  Inductive foo@{s1 s2;u} (A:Univ@{s2;u}) : Univ@{s1;u} := X (_:A).
 
-  Inductive bar (A:Type@{s;Set}) : Prop := Y (_:A).
+  Inductive bar (A:Univ@{s;Set}) : Prop := Y (_:A).
 End S.
 
 Fail Definition bla (A:Type) (x:foo@{SProp Prop Type;_} A) : A := match x with X _ v => v end.

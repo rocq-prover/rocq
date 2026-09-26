@@ -3,8 +3,8 @@ Sort s s' s''.
 Constraint s -> s'.
 Constraint s' -> s''.
 
-Polymorphic Axiom ad@{s;u} : forall A : Type@{s;u}, A.
-Polymorphic Definition t@{s s';u v|s -> s'} (A : Type@{s;u}) (B : Type@{s';v}) : A := ad A.
+Polymorphic Axiom ad@{s;u} : forall A : Univ@{s;u}, A.
+Polymorphic Definition t@{s s';u v|s -> s'} (A : Univ@{s;u}) (B : Univ@{s';v}) : A := ad A.
 
 (* This should succeed even though [s -> s''] is not declared *)
 Check t@{s s'';Set Set}.

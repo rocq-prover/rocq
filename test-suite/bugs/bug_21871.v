@@ -1,6 +1,6 @@
 Module Br.
   Set Universe Polymorphism.
-  Inductive Box@{s;u} (A : Type@{s;u}) : Type@{s;u} := box : A -> Box A.
+  Inductive Box@{s;u} (A : Univ@{s;u}) : Univ@{s;u} := box : A -> Box A.
   Axiom wrap : forall (x : nat), Box nat.
   Section Bug.
     Variable x : nat.
@@ -23,8 +23,8 @@ End Br.
 Module Index.
   (* checks that relevances in indices and "as" for the return predicate are correctly substituted
      (was not broken in the past AFAIK) *)
-  Polymorphic Inductive sTrue@{s;} : Type@{s;Set} := sI.
-  Polymorphic Inductive sFalse@{s;} : sTrue@{s;} -> Type@{s;Set} := .
+  Polymorphic Inductive sTrue@{s;} : Univ@{s;Set} := sI.
+  Polymorphic Inductive sFalse@{s;} : sTrue@{s;} -> Univ@{s;Set} := .
   Inductive seq {A:SProp} (a:A) : A -> Prop := srefl : seq a a.
 
   Lemma vmfoo (x:sFalse sI) : match x return seq x x with  end = srefl _.

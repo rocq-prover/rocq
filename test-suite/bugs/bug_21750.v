@@ -1,5 +1,5 @@
 Set Universe Polymorphism.
-Inductive Box@{s; u} (A : Type@{u}) : Type@{s; u} := box (x : A).
+Inductive Box@{s; u} (A : Type@{u}) : Univ@{s; u} := box (x : A).
 
 Module Type M.
   Parameter T@{s; u} : forall A, Box@{s; u} A -> Box@{Type; u} A.

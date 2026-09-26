@@ -1,6 +1,6 @@
 Set Universe Polymorphism.
 
-Inductive bool@{q; |} : Type@{q;Set} := | true : bool | false : bool.
+Inductive bool@{q; |} : Univ@{q;Set} := | true : bool | false : bool.
 
 Definition nand@{q; |} (a b : bool@{q;}) : bool@{q;} :=
   match a , b with
@@ -8,11 +8,11 @@ Definition nand@{q; |} (a b : bool@{q;}) : bool@{q;} :=
   | _ , _ => true
   end.
 
-Inductive seq@{q;u|} {A : Type@{q;u}} (a : A) : A -> Type@{q;u} := | srefl : seq a a.
+Inductive seq@{q;u|} {A : Univ@{q;u}} (a : A) : A -> Univ@{q;u} := | srefl : seq a a.
 Arguments srefl {_ _}.
 
 Definition seq_elim@{q;u v|} :=
-  fun (A : Type@{q;u}) (x : A) (P : A -> Type@{q;v}) (f : P x) (a : A) (e : seq x a) =>
+  fun (A : Univ@{q;u}) (x : A) (P : A -> Univ@{q;v}) (f : P x) (a : A) (e : seq x a) =>
   match e in (seq _ a0) return (P a0) with
   | srefl => f
   end.

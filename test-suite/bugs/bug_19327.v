@@ -1,6 +1,6 @@
 Set Universe Polymorphism.
 
-Inductive Box@{s;u|} (A:Type@{s;u}) : Type@{s;u} :=
+Inductive Box@{s;u|} (A:Univ@{s;u}) : Univ@{s;u} :=
 | box : A -> Box A.
 Arguments box {_} _.
 
