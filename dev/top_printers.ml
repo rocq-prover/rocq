@@ -155,7 +155,7 @@ let ppconmapenvgen l =
 let ppmindmapenvgen l =
   pp (prmapgen
         (fun mp -> str (MutInd.debug_to_string mp))
-        (Mindmap_env.Set.elements (Mindmap_env.domain l)))
+        (Mindset.elements (Mindmap_env.domain l)))
 
 let ppevarsubst = ppidmap (fun id0 -> prset (fun (c,copt,id) ->
   hov 0

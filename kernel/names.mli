@@ -392,23 +392,16 @@ sig
 
 end
 
-(** The [*_env] modules consider an order on user part of names
-   the others consider an order on canonical part of names*)
-module Cpred : Predicate.S with type elt = Constant.t
+(** Sets and maps use the UserOrd ordering to index keys. *)
 module Cset : CSig.USetS with type elt = Constant.t
-[@@ocaml.deprecated "(9.3) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
-module Cset_env  : CSig.USetS with type elt = Constant.t
+module Cmap : Map.UExtS with type key = Constant.t and module Set := Cset
 
-module Cmap : Map.UExtS with type key = Constant.t and module Set := Cset [@@ocaml.warning "-3"]
-[@@ocaml.deprecated "(9.3) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
+module Cpred : Predicate.S with type elt = Constant.t
+(* CAVEAT: uses CanOrd to index keys. *)
 
-module Cmap_env : Map.UExtS with type key = Constant.t and module Set := Cset_env
-(** A map whose keys are constants (values of the {!Constant.t} type).
-    Keys are ordered wrt. "user form" of the constant. *)
+(* Legacy APIs, don't use. TODO deprecate *)
+module Cset_env = Cset
+module Cmap_env = Cmap
 
 (** {6 Inductive names} *)
 
@@ -459,15 +452,10 @@ sig
 end
 
 module Mindset : CSig.USetS with type elt = MutInd.t
-[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
-module Mindmap : Map.UExtS with type key = MutInd.t and module Set := Mindset [@ocaml.warning "-3"]
-[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
+module Mindmap : Map.UExtS with type key = MutInd.t and module Set := Mindset
 
-module Mindmap_env : CMap.UExtS with type key = MutInd.t
+(* Legacy APIs, don't use. TODO deprecate *)
+module Mindmap_env = Mindmap
 
 module Ind :
 sig
@@ -500,28 +488,16 @@ end
 type constructor = Construct.t
 
 module Indset : CSet.ExtS with type elt = inductive
-[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
 module Constrset : CSet.ExtS with type elt = constructor
-[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
 
-module Indset_env : CSet.ExtS with type elt = inductive
-module Constrset_env : CSet.ExtS with type elt = constructor
+module Indmap : CMap.ExtS with type key = inductive and module Set := Indset
+module Constrmap : CMap.ExtS with type key = constructor and module Set := Constrset
 
-module Indmap : CMap.ExtS with type key = inductive and module Set := Indset [@ocaml.warning "-3"]
-[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
-module Constrmap : CMap.ExtS with type key = constructor and module Set := Constrset [@ocaml.warning "-3"]
-[@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
-
-module Indmap_env : CMap.ExtS with type key = inductive and module Set := Indset_env
-module Constrmap_env : CMap.ExtS with type key = constructor and module Set := Constrset_env
+(* Legacy APIs, don't use. TODO deprecate *)
+module Indset_env = Indset
+module Constrset_env = Constrset
+module Indmap_env = Indmap
+module Constrmap_env = Constrmap
 
 val ith_mutual_inductive : inductive -> int -> inductive
 val ith_constructor_of_inductive : inductive -> int -> constructor
@@ -616,18 +592,13 @@ module Projection : sig
 end
 
 module PRset : CSig.USetS with type elt = Projection.Repr.t
-[@@ocaml.deprecated "(9.3) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
-module PRmap : Map.UExtS with type key = Projection.Repr.t and module Set := PRset [@@ocaml.warning "-3"]
-[@@ocaml.deprecated "(9.3) This will switch to user ordering at some point in \
-the future. In the meantime either use the _env variant or the Q-variant from \
-Environ, depending on the desired semantics."]
+module PRmap : Map.UExtS with type key = Projection.Repr.t and module Set := PRset
 
-module PRset_env : CSig.USetS with type elt = Projection.Repr.t
-module PRmap_env : Map.UExtS with type key = Projection.Repr.t and module Set := PRset_env
+(* Legacy APIs, don't use. TODO deprecate *)
+module PRset_env = PRset
+module PRmap_env = PRmap
 
-(** Predicate on projection representation (ignoring unfolding state) *)
+(* CAVEAT: uses CanOrd to index keys. *)
 module PRpred : Predicate.S with type elt = Projection.Repr.t
 
 (** {6 Global reference is a kernel side type for all references together } *)
@@ -644,20 +615,13 @@ module GlobRef : sig
 
   include QNameS with type t := t
 
-  module Set_env : CSig.USetS with type elt = t
-  module Map_env : Map.UExtS
-    with type key = t and module Set := Set_env
-
   module Set : CSig.USetS with type elt = t
-  [@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
-  the future. In the meantime either use the _env variant or the Q-variant from \
-  Environ, depending on the desired semantics."]
-
   module Map : Map.UExtS
-    with type key = t and module Set := Set [@@ocaml.warning "-3"]
-  [@@ocaml.deprecated "(9.3) This will switch to user ordering at some point in \
-  the future. In the meantime either use the _env variant or the Q-variant from \
-  Environ, depending on the desired semantics."]
+    with type key = t and module Set := Set
+
+  (* Legacy APIs, don't use. TODO deprecate *)
+  module Set_env = Set
+  module Map_env = Map
 
   val print : t -> Pp.t
   (** Print internal representation (not to be used for user-facing messages). *)
