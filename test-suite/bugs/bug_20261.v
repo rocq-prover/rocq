@@ -1,5 +1,5 @@
 
 Set Universe Polymorphism.
 Lemma foo@{s;u|} : True.
-Check Type@{s;u}.
+Check Univ@{s;u}.
 Abort.

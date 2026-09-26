@@ -1,6 +1,6 @@
 Set Universe Polymorphism.
 
-Inductive T@{α;} : Type@{α; Set} := C.
+Inductive T@{α;} : Univ@{α; Set} := C.
 
 #[universes(polymorphic=no)]
 Sort Test.

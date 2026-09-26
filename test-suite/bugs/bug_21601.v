@@ -5,7 +5,7 @@ Axiom JMeq_eq : forall (A:Type) (x y:A), JMeq x y -> x = y.
 
 Abbreviation JMeq' := (fun A x => @JMeq A x A).
 
-Polymorphic Lemma JMeq_ind_r@{s;+} : forall (A:Type) (x:A) (P:A -> Type@{s;_}),
+Polymorphic Lemma JMeq_ind_r@{s;+} : forall (A:Type) (x:A) (P:A -> Univ@{s;_}),
    P x -> forall y, JMeq' A y x -> P y.
 Proof.
 intros A x P H y H'. destruct (JMeq_eq _ _ _ H'). assumption.

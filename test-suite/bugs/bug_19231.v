@@ -1,3 +1,3 @@
 Set Universe Polymorphism.
 
-Fail Lemma vroom@{q; |} : (True : Type@{q;_}).
+Fail Lemma vroom@{q; |} : (True : Univ@{q;_}).

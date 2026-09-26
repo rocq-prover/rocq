@@ -1,6 +1,6 @@
 Set Universe Polymorphism.
 
-Axiom A@{s;} : Type@{s;Set}.
+Axiom A@{s;} : Univ@{s;Set}.
 
 Definition prod@{s;} := A@{s;} -> Prop.
 

@@ -9,7 +9,7 @@ Defined.
    (debatable behaviour but that's what it does currently) *)
 Check demo@{Type;Set}.
 
-Definition baz@{q;u|} (A:Type@{q;u}) (x:A) : A.
+Definition baz@{q;u|} (A:Univ@{q;u}) (x:A) : A.
 Proof.
   abstract exact x.
 Defined.

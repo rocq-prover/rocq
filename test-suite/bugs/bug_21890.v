@@ -11,14 +11,14 @@ Global Set Definitional UIP.
 Module Export IsomorphismDefinitions.
 #[export]
 Set Universe Polymorphism.
-Inductive eq@{s;u} {α:Type@{s;u}} (a:α) : α -> SProp
+Inductive eq@{s;u} {α:Univ@{s;u}} (a:α) : α -> SProp
   := eq_refl : eq a a.
 
 #[local] Notation "x = y" := (eq x y) : type_scope.
 #[export]
 Set Implicit Arguments.
 
-Record Iso@{s s';u u'} (A : Type@{s;u}) (B : Type@{s';u'}) := {
+Record Iso@{s s';u u'} (A : Univ@{s;u}) (B : Univ@{s';u'}) := {
     to :> A -> B;
     from : B -> A;
     to_from : forall x, to (from x) = x;
@@ -36,7 +36,7 @@ Axiom sinhabitant@{} : forall {A : Prop}, SInhabited A -> A.
 
 Module Import IsoEq.
 #[local] Notation "x = y" := (IsomorphismDefinitions.eq x y) : type_scope.
-Theorem f_equal@{s s';u u'} {A : Type@{s;u}} {B : Type@{s';u'}} (f : A -> B) {x y : A} (H : x = y) : f x = f y.
+Theorem f_equal@{s s';u u'} {A : Univ@{s;u}} {B : Univ@{s';u'}} (f : A -> B) {x y : A} (H : x = y) : f x = f y.
 Admitted.
 Lemma seq_of_peq_t@{u} {A : Prop} {x y : A} (H : Logic.eq x y) : IsomorphismDefinitions.eq@{Prop;u} x y.
 Admitted.
@@ -44,7 +44,7 @@ Admitted.
 End IsoEq.
 Module Export Imported.
 #[local] Unset Implicit Arguments.
-Inductive Eq@{s;u} (A : Type@{s;u}) (a : A) : A -> SProp :=
+Inductive Eq@{s;u} (A : Univ@{s;u}) (a : A) : A -> SProp :=
 | Eq_refl : Eq A a a.
 End Imported.
 Monomorphic Definition imported_Corelib__Init__Logic__eq : forall x : Type, x -> x -> SProp.

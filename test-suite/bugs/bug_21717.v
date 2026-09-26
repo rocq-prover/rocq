@@ -7,5 +7,5 @@ Module N.
 End N.
 Sort s.
 
-Check fun A:Type@{M.s;Set} => A:Type@{M.s;Set}.
-Fail Check fun A:Type@{M.s;Set} => A:Type@{N.s;Set}.
+Check fun A:Univ@{M.s;Set} => A:Univ@{M.s;Set}.
+Fail Check fun A:Univ@{M.s;Set} => A:Univ@{N.s;Set}.

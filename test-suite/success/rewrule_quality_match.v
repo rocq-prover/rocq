@@ -1,6 +1,6 @@
 (* -*- mode: coq; coq-prog-args: ("-allow-rewrite-rules") -*- *)
 
-#[universes(polymorphic)] Symbol dispatch@{q;u} : forall {A : Type@{q;u}}, A -> nat.
+#[universes(polymorphic)] Symbol dispatch@{q;u} : forall {A : Univ@{q;u}}, A -> nat.
 
 Sort s.
 
@@ -12,7 +12,7 @@ Rewrite Rule id_rew :=
 Inductive STrue : SProp := SI.
 
 #[universes(template=no)]
-Inductive sTrue : Type@{s;_} := sI.
+Inductive sTrue : Univ@{s;_} := sI.
 
 Goal True.
   let c := constr:((dispatch SI, dispatch tt, dispatch sI)) in

@@ -1,20 +1,20 @@
 Set Universe Polymorphism.
 
-Inductive sum@{sl sr s;ul ur|} (A : Type@{sl;ul}) (B : Type@{sr;ur}) : Type@{s;max(ul,ur)} :=
+Inductive sum@{sl sr s;ul ur|} (A : Univ@{sl;ul}) (B : Univ@{sr;ur}) : Univ@{s;max(ul,ur)} :=
 | inl : A -> sum A B
 | inr : B -> sum A B.
 Arguments inl {_} {_} _.
 Arguments inr {_} {_} _.
 
-Inductive sig@{s s' s'';u v|} (A : Type@{s;u}) (P : A -> Type@{s';v}) : Type@{s'';max(u,v)} :=
+Inductive sig@{s s' s'';u v|} (A : Univ@{s;u}) (P : A -> Univ@{s';v}) : Univ@{s'';max(u,v)} :=
   | existsS : forall x, P x -> sig A P.
 Arguments existsS {_} {_} _ _.
 
 Set Printing Universes.
 
 Lemma testElim@{s s';u v|s -> s'} :
-  forall (A B : Prop) (P : sum@{Prop Prop s;0 0} A B -> Type@{s';0})
-    (Q : sum@{Prop Prop s';0 0} A B -> Type@{s';0}) (x : sum@{Prop Prop s;0 0} A B),
+  forall (A B : Prop) (P : sum@{Prop Prop s;0 0} A B -> Univ@{s';0})
+    (Q : sum@{Prop Prop s';0 0} A B -> Univ@{s';0}) (x : sum@{Prop Prop s;0 0} A B),
     P x -> sig (sum@{Prop Prop s';0 0} A B) Q.
 Proof.
   intros ????? HP.
