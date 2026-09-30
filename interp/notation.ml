@@ -984,6 +984,7 @@ let compute_arguments_classes env sigma t =
 let compute_arguments_scope_full env sigma map t =
   let cls = compute_arguments_classes env sigma t in
   let scs = List.map (find_scope_class_opt map) cls in
+  let scs = List.map subscopes_mk_tmp scs in
   scs, cls
 
 let compute_arguments_scope env sigma t =
@@ -1019,8 +1020,8 @@ let scope_class_of_class (x : cl_typ) : scope_class =
 
 let update_scope sco cl =
   let (sctop,scbot) = find_scope_class_blocks_opt !scope_class_map cl in
-  let sco = List.filter (fun sc -> not (List.exists (String.equal sc) sctop || List.exists (String.equal sc) scbot)) sco in
-  sctop@sco@scbot
+  let sco = List.filter (fun (_, sc) -> not (List.exists (String.equal sc) sctop || List.exists (String.equal sc) scbot)) sco in
+  subscopes_mk_tmp sctop @ sco @ subscopes_mk_tmp scbot
 
 let rec update_scopes cls scl = match cls, scl with
   | [], _ -> scl
@@ -1037,13 +1038,13 @@ type arguments_scope_discharge_request =
 type arguments_scope_obj = {
   asc_discharge_request : arguments_scope_discharge_request;
   asc_gref : GlobRef.t;
-  asc_scopes : scope_name list list;
+  asc_scopes : subscopes list;
   asc_classes : scope_class option list;
   asc_available_scopes : scope_class_map;
 }
 
 let load_arguments_scope _ asc =
-  List.iter (List.iter check_scope) asc.asc_scopes;
+  List.iter (List.iter (fun (_, sc) -> check_scope sc)) asc.asc_scopes;
   (* force recomputation to take into account the possible extra "Bind
      Scope" of the current environment (e.g. so that after inlining of a
      parameter in a functor, it takes the current environment into account *)

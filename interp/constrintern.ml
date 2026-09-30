@@ -176,7 +176,7 @@ let empty_internalization_env = Id.Map.empty
 
 let compute_internalization_data env sigma ?silent id ty typ impl =
   let impl = compute_implicits_with_manual env sigma ?silent typ (is_implicit_args()) impl in
-  make_var_data ty impl (List.map subscopes_mk_tmp (compute_arguments_scope env sigma typ)) (var_uid id)
+  make_var_data ty impl (compute_arguments_scope env sigma typ) (var_uid id)
 
 let compute_internalization_env env sigma ?(impls=empty_internalization_env) ?force ty names =
   let force = match force with None -> List.map (fun _ -> Id.Set.empty) names | Some l -> l in
@@ -1309,7 +1309,6 @@ let find_appl_head_data genv env (_,ntnvars) c =
   | GRef (ref,_) ->
     let impls = implicits_of_global ref in
     let scopes = find_arguments_scope genv ref in
-    let scopes = List.map subscopes_mk_tmp scopes in
     Some (CAst.make ?loc ref), impls, scopes
   | GApp (r, l) ->
     begin match DAst.get r with
@@ -1317,7 +1316,6 @@ let find_appl_head_data genv env (_,ntnvars) c =
       let n = List.length l in
       let impls = implicits_of_global ref in
       let scopes = find_arguments_scope genv ref in
-      let scopes = List.map subscopes_mk_tmp scopes in
       Some (CAst.make ?loc ref),
       (if n = 0 then [] else List.map (drop_first_implicits n) impls),
        List.skipn_at_best n scopes
@@ -1328,7 +1326,6 @@ let find_appl_head_data genv env (_,ntnvars) c =
       let n = List.length l + 1 in
       let impls = implicits_of_global ref in
       let scopes = find_arguments_scope genv ref in
-      let scopes = List.map subscopes_mk_tmp scopes in
       Some (CAst.make ?loc (GlobRef.ConstRef cst)),
       List.map (drop_first_implicits n) impls,
       List.skipn_at_best n scopes
@@ -1829,7 +1826,6 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
       begin match DAst.get r with
       | GRef (g,_) ->
         let allscs = find_arguments_scope genv g in
-        let allscs = List.map subscopes_mk_tmp allscs in
         let allscs = simple_adjust_scopes (List.length l) allscs in
         let params = make_pars ?loc g in (* Rem: no letins *)
         let nparams = List.length params in
@@ -1956,7 +1952,6 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
           else List.skipn_at_best n (select_stronger_impargs impls_st) in
       adjust_to_down tags imps None in
     let subscopes = adjust_to_down tags (List.skipn_at_best n (find_arguments_scope genv gr)) [] in
-    let subscopes = List.map subscopes_mk_tmp subscopes in
     let has_letin = check_has_letin ?loc gr expanded npats (List.count is_status_implicit imps) tags in
     let rec aux imps subscopes tags pats =
     match imps, subscopes, tags, pats with

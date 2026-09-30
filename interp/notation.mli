@@ -188,9 +188,9 @@ val interp_notation_as_global_reference_expanded : ?loc:Loc.t -> head:bool ->
 
 (** Declares and looks for scopes associated to arguments of a global ref *)
 val declare_arguments_scope :
-  bool (** true=local *) -> GlobRef.t -> scope_name list list -> unit
+  bool (** true=local *) -> GlobRef.t -> subscopes list -> unit
 
-val find_arguments_scope : Environ.env -> GlobRef.t -> scope_name list list
+val find_arguments_scope : Environ.env -> GlobRef.t -> subscopes list
 
 type scope_class
 
@@ -205,7 +205,7 @@ type add_scope_where = AddScopeTop | AddScopeBottom
 val declare_scope_class : (* local: *) bool -> scope_name -> ?where:add_scope_where -> scope_class -> unit
 val declare_ref_arguments_scope : GlobRef.t -> unit
 
-val compute_arguments_scope : Environ.env -> Evd.evar_map -> EConstr.types -> scope_name list list
+val compute_arguments_scope : Environ.env -> Evd.evar_map -> EConstr.types -> subscopes list
 val compute_type_scope : Environ.env -> Evd.evar_map -> EConstr.types -> scope_name list
 val compute_glob_type_scope : 'a Glob_term.glob_constr_g -> scope_name list
 

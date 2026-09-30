@@ -334,7 +334,6 @@ and apply_notation_to_pattern ?loc ~flags gr ((terms,termlists,binders),(no_impl
   let lev_after = if List.is_empty more_args then lev_after else Some Notation.app_level in
   let extra_args =
     let subscopes = find_arguments_scope (Global.env ()) gr in
-    let subscopes = List.map subscopes_mk_tmp subscopes in
     let more_args_scopes = try List.skipn nb_to_drop subscopes with Failure _ -> [] in
     let more_args = fill_arg_scopes more_args more_args_scopes (snd allscopes) in
     let more_args = List.map (fun (c,allscopes) -> extern_cases_pattern_in_scope ~flags allscopes vars c) more_args in
@@ -918,7 +917,6 @@ let rec extern depth0 inctx scopes (eenv:extern_env) r =
       (match DAst.get f with
          | GRef (ref,us) ->
              let subscopes = find_arguments_scope (Global.env ()) ref in
-             let subscopes = List.map subscopes_mk_tmp subscopes in
              let args = fill_arg_scopes args subscopes (snd scopes) in
              let args = extern_args (extern depth true) eenv args in
              (* Try a "{|...|}" record notation *)
@@ -1205,7 +1203,6 @@ and extern_notation depth inctx ((custom,(lev_after: int option)),scopes as alls
           match DAst.get f with
           | GRef (ref,_) ->
             let subscopes = find_arguments_scope (Global.env ()) ref in
-            let subscopes = List.map subscopes_mk_tmp subscopes in
             let impls = select_stronger_impargs (implicits_of_global ref) in
             subscopes, impls
           | _ ->
@@ -1304,7 +1301,6 @@ and extern_notation depth inctx ((custom,(lev_after: int option)),scopes as alls
 and extern_applied_proj depth inctx scopes eenv (cst,us) params c extraargs =
   let ref = GlobRef.ConstRef cst in
   let subscopes = find_arguments_scope (Global.env ()) ref in
-  let subscopes = List.map subscopes_mk_tmp subscopes in
   let nparams = List.length params in
   let args = params @ c :: extraargs in
   let args = fill_arg_scopes args subscopes (snd scopes) in
