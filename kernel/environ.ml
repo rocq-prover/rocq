@@ -695,6 +695,7 @@ let same_flags {
      indices_matter;
      share_reduction;
      unfold_dep_heuristic;
+     unfold_height_heuristic;
      enable_VM;
      enable_native_compiler;
      impredicative_set;
@@ -709,6 +710,7 @@ let same_flags {
   indices_matter == alt.indices_matter &&
   share_reduction == alt.share_reduction &&
   unfold_dep_heuristic == alt.unfold_dep_heuristic &&
+  unfold_height_heuristic == alt.unfold_height_heuristic &&
   enable_VM == alt.enable_VM &&
   enable_native_compiler == alt.enable_native_compiler &&
   impredicative_set == alt.impredicative_set &&
@@ -1387,3 +1389,30 @@ module Internal = struct
     overwrite_module (MPbound mbid) (module_body_of_type mtb) env
 
 end
+
+(** Definitional height heuristic for conversion. *)
+
+let pp_dbg_dh = CDebug.create ~name:"defHeight" ()
+
+let rec constant_definitional_height env def =
+  match def with
+  | Declarations.Def c ->
+    let rec height acc c = match Constr.kind c with
+      | Constr.Const (kn, _) ->
+        let cb = lookup_constant kn env in
+        let h = match cb.const_def_height with
+        | Some def_h ->
+          pp_dbg_dh Pp.(fun () ->
+            str "Returning stored height " ++ int def_h ++ str " of " ++
+            Names.Constant.debug_print kn);
+          def_h
+        | None ->
+          pp_dbg_dh Pp.(fun () ->
+            str "Computing height for " ++ Names.Constant.debug_print kn);
+          constant_definitional_height env cb.const_body
+        in
+        max acc h
+      | _ -> Constr.fold height acc c
+    in
+    1 + height 0 c
+  | Declarations.(Undef _ | OpaqueDef _ | Primitive _ | Symbol _) -> 0

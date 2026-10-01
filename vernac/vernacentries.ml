@@ -1948,6 +1948,14 @@ let () =
       optwrite = Global.set_unfold_dep_heuristic }
 
 let () =
+  declare_bool_option
+    { optstage = Summary.Stage.Interp;
+      optdepr  = None;
+      optkey   = ["Kernel"; "Conversion"; "Height"; "Heuristic"];
+      optread  = (fun () -> (Global.typing_flags ()).Declarations.unfold_height_heuristic);
+      optwrite = Global.set_unfold_height_heuristic }
+
+let () =
   declare_int_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;

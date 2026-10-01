@@ -1,5 +1,9 @@
 (* Test for the Kernel Conversion Dep Heuristic flag *)
 
+(* Deactivate Height Heuristic to avoid setting strategy levels for
+   definitions, which would render Dep Heuristic useless. *)
+Unset Kernel Conversion Height Heuristic.
+
 (* Define a factorial function *)
 Fixpoint fact (n : nat) := match n with O => 1 | S n => (S n) * fact n end.
 
@@ -24,7 +28,6 @@ Timeout 1 Check eq_refl : fact100 = fact100'.
 
 (* Test 2: Without heuristic this times out, with heuristic it's fast *)
 (* First verify the timeout behavior without the heuristic *)
-Unset Kernel Conversion Dep Heuristic.
 Fail Timeout 1 Check eq_refl : fact100' = fact100.
 
 (* Now enable the heuristic and verify it works *)
