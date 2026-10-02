@@ -398,6 +398,11 @@ let pp_struct table =
 
 let file_naming state mp = file_of_modfile (State.get_table state) mp
 
+let id_of_filename f =
+  try Id.of_string f
+  with CErrors.UserError _ ->
+    CErrors.user_err Pp.(str "Extraction: provided filename is not a valid identifier")
+
 let haskell_descr = {
   keywords = keywords;
   file_suffix = ".hs";
@@ -408,4 +413,10 @@ let haskell_descr = {
   sig_preamble = (fun _ _ _ _ _ -> mt ());
   pp_sig = (fun _ _ -> mt ());
   pp_decl = pp_decl;
+  unquote = (fun s -> s);
+  upper_types = true;
+  char_type = Some "Prelude.Char";
+  string_type = Some "Prelude.String";
+  modular = true;
+  id_of_filename = id_of_filename;
 }

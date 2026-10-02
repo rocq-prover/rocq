@@ -1,0 +1,19 @@
+DECLARE PLUGIN "coq-test-suite.toy_extraction"
+
+{
+
+open Extraction_plugin
+
+(* A toy target language, reusing the JSON printer with its own lexical
+   conventions. *)
+let toy_descr = {
+  Json.json_descr with
+  Miniml.file_suffix = ".toy";
+  unquote = String.map (fun c -> if c == '\'' then '_' else c);
+  upper_types = true;
+  modular = false;
+}
+
+let () = Common.register_language (Table.External "Toy") toy_descr
+
+}

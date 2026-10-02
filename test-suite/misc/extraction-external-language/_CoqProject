@@ -1,0 +1,7 @@
+src/META.coq-test-suite
+-Q theories ToyExtraction
+-I src
+
+src/toy_extraction.mlg
+src/toy_extraction_plugin.mlpack
+theories/test.v

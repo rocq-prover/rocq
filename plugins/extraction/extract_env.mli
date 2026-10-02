@@ -18,6 +18,10 @@ val full_extraction : opaque_access:Global.indirect_accessor -> string option ->
 val separate_extraction : opaque_access:Global.indirect_accessor -> qualid list -> unit
 val extraction_library : opaque_access:Global.indirect_accessor -> bool -> lident -> unit
 
+(* Fails if the language is not registered *)
+
+val set_extraction_language : Table.lang -> unit
+
 (* For the test-suite : extraction to a temporary file + ocamlc on it *)
 
 val extract_and_compile : opaque_access:Global.indirect_accessor -> qualid list -> unit

@@ -231,6 +231,8 @@ let pp_struct table =
 
 let file_naming state mp = file_of_modfile (State.get_table state) mp
 
+let unquote s = String.map (fun c -> if c == '\'' then '~' else c) s
+
 let scheme_descr = {
   keywords = keywords;
   file_suffix = ".scm";
@@ -241,4 +243,10 @@ let scheme_descr = {
   sig_preamble = (fun _ _ _ _ _ -> mt ());
   pp_sig = (fun _ _ -> mt ());
   pp_decl = pp_decl;
+  unquote = unquote;
+  upper_types = false;
+  char_type = None;
+  string_type = None;
+  modular = false;
+  id_of_filename = (fun _ -> Id.of_string "Main");
 }

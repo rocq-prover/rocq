@@ -467,8 +467,20 @@ let error_singleton_become_prop ind =
 let error_unknown_module ?loc m =
   err ?loc (str "Module" ++ spc () ++ pr_qualid m ++ spc () ++ str "not found.")
 
-let error_scheme () =
-  err (str "No Scheme modular extraction available yet.")
+type lang =
+  | Ocaml | Haskell | Scheme | JSON
+  | External of string
+
+let lang_name = function
+  | Ocaml -> "OCaml"
+  | Haskell -> "Haskell"
+  | Scheme -> "Scheme"
+  | JSON -> "JSON"
+  | External s -> s
+
+let error_not_modular l =
+  err (str "Modular extraction is not supported for " ++ str (lang_name l) ++ str "." ++ fnl () ++
+       str "Use Recursive Extraction or Extraction \"file\" to extract into a single file instead.")
 
 let error_not_visible r =
   err (safe_pr_global r ++ str " is not directly visible.\n" ++
@@ -685,8 +697,6 @@ let { Goptions.get = file_comment } =
     ()
 
 (*s Extraction Lang *)
-
-type lang = Ocaml | Haskell | Scheme | JSON
 
 let lang_ref = Summary.ref Ocaml ~name:"ExtrLang"
 

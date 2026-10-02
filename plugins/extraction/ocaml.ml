@@ -833,4 +833,10 @@ let ocaml_descr = {
   sig_preamble = sig_preamble;
   pp_sig = pp_signature;
   pp_decl = pp_decl;
+  unquote = (fun s -> s);
+  upper_types = false;
+  char_type = Some "char";
+  string_type = Some "string";
+  modular = true;
+  id_of_filename = (fun _ -> Id.of_string "Main");
 }

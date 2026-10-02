@@ -78,6 +78,10 @@ the command :cmd:`Cd`.
    :cmd:`Extraction Library`: identifiers are here renamed using
    :opt:`Extraction Prefix`.
 
+.. exn:: Modular extraction is not supported for @ident.
+
+   Raised by the commands above for languages such as Scheme.
+
 The following command is meant to help automatic testing of
 the extraction, see for instance the ``test-suite`` directory
 in the Rocq sources.
@@ -126,12 +130,19 @@ Setting the target language
       | Haskell
       | Scheme
       | JSON
+      | @ident
 
    The ability to fix target language is the first and most important
    of the extraction options. Default is ``OCaml``.
 
    The JSON output is mostly for development or debugging:
    it contains the raw ML term produced as an intermediary target.
+
+   :n:`@ident` selects a language provided by a plugin, which must be
+   loaded first.
+
+   .. exn:: Unknown extraction language @ident (is the plugin providing it loaded?).
+      :undocumented:
 
 
 Inlining and optimizations

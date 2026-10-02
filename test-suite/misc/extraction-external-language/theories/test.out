@@ -1,0 +1,40 @@
+File "./theories/test.v", line 3, characters 0-29:
+The command has indeed failed with message:
+Unknown extraction language Toy (is the plugin providing it loaded?).
+{
+  "what": "decl:term", "name": "red_",
+  "type": {
+    "what": "type:glob", "name": "Color", "args": [
+      
+    ]
+  },
+  "value": {
+    "what": "expr:lambda", "argnames": [
+      
+    ], "body": {
+      "what": "expr:constructor", "name": "Red", "args": [
+        
+      ]
+    }
+  }
+}
+{
+  "what": "decl:ind", "name": "Color", "argnames": [
+    
+  ],
+  "constructors": [
+    {
+      "name": "Red", "argtypes": [
+        
+      ]
+    }, {
+      "name": "Green", "argtypes": [
+        
+      ]
+    }
+  ]
+}
+File "./theories/test.v", line 15, characters 0-30:
+The command has indeed failed with message:
+Modular extraction is not supported for Toy.
+Use Recursive Extraction or Extraction "file" to extract into a single file instead.

@@ -69,6 +69,14 @@ sig
 
 end
 
+(** Target languages. Plugins register theirs as [External name]; module
+    structures are then flattened and, in modular extraction, names are
+    qualified as in Haskell. *)
+
+val register_language : Table.lang -> State.t language_descr -> unit
+val is_registered_language : Table.lang -> bool
+val descr : unit -> State.t language_descr
+
 type env = Id.t list * Id.Set.t
 val empty_env : State.t -> unit -> env
 

@@ -284,4 +284,18 @@ type 's language_descr = {
   (* for an isolated declaration print *)
   pp_decl : 's -> ml_decl -> Pp.t;
 
+  (* Lexical conventions *)
+  unquote : string -> string; (* e.g. Scheme turns ['] into [~] *)
+  upper_types : bool; (* capitalized type names, as in Haskell *)
+
+  (* native types for char and string literals *)
+  char_type : string option;
+  string_type : string option;
+
+  (* is modular extraction supported *)
+  modular : bool;
+
+  (* toplevel module name of a monolithic extraction, from the file basename *)
+  id_of_filename : string -> Id.t;
+
 }

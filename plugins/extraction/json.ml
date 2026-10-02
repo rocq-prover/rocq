@@ -290,4 +290,10 @@ let json_descr = {
   sig_preamble = (fun _ _ _ _ _ -> mt ());
   pp_sig = (fun _ _ -> mt ());
   pp_decl = pp_decl;
+  unquote = (fun s -> s);
+  upper_types = false;
+  char_type = None;
+  string_type = None;
+  modular = true;
+  id_of_filename = (fun _ -> Id.of_string "Main");
 }

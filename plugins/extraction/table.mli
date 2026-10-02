@@ -28,6 +28,15 @@ val warning_axioms : t -> unit
 val warning_opaques : t -> bool -> unit
 val warning_ambiguous_name : ?loc:Loc.t -> qualid * ModPath.t * GlobRef.t -> unit
 val warning_id : string -> unit
+(*s Target language. *)
+
+type lang =
+  | Ocaml | Haskell | Scheme | JSON
+  | External of string (** provided by a plugin *)
+
+val lang : unit -> lang
+val lang_name : lang -> string
+
 val error_axiom_scheme : ?loc:Loc.t -> global -> int -> 'a
 val error_constant : ?loc:Loc.t -> global -> 'a
 val error_inductive : ?loc:Loc.t -> global -> 'a
@@ -36,7 +45,7 @@ val error_module_clash : ModPath.t -> ModPath.t -> 'a
 val error_no_module_expr : ModPath.t -> 'a
 val error_singleton_become_prop : inductive -> 'a
 val error_unknown_module : ?loc:Loc.t -> qualid -> 'a
-val error_scheme : unit -> 'a
+val error_not_modular : lang -> 'a
 val error_not_visible : global -> 'a
 val error_MPfile_as_mod : ModPath.t -> bool -> 'a
 val check_inside_section : unit -> unit
@@ -155,11 +164,6 @@ val conservative_types : unit -> bool
 (*s A comment to print at the beginning of the files *)
 
 val file_comment : unit -> string
-
-(*s Target language. *)
-
-type lang = Ocaml | Haskell | Scheme | JSON
-val lang : unit -> lang
 
 (*s Table for custom inlining *)
 

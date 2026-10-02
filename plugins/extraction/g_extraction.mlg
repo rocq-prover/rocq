@@ -52,11 +52,7 @@ END
 
 {
 
-let pr_language = function
-  | Ocaml -> str "OCaml"
-  | Haskell -> str "Haskell"
-  | Scheme -> str "Scheme"
-  | JSON -> str "JSON"
+let pr_language l = str (lang_name l)
 
 }
 
@@ -66,6 +62,7 @@ PRINTED BY { pr_language }
 | [ "Haskell" ] -> { Haskell }
 | [ "Scheme" ] -> { Scheme }
 | [ "JSON" ] -> { JSON }
+| [ ident(id) ] -> { External (Id.to_string id) }
 END
 
 (* Extraction commands *)
@@ -104,7 +101,7 @@ END
 (* Target Language *)
 VERNAC COMMAND EXTEND ExtractionLanguage CLASSIFIED AS SIDEFF
 | [ "Extraction" "Language" language(l) ]
-  -> { extraction_language l }
+  -> { set_extraction_language l }
 END
 
 VERNAC COMMAND EXTEND ExtractionInline CLASSIFIED AS SIDEFF

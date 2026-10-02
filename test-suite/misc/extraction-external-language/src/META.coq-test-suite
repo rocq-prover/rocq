@@ -1,0 +1,11 @@
+package "toy_extraction" (
+    directory = "."
+    version = "dev"
+    description = "A test plugin adding an extraction language"
+    requires = "rocq-runtime.plugins.extraction"
+    archive(byte) = "toy_extraction_plugin.cma"
+    archive(native) = "toy_extraction_plugin.cmxa"
+    plugin(byte) = "toy_extraction_plugin.cma"
+    plugin(native) = "toy_extraction_plugin.cmxs"
+)
+directory = "."

@@ -1,0 +1,7 @@
+/Makefile
+/Makefile.conf
+/.Makefile.d
+/.lia.cache
+/.nia.cache
+/log
+/src/toy_extraction.ml

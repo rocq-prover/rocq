@@ -515,11 +515,17 @@ let mono_environment table ~opaque_access refs mpl =
 (*S Part II : Input/Output primitives *)
 (**************************************)
 
-let descr () = match lang () with
-  | Ocaml -> Ocaml.ocaml_descr
-  | Haskell -> Haskell.haskell_descr
-  | Scheme -> Scheme.scheme_descr
-  | JSON -> Json.json_descr
+let () =
+  register_language Ocaml Ocaml.ocaml_descr;
+  register_language Haskell Haskell.haskell_descr;
+  register_language Scheme Scheme.scheme_descr;
+  register_language JSON Json.json_descr
+
+let set_extraction_language l =
+  if not (is_registered_language l) then
+    user_err Pp.(str "Unknown extraction language " ++ str (lang_name l) ++
+                 str " (is the plugin providing it loaded?).");
+  extraction_language l
 
 (* From a filename string "foo.ml" or "foo", builds "foo.ml" and "foo.mli"
    Works similarly for the other languages. *)
@@ -536,13 +542,7 @@ let mono_filename f =
             Filename.chop_suffix f d.file_suffix
           else f
         in
-        let id =
-          if lang () != Haskell then default_id
-          else
-            try Id.of_string (Filename.basename f)
-            with UserError _ ->
-              user_err Pp.(str "Extraction: provided filename is not a valid identifier")
-        in
+        let id = d.id_of_filename (Filename.basename f) in
         let f =
           if Filename.is_relative f then
             Filename.concat (output_directory ()) f
@@ -667,9 +667,9 @@ let print_structure_to_file table (fn,si,mo) dry struc =
 
 let init ?(inner=false) ~modular ~library () =
   if not inner then check_inside_section ();
-  let keywords = (descr ()).keywords in
-  let state = State.make ~modular ~library ~keywords () in
-  if modular && lang () == Scheme then error_scheme ();
+  let d = descr () in
+  let state = State.make ~modular ~library ~keywords:d.keywords () in
+  if modular && not d.modular then error_not_modular (lang ());
   state
 
 let warns table =
