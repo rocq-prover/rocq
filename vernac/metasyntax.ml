@@ -987,17 +987,15 @@ let level_firstn k (lvl, lvls) =
 let check_prefix_incompatible_level ntn prec nottyps =
   match Notgram_ops.longest_common_prefix ntn with
   | None -> ()
-  | Some (pref, k) ->
+  | Some (pref, pref_prec, pref_nottyps, k) ->
      try
-       let pref_prec = Notation.level_of_notation pref in
        let pref_prec = level_firstn k pref_prec in
        let prec = level_firstn k prec in
-       let pref_nottyps = Notgram_ops.non_terminals_of_notation pref in
        let pref_nottyps = CList.firstn k pref_nottyps in
        let nottyps = CList.firstn k nottyps in
        if not (level_eq prec pref_prec && List.for_all2 Extend.constr_entry_key_eq_ignore_binder_kind nottyps pref_nottyps) then
          warn_prefix_incompatible_level (pref, ntn, pref_prec, pref_nottyps, prec, nottyps);
-     with Not_found | Failure _ -> ()
+     with Failure _ -> ()
 
 let cache_one_syntax_extension (ntn,synext) =
   let prec = synext.synext_level in
@@ -1030,7 +1028,9 @@ let cache_one_syntax_extension (ntn,synext) =
       None in
   (* Declare the parsing rule *)
   begin match oldparsing, synext.synext_notgram with
-  | None, Some grams -> List.iter (check_and_extend_constr_grammar ntn) grams
+  | None, Some grams ->
+    List.iter (check_and_extend_constr_grammar ntn) grams;
+    Notgram_ops.declare_notation_prefixes ntn prec synext.synext_nottyps
   | _ -> (* The grammars rules are canonically derived from the string and the precedence*) ()
   end;
   (* Printing *)
@@ -1566,8 +1566,8 @@ let check_locality_compatibility local custom i_typs =
 
 let longest_common_prefix_level ntn =
   Notgram_ops.longest_common_prefix ntn
-  |> Option.map (fun (ntn, sz) ->
-         let level, levels = level_firstn sz (Notation.level_of_notation ntn) in
+  |> Option.map (fun (ntn, level, _, sz) ->
+         let level, levels = level_firstn sz level in
          ntn, level.notation_level, levels)
 
 let default_prefix_level ntn_prefix =
