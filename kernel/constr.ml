@@ -870,7 +870,19 @@ let liftn n k c =
     | ELID -> c
     | el -> exliftn el c
 
-let lift n = liftn n 1
+let rec strengthen_between n m c =
+  match kind c with
+  | Rel i ->
+    if i < n then c
+    else if i >= n + m then mkRel (i - m)
+    else assert false
+  | _ -> map_with_binders succ (fun n c -> strengthen_between n m c) n c
+
+let liftn n k c =
+  if n >= 0 then liftn n k c
+  else strengthen_between k (-n) c
+
+let lift n c = liftn n 1 c
 
 type 'univs instance_compare_fn = (GlobRef.t * int) option ->
   'univs -> 'univs -> bool
