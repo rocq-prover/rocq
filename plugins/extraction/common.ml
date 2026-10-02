@@ -93,8 +93,11 @@ let begins_with_CoqXX s =
   with Not_found -> false
 
 let unquote s =
-  if lang () != Scheme then s
-  else String.map (fun c -> if c == '\'' then '~' else c) s
+  match lang () with
+  | Scheme -> String.map (fun c -> if c == '\'' then '~' else c) s
+  (* Scala identifiers cannot contain an apostrophe, unlike OCaml's. *)
+  | Scala -> String.map (fun c -> if c == '\'' then '_' else c) s
+  | Ocaml | Haskell | JSON -> s
 
 let rec qualify delim = function
   | [] -> assert false
@@ -134,7 +137,7 @@ end
 module KMap = CMap.Make(KOrd)
 
 let upperkind = function
-  | Type -> lang () == Haskell
+  | Type -> lang () == Haskell || lang () == Scala
   | Term -> false
   | Cons | Mod -> true
 
@@ -690,6 +693,7 @@ let pp_global_with_key table k key r =
     let rls = List.rev ls in (* for what come next it's easier this way *)
     match lang () with
       | Scheme -> unquote s (* no modular Scheme extraction... *)
+      | Scala -> unquote s (* no modular Scala extraction... *)
       | JSON -> dottify (List.map unquote rls)
       | Haskell -> if State.get_modular table then pp_haskell_gen table k mp rls else s
       | Ocaml -> pp_ocaml_gen table k mp rls (Some l)
@@ -737,6 +741,7 @@ let check_extract_ascii () =
     let char_type = match lang () with
       | Ocaml -> "char"
       | Haskell -> "Prelude.Char"
+      | Scala -> "Char"
       | _ -> raise Not_found
     in
     String.equal (find_custom @@ ascii_type_ref ()) (char_type)
@@ -792,6 +797,7 @@ let check_extract_string () =
     let string_type = match lang () with
       | Ocaml -> "string"
       | Haskell -> "Prelude.String"
+      | Scala -> "String"
       | _ -> raise Not_found
     in
     String.equal (find_custom @@ string_type_ref ()) string_type
