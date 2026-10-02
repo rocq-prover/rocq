@@ -118,6 +118,8 @@ let interp_statement ~program_mode env evd ~(flags : Pretyping.inference_flags) 
   let ids = List.map Context.Rel.Declaration.get_name ctx in
   evd, ids, EConstr.it_mkProd_or_LetIn t' ctx, imps @ imps'
 
+let comdef_pp_debug = CDebug.create ~name:"comDefinition" ()
+
 let do_definition ?loc ?hook ~name ?scope ?clearbody ~poly ?typing_flags ~kind ?using ?user_warns udecl bl red_option c ctypopt =
   let program_mode = false in
   let env = Global.env() in
@@ -130,9 +132,28 @@ let do_definition ?loc ?hook ~name ?scope ?clearbody ~poly ?typing_flags ~kind ?
   let kind = Decls.IsDefinition kind in
   let cinfo = Declare.CInfo.make ?loc ~name ~impargs ~typ:types () in
   let info = Declare.Info.make ?scope ?clearbody ~kind ?hook ~udecl ~poly ?typing_flags ?user_warns () in
-  let _ : Names.GlobRef.t =
+  comdef_pp_debug (fun () -> str "Declaring constant " ++ Names.Id.print name);
+  let gref : Names.GlobRef.t =
     Declare.declare_definition ~info ~cinfo ~opaque:false ~body ?using evd
-  in ()
+  in
+  let open Names.GlobRef in
+    (match gref with
+    | ConstRef c ->
+      comdef_pp_debug (fun () ->
+          Pp.str "Constant " ++ Names.Constant.debug_print c ++ str" declared.");
+      if (Global.typing_flags ()).unfold_height_heuristic then
+        let def_h = match (Global.lookup_constant c).const_def_height with
+          | Some h -> h
+          | None ->
+            CErrors.anomaly Pp.(str "Constant " ++ Names.Constant.debug_print c ++ str " should have a stored height.")
+        in
+        (Redexpr.set_strategy false [(Conv_oracle.Level (-def_h), [Evaluable.EvalConstRef c])];
+        comdef_pp_debug Pp.(fun () ->
+          str "Strategy level " ++ int (-def_h) ++ str " set for constant: " ++
+          Names.Constant.debug_print c))
+      else ()
+    | _ -> ())
+
 
 let do_definition_program ?loc ?hook ~pm ~name ~scope ?clearbody ~poly ?typing_flags ~kind ?using ?user_warns udecl bl red_option c ctypopt =
   let env = Global.env() in
@@ -165,7 +186,9 @@ let do_definition_interactive ?loc ~program_mode ?hook ~name ~scope ?clearbody ~
   let info = Declare.Info.make ?hook ~poly ~scope ?clearbody ~kind ~udecl ?typing_flags ?user_warns () in
   let cinfo = Declare.CInfo.make ?loc ~name ~typ ~args ~impargs () in
   let evd = if PolyFlags.univ_poly poly then evd else Evd.fix_undefined_variables evd in
-  Declare.Proof.start_definition ~info ~cinfo ?using evd
+  let proof = Declare.Proof.start_definition ~info ~cinfo ?using evd in
+  comdef_pp_debug (fun () -> str "Declaring constant " ++ Names.Id.print name ++ str " interactively.");
+  proof
 
 let do_definition_refine ?loc ?hook ~name ~scope ?clearbody ~poly ~typing_flags ~kind ?using ?user_warns udecl bl c ctypopt =
   let env = Global.env() in
@@ -194,4 +217,5 @@ let do_definition_refine ?loc ?hook ~name ~scope ?clearbody ~poly ~typing_flags 
     ]
   in
   let lemma, _ = Declare.Proof.by (Global.env ()) init_refine lemma in
+  comdef_pp_debug (fun () -> str "Declaring constant " ++ Names.Id.print name ++ str " interactively.");
   lemma
