@@ -883,6 +883,12 @@ is valid.
       If there is only a constraint `Prop <= q` then `q` will be set
       to Prop, otherwise it will be set to Type.
 
+.. attr:: universes(collapse_sort_variables{? = {| yes | no } })
+   :name: universes(collapse_sort_variables)
+
+   This :term:`boolean attribute` controls :flag:`Collapse Sorts ToType` for
+   a single declaration. Setting it to ``no`` requires universe polymorphism.
+
 .. _elim-constraints:
 
 Elimination of Sort-Polymorphic Inductives
