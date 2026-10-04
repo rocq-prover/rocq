@@ -741,6 +741,8 @@ for iteration in $(seq $num_of_iterations); do
         > "$log_dir/ALL.BOTH.perfile_timings.$iteration.log"
 done
 
+find $new_base_path -name '*.deepest_rel' -exec cat '{}' ';' -printf ' %P\n' > $log_dir/deepest_rels.log
+
 # timings data
 timings=$working_dir/timings
 mkdir -p $timings

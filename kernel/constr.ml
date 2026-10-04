@@ -332,7 +332,11 @@ let decompose_app c =
 (* Constructs a de Bruijn index with number n *)
 let rels = Array.init 17 (fun i -> T (Rel i))
 
-let mkRel n = if 0<=n && n<=16 then rels.(n) else T (Rel n)
+let deepest_rel = ref 0
+
+let mkRel n =
+  deepest_rel := max !deepest_rel n;
+  if 0<=n && n<=16 then rels.(n) else T (Rel n)
 
 let mkSProp = T (Sort Sorts.sprop)
 let mkProp  = T (Sort Sorts.prop)

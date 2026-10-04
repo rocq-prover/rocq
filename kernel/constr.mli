@@ -609,3 +609,5 @@ val hcons_annot : Name.t binder_annot Hashcons.f
 val hcons_caseinfo : case_info Hashcons.f
 
 val hash_cast_kind : cast_kind -> int
+
+val deepest_rel : int ref
