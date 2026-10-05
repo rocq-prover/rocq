@@ -111,13 +111,13 @@ let type_constructor mind mib u (ctx, typ) params =
     substl (subst_of_rel_context_instance mib.mind_params_ctxt params)
       ctyp
 
-let construct_of_constr const env sigma tag typ =
+let construct_of_constr_block env sigma tag typ =
   let t, allargs = app_type !!env sigma (EConstr.of_constr typ) in
   match Constr.kind t with
   | Ind ((mind,_ as ind), u as indu) ->
     let mib,mip = lookup_mind_specif !!env ind in
     let nparams = mib.mind_nparams in
-    let i = invert_tag const tag mip.mind_reloc_tbl in
+    let i = invert_tag false tag mip.mind_reloc_tbl in
     let params = Array.sub allargs 0 nparams in
     let ctyp = type_constructor mind mib u (mip.mind_nf_lc.(i-1)) params in
     let params =
@@ -131,9 +131,22 @@ let construct_of_constr const env sigma tag typ =
       (mkInt (Uint63.of_int tag), t)
 
 let construct_of_constr_const env sigma tag typ =
-  fst (construct_of_constr true env sigma tag typ)
-
-let construct_of_constr_block = construct_of_constr false
+  let t, allargs = app_type !!env sigma (EConstr.of_constr typ) in
+  match Constr.kind t with
+  | Ind ((mind,_ as ind), u as indu) ->
+    let mib,mip = lookup_mind_specif !!env ind in
+    let nparams = mib.mind_nparams in
+    let i = invert_tag true tag mip.mind_reloc_tbl in
+    let params = Array.sub allargs 0 nparams in
+    let params =
+      if env.norm_params then
+        Array.map (fun c -> EConstr.Unsafe.to_constr (Reductionops.nf_all !!env sigma (EConstr.of_constr c))) params
+      else params
+    in
+    mkApp (mkConstructUi (indu, i), params)
+  | _ ->
+    assert (Constr.equal t (Typeops.type_of_int !!env));
+    mkInt (Uint63.of_int tag)
 
 let type_of_ind env (ind, u) =
   type_of_inductive (Inductive.lookup_mind_specif env ind, u)
