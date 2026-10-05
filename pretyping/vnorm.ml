@@ -101,15 +101,17 @@ let (!!) e = e.env
 
 (* Instantiate inductives and parameters in constructor type *)
 
-let type_constructor mind mib u (ctx, typ) params =
-  let typ = it_mkProd_or_LetIn typ ctx in
-  let ctyp = subst_instance_constr u typ in
+let type_constructor mind mib mip i u params =
+  let (ctx, typ) = mip.mind_nf_lc.(i) in
   let ndecls = Context.Rel.length mib.mind_params_ctxt in
-  if Int.equal ndecls 0 then ctyp
+  if Int.equal ndecls 0 then
+    (subst_instance_context u ctx, subst_instance_constr u typ)
   else
-    let _,ctyp = decompose_prod_n_decls ndecls ctyp in
-    substl (subst_of_rel_context_instance mib.mind_params_ctxt params)
-      ctyp
+    let ctx = List.firstn mip.mind_consnrealdecls.(i) ctx in
+    let ctyp = it_mkProd_or_LetIn typ ctx in
+    let ctyp = subst_instance_constr u ctyp in
+    let ctyp = substl (subst_of_rel_context_instance mib.mind_params_ctxt params) ctyp in
+    Term.decompose_prod_decls ctyp
 
 let construct_of_constr_block env sigma tag typ =
   let t, allargs = app_type !!env sigma (EConstr.of_constr typ) in
@@ -119,7 +121,7 @@ let construct_of_constr_block env sigma tag typ =
     let nparams = mib.mind_nparams in
     let i = invert_tag false tag mip.mind_reloc_tbl in
     let params = Array.sub allargs 0 nparams in
-    let ctyp = type_constructor mind mib u (mip.mind_nf_lc.(i-1)) params in
+    let ctyp = type_constructor mind mib mip (i - 1) u params in
     let params =
       if env.norm_params then
         Array.map (fun c -> EConstr.Unsafe.to_constr (Reductionops.nf_all !!env sigma (EConstr.of_constr c))) params
@@ -127,8 +129,8 @@ let construct_of_constr_block env sigma tag typ =
     in
     (mkApp(mkConstructUi(indu,i), params), ctyp)
   | _ ->
-     assert (Constr.equal t (Typeops.type_of_int !!env));
-      (mkInt (Uint63.of_int tag), t)
+    let () = assert (Constr.equal t (Typeops.type_of_int !!env)) in
+    (mkInt (Uint63.of_int tag), ([], t))
 
 let construct_of_constr_const env sigma tag typ =
   let t, allargs = app_type !!env sigma (EConstr.of_constr typ) in
@@ -160,7 +162,8 @@ let build_branches_type env sigma (mind,_ as _ind) mib mip u params (pctx, p) =
      a 0) et les lambda correspondant aux realargs *)
   let p = it_mkLambda_or_LetIn p pctx in (* TODO: prevent useless cut? *)
   let build_one_branch i cty =
-    let typi = type_constructor mind mib u cty params in
+    let typi = type_constructor mind mib mip i u params in
+    let typi = it_mkProd_or_LetIn (snd typi) (fst typi) in
     let decl,indapp = Reductionops.whd_decompose_prod env sigma (EConstr.of_constr typi) in
     let decl = List.map EConstr.Unsafe.(fun (na,c) -> to_binder_annot na, to_constr c) decl in
     let ((ind,u),cargs) = find_rectype_a env sigma indapp in
@@ -418,10 +421,21 @@ and nf_args env sigma vargs ?from:(f=0) t =
   let typ, args = nf_telescope env sigma len fargs t in
   CClosure.term_of_fconstr typ, args
 
-and nf_bargs env sigma b ofs t =
-  let len = bsize b - ofs in
-  let fargs i = bfield b (i + ofs) in
-  snd @@ nf_telescope env sigma len fargs t
+and nf_bargs env sigma b ofs (ctx, typ) =
+  let rec norm i accu subst = function
+  | [] -> accu
+  | LocalAssum (na, dom) :: ctx ->
+    let dom = Vars.esubst Vars.lift_substituend subst dom in
+    let arg = nf_val env sigma (bfield b (i + ofs)) dom in
+    let subst = Esubst.subs_cons (Vars.make_substituend arg) subst in
+    norm (i + 1) (arg :: accu) subst ctx
+  | LocalDef (na, def, _) :: ctx ->
+    let def = Vars.esubst Vars.lift_substituend subst def in
+    let subst = Esubst.subs_cons (Vars.make_substituend def) subst in
+    norm i accu subst ctx
+  in
+  let ans = norm 0 [] (Esubst.subs_id 0) (List.rev ctx) in
+  Array.rev_of_list ans
 
 and nf_fun env sigma f typ =
   let k = nb_rel !!env in
