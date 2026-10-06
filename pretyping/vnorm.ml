@@ -120,7 +120,7 @@ let construct_of_constr_block env sigma tag typ =
     let mib,mip = lookup_mind_specif !!env ind in
     let nparams = mib.mind_nparams in
     let i = invert_tag false tag mip.mind_reloc_tbl in
-    let params = Array.sub allargs 0 nparams in
+    let params = if Int.equal mip.mind_nrealargs 0 then allargs else Array.sub allargs 0 nparams in
     let ctyp = type_constructor mind mib mip (i - 1) u params in
     let params =
       if env.norm_params then
@@ -139,7 +139,7 @@ let construct_of_constr_const env sigma tag typ =
     let mib,mip = lookup_mind_specif !!env ind in
     let nparams = mib.mind_nparams in
     let i = invert_tag true tag mip.mind_reloc_tbl in
-    let params = Array.sub allargs 0 nparams in
+    let params = if Int.equal mip.mind_nrealargs 0 then allargs else Array.sub allargs 0 nparams in
     let params =
       if env.norm_params then
         Array.map (fun c -> EConstr.Unsafe.to_constr (Reductionops.nf_all !!env sigma (EConstr.of_constr c))) params
