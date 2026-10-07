@@ -880,7 +880,10 @@ let pr_arg_level from (lev,typ) =
   | LevelLe n -> spc () ++ str "at level " ++ int n
   | LevelLt n -> spc () ++ str "at level below " ++ int n
   | LevelSome -> mt () in
-  Ppvernac.pr_set_entry_type Nametab.CustomEntries.pr (fun _ -> (*TO CHECK*) mt()) typ ++ pplev lev
+  Ppvernac.pr_set_entry_type Nametab.CustomEntries.pr (fun _ -> (*TO CHECK*) mt()) typ ++
+  (match typ with
+   | ETPattern (_,Some _) -> mt ()
+   | _ -> pplev lev)
 
 let pr_level ({notation_entry = from; notation_level = fromlevel}, args) typs =
   (match from with InConstrEntry -> mt () | InCustomEntry s -> str "in " ++ Nametab.CustomEntries.pr s ++ spc()) ++
