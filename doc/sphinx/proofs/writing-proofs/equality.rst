@@ -577,6 +577,31 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
       unfolding the right-hand side first when the two constants have the
       same strategy level.
 
+   .. flag:: Kernel Conversion Height Heuristic
+
+      This flag controls a heuristic that over-approximates dependencies
+      between two constants by comparing their definitional heights.
+      The definitional height :g:`h` of a constant :g:`c` is the maximum
+      number of constants that need to be unfolded in the definition of
+      :g:`c` to arrive at a term with no constants left to unfold.
+      This height is always computed by the kernel when a constant is
+      defined.
+
+      During conversion, if two constants have the same strategy
+      (see :cmd:`Strategy`), the heuristic will prefer unfolding the
+      constant with the greatest height. As mentioned, this is an
+      over-approximation of dependencies. Namely, if :g:`c_1` depends
+      on :g:`c_2`, then :g:`h_1 > c_2`, while the converse is not
+      always true.
+
+      When this flag and :flag:`Kernel Conversion Dep Heuristic` are
+      active at the same time, the latter is preferred, as it is the
+      most precise out of the two heuristics (but also the most
+      expensive).
+
+      This flag is disabled by default.
+
+
    The call-by-value strategy is the one used in ML languages: the
    arguments of a function call are systematically weakly evaluated
    first. The lazy strategy is similar to how Haskell reduces terms.
