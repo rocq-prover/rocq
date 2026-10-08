@@ -711,6 +711,17 @@ struct
     let v = CClosure.norm_term ~mode:CClosure.RedState.normal_full ci ct s t in
     EConstr.of_constr v
 
+  (* Expose the blocked operand without strongly normalizing it. Readback
+     forces block-local captures but preserves the ordinary body syntax. *)
+  let whd_blocked_payload env sigma t =
+    let ci = Evarutil.create_clos_infos env sigma RedFlags.all in
+    let ct = CClosure.create_tab () in
+    let v = CClosure.inject (EConstr.Unsafe.to_constr t) in
+    let t = EConstr.of_constr (CClosure.whd_val ci ct v) in
+    match EConstr.kind sigma t with
+    | PBlock (_, _, entries, body) -> Some (EConstr.expand_pblock entries body)
+    | _ -> None
+
   let eval_id_lazy (env, sigma, flgs) t = (* FIXME make it id. *)
     let ci = Evarutil.create_clos_infos env sigma flgs in
     let ct = CClosure.create_tab () in
@@ -1014,12 +1025,10 @@ let rec whd_state_gen flags ?metas env sigma =
         |_ -> fold ()
       else fold ()
 
-    | PRun (_ty,_k,b,cont) ->
-      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
-      begin match EConstr.kind sigma b' with
-      | PBlock (_, _, entries, t) ->
-        whrec (mkApp (cont, [|EConstr.expand_pblock entries t|]), stack)
-      | _ -> fold ()
+    | PRun (_, _, b, cont) ->
+      begin match CNativeEntries.whd_blocked_payload env sigma b with
+      | Some body -> whrec (mkApp (cont, [|body|]), stack)
+      | None -> fold ()
       end
 
     | Int _ | Float _ | String _ | Array _ | PBlock _ ->
@@ -1110,12 +1119,10 @@ let local_whd_state_gen flags ?metas env sigma =
         |_ -> s
       else s
 
-    | PRun (_ty,_k,b,cont) ->
-      let b' = CNativeEntries.eval_full_lazy (env, sigma, flags) b in
-      begin match EConstr.kind sigma b' with
-      | PBlock (_, _, entries, t) ->
-        whrec (mkApp (cont, [|EConstr.expand_pblock entries t|]), stack)
-      | _ -> s
+    | PRun (_, _, b, cont) ->
+      begin match CNativeEntries.whd_blocked_payload env sigma b with
+      | Some body -> whrec (mkApp (cont, [|body|]), stack)
+      | None -> s
       end
 
     | Rel _ | Var _ | Sort _ | Prod _ | LetIn _ | Const _  | Ind _ | Proj _
