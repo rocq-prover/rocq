@@ -84,6 +84,7 @@ let as_value ~share tag args =
 module Val =
 struct
   type value = int * structured_values
+  let preserve_blocks = true
   let as_value tag args = as_value ~share:true tag args
   let check_inductive (_, i) mb =
     let { mind_typename=name; mind_nb_args; mind_nb_constant; _ } = mb.mind_packets.(i) in
@@ -93,6 +94,7 @@ end
 module UnsharedVal =
 struct
   type value = int * structured_values
+  let preserve_blocks = true
   let as_value tag args = as_value ~share:false tag args
   let check_inductive (_, i) mb =
     let { mind_typename=name; mind_nb_args; mind_nb_constant; _ } = mb.mind_packets.(i) in

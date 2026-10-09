@@ -223,7 +223,7 @@ let make env sigma c =
   let flags = Environ.typing_flags env in
   if flags.enable_VM then
     (* Don't share the subterms, they are going to be reified away immediately *)
-    let flags = Vnorm.{ vm_normalize_params = true; vm_share_values = false } in
+    let flags = Vnorm.{ default_vm_flags with vm_normalize_params = true; vm_share_values = false } in
     let c' = Vnorm.cbv_vm ~flags env sigma c.Environ.uj_val c.Environ.uj_type in
     EConstr.Unsafe.to_constr @@ c'
   else

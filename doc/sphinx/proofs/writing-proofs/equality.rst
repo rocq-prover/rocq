@@ -947,6 +947,10 @@ to tell the kernel which reduction engine to use.
    full evaluation of algebraic objects. This includes the case of
    reflection-based tactics.
 
+   This strategy also normalizes the contents of :n:`__block` terms, as
+   :n:`lazy` does. To preserve their ordinary body syntax instead, use
+   :tacn:`vm_compute_blocking`.
+
    .. warn:: vm_compute disabled at configure time; falling back to cbv.
       :name: vm-compute-disabled
       :undocumented:
@@ -969,6 +973,18 @@ to tell the kernel which reduction engine to use.
 
       Terms using inductives with many constructors (over 2 power 24 i.e. 16 million) or
       whose bytecode cannot be stored in an OCaml string cannot be interpreted by the VM.
+
+.. tacn:: vm_compute_blocking {? {| @reference_occs | @pattern_occs } } {? @occurrences }
+
+   Uses the same virtual machine as :tacn:`vm_compute`, but preserves ordinary
+   :n:`__block` body syntax while still processing captured :n:`__unblock`
+   occurrences. :n:`__run` remains an eliminator in either strategy. Block
+   bodies are compiled and linked only when forced; alternating the strategies
+   does not change or invalidate cached constant values.
+
+   This strategy is also available in :cmd:`Eval` and Ltac's :n:`eval`.
+   It requires VM reduction to be enabled; unlike :tacn:`vm_compute`, it does
+   not fall back to :tacn:`cbv`, which would not preserve blocking semantics.
 
 .. tacn:: native_compute {? {| @reference_occs | @pattern_occs } } {? @occurrences }
 
@@ -1022,6 +1038,7 @@ Evaluation of a term can be performed with:
       | cbv {? @reductions }
       | compute {? @delta_reductions }
       | vm_compute {? {| @reference_occs | @pattern_occs } }
+      | vm_compute_blocking {? {| @reference_occs | @pattern_occs } }
       | native_compute {? {| @reference_occs | @pattern_occs } }
       | red
       | hnf
