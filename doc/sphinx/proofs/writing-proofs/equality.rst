@@ -601,6 +601,15 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
 
       This flag is disabled by default.
 
+   .. cmd:: Print Height @reference
+
+      This command prints the definitional height of the given :n:`@reference`.
+      It fails with :exn:`The reference is not unfoldable` if :n:`@reference`
+      is not an unfoldable constant.
+
+   .. cmd:: Print Heights
+
+      This command prints the definitional heights of all the constants in scope.
 
    The call-by-value strategy is the one used in ML languages: the
    arguments of a function call are systematically weakly evaluated

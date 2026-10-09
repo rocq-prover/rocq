@@ -19,6 +19,9 @@ end.
 Definition fact100 := fact 100.
 Definition fact100' := fact100.
 
+Print Height fact100. (* fact100 : 4*)
+Print Height fact100'. (* fact100' : 5*)
+
 (* Case 1a: This is fast because the right side is unfolded first by default
    when both constants have the same strategy. So the equality is found
    after one unfolding step. *)
@@ -52,9 +55,13 @@ Timeout 1 Check eq_refl : fact100' = fact100.
 Definition ifact100 : nat.
 Proof. exact (fact 100). Defined.
 
+Print Height ifact100. (* ifact100 : 4 *)
+
 #[refine]
 Definition ifact100' : nat := _.
 Proof. exact ifact100. Defined.
+
+Print Height ifact100'. (* ifact100' : 5 *)
 
 Timeout 1 Check eq_refl : ifact100 = ifact100'.
 Timeout 1 Check eq_refl : ifact100' = ifact100.
