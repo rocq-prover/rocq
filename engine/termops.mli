@@ -96,8 +96,34 @@ val isMetaOf : Evd.evar_map -> metavariable -> constr -> bool
 (** Type assignment for metavariables *)
 type meta_type_map = (metavariable * Constr.types) list
 
-(** [pop c] lifts by -1 the positive indexes in [c] *)
-val pop : constr -> constr
+(** [strengthen_between n m c] adds [-m] to rels above [n+m]
+    and leaves rels strictly below [n] unchanged.
+
+    Assuming [c] is well formed in [Γ, Δ, Ξ] with [|Δ| = m] and [|Ξ| = n-1]
+    and [c] and [Ξ] do not refer to [Δ],
+    [strengthen_between n m c] is well formed in [Γ, Ξ].
+
+    By default, raises assertion failure if [c] refers to [Δ]
+    (i.e. has unbound rels between [n] and [n+m])
+    (unless [m = 0] in which case the input term is returned unchanged).
+    With [unsafe:true], such unbound rels become some other unbound rel in an unspecified manner.
+*)
+val strengthen_between : ?unsafe:bool -> int -> int -> constr -> constr
+
+(** Constr version of strengthen_between *)
+val strengthen_betweenC :?unsafe:bool -> int -> int -> Constr.constr -> Constr.constr
+
+(** [popn n c = strengthen_between 1 n c] *)
+val popn : ?unsafe:bool -> int -> constr -> constr
+
+(** Constr version of popn *)
+val popnC : ?unsafe:bool -> int -> Constr.constr -> Constr.constr
+
+(** [pop c = popn 1 c] *)
+val pop : ?unsafe:bool -> constr -> constr
+
+(** Constr version of pop *)
+val popC : ?unsafe:bool -> Constr.constr -> Constr.constr
 
 (** {6 ... } *)
 (** Substitution of an arbitrary large term. Uses equality modulo

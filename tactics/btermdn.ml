@@ -161,7 +161,7 @@ let decomp_lambda_constr env sigma ts decomp : EConstr.t -> EConstr.t -> constr_
          might still be used could be problematic but works fine in
          practice because Rels are translated to None (for constrs)
          and Nothing (for patterns). *)
-      let p = EConstr.Vars.substl (List.make n (EConstr.mkRel (-1))) p in
+      let p = Termops.popn ~unsafe:true n p in
       begin
         match decomp [] p with
         | _ as c when ds = [] ->

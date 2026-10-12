@@ -900,7 +900,28 @@ let count_occurrences sigma m t =
   countrec m t;
   !n
 
-let pop t = EConstr.Vars.lift (-1) t
+let rec strengthen_betweenC ~unsafe n m c =
+  match kind c with
+  | Rel i ->
+    if i < n then c
+    else
+      let () = assert (unsafe || i >= n + m) in
+      mkRel (i - m)
+  | _ -> map_with_binders succ (fun n c -> strengthen_betweenC ~unsafe n m c) n c
+
+let strengthen_betweenC ?(unsafe=false) n m c =
+  if m = 0 then c else strengthen_betweenC ~unsafe n m c
+
+let strengthen_between ?unsafe n m c =
+  EConstr.(of_constr (strengthen_betweenC ?unsafe n m (Unsafe.to_constr c)))
+
+let popn ?unsafe n t = strengthen_between ?unsafe 1 n t
+
+let popnC ?unsafe n t = strengthen_betweenC ?unsafe 1 n t
+
+let pop ?unsafe t = popn ?unsafe 1 t
+
+let popC ?unsafe t = popnC ?unsafe 1 t
 
 (***************************)
 (*  bindings functions *)
@@ -1130,7 +1151,7 @@ let rec eta_reduce_head sigma c =
                           else mkApp (f, Array.sub cl 0 lastn)
                         in
                         if noccurn sigma 1 c'
-                        then lift (-1) c'
+                        then pop c'
                         else c
                     | _   -> c)
            | _ -> c)
