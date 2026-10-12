@@ -132,7 +132,7 @@ let rec build_lambda sigma vars ctx m = match vars with
   let map i (na, id, c) =
     let i = succ i in
     let subst = List.skipn i subst in
-    let subst = List.map (fun c -> popn ~unsafe:true i c) subst in
+    let subst = List.map (fun c -> popn i c) subst in
     (na, id, substl subst c)
   in
   let pre = List.mapi map pre in

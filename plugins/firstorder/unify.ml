@@ -25,7 +25,7 @@ exception UFAIL
 *)
 
 (* hack wtf (seems we do call this on terms which mention rel 1) *)
-let pop t = Termops.pop ~unsafe:true t
+let pop t = Termops.pop t
 let subst_meta subst t =
   let subst = List.map (fun (m, c) -> (m, EConstr.Unsafe.to_constr c)) subst in
   EConstr.of_constr (subst_meta subst (EConstr.Unsafe.to_constr t))

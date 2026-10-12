@@ -103,27 +103,27 @@ type meta_type_map = (metavariable * Constr.types) list
     and [c] and [Ξ] do not refer to [Δ],
     [strengthen_between n m c] is well formed in [Γ, Ξ].
 
-    By default, raises assertion failure if [c] refers to [Δ]
-    (i.e. has unbound rels between [n] and [n+m])
-    (unless [m = 0] in which case the input term is returned unchanged).
-    With [unsafe:true], such unbound rels become some other unbound rel in an unspecified manner.
+    Unbound rels between [n] and [n+m]) become some other unbound rel in an unspecified manner.
+
+    (NB: when [noccurn sigma n c], rels below [n] may still be present in the non evar normalized [c]
+    and since this function doesn't take an evar map it cannot do a meaningful check)
 *)
-val strengthen_between : ?unsafe:bool -> int -> int -> constr -> constr
+val strengthen_between : int -> int -> constr -> constr
 
 (** Constr version of strengthen_between *)
-val strengthen_betweenC :?unsafe:bool -> int -> int -> Constr.constr -> Constr.constr
+val strengthen_betweenC : int -> int -> Constr.constr -> Constr.constr
 
 (** [popn n c = strengthen_between 1 n c] *)
-val popn : ?unsafe:bool -> int -> constr -> constr
+val popn : int -> constr -> constr
 
 (** Constr version of popn *)
-val popnC : ?unsafe:bool -> int -> Constr.constr -> Constr.constr
+val popnC : int -> Constr.constr -> Constr.constr
 
 (** [pop c = popn 1 c] *)
-val pop : ?unsafe:bool -> constr -> constr
+val pop : constr -> constr
 
 (** Constr version of pop *)
-val popC : ?unsafe:bool -> Constr.constr -> Constr.constr
+val popC : Constr.constr -> Constr.constr
 
 (** {6 ... } *)
 (** Substitution of an arbitrary large term. Uses equality modulo

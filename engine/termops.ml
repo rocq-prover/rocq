@@ -900,28 +900,27 @@ let count_occurrences sigma m t =
   countrec m t;
   !n
 
-let rec strengthen_betweenC ~unsafe n m c =
+let rec strengthen_betweenC n m c =
   match kind c with
   | Rel i ->
     if i < n then c
     else
-      let () = assert (unsafe || i >= n + m) in
       mkRel (i - m)
-  | _ -> map_with_binders succ (fun n c -> strengthen_betweenC ~unsafe n m c) n c
+  | _ -> map_with_binders succ (fun n c -> strengthen_betweenC n m c) n c
 
-let strengthen_betweenC ?(unsafe=false) n m c =
-  if m = 0 then c else strengthen_betweenC ~unsafe n m c
+let strengthen_betweenC n m c =
+  if m = 0 then c else strengthen_betweenC n m c
 
-let strengthen_between ?unsafe n m c =
-  EConstr.(of_constr (strengthen_betweenC ?unsafe n m (Unsafe.to_constr c)))
+let strengthen_between n m c =
+  EConstr.(of_constr (strengthen_betweenC n m (Unsafe.to_constr c)))
 
-let popn ?unsafe n t = strengthen_between ?unsafe 1 n t
+let popn n t = strengthen_between 1 n t
 
-let popnC ?unsafe n t = strengthen_betweenC ?unsafe 1 n t
+let popnC n t = strengthen_betweenC 1 n t
 
-let pop ?unsafe t = popn ?unsafe 1 t
+let pop t = popn 1 t
 
-let popC ?unsafe t = popnC ?unsafe 1 t
+let popC t = popnC 1 t
 
 (***************************)
 (*  bindings functions *)
