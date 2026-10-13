@@ -1,11 +1,11 @@
 if true then 1 else 0
      : nat
-File "./output/If.v", line 3, characters 6-24:
+File "./output/If.v", line 4, characters 6-24:
 Warning: The "if <c> then _" syntax for non boolean guard is deprecated.
 Use "if <c> is O then _" instead.
 [non-boolean-if,deprecated-since-9.3,deprecated,default]
 Quickfix:
-Replace File "./output/If.v", line 3, characters 10-10 with  is O
+Replace File "./output/If.v", line 4, characters 10-10 with  is O
 if 4 is 0 then 1 else 0
      : nat
 if 4 is S n then n else 0
@@ -57,4 +57,11 @@ fun x : {True} + {True} => match x with
 if left I is left _ then 1 else 0
      : nat
 if inleft 3 is inleft _ then 1 else 0
+     : nat
+File "./output/If.v", line 44, characters 14-15:
+The command has indeed failed with message:
+The term "4" has type "nat" while it is expected to have type "bool".
+if 4 then 1 else 0
+     : nat
+if is_S 4 then 1 else 0
      : nat
