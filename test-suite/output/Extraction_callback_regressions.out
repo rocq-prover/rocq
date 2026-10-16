@@ -1,0 +1,23 @@
+(** val recursive_callback : nat -> nat **)
+
+let rec recursive_callback = function
+| O -> O
+| S k -> recursive_callback k
+
+let () = Stdlib.Callback.register "recursive_alias" recursive_callback
+(** val even : nat -> bool **)
+
+let rec even = function
+| O -> True
+| S k -> odd k
+
+(** val odd : nat -> bool **)
+
+and odd = function
+| O -> False
+| S k -> even k
+
+let () = Stdlib.Callback.register "even_alias" even
+
+let () = Stdlib.Callback.register "odd_alias" odd
+Extracted code successfully compiled
