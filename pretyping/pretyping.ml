@@ -734,6 +734,10 @@ let pretype_instance self ~flags env sigma loc hyps evk update =
   check_instance subst inst;
   sigma, List.map snd subst
 
+let { Goptions.get = old_if_wo_bool_coercion } =
+  Goptions.declare_bool_option_and_ref
+    (* ~depr:TODO *) ~key:["OldIfWOBoolCoercion"] ~value:false ()
+
 module Default =
 struct
 
@@ -1430,7 +1434,15 @@ struct
     fun ?loc ~flags tycon env sigma ->
     let open Context.Rel.Declaration in
     let pretype tycon env sigma c = eval_pretyper self ~flags tycon env sigma c in
-    let sigma, cj = pretype empty_tycon env sigma c in
+    let (sigma, cj), err_not_sumbool =
+      let pe = pretype empty_tycon env sigma in
+      if old_if_wo_bool_coercion () then pe c, None else
+      match Rocqlib.lib_ref_opt "core.bool.type" with None -> pe c, None | Some bool ->
+      let bool_tycon = mk_tycon (mkRef (bool, EInstance.empty)) in
+      try pretype bool_tycon env sigma c, None with PretypeError _ as e ->
+        (* for historical reasons, in addition to bool,
+           we keep supporting sumbool in the guard of "if <guard> then ..." *)
+        pe c, Some e in
     let (IndType (indf,realargs)) as indty =
       try find_rectype !!env sigma cj.uj_type
       with Not_found ->
@@ -1446,6 +1458,10 @@ struct
         match Rocqlib.lib_ref_opt ("core." ^ r ^ ".type") with
         | None -> false
         | Some bool -> GlobRef.CanOrd.equal (IndRef ind) bool in
+      begin match err_not_sumbool with
+      | None -> ()
+      | Some e -> if not (indf_is "sumbool" || indf_is "sumor") then raise e
+      end;
       if not (indf_is "bool" || indf_is "sumbool" || indf_is "sumor") then
         let cloc = loc_of_glob_constr c in
         warn_nonbool_if ?loc (cloc, fst cstrs.(0).cs_cstr) in
