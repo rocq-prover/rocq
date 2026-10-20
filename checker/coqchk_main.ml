@@ -200,7 +200,7 @@ let add_compile s =
     between coqtop and coqc. *)
 
 let compile_files senv =
-  CheckLibrary.recheck_library ~output_context:!output_context senv
+  CheckLibrary.recheck_library ~output_context:(!output_context || !CheckFlags.axiom_free) senv
     ~norec:(List.rev !norec_list)
     ~admit:(List.rev !admit_list)
     ~check:(List.rev !compile_list)
@@ -230,6 +230,7 @@ let print_usage_channel co command =
 \n  -where                      print coqchk's standard library location and exit\
 \n  -v, --version               print coqchk version and exit\
 \n  -o, --output-context        print the list of assumptions\
+\n  -axiom-free                 fail if axioms or unsafe features are used\
 \n  -m, --memory                print the maximum heap size\
 \n  -silent                     disable trace of constants being checked\
 \n\
@@ -432,6 +433,8 @@ let parse_args argv =
     | ("-o" | "--output-context") :: rem ->
         output_context := true; parse rem
 
+    | "-axiom-free" :: rem -> CheckFlags.axiom_free := true; parse rem
+
     | "-admit" :: s :: rem -> add_admit s; parse rem
     | "-admit" :: [] -> usage 1
 
@@ -496,10 +499,13 @@ let run senv =
 let main () =
   let senv = init() in
   let senv, axioms = run senv in
+  let env = Safe_typing.env_of_safe_env senv in
   let axioms =
-    if !output_context then
-      Some (Mod_checking.constants_of_axioms axioms)
-    else None
+    if !output_context || !CheckFlags.axiom_free then
+      Mod_checking.constants_of_axioms axioms
+    else []
   in
-  Check_stat.stats (Safe_typing.env_of_safe_env senv) axioms;
+  Check_stat.stats env (if !output_context then Some axioms else None);
+  if !CheckFlags.axiom_free && not (CheckFlags.is_axiom_free env axioms) then
+    fatal_error (str "Axioms or unsafe features found (-axiom-free).") 1;
   exit 0
