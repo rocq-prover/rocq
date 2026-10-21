@@ -54,17 +54,21 @@ let int_or_no n = if Int.equal n 0 then str "no" else int n
 let print_basename cst = pr_global (GlobRef.ConstRef cst)
 
 let type_of_global_for_print env ref =
+  let template_context mib = match mib.mind_universes with
+    | Template templ -> templ.template_context
+    | Polymorphic _ -> assert false
+  in
   if not @@ Environ.is_template_polymorphic env ref then Typeops.type_of_global_in_context env ref
   else match ref with
     | ConstRef _ | VarRef _ -> assert false
     | IndRef ind ->
       let mib, mip = Inductive.lookup_mind_specif env ind in
       let ty = mip.mind_user_arity in
-      ty, (Option.get mib.mind_template).template_context
+      ty, template_context mib
     | ConstructRef (ind,ctor) ->
       let mib, mip = Inductive.lookup_mind_specif env ind in
       let ty = mip.mind_user_lc.(ctor-1) in
-      ty, (Option.get mib.mind_template).template_context
+      ty, template_context mib
 
 let print_ref env reduce ref udecl =
   let typ, univs = type_of_global_for_print env ref in
@@ -207,9 +211,9 @@ let print_if_is_coercion ref =
 (* XXX TODO print based on the actual binders not from the monomorphic data *)
 let template_poly_variables env ind =
   let mib, mip = Inductive.lookup_mind_specif env ind in
-  match mib.mind_template with
-  | None -> assert false
-  | Some templ -> templ
+  match mib.mind_universes with
+  | Polymorphic _ -> assert false
+  | Template templ -> templ
 
 let get_template_poly_variables env = function
   | GlobRef.IndRef ind | ConstructRef (ind,_) -> template_poly_variables env ind
@@ -570,8 +574,8 @@ let print_section_variable_with_infos env sigma id =
   with_line_skip (print_name_infos env (GlobRef.VarRef id))
 
 let print_instance sigma cb =
-  if Declareops.constant_is_polymorphic cb then
-    let univs = Declareops.constant_polymorphic_context cb in
+  let univs = Declareops.constant_polymorphic_context cb in
+  if not (UVars.AbstractContext.is_empty univs) then
     let inst = UVars.Instance.of_level_instance @@ UVars.make_abstract_level_instance univs in
     pr_universe_instance sigma inst
   else mt()
