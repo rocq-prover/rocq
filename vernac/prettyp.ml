@@ -68,7 +68,6 @@ let type_of_global_for_print env ref =
 
 let print_ref env reduce ref udecl =
   let typ, univs = type_of_global_for_print env ref in
-  let inst = UVars.make_abstract_instance univs in
   let udecl = Option.map (fun x -> ref, x) udecl in
   let sigma = Evd.from_auctx ~of_template:(Environ.is_template_polymorphic env ref)
       env (Printer.fill_names ?user_names:udecl univs)
@@ -81,20 +80,17 @@ let print_ref env reduce ref udecl =
   let typ = Arguments_renaming.rename_type env typ ref in
   let impargs = select_stronger_impargs (implicits_of_global ref) in
   let impargs = List.map binding_kind_of_status impargs in
-  let variance = let open GlobRef in match ref with
-    | VarRef _ | ConstRef _ -> None
-    | IndRef (ind,_) | ConstructRef ((ind,_),_) ->
-      let mind = Environ.lookup_mind ind env in
-      mind.Declarations.mind_variance
-  in
+  let variances = Environ.variances env ref in
   let inst =
     if Environ.is_polymorphic env ref
-    then Printer.pr_universe_instance sigma inst
+    then
+      let inst = UVars.Instance.of_level_instance @@ UVars.make_abstract_level_instance univs in
+      Printer.pr_universe_instance sigma inst
     else mt ()
   in
   let priv = None in (* We deliberately don't print private univs in About. *)
   hov 0 (pr_global ref ++ inst ++ str " :" ++ spc () ++ pr_ltype_env env sigma ~impargs typ ++
-         Printer.pr_abstract_universe_ctx sigma ?variance univs ?priv)
+         Printer.pr_abstract_universe_ctx sigma ?variances univs ?priv)
 
 (** Command [Print Implicit], somehow subsumed by [About] *)
 
@@ -222,14 +218,16 @@ let get_template_poly_variables env = function
 let pr_template_variables env ref =
   let templ = get_template_poly_variables env ref in
   str "default instance:" ++ spc() ++
-  str "{" ++ UVars.Instance.pr UnivNames.(sort_printer empty_binders) templ.template_defaults ++ str "}"
+  str "{" ++ UVars.LevelInstance.pr UnivNames.(sort_printer empty_binders) templ.template_defaults ++ str "}"
 
 let print_polymorphism env ref =
   let poly = Environ.is_polymorphic env ref in
   let template_poly = Environ.is_template_polymorphic env ref in
+  let cumulative = Environ.is_cumulative env ref in
   hov 2
     (pr_global ref ++ str " is " ++
-     (if poly then str "universe polymorphic"
+     (if poly then
+        str "universe polymorphic" ++ (if cumulative then str " and cumulative" else mt())
       else if template_poly then
         str "template universe polymorphic"
         ++ if !PrintingFlags.print_universes then spc() ++ surround (pr_template_variables env ref) else mt()
@@ -574,7 +572,7 @@ let print_section_variable_with_infos env sigma id =
 let print_instance sigma cb =
   if Declareops.constant_is_polymorphic cb then
     let univs = Declareops.constant_polymorphic_context cb in
-    let inst = UVars.make_abstract_instance univs in
+    let inst = UVars.Instance.of_level_instance @@ UVars.make_abstract_level_instance univs in
     pr_universe_instance sigma inst
   else mt()
 
