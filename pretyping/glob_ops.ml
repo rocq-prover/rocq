@@ -61,7 +61,7 @@ let glob_sort_name_eq g1 g2 = match g1, g2 with
 
 exception ComplexSort
 
-let glob_rigid_univ = UAnonymous {rigid=UnivRigid}
+let glob_rigid_univ = UAnonymous {rigid=Some UnivRigid}
 let glob_Univ_sort = Some (GLocalQVar (CAst.make Anonymous)), glob_rigid_univ
 let glob_Type_sort = None, glob_rigid_univ
 let glob_SProp_sort = None, UNamed [GSProp, 0]
@@ -87,26 +87,29 @@ let glob_sort_eq (q1, l1) (q2, l2) =
     l1 l2
 
 let glob_sort_quality s =
-  if glob_sort_eq s glob_Type_sort then UnivGen.QualityOrSet.qtype
-  else match s with
-       | None, UNamed [s, 0] ->
-          begin match s with
-          | GSProp -> UnivGen.QualityOrSet.sprop
-          | GProp -> UnivGen.QualityOrSet.prop
-          | GSet -> UnivGen.QualityOrSet.set
-          | GUniv _ | GLocalUniv _ | GRawUniv _ -> raise ComplexSort
-          end
-       | _ -> raise ComplexSort
+  match s with
+  | None, UAnonymous _ -> UnivGen.QualityOrSet.qtype
+  | None, UNamed [s, 0] ->
+    begin match s with
+    | GSProp -> UnivGen.QualityOrSet.sprop
+    | GProp -> UnivGen.QualityOrSet.prop
+    | GSet -> UnivGen.QualityOrSet.set
+    | GUniv _ | GLocalUniv _ | GRawUniv _ -> UnivGen.QualityOrSet.qtype
+    end
+  | _ -> raise ComplexSort
 
 let fresh_glob_sort_in_quality sigma s =
   Evd.fresh_sort_in_quality sigma @@ glob_sort_quality s
 
-let glob_level_eq u1 u2 =
-  glob_sort_gen_eq glob_sort_name_eq u1 u2
+let glob_univ_eq u1 u2 =
+  let eq l1 l2 =
+    List.equal (fun (x,m) (y,n) -> glob_sort_name_eq x y && Int.equal m n) l1 l2
+  in
+  glob_sort_gen_eq eq u1 u2
 
 let instance_eq i1 i2 =
   List.equal glob_quality_eq i1.qualities i2.qualities
-  && List.equal glob_level_eq i1.univlevels i2.univlevels
+  && List.equal glob_univ_eq i1.univlevels i2.univlevels
   && Bool.equal i1.extensible_qualities i2.extensible_qualities
   && Bool.equal i1.extensible_univlevels i2.extensible_univlevels
 
