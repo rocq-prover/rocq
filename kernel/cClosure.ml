@@ -1599,7 +1599,7 @@ end =
 struct
 
 type partial_subst = {
-  subst: (int * fconstr, Sorts.Quality.t, Univ.Level.t) Partial_subst.t;
+  subst: (int * fconstr, Sorts.Quality.t, Univ.Universe.t) Partial_subst.t;
   rhs: constr;
 }
 

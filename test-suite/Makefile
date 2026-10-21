@@ -93,7 +93,7 @@ else
   COQLIB_NOT_FOUND:=false
 endif
 
-COQEXTRAFLAGS?=
+COQEXTRAFLAGS?=-unset "Universe Polymorphism"
 COQFLAGS?=$(COQEXTRAFLAGS)
 
 coqc := $(BIN)rocq c -q -R prerequisite TestSuite $(COQFLAGS)
@@ -706,7 +706,7 @@ ide/fake_ide.exe : ide/fake_ide.ml
 	$(SHOW) "TEST      $<"
 	$(HIDE){ \
 	  echo $(call log_intro,$<); \
-	  $(call WITH_TIMER,$@,ide/fake_ide.exe $(coqidetop) "$<" "-q -async-proofs on -async-proofs-tactic-error-resilience off -async-proofs-command-error-resilience off $(call get_coq_prog_args,"$<")" 2>&1); \
+	  $(call WITH_TIMER,$@,ide/fake_ide.exe $(coqidetop) "$<" "-q -async-proofs on -async-proofs-tactic-error-resilience off -async-proofs-command-error-resilience off $(call get_coq_prog_args,"$<")" $(COQEXTRAFLAGS) 2>&1); \
 	  if [ $$? = 0 ]; then \
 	    echo $(log_success); \
 	    echo "    $< ... Ok"; \

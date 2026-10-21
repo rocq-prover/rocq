@@ -1190,11 +1190,13 @@ Requesting information
    .. exn:: Unknown inductive type.
       :undocumented:
 
-.. cmd:: Show Universes
+.. cmd:: Show {? Local } Universes
+   :name: Show Universes; Show Local Universes
 
    Displays the set of all universe constraints and
    its normalized form at the current stage of the proof, useful for
-   debugging universe inconsistencies.
+   debugging universe inconsistencies. With ``Local``, only the universes
+   of the proof are displayed, not the global ones.
 
 .. cmd:: Show Goal @natural at @natural
 
