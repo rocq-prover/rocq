@@ -178,26 +178,6 @@ let unif_HO env ise p c =
   with Evarconv.UnableToUnify(ise, err) ->
     raise Pretype_errors.(PretypeError(env,ise,CannotUnify(p,c,Some err)))
 
-(* The head constant, inductive or constructor of a pattern is matched
-   syntactically, as if it could not be unfolded: its universe instance is
-   unified with the one of the head [f] of the subterm (equal to [p] up to
-   universes) level by level, with [ULub] problems. A flexible level is
-   substituted by the other one, while two rigid levels must already be
-   equal, otherwise [Evd.UniversesDiffer] is raised and the pattern does not
-   match. Unification would instead produce weak constraints for the
-   irrelevant universes of a cumulative inductive type and for the universes
-   of its constructors, leaving the universes of the pattern in the matched
-   instance, and could unfold a constant whose instance differs. *)
-let unif_head ise p f =
-  let open EConstr in
-  match EConstr.kind ise p, EConstr.kind ise f with
-  | Const (_, u), Const (_, u') | Ind (_, u), Ind (_, u')
-  | Construct (_, u), Construct (_, u') ->
-    let u = EInstance.kind ise u and u' = EInstance.kind ise u' in
-    Evd.add_constraints ise
-      (UnivProblem.enforce_eq_instances_univs true u u' UnivProblem.Set.empty)
-  | _ -> ise
-
 let unif_HO_args env ise0 pa i ca =
   let n = Array.length pa in
   let rec loop ise j =
@@ -262,6 +242,8 @@ let rec same_hd env ise metas p c =
   | Proj(p1,_,x), Proj(p2,_,y) when Environ.QProjection.equal env p1 p2 ->
     let metas, ise = unif_FO_skip_impl env ise metas x y in
     CompareArgs (ise,metas,[])
+  | Proj (p1, _, _), _ when Structures.Structure.is_projection 
+    (Environ.projection_repr_constant env (Projection.repr p1)) -> CanonicalInfRequired
   | _ -> Different
 and unif_FO_skip_impl env ise metas p c =
   match EConstr.kind ise p, EConstr.kind ise c with
@@ -428,13 +410,12 @@ type pattern_class =
   | KpatFlex
   | KpatProj of Constant.t
 
-(* An extension of a universe state: new sort variables, universes (rigid,
-   flexible or flexible algebraic) and constraints. *)
+(* An extension of a universe state: new sort variables, universes (rigid
+   or flexible) and constraints. *)
 type univ_extension = {
   ext_sorts : Sorts.QContextSet.t;
   ext_rigid : Univ.Level.Set.t;
   ext_flexible : Univ.Level.Set.t;
-  ext_algebraic : Univ.Level.Set.t;
   ext_constraints : Univ.UnivConstraints.t;
 }
 
@@ -443,7 +424,7 @@ type univ_extension = {
    the size of the goal's context. *)
 let nf_evars_univs sigma c =
   let uctx = Evd.ustate sigma in
-  let univ = UnivFlex.normalize_univ_variable (Evd.universe_subst sigma) in
+  let univ = UState.subst_fn uctx in
   let qual q = UState.nf_qvar uctx q in
   let rel r = UState.nf_relevance uctx r in
   let rec self () c = match Constr.kind c with
@@ -468,15 +449,22 @@ let universes_of_nf acc c = Vars.sort_and_universes_of_constr ~init:acc (EConstr
    extension going through a new universe which is not part of it. We hence
    only restrict this delta, which is computed once for all the terms whose
    extension is computed (by partially applying [univ_extension ~base sigma]),
-   instead of the whole local universe context of [sigma]. *)
+   instead of the whole local universe context of [sigma].
+   When [sigma] has the universe state of [base], the extension is empty: we
+   then avoid computing the context sets, which is costly. *)
 let univ_extension ~base sigma =
+  if Evd.ustate base == Evd.ustate sigma then fun _ ->
+    { ext_sorts = Sorts.QContextSet.empty;
+      ext_rigid = Univ.Level.Set.empty; ext_flexible = Univ.Level.Set.empty;
+      ext_constraints = Univ.UnivConstraints.empty }
+  else
   let base_graph = Evd.universes base in
   let (base_qvars, base_levels), (base_qcst, base_ucst) = Evd.sort_context_set base in
   let (_, levels), (qcst, ucst) = Evd.sort_context_set sigma in
   let delta_levels = Univ.Level.Set.diff levels base_levels in
   let delta_ucst = Univ.UnivConstraints.diff ucst base_ucst in
   let delta_qcst = Sorts.ElimConstraints.diff qcst base_qcst in
-  let flex = Evd.universe_subst sigma in
+  let uctx = Evd.ustate sigma in
   fun (qs, us) ->
   let new_levels = match UGraph.check_declared_universes base_graph us with
     | Ok () -> Univ.Level.Set.empty
@@ -490,8 +478,8 @@ let univ_extension ~base sigma =
      transitive constraints between the remaining ones *)
   let _, ucst = UState.restrict_universe_context (delta_levels, delta_ucst) new_levels in
   let is_new l = Univ.Level.Set.mem l new_levels in
-  let needed (l, _, r as c) =
-    is_new l || is_new r ||
+  let needed c =
+    Univ.Level.Set.exists is_new (Univ.UnivConstraint.levels c) ||
     try not (UGraph.check_constraint base_graph c) with e when CErrors.noncritical e -> true
   in
   let is_new_q = function
@@ -499,10 +487,9 @@ let univ_extension ~base sigma =
     | _ -> false
   in
   let qcst = Sorts.ElimConstraints.filter (fun (q, _, q') -> is_new_q q || is_new_q q') delta_qcst in
-  let flexible, rigid = Univ.Level.Set.partition (fun l -> UnivFlex.mem l flex) new_levels in
-  let algebraic, flexible = Univ.Level.Set.partition (fun l -> UnivFlex.is_algebraic l flex) flexible in
+  let flexible, rigid = Univ.Level.Set.partition (fun l -> UState.is_flexible l uctx) new_levels in
   { ext_sorts = (new_qvars, qcst);
-    ext_rigid = rigid; ext_flexible = flexible; ext_algebraic = algebraic;
+    ext_rigid = rigid; ext_flexible = flexible;
     ext_constraints = Univ.UnivConstraints.filter needed ucst }
 
 let extend_universes sigma ext =
@@ -519,8 +506,7 @@ let extend_universes sigma ext =
     else Evd.merge_universe_context_set rigid sigma (levels, UnivConstraints.empty)
   in
   let sigma = declare UState.UnivRigid ext.ext_rigid sigma in
-  let sigma = declare (UState.UnivFlexible false) ext.ext_flexible sigma in
-  let sigma = declare (UState.UnivFlexible true) ext.ext_algebraic sigma in
+  let sigma = declare UState.UnivFlexible ext.ext_flexible sigma in
   if UnivConstraints.is_empty ext.ext_constraints then sigma
   else Evd.merge_universe_context_set UState.UnivRigid sigma (Level.Set.empty, ext.ext_constraints)
 
@@ -756,7 +742,7 @@ let nb_cs_proj_args env ise pc f u =
   | Sort s -> na (Sort_cs (ESorts.quality_or_set ise s))
   | Const (c',_) when Environ.QConstant.equal env c' pc -> nargs_of_proj u.up_f
   | Proj (c',_,_) when Environ.QConstant.equal env ((Environ.projection_repr_constant env (Projection.repr c'))) pc -> nargs_of_proj u.up_f
-  | Proj (c',_,_) -> let _ = na (Proj_cs (Names.Projection.repr c')) in 0
+  | Proj (c',_,_) -> na (Proj_cs (Names.Projection.repr c')) - 1
   | Var _ | Ind _ | Construct _ | Const _ -> na (Const_cs (fst @@ destRef ise f))
   | _ -> -1
   with Not_found -> -1
@@ -898,9 +884,9 @@ let match_upats_FO upats env sigma0 ise orig_c =
              unif_FO env ise metas p_FO c'
            in
            let ise' = (* Unify again using HO to assign evars *)
-             if u.up_k = KpatConst || u.up_k = KpatFixed then
+             if u.up_k = KpatConst then
               try
-                let ise = unif_head ise u.up_f f in
+                let ise = unif_HO env ise u.up_f f in
                 unif_HO_args env ise u.up_a (i - Array.length u.up_a) a
               with e when CErrors.noncritical e -> raise NoMatch
              else
@@ -945,7 +931,8 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
         let ise' = match u.up_k with
         | KpatFixed
         | KpatConst -> (* Ensure universe instances are unified *)
-          unif_head ise u.up_f f
+          pp(lazy(str"match_upats_HO: " ++ pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise f));
+          unif_HO env ise u.up_f f
         | KpatEvar _ ->
           let open EConstr in
           let pka = Evd.expand_existential ise @@ destEvar ise u.up_f in
@@ -969,6 +956,9 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
                 * the type of the arguments to retrieve that information *)
                let tuf = Retyping.get_type_of ~lax:true env ise u.up_f in
                let tfa = Retyping.get_type_of ~lax:true env ise fa in
+               pp(lazy(str"match_upats_HO, unifying types of projections: " ++ 
+                pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise f ++ spc () ++
+                pr_econstr_env env ise tuf ++ str" = " ++ pr_econstr_env env ise tfa));
                unif_HO env ise tuf tfa
             | _ -> ise in
           pp(lazy(str"FLEX " ++ pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise fa));
@@ -1048,6 +1038,13 @@ let subst_occ occ_ref =
   let () = if Int.equal nocc max_occ then occ_ref := { !occ_ref with skip_occ = use_occ } in
   if nocc <= max_occ then occ_set.(nocc - 1) else not use_occ
 
+let match_constr_universes env sigma x y =
+  match EConstr.eq_constr_universes env sigma x y with
+  | None -> None
+  | Some pbs ->
+      try Some (Evd.add_constraints sigma pbs)
+      with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer | QGraph.EliminationError _ -> None
+
 let match_EQ env sigma (ise, u) =
   let open EConstr in
   match u.up_k with
@@ -1061,12 +1058,8 @@ let match_EQ env sigma (ise, u) =
       | Some sigma' -> unif_EQ env' sigma' pb b
       | None -> None end
     | _ -> None in match_let
-  | KpatFixed | KpatConst -> fun c ->
-    if not (eq_constr_nounivs sigma u.up_f c) then None
-    else
-      (try Some (unif_head sigma u.up_f c)
-       with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer
-          | QGraph.EliminationError _ -> None)
+  | KpatFixed -> fun c -> match_constr_universes env sigma u.up_f c
+  | KpatConst -> fun c -> match_constr_universes env sigma u.up_f c
   | KpatLam -> fun c ->
       (match EConstr.kind sigma c with
       | Lambda _ -> unif_EQ env sigma u.up_f c
@@ -1630,7 +1623,7 @@ let mk_in_pattern env sigma0 (x, rp) =
   | Some ist -> ist
   in
   let src = Loc.tag (BinderType (Name x)) in
-  let sigma, (ty, s) = Evarutil.new_type_evar env sigma Evd.univ_flexible_alg in
+  let sigma, (ty, s) = Evarutil.new_type_evar env sigma Evd.univ_flexible in
   let na = Context.make_annot (Name x) (Retyping.relevance_of_sort s) in
   let nenv = EConstr.push_rel (Context.Rel.Declaration.LocalAssum (na, ty)) env in
   let sigma, rp0 = Tacinterp.interp_open_constr ist nenv sigma rp.pattern in

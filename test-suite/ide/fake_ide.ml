@@ -302,7 +302,8 @@ let grammar =
 let read_command inc = Parser.parse grammar inc
 
 let usage () =
-  prerr_endline (Printf.sprintf "Usage: %s COQIDETOP ( file | - ) [ \"<coqtop arguments>\" ]\n\
+  prerr_endline (Printf.sprintf "Usage: %s COQIDETOP ( file | - ) [ \"<coqtop arguments>\" [<coqtop argument> ...] ]\n\
+    The arguments in the string are separated by spaces, the following ones are passed as is.\n\
     Input syntax is:\n%s\n"
     (Filename.basename Sys.argv.(0))
     (Parser.print grammar));
@@ -316,9 +317,10 @@ let main =
        (fun _ -> prerr_endline "Broken Pipe (rocqtop died ?)"; exit 1));
   let idetop_name, input_file, args  = match Sys.argv with
     | [| _; p; f |] -> p, f, []
-    | [| _; p; f; args |] ->
-        let args = Str.split (Str.regexp " ") args in
-        p, f, args
+    | argv when Array.length argv >= 4 ->
+        let args = Str.split (Str.regexp " ") argv.(3) in
+        let extra = Array.to_list (Array.sub argv 4 (Array.length argv - 4)) in
+        argv.(1), argv.(2), args @ extra
     | _ -> usage () in
   let def_coqtop_args = ["--xml_format=Ppcmds"] in
   let coqtop_args = Array.of_list(def_coqtop_args @ args) in
