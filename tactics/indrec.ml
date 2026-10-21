@@ -501,11 +501,11 @@ let build_mutual_induction_scheme_gen cache rec_hyp env sigma lrecspec u =
       let sigma =
         if List.length lrecspec = 1 && not (rec_hyp && Inductiveops.mis_is_recursive mip) then sigma
         else List.fold_left (fun sigma ((_, ni), _, s) ->
-            let inst = match mib.mind_template with
-              | None -> EInstance.kind sigma u
-              | Some templ -> templ.template_defaults
+            let ind_sort = mib.mind_packets.(ni).mind_sort in
+            let ind_sort = match mib.mind_universes with
+              | Polymorphic _ -> UVars.subst_instance_sort (EInstance.kind sigma u) ind_sort
+              | Template templ -> UVars.subst_level_instance_sort templ.template_defaults ind_sort
             in
-            let ind_sort = UVars.subst_instance_sort inst mib.mind_packets.(ni).mind_sort in
             let out_sort = match ERelevance.kind sigma (ESorts.relevance_of_sort s) with
               | Sorts.Irrelevant -> Sorts.sprop
               | Sorts.Relevant -> Sorts.prop

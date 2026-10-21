@@ -257,14 +257,12 @@ Proof. firstorder. Qed.
 (** Essential subrelation instances for [iffT] and [arrow]. *)
 
 #[global]
-Instance iffT_arrow_subrelation@{u u0 | u0 < u} :
-  subrelation@{u u0 u0} iffT@{u0 u0} arrow@{u0 u0} | 2.
-Proof. intros A B [f _]; exact f. Qed.
+Instance iffT_arrow_subrelation@{i} : subrelation iffT@{i i} arrow@{i i} | 2.
+Proof. firstorder. Qed.
 
 #[global]
-Instance iffT_flip_arrow_subrelation@{u u0 u1 u2 | u0 < u, u2 < u1, u0 <= u2} :
-  subrelation@{u u0 u2} iffT@{u0 u0} (flip@{u u u1} arrow@{u0 u0}) | 2.
-Proof. intros A B [_ g]; exact g. Qed.
+Instance iffT_flip_arrow_subrelation@{i} : subrelation iffT@{i i} (flip arrow@{i i}) | 2.
+Proof. firstorder. Qed.
 
 (** We use an extern hint to help unification. *)
 
@@ -429,8 +427,8 @@ Section GenericInstances.
     intros R R' HRR' S S' HSS' f g.
     unfold respectful , relation_equivalence in *; simpl in *.
     split ; intros H x y Hxy.
-    - apply (fst (HSS' _ _)). apply H. now apply (snd (HRR' _ _)).
-    - apply (snd (HSS' _ _)). apply H. now apply (fst (HRR' _ _)).
+    - apply (HSS' _ _). apply H. now apply (HRR' _ _).
+    - apply (HSS' _ _). apply H. now apply (HRR' _ _).
   Qed.
 
   (** [R] is Reflexive, hence we can build the needed proof. *)
@@ -542,8 +540,8 @@ Instance proper_proper {A} : Proper (relation_equivalence ==> eq ==> iffT) (@Pro
 Proof.
   intros R R' HRR' x y <-. red in HRR'.
   split ; red ; intros. 
-  - now apply (fst (HRR' _ _)).
-  - now apply (snd (HRR' _ _)).
+  - now apply (HRR' _ _).
+  - now apply (HRR' _ _).
 Qed.
 
 Ltac proper_reflexive :=
@@ -740,8 +738,7 @@ split.
   + left. apply transitivity with y; auto.
   + left. eapply H1; try eassumption.
     * apply reflexivity.
-    * now apply symmetry.
-  + left. eapply H1; [eassumption|apply reflexivity|eassumption].
+  + left. refine (TypeProduct.snd (H1 _ _ _ _ _ _) _); [eassumption|apply reflexivity|eassumption].
   + right. apply transitivity with y; auto.
 Qed.
 

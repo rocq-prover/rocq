@@ -9,4 +9,7 @@ Fail Check foo@{Set}.
 Check bar nat : Set.
 Fail Check bar@{Set}.
 
-Fail #[universes(template), universes(polymorphic)] Inductive qux (A : Type) := E (a : A).
+(* Template polymorphism is supported in universe polymorphic mode: the inductive is template
+   polymorphic, its derived eliminators universe polymorphic *)
+#[universes(template), universes(polymorphic)] Inductive qux (A : Type) := E (a : A).
+Check qux nat : Set.
