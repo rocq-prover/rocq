@@ -1,0 +1,12 @@
+# <statement-name> <model-constant> [<trusted-constant>|-]
+sealed StmtNeg.Use.sealed StmtNeg.Use.trusted_thm
+helper StmtNeg.Use.helper -
+hidden_axiom StmtNeg.Use.hidden_axiom -
+hidden_inductive StmtNeg.Use.hidden_inductive -
+clean StmtNeg.Use.clean StmtNeg.Use.trusted
+dirty StmtNeg.Use.dirty StmtNeg.Use.trusted
+near StmtNeg.Use.near StmtNeg.Use.trusted
+conv StmtNeg.Use.conv StmtNeg.Use.trusted
+poly_mono StmtNeg.Use.pmodel StmtNeg.Use.ptrusted
+poly_poly StmtNeg.Use.pmodel StmtNeg.Use.ptrusted_poly
+poly_constraints StmtNeg.Use.pmodel_lt StmtNeg.Use.ptrusted_lt
