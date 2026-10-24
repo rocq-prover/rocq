@@ -132,7 +132,7 @@ let default_config = {
   test_mode = false;
   profile = None;
   print_emacs  = false;
-  skip_qed_typecheck = false;
+  skip_qed_typecheck = true;
 
   (* Quiet / verbosity options should be here *)
 }
