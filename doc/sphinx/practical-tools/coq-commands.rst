@@ -790,6 +790,32 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
   and impredicative ``Set`` are accepted; ``-admit`` and ``-norec`` retain their trust
   assumptions. The default exit-status policy is unchanged.
 :-silent: Do not write progress information to the standard output.
+:-statement-report *file*: After checking, print a report on named
+  constants, before the summary of ``-o``. Each line of *file* is a
+  request ``name model trusted``, its tokens separated by single spaces:
+  *name* is a label printed back as given, and *model* and *trusted* are
+  fully qualified constant names. *trusted* may be ``-`` or left out. Blank
+  lines and lines starting with ``#`` are skipped; any other line is an
+  error, reported before any library is loaded. For each request, the report
+  says whether the type of *model* is convertible to the type of *trusted*
+  (``match``, ``mismatch``, or ``universes-differ`` when their universe
+  contexts differ; ``not-requested`` with no *trusted*; ``model-missing`` or
+  ``trusted-missing`` when a name is not in the environment), and lists the
+  axioms that the body and the type of *model* rest on, also through the
+  implementations hidden by module signatures, and the relaxed typing
+  conditions (such as ``indices-not-mattering``) of the objects it reaches.
+  The report is printed between the lines ``STATEMENT REPORT`` and
+  ``END STATEMENT REPORT``, one line per statement, axiom and condition:
+
+  .. code-block:: text
+
+     STATEMENT REPORT
+     statement <name> <model> <trusted|-> <verdict> <axiom-count> <condition-count>
+     axiom <name> <constant>
+     flag <name> <condition> <object>
+     END STATEMENT REPORT
+
+  It does not change the exit status.
 
 Environment variable ``$ROCQLIB`` can be set to override the location of
 the standard library.
