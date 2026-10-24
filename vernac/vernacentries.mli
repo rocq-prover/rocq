@@ -94,3 +94,7 @@ val def_attributes : t Attributes.attribute
 end
 
 val show_goal : Vernacexpr.goal_reference -> Proof.t -> Proof.t option option -> Pp.t
+
+val universe_subgraph : Vernacexpr.debug_univ_name list -> UGraph.t -> UGraph.t
+(** [universe_subgraph kept g] restricts [g] to the universes [kept] and the
+    constraints between them, as [Print Universes Subgraph]. *)

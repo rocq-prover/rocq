@@ -297,6 +297,9 @@ val sort_printer : t -> Sorts.printer
 (** Only looks in the local names, not in the nametab. *)
 val id_of_level : t -> Univ.Level.t -> Id.t option
 
+val loc_of_level : t -> Univ.Level.t -> Loc.t option
+(** Where the universe was introduced, when known. *)
+
 val id_of_qvar : t -> Sorts.QVar.t -> Id.t option
 
 val is_rigid_qvar : t -> Sorts.QVar.t -> bool

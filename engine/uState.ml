@@ -455,6 +455,10 @@ let id_of_level uctx l =
   try (Level.Map.find l (snd (snd uctx.names))).uname
   with Not_found -> None
 
+let loc_of_level uctx l =
+  try (Level.Map.find l (snd (snd uctx.names))).uloc
+  with Not_found -> None
+
 let id_of_qvar uctx l =
   try (QVar.Map.find l (fst (snd uctx.names))).uname
   with Not_found -> None
