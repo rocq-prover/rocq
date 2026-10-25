@@ -470,25 +470,108 @@ let closure st root =
 
 (** {6 The type match} *)
 
-(* Whether the model constant HAS the trusted constant's type: conversion, not
-   cumulativity, and for polymorphic constants the same check of universe
-   contexts as Subtyping makes, in both directions, so that neither side may
-   carry a constraint the other does not. *)
+(* The universe comparison that checking [Definition f := model] against a
+   monomorphic [Parameter f : <type>] of a sealing module type makes (the
+   inference mode of kernel/subtyping.ml's [check_constant]): a comparison that
+   does not hold yet adds the constraints it needs, if they are consistent with
+   the environment. The state is the universe graph with those constraints; the
+   error marks a needed constraint that is inconsistent. *)
+let infer_universes : (UGraph.t, unit) Conversion.universe_compare =
+  let merge csts g =
+    match UGraph.merge_constraints csts g with
+    | g -> Result.Ok g
+    | exception UGraph.UniverseInconsistency _ -> Result.Error (Some ())
+  in
+  let leq u v g =
+    match UGraph.enforce_leq_alg u v g with
+    | _, g -> Result.Ok g
+    | exception UGraph.UniverseInconsistency _ -> Result.Error (Some ())
+  in
+  let same_qualities qcsts = UVars.QPairSet.for_all (fun (q1, q2) -> Sorts.Quality.equal q1 q2) qcsts in
+  let compare_sorts pb s1 s2 g =
+    let holds = match pb with
+      | Conversion.CUMUL -> UGraph.check_leq_sort Sorts.Quality.equal g s1 s2
+      | Conversion.CONV -> UGraph.check_eq_sort Sorts.Quality.equal g s1 s2
+    in
+    if holds then Result.Ok g
+    (* As pretyping/reductionops.ml's [Infer]: the qualities must already
+       compare, and only the universe constraint is inferred. The checked
+       comparison above has decided every case with an impredicative sort. *)
+    else match s1, s2 with
+      | (Sorts.SProp | Sorts.Prop), _ | _, (Sorts.SProp | Sorts.Prop) -> Result.Error None
+      | _ when not (Sorts.Quality.equal (Sorts.quality s1) (Sorts.quality s2)) -> Result.Error None
+      | _ ->
+        let u1 = Sorts.univ_of_sort s1 and u2 = Sorts.univ_of_sort s2 in
+        match pb with
+        | Conversion.CUMUL -> leq u1 u2 g
+        | Conversion.CONV ->
+          (* As engine/univSubst.ml's [enforce_eq]: only two levels can be made equal. *)
+          match Univ.Universe.level u1, Univ.Universe.level u2 with
+          | Some _, Some _ -> Result.bind (leq u1 u2 g) (leq u2 u1)
+          | _ -> Result.Error (Some ())
+  in
+  let compare_instances ~flex u1 u2 g =
+    if UGraph.check_eq_instances Sorts.Quality.equal g u1 u2 then Result.Ok g
+    else if flex then Result.Error None
+    else
+      let qcsts, ucsts =
+        UVars.enforce_eq_instances u1 u2 (UVars.QPairSet.empty, Univ.UnivConstraints.empty) in
+      if same_qualities qcsts then merge ucsts g else Result.Error None
+  in
+  let compare_cumul_instances pb variances u1 u2 g =
+    let qcsts, ucsts = Conversion.get_cumulativity_constraints pb variances u1 u2 in
+    if same_qualities qcsts then merge ucsts g else Result.Error None
+  in
+  { Conversion.compare_sorts; compare_instances; compare_cumul_instances }
+
+(* Whether the model constant can stand for the trusted constant in a module
+   sealed by a signature that declares the trusted type T: whether [Definition
+   f := model] ([Polymorphic] when T is) is accepted for the field [Parameter f
+   : T] (kernel/subtyping.ml's [check_constant]). The model's type must be
+   cumulative to T. Against a monomorphic T, a needed universe constraint is
+   added when it is consistent with the environment; against a polymorphic T,
+   the definition's universe context must be T's and adds no constraint.
+   Elaborating the definition takes a polymorphic model at fresh universes,
+   and can minimize them when the model's universe context has sort variables
+   or constraints; this check does not replay that, so it answers
+   [universes-differ] for such a model, which the sealing may still accept. *)
 let type_verdict env model trusted =
   let cm = Environ.lookup_constant model env and ct = Environ.lookup_constant trusted env in
-  let conv env =
-    match Conversion.conv env cm.const_type ct.const_type with
-    | Result.Ok () -> "match"
-    | Result.Error () -> "mismatch"
+  let infer env =
+    let state = Environ.universes env, infer_universes in
+    match Conversion.generic_conv Conversion.CUMUL ~l2r:false TransparentState.full env state
+            cm.const_type ct.const_type with
+    | Result.Ok _ -> "match"
+    | Result.Error None -> "mismatch"
+    | Result.Error (Some ()) -> "universes-differ"
+  in
+  (* The definition's context [am] must be T's context [at]; the types are
+     compared under [at]. A failure that ignoring universe levels removes needs a
+     constraint that [at] does not give. *)
+  let against_polymorphic am at =
+    if Subtyping.check_polymorphic_universes env at am then
+      let env = Environ.push_context ~strict:false (UVars.AbstractContext.repr at) env in
+      match Conversion.default_conv_leq env cm.const_type ct.const_type with
+      | Result.Ok () -> "match"
+      | Result.Error () ->
+        match Conversion.default_conv_leq (Environ.set_type_in_type true env)
+                cm.const_type ct.const_type with
+        | Result.Ok () -> "universes-differ"
+        | Result.Error () -> "mismatch"
+    else "universes-differ"
+  in
+  let minimizable am =
+    fst (UVars.AbstractContext.size am) > 0
+    || not (PConstraints.is_empty (UVars.UContext.constraints (UVars.AbstractContext.repr am)))
   in
   match cm.const_universes, ct.const_universes with
-  | Monomorphic, Monomorphic -> conv env
-  | Polymorphic am, Polymorphic at ->
-    if Subtyping.check_polymorphic_universes env at am
-    && Subtyping.check_polymorphic_universes env am at
-    then conv (Environ.push_context ~strict:false (UVars.AbstractContext.repr at) env)
-    else "universes-differ"
-  | Monomorphic, Polymorphic _ | Polymorphic _, Monomorphic -> "universes-differ"
+  | Monomorphic, Monomorphic -> infer env
+  | Monomorphic, Polymorphic at -> against_polymorphic UVars.AbstractContext.empty at
+  | Polymorphic am, _ when minimizable am -> "universes-differ"
+  | Polymorphic am, Monomorphic ->
+    (* The model's bound universes are fresh in [env]: they are its instance. *)
+    infer (Environ.push_context ~strict:false (UVars.AbstractContext.repr am) env)
+  | Polymorphic am, Polymorphic at -> against_polymorphic am at
 
 (** {6 The report} *)
 

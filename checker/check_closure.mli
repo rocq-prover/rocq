@@ -35,9 +35,20 @@ flag <name> <kind> <object>
 END STATEMENT REPORT
     v}
 
-    The verdict is [match] or [mismatch] (the model constant's type is or is
-    not convertible to the trusted constant's), [universes-differ] (their
-    universe contexts differ), [model-missing], [trusted-missing], or
+    The verdict is [match] when [Definition f := model] ([Polymorphic] when
+    the trusted constant is) is accepted for the field [Parameter f : T] of a
+    sealing module type, T being the trusted constant's type and universes:
+    the model's type is cumulative to T, a needed universe constraint being
+    added when it is consistent with the environment (a polymorphic model at
+    a monomorphic T is taken at fresh universes; a polymorphic T requires the
+    model's universe context to be T's, and adds no constraint). It is
+    [universes-differ] when the types need universe constraints the
+    environment or T's context refuses, when the universe contexts differ,
+    and for every polymorphic model whose universe context has sort variables
+    or constraints: elaborating the definition can minimize those, and the
+    check does not replay it, so the sealing may still accept such a model.
+    It is [mismatch] when the types are not convertible, and otherwise
+    [model-missing], [trusted-missing], or
     [not-requested] (no trusted constant). The axioms are the constants
     without a body that the selected proof witness of the model constant's
     body and type reaches. A public term uses a body-bearing declaration in
