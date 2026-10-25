@@ -771,7 +771,7 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
   constants, before the summary of ``-o``. Each line of *file* is a
   request ``name model trusted``, its tokens separated by single spaces:
   *name* is a label printed back as given, and *model* and *trusted* are
-  fully qualified constant names as :cmd:`rocqchk` prints them. *trusted* may
+  fully qualified constant names as ``rocqchk`` prints them. *trusted* may
   be ``-`` or left out. Blank lines and lines starting with ``#`` are skipped;
   any other line, and any line with a tab or a carriage return, is an error,
   reported before any library is loaded. For each request, the report says
