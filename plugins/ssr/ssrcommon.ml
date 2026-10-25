@@ -692,7 +692,8 @@ let abs_ssrterm ?(resolve_typeclasses=false) ist env sigma t =
        sigma, Evarutil.nf_evar sigma ct in
   let c, abstracted_away, ucst = abs_evars env sigma0 t in
   let n = List.length abstracted_away in
-  let sigma = Evd.merge_ustate sigma0 ucst in
+  (* [t] was interpreted in [sigma0], so [ucst] extends its universe state *)
+  let sigma = Evd.set_ustate sigma0 ucst in
   let t = abs_cterm env sigma n c in
   sigma, t, n
 
@@ -766,7 +767,8 @@ let pf_interp_ty ?(resolve_typeclasses=false) env sigma0 ist ty =
        sigma, Evarutil.nf_evar sigma cty in
    let c, evs, ucst = abs_evars env sigma0 ty in
    let n = List.length evs in
-   let sigma0 = Evd.merge_ustate sigma0 ucst in
+   (* [ty] was interpreted in [sigma0], so [ucst] extends its universe state *)
+   let sigma0 = Evd.set_ustate sigma0 ucst in
    let lam_c = abs_cterm env sigma0 n c in
    let ctx, c = EConstr.decompose_lambda_n_assum sigma n lam_c in
    sigma0, n, EConstr.it_mkProd_or_LetIn c ctx, lam_c

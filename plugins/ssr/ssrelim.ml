@@ -143,9 +143,11 @@ let match_pat env sigma0 p occ h cl =
 let fire_subst sigma t = Reductionops.nf_evar sigma t
 
 let mkTpat env sigma0 (sigma, t) = (* takes a term, refreshes it and makes a T pattern *)
-  let t, evs, ucst = abs_evars env sigma0 (sigma, fire_subst sigma t) in
+  let t, evs, _ = abs_evars env sigma0 (sigma, fire_subst sigma t) in
+  (* [saturate] extends [sigma], whose universe state is the one returned by
+     [abs_evars] *)
   let t, _, _, sigma = saturate ~beta:true env sigma t (List.length evs) in
-  { pat_sigma = Evd.merge_ustate sigma ucst; pat_pat = T t }
+  { pat_sigma = sigma; pat_pat = T t }
 
 let redex_of_pattern env p = match redex_of_pattern p with
 | None -> CErrors.anomaly (Pp.str "pattern without redex.")
