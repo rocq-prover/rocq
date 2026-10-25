@@ -55,6 +55,21 @@ Synonymous to
 Be less verbose.
 .
 .TP
+.BI \-statement\-report \ file
+After checking, print for each request
+.RI \(lq name\ model\  [ trusted |\-]\(rq
+of
+.I file
+whether the type of
+.I model
+is convertible to that of
+.IR trusted ,
+and the axioms and relaxed typing conditions that
+.I model
+rests on, between the lines STATEMENT REPORT and END STATEMENT REPORT.
+It does not change the exit status.
+.
+.TP
 .BI \-admit \ module
 Tag the specified module and all its dependencies as trusted, and will
 not be rechecked, unless explicitly requested by other options.

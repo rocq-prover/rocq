@@ -40,10 +40,8 @@ let usage_error file lineno =
         str " is not `<name> <model-constant> [<trusted-constant>|-]`.")
 
 (* Tokens are separated by single spaces: two spaces in a row make an empty
-   token, which is refused, so no token can contain a space, and a tab or a
-   carriage return is refused outright, so no token can split a report line. *)
+   token, which is refused, so no token can contain a space. *)
 let parse_line file lineno line =
-  if String.exists (fun c -> c = '\t' || c = '\r') line then usage_error file lineno;
   let tokens = String.split_on_char ' ' line in
   if List.exists (fun t -> String.equal t "") tokens then usage_error file lineno;
   match tokens with
@@ -62,26 +60,63 @@ let read_requests file =
   let rec loop lineno acc =
     match input_line ch with
     | exception End_of_file -> List.rev acc
-    | line when String.equal line "" || line.[0] = '#' -> loop (lineno + 1) acc
-    | line -> loop (lineno + 1) (parse_line file lineno line :: acc)
+    | line ->
+      if String.exists (fun c -> c = '\t' || c = '\r') line then usage_error file lineno;
+      if String.equal line "" || line.[0] = '#' then loop (lineno + 1) acc
+      else loop (lineno + 1) (parse_line file lineno line :: acc)
   in
   Fun.protect ~finally:(fun () -> close_in_noerr ch) (fun () -> loop 1 [])
 
 (** {6 Implementations hidden by module signatures}
 
-    A port of [lookup_constant] and [lookup_mind] of vernac/assumptions.ml:
-    an object is looked up in the environment, and in the implementation of
-    its module when the environment does not hold it or holds it without a
-    body. *)
+    The report resolves a term in the declaration view that typed it. A public
+    declaration uses its environment view; a bodyless public declaration falls
+    back to its implementation and then follows that implementation's fields.
+    This prevents an independent signature proof from replacing a proof
+    witness that depends on a relaxed kernel check. *)
 
+type view = Public | Implementation
+
+type vref = view * GlobRef.t
+
+type field_index = {
+  constants : constant_body Id.Map.t;
+  minds : mutual_inductive_body Id.Map.t;
+  modules : module_body Id.Map.t;
+}
+
+let empty_field_index = {
+  constants = Id.Map.empty;
+  minds = Id.Map.empty;
+  modules = Id.Map.empty;
+}
+
+let index_fields fields =
+  let add_mind label mib index =
+    let minds = Id.Map.add label mib index.minds in
+    let minds = Array.fold_left (fun minds mip ->
+        Id.Map.add mip.mind_typename mib minds) minds mib.mind_packets in
+    { index with minds }
+  in
+  List.fold_left (fun index (label, field) -> match field with
+      | SFBconst cb -> { index with constants = Id.Map.add label cb index.constants }
+      | SFBmind mib -> add_mind label mib index
+      | SFBmodule mb -> { index with modules = Id.Map.add label mb index.modules }
+      | SFBmodtype _ | SFBrules _ -> index)
+    empty_field_index fields
+
+let find_module fields label = Id.Map.find_opt label fields.modules
+let find_constant fields label = Id.Map.find_opt label fields.constants
+let find_mind fields label = Id.Map.find_opt label fields.minds
 type state = {
   env : Environ.env;
   access : Opaqueproof.opaque -> Opaqueproof.opaque_proofterm;
-  mutable fields : structure_body ModPath.Map.t;
-  (* the fields of the implementation of each module looked up so far *)
-  mutable nodes : node GlobRef.Map.t;
+  mutable fields : field_index ModPath.Map.t;
+  (* the indexed fields of the implementation of each module looked up so far *)
+  mutable public_nodes : node GlobRef.Map.t;
+  mutable implementation_nodes : node GlobRef.Map.t;
   (* each object reached so far, keyed by its constant or by the first
-     inductive of its block *)
+     inductive of its block, in the declaration view that typed its use *)
   mutable gen : int;
   keys : Constr.t array;
   gens : int array;
@@ -89,26 +124,18 @@ type state = {
 }
 
 and node = {
-  refs : GlobRef.t list;
-  (* the objects the declaration mentions *)
+  refs : vref list;
+  (* the objects the selected declaration mentions, with the view that
+     typed each reference *)
   axiom : bool;
   (* no body: a constant without one, an opaque constant whose body cannot be
      read, or an object neither the environment nor an implementation
      resolves, which is reported rather than left out *)
   flags : (string * string) list;
-  (* the relaxed typing conditions the object relies on, (kind, object) *)
+  (* the relaxed typing conditions the selected object relies on,
+     (kind, object) *)
 }
 
-let rec search_label get lab = function
-  | [] -> raise Not_found
-  | (l, field) :: fields ->
-    match get field with
-    | Some x when Id.equal l lab -> x
-    | _ -> search_label get lab fields
-
-let as_module = function SFBmodule mb -> Some mb | _ -> None
-let as_constant = function SFBconst cb -> Some cb | _ -> None
-let as_mind = function SFBmind mib -> Some mib | _ -> None
 
 let rec fields_of_functor f subs mp0 args = function
   | NoFunctor a -> f subs mp0 args a
@@ -120,23 +147,45 @@ let rec fields_of_functor f subs mp0 args = function
         Mod_subst.join (Mod_subst.map_mbid mbid mpa (Mod_subst.empty_delta_resolver mpa)) subs in
       fields_of_functor f subs mp0 args e
 
+(* As in vernac/assumptions.ml (#22533): a module whose parent's
+   implementation cannot be read is taken from the environment, which holds
+   its signature. *)
 let rec lookup_module_in_impl st mp = match mp with
   | MPfile _ | MPbound _ -> Environ.lookup_module mp st.env
-  | MPdot (mp', lab) -> search_label as_module lab (fields_of_mp st mp')
+  | MPdot (mp', lab) ->
+    match find_module (fields_of_mp st mp') lab with
+    | Some mb -> mb
+    | None -> Environ.lookup_module mp st.env
 
 and fields_of_mp st mp =
   match ModPath.Map.find_opt mp st.fields with
   | Some fields -> fields
   | None ->
     let mb = lookup_module_in_impl st mp in
-    let fields, inner_mp, subs = fields_of_mb st Mod_subst.empty_subst mp mb [] in
-    let subs =
-      if ModPath.equal inner_mp mp then subs
-      else if Mod_subst.has_root_delta_resolver mp (mod_delta mb) then
-        Mod_subst.add_mp inner_mp mp (Mod_subst.of_body_delta_resolver (mod_delta mb)) subs
-      else Mod_subst.add_mp inner_mp mp (Mod_subst.empty_delta_resolver mp) subs
+    let raw_fields, inner_mp, subs = fields_of_mb st Mod_subst.empty_subst mp mb [] in
+    let fields =
+      match mod_expr mb, ModPath.equal inner_mp mp with
+      | (Algebraic _, false) ->
+        let mp_from = inner_mp in
+        let source = lookup_module_in_impl st mp_from in
+        let alias = Modops.strengthen_and_subst_module_body mp_from source mp false in
+        let fields, inner_mp, subs =
+          fields_of_signature Mod_subst.empty_subst mp [] (mod_type alias) in
+        let subs =
+          if ModPath.equal inner_mp mp then subs
+          else Mod_subst.add_mp inner_mp mp (Mod_subst.empty_delta_resolver mp) subs
+        in
+        Modops.subst_structure subs mp fields
+      | _ ->
+        let subs =
+          if ModPath.equal inner_mp mp then subs
+          else if Mod_subst.has_root_delta_resolver mp (mod_delta mb) then
+            Mod_subst.add_mp inner_mp mp (Mod_subst.of_body_delta_resolver (mod_delta mb)) subs
+          else Mod_subst.add_mp inner_mp mp (Mod_subst.empty_delta_resolver mp) subs
+        in
+        Modops.subst_structure subs mp raw_fields
     in
-    let fields = Modops.subst_structure subs mp fields in
+    let fields = index_fields fields in
     st.fields <- ModPath.Map.add mp fields st.fields;
     fields
 
@@ -163,21 +212,42 @@ and fields_of_expr st subs mp0 args = function
 
 let in_impl st get kn =
   let mp, lab = KerName.repr kn in
-  try Some (search_label get lab (fields_of_mp st mp)) with Not_found -> None
+  get (fields_of_mp st mp) lab
 
-let lookup_constant st kn =
-  if Environ.mem_constant kn st.env then
-    let cb = Environ.lookup_constant kn st.env in
-    if Declareops.constant_has_body cb then Some cb
-    else match in_impl st as_constant (Constant.canonical kn) with
-      | Some cb -> Some cb
-      | None -> Some cb
-  else in_impl st as_constant (Constant.canonical kn)
+(* A public term uses its final-environment declaration. When that declaration
+   has no body, its proof witness is the implementation. A term already
+   reached from an implementation keeps that implementation view. The user
+   name, not its canonical target, selects a transparent Include alias. *)
+let lookup_constant st view kn =
+  let impl () = in_impl st find_constant (Constant.user kn) in
+  match view with
+  | Public ->
+    if Environ.mem_constant kn st.env then
+      let cb = Environ.lookup_constant kn st.env in
+      if Declareops.constant_has_body cb then Some (Public, cb)
+      else match impl () with
+        | Some cb -> Some (Implementation, cb)
+        | None -> Some (Public, cb)
+    else Option.map (fun cb -> (Implementation, cb)) (impl ())
+  | Implementation ->
+    match impl () with
+    | Some cb -> Some (Implementation, cb)
+    | None ->
+      if Environ.mem_constant kn st.env then Some (Public, Environ.lookup_constant kn st.env)
+      else None
 
-let lookup_mind st mind =
-  if Environ.mem_mind mind st.env then Some (Environ.lookup_mind mind st.env)
-  else in_impl st as_mind (MutInd.canonical mind)
-
+let lookup_mind st view mind =
+  let impl () = in_impl st find_mind (MutInd.user mind) in
+  match view with
+  | Public ->
+    if Environ.mem_mind mind st.env then Some (Public, Environ.lookup_mind mind st.env)
+    else Option.map (fun mib -> (Implementation, mib)) (impl ())
+  | Implementation ->
+    match impl () with
+    | Some mib -> Some (Implementation, mib)
+    | None ->
+      if Environ.mem_mind mind st.env then Some (Public, Environ.lookup_mind mind st.env)
+      else None
 (** {6 The objects a declaration mentions} *)
 
 (* A term is a graph with shared nodes: [seen] skips a node already walked in
@@ -228,34 +298,55 @@ let seen st gen c =
     false
   end
 
-let add_mind mind refs = GlobRef.Set.add (GlobRef.IndRef (mind, 0)) refs
+let empty_refs = GlobRef.Set.empty, GlobRef.Set.empty
+
+let add_ref view obj (public, implementation) = match view with
+  | Public -> GlobRef.Set.add obj public, implementation
+  | Implementation -> public, GlobRef.Set.add obj implementation
+
+let add_mind view mind refs = add_ref view (GlobRef.IndRef (mind, 0)) refs
+
+(* The primitive type a literal has, which the kernel looks up to type it. *)
+let add_prim view prim refs = match prim with
+  | Some c -> add_ref view (GlobRef.ConstRef c) refs
+  | None -> refs
+
+let refs_to_list (public, implementation) =
+  List.map (fun obj -> Public, obj) (GlobRef.Set.elements public)
+  @ List.map (fun obj -> Implementation, obj) (GlobRef.Set.elements implementation)
 
 (* The walk keeps its own list of terms to visit, so its depth does not depend
-   on the depth of the terms. The inductive of a [match] and of a projection
-   is an object the term relies on even though no subterm names it. *)
+   on the depth of the terms. A term retains the declaration view that typed
+   it. The inductive of a [match] and of a projection, and the primitive type
+   of a literal or an array, are objects the term relies on even though no
+   subterm names them. *)
 let rec walk st gen refs = function
   | [] -> refs
-  | c :: todo ->
+  | (view, c) :: todo ->
     let open Constr in
+    let retro = Environ.retroknowledge st.env in
     match kind c with
-    | Rel _ | Var _ | Sort _ | Meta _ | Evar _ | Int _ | Float _ | String _ ->
-      walk st gen refs todo
-    | Const (kn, _) -> walk st gen (GlobRef.Set.add (GlobRef.ConstRef kn) refs) todo
+    | Rel _ | Var _ | Sort _ | Meta _ | Evar _ -> walk st gen refs todo
+    | Int _ -> walk st gen (add_prim view retro.Retroknowledge.retro_int63 refs) todo
+    | Float _ -> walk st gen (add_prim view retro.Retroknowledge.retro_float64 refs) todo
+    | String _ -> walk st gen (add_prim view retro.Retroknowledge.retro_string refs) todo
+    | Const (kn, _) -> walk st gen (add_ref view (GlobRef.ConstRef kn) refs) todo
     | Ind ((mind, _), _) | Construct (((mind, _), _), _) ->
-      walk st gen (add_mind mind refs) todo
+      walk st gen (add_mind view mind refs) todo
     | Cast _ | Prod _ | Lambda _ | LetIn _ | App _ | Proj _ | Case _ | Fix _ | CoFix _ | Array _ ->
       if seen st gen c then walk st gen refs todo
       else
         let refs = match kind c with
-          | Case (ci, _, _, _, _, _, _) -> add_mind (fst ci.ci_ind) refs
-          | Proj (p, _, _) -> add_mind (Projection.mind p) refs
+          | Case (ci, _, _, _, _, _, _) -> add_mind view (fst ci.ci_ind) refs
+          | Proj (p, _, _) -> add_mind view (Projection.mind p) refs
+          | Array _ -> add_prim view retro.Retroknowledge.retro_array refs
           | _ -> refs
         in
-        walk st gen refs (fold (fun todo c -> c :: todo) todo c)
+        walk st gen refs (fold (fun todo c -> (view, c) :: todo) todo c)
 
-let push_context ctx todo =
+let push_context view ctx todo =
   List.fold_left (fun todo d ->
-      Context.Rel.Declaration.fold_constr (fun c todo -> c :: todo) d todo)
+      Context.Rel.Declaration.fold_constr (fun c todo -> (view, c) :: todo) d todo)
     todo ctx
 
 let typing_flags name (tf : typing_flags) acc =
@@ -276,35 +367,35 @@ let uses_uip mib =
 
 let unresolved = { refs = []; axiom = true; flags = [] }
 
-let constant_node st kn =
-  match lookup_constant st kn with
+let constant_node st view kn =
+  match lookup_constant st view kn with
   | None -> unresolved
-  | Some cb ->
+  | Some (declaration_view, cb) ->
     (* An opaque body that cannot be read is reported as an axiom, as
        vernac/assumptions.ml's [get_constant_body] does. *)
     let body, axiom = match cb.const_body with
-      | Def c -> [c], false
+      | Def c -> [declaration_view, c], false
       | OpaqueDef o ->
         (match st.access o with
-         | c, _ -> [c], false
+         | c, _ -> [declaration_view, c], false
          | exception e when CErrors.noncritical e -> [], true)
       | Undef _ | Primitive _ | Symbol _ -> [], true
     in
-    let refs = walk st (fresh_gen st) GlobRef.Set.empty (cb.const_type :: body) in
-    { refs = GlobRef.Set.elements refs; axiom;
+    let refs = walk st (fresh_gen st) empty_refs ((declaration_view, cb.const_type) :: body) in
+    { refs = refs_to_list refs; axiom;
       flags = typing_flags (Constant.to_string kn) cb.const_typing_flags [] }
 
-let mind_node st mind =
-  match lookup_mind st mind with
+let mind_node st view mind =
+  match lookup_mind st view mind with
   | None -> unresolved
-  | Some mib ->
+  | Some (declaration_view, mib) ->
     let todo =
       Array.fold_left (fun todo mip ->
-          push_context mip.mind_arity_ctxt
-            (Array.fold_left (fun todo c -> c :: todo) todo mip.mind_user_lc))
-        (push_context mib.mind_params_ctxt []) mib.mind_packets
+          push_context declaration_view mip.mind_arity_ctxt
+            (Array.fold_left (fun todo c -> (declaration_view, c) :: todo) todo mip.mind_user_lc))
+        (push_context declaration_view mib.mind_params_ctxt []) mib.mind_packets
     in
-    let refs = walk st (fresh_gen st) GlobRef.Set.empty todo in
+    let refs = walk st (fresh_gen st) empty_refs todo in
     let name = MutInd.to_string mind in
     let tf = mib.mind_typing_flags in
     let flags = typing_flags name tf [] in
@@ -317,18 +408,25 @@ let mind_node st mind =
               && Array.exists (fun mip -> mip.mind_relies_on_indices_not_mattering) mib.mind_packets)
         "indices-not-mattering"
     in
-    { refs = GlobRef.Set.elements refs; axiom = false; flags }
+    { refs = refs_to_list refs; axiom = false; flags }
 
-let node st obj =
-  match GlobRef.Map.find_opt obj st.nodes with
+let node st view obj =
+  let nodes = match view with
+    | Public -> st.public_nodes
+    | Implementation -> st.implementation_nodes
+  in
+  match GlobRef.Map.find_opt obj nodes with
   | Some n -> n
   | None ->
     let n = match obj with
-      | GlobRef.ConstRef kn -> constant_node st kn
-      | GlobRef.IndRef (mind, _) | GlobRef.ConstructRef ((mind, _), _) -> mind_node st mind
+      | GlobRef.ConstRef kn -> constant_node st view kn
+      | GlobRef.IndRef (mind, _) | GlobRef.ConstructRef ((mind, _), _) -> mind_node st view mind
       | GlobRef.VarRef _ -> { refs = []; axiom = false; flags = [] }
     in
-    st.nodes <- GlobRef.Map.add obj n st.nodes;
+    begin match view with
+    | Public -> st.public_nodes <- GlobRef.Map.add obj n st.public_nodes
+    | Implementation -> st.implementation_nodes <- GlobRef.Map.add obj n st.implementation_nodes
+    end;
     n
 
 let name_of = function
@@ -345,17 +443,25 @@ module FlagSet = Stdlib.Set.Make (struct
 
 (** The axioms and flags of every object reachable from [root]. *)
 let closure st root =
-  let rec loop visited axioms flags = function
+  let rec loop public_seen implementation_seen axioms flags = function
     | [] -> axioms, flags
-    | obj :: todo ->
-      if GlobRef.Set.mem obj visited then loop visited axioms flags todo
+    | (view, obj) :: todo ->
+      let seen = match view with
+        | Public -> GlobRef.Set.mem obj public_seen
+        | Implementation -> GlobRef.Set.mem obj implementation_seen
+      in
+      if seen then loop public_seen implementation_seen axioms flags todo
       else
-        let n = node st obj in
+        let n = node st view obj in
         let axioms = if n.axiom then CString.Set.add (name_of obj) axioms else axioms in
         let flags = List.fold_left (fun flags f -> FlagSet.add f flags) flags n.flags in
-        loop (GlobRef.Set.add obj visited) axioms flags (List.rev_append n.refs todo)
+        let public_seen, implementation_seen = match view with
+          | Public -> GlobRef.Set.add obj public_seen, implementation_seen
+          | Implementation -> public_seen, GlobRef.Set.add obj implementation_seen
+        in
+        loop public_seen implementation_seen axioms flags (List.rev_append n.refs todo)
   in
-  loop GlobRef.Set.empty CString.Set.empty FlagSet.empty [root]
+  loop GlobRef.Set.empty GlobRef.Set.empty CString.Set.empty FlagSet.empty [Public, root]
 
 (** {6 The type match} *)
 
@@ -390,7 +496,8 @@ let print env access requests =
       env CString.Map.empty
   in
   let st = {
-    env; access; fields = ModPath.Map.empty; nodes = GlobRef.Map.empty; gen = 0;
+    env; access; fields = ModPath.Map.empty;
+    public_nodes = GlobRef.Map.empty; implementation_nodes = GlobRef.Map.empty; gen = 0;
     keys = Array.make cache_size Constr.mkProp; gens = Array.make cache_size (-1);
   } in
   line "STATEMENT REPORT";

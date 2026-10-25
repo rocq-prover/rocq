@@ -20,7 +20,7 @@ val read_requests : string -> request list
 (** One request per line, [<name> <model> [<trusted>|-]], the tokens
     separated by single spaces; a constant is named by the string
     [Names.Constant.to_string] prints. Blank lines and lines starting with [#]
-    are skipped.
+    are skipped. A tab or carriage return on any line is an error.
     @raise CErrors.UserError on any other line. *)
 
 val print : Environ.env -> (Opaqueproof.opaque -> Opaqueproof.opaque_proofterm) ->
@@ -39,9 +39,14 @@ END STATEMENT REPORT
     not convertible to the trusted constant's), [universes-differ] (their
     universe contexts differ), [model-missing], [trusted-missing], or
     [not-requested] (no trusted constant). The axioms are the constants
-    without a body that the model constant's body and type reach, through
-    the implementations of module signatures too, and the flags are the relaxed
+    without a body that the selected proof witness of the model constant's
+    body and type reaches. A public term uses a body-bearing declaration in
+    the final environment; a bodyless public declaration uses its module
+    implementation, and its dependencies continue in that implementation
+    view. This keeps an implementation proof's typing conditions from being
+    replaced by an independent signature proof. Literal and array terms
+    also reach their registered primitive type. The flags are the relaxed
     typing conditions of what they reach: [type-in-type], [unsafe-fixpoint],
     [unchecked-eliminations], [assumed-positive], [uip] and
-    [indices-not-mattering]. Statements keep the request order; axioms and
-    flags are sorted. *)
+    [indices-not-mattering]. Statements keep request order; axioms and flags
+    are sorted. *)
