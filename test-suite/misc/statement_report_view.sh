@@ -12,7 +12,7 @@ cp "$D/View.v" "$D/Prims.v" "$d/"
 
 $coqc -Q "$d" StmtView "$d/View.v"
 $coqc -allow-rewrite-rules -Q "$d" StmtView "$d/Prims.v"
-printf 'public_f StmtView.View.Impl.f -\nboom StmtView.View.Impl.boom -\npublic_f_after StmtView.View.Impl.f -\nalias StmtView.View.alias_model -\nalias_module StmtView.View.alias_module_model -\nalias_impl StmtView.View.alias_impl_model -\nfun_alias StmtView.View.fun_alias_model -\nint StmtView.Prims.i -\n' > "$d/requests"
+printf 'public_f StmtView.View.Impl.f -\nboom StmtView.View.Impl.boom -\npublic_f_after StmtView.View.Impl.f -\nalias StmtView.View.alias_model -\nalias_module StmtView.View.alias_module_model -\nalias_impl StmtView.View.alias_impl_model -\nfun_alias StmtView.View.fun_alias_model -\nfallback StmtView.View.FallbackX.model -\nint StmtView.Prims.i -\n' > "$d/requests"
 "$BIN"rocqchk -silent -statement-report "$d/requests" -Q "$d" StmtView StmtView.View StmtView.Prims > "$d/out" 2>&1
 sed -n '/^STATEMENT REPORT$/,/^END STATEMENT REPORT$/p' "$d/out"
 grep -q '^flag boom unsafe-fixpoint StmtView.View.Impl.f$' "$d/out"
@@ -36,7 +36,8 @@ awk '$1 == "statement" && $2 == "public_f" { found_public_f = 1; public_f_ok = (
      $1 == "statement" && $2 == "alias_impl" { found_alias_impl = 1; alias_impl_ok = ($6 == 1 && $7 == 0) }
      $1 == "statement" && $2 == "fun_alias" { found_fun_alias = 1; fun_alias_ok = ($6 == 1 && $7 == 0) }
      $1 == "statement" && $2 == "int" { found_int = 1; int_ok = ($6 == 2 && $7 == 0) }
-     END { exit !(found_public_f && public_f_ok && found_boom && boom_ok && found_public_f_after && public_f_after_ok && found_alias && alias_ok && found_alias_module && alias_module_ok && found_alias_impl && alias_impl_ok && found_fun_alias && fun_alias_ok && found_int && int_ok) }' "$d/out"
+     $1 == "statement" && $2 == "fallback" { found_fallback = 1; fallback_ok = ($6 == 0 && $7 == 0) }
+     END { exit !(found_public_f && public_f_ok && found_boom && boom_ok && found_public_f_after && public_f_after_ok && found_alias && alias_ok && found_alias_module && alias_module_ok && found_alias_impl && alias_impl_ok && found_fun_alias && fun_alias_ok && found_fallback && fallback_ok && found_int && int_ok) }' "$d/out"
 
 # A tab or carriage return is refused before a library is loaded, including in
 # a comment line.

@@ -153,9 +153,12 @@ let rec fields_of_functor f subs mp0 args = function
 let rec lookup_module_in_impl st mp = match mp with
   | MPfile _ | MPbound _ -> Environ.lookup_module mp st.env
   | MPdot (mp', lab) ->
-    match find_module (fields_of_mp st mp') lab with
-    | Some mb -> mb
-    | None -> Environ.lookup_module mp st.env
+    match fields_of_mp st mp' with
+    | fields ->
+      (match find_module fields lab with
+       | Some mb -> mb
+       | None -> Environ.lookup_module mp st.env)
+    | exception Not_found -> Environ.lookup_module mp st.env
 
 and fields_of_mp st mp =
   match ModPath.Map.find_opt mp st.fields with
@@ -212,7 +215,9 @@ and fields_of_expr st subs mp0 args = function
 
 let in_impl st get kn =
   let mp, lab = KerName.repr kn in
-  get (fields_of_mp st mp) lab
+  match fields_of_mp st mp with
+  | fields -> get fields lab
+  | exception Not_found -> None
 
 (* A public term uses its final-environment declaration. When that declaration
    has no body, its proof witness is the implementation. A term already

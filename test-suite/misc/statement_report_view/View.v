@@ -60,3 +60,20 @@ Module FunAlias : AliasSig.
   Definition out : nat := (fun _ : nat => D.ax) A.ax.
 End FunAlias.
 Definition fun_alias_model : nat := FunAlias.out.
+
+(* An opaque parent module can fail to expose its implementation fields while
+   its direct nested module remains in the environment. *)
+Module Type FallbackB.
+  Parameter f : Prop.
+End FallbackB.
+Module Type FallbackC.
+  Declare Module D : FallbackB.
+End FallbackC.
+Module FallbackE : FallbackC.
+  Module D <: FallbackB.
+    Definition f : Prop := True.
+  End D.
+End FallbackE.
+Module FallbackX.
+  Definition model : Prop := FallbackE.D.f.
+End FallbackX.
