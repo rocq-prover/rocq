@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # One statement for every per-object relaxed typing flag, including a flag
-# reached through a sealed implementation and an opaque hidden proof. The
-# second run sends that opaque proof to -j workers.
+# reached through a sealed implementation and an opaque hidden proof.
+#
 set -eu
 
 D=misc/statement_report_negatives
