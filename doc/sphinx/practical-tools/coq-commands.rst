@@ -796,7 +796,10 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
      flag <name> <condition> <object>
      END STATEMENT REPORT
 
-  It does not change the exit status.
+  It does not change the exit status. If the report stops after its start
+  line, it has no ``END STATEMENT REPORT`` line and the checker emits a
+  warning. A program that reads the report must treat such a stream as no
+  report, not as partial evidence.
 
 Environment variable ``$ROCQLIB`` can be set to override the location of
 the standard library.
