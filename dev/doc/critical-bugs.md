@@ -62,6 +62,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
     - [Incorrect subtyping of inductives with letins in constructor types](#incorrect-subtyping-of-inductives-with-letins-in-constructor-types)
     - [Including functor application generates garbage delta-resolvers](#including-functor-application-generates-garbage-delta-resolvers)
       - [Subtyping of inductive types ignores uniform parameters making it inconsistent with propext](#subtyping-of-inductive-types-ignores-uniform-parameters-making-it-inconsistent-with-propext)
+      - [Missing module substitution in primitive arrays](#missing-module-substitution-in-primitive-arrays)
     - [Universes](#universes)
       - [issue with two parameters in the same universe level](#issue-with-two-parameters-in-the-same-universe-level)
       - [universe polymorphism can capture global universes](#universe-polymorphism-can-capture-global-universes)
@@ -719,6 +720,18 @@ and lack of checking of relevance marks on constants in coqchk
 - found by: Pierre-Marie Pédrot flanked by Claude Opus 5
 - issue: #22510
 - risk: not a full proof of False, but dangerous when using propext
+
+#### Missing module substitution in primitive arrays
+
+- component: modules, primitive arrays
+- introduced: V8.13 ([0ea2d0ff4e](https://github.com/rocq-prover/rocq/commit/0ea2d0ff4ed84e1cc544c958b8f6e98f6ba2e9b6), introduction of primitive arrays)
+- impacted released versions: V8.13 to V9.3.0
+- impacted coqchk versions: none (coqchk rejects the exploit when rechecking the instantiated module signature)
+- fixed in: V9.2.1, V9.3.1, V9.4 ([#22922](https://github.com/rocq-prover/rocq/pull/22922))
+- found by: Gregory Nisbet (using Gemini)
+- exploit: test-suite/primitive/arrays/mod_subst.v
+- GH issue number: rocq-prover/rocq#22921
+- risk: needs to use primitive arrays and functors
 
 ### Universes
 

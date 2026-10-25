@@ -529,7 +529,13 @@ let rec map_kn f f' c =
           let bl' = Array.Smart.map func bl in
             if (bl == bl'&& tl == tl') then c
             else mkCoFix (ln,(lna,tl',bl'))
-      | _ -> c
+      | Array (u,t,def,ty) ->
+          let t' = Array.Smart.map func t in
+          let def' = func def in
+          let ty' = func ty in
+            if (def'==def && t==t' && ty==ty') then c
+            else mkArray (u,t',def',ty')
+      | (Rel _ | Meta _ | Var _ | Sort _ | Int _ | Float _ | String _) -> c
 
 let subst_mps subst c =
   let subst_pcon_term subst (con,u) =
