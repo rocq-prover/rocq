@@ -7,7 +7,14 @@
 # [mismatch] and [universes-differ] refused. A row marked [under] has a model
 # whose universe context elaboration can minimize: the report answers
 # [universes-differ] for it whatever the sealing does, so that it never says
-# [match] for a definition the sealing refuses.
+# [match] for a definition the sealing refuses. A row marked [elab] records one
+# measured form where the two sides part for a reason the verdict does not
+# cover: the model has the statement's type, so the verdict is [match], and
+# the bare alias written here does not elaborate because a maximal implicit
+# argument stays unresolved. Implicit arguments are elaboration data, not
+# kernel data; whether such an alias elaborates depends on where it is
+# written, and a sealing whose module type gives the expected type can
+# resolve it.
 set -eu
 
 D=misc/statement_report_sealing
@@ -17,7 +24,7 @@ cp "$D/Defs.v" "$d/"
 
 $coqc -noinit -Q "$d" StmtSeal "$d/Defs.v"
 
-# <row>|<model>|<expected verdict>|[Polymorphic]|[under]
+# <row>|<model>|<expected verdict>|[Polymorphic]|[under|elab]
 rows='same|m_same|match||
 set_type|m_set|match||
 prop_type|m_prop|match||
@@ -27,6 +34,7 @@ qsort|m_qsort|match||
 qsort_lt|m_qsort_lt|universes-differ||
 alg|m_alg|universes-differ||
 poly_mono|m_poly|match||
+poly_set|m_poly|universes-differ||
 poly_mono_lt|m_poly_lt|universes-differ||
 poly_mono_le|m_two|universes-differ||under
 poly_poly|m_poly|match|Polymorphic|
@@ -36,6 +44,7 @@ poly_le_le|m_poly_le|universes-differ|Polymorphic|under
 poly_univ|m_poly_univ|universes-differ|Polymorphic|
 poly_sort|m_poly_sort|universes-differ|Polymorphic|under
 mono_poly|m_set|match|Polymorphic|
+implicit|m_implicit|match|Polymorphic|elab
 different|m_fun|mismatch||
 binder|m_binder|mismatch||'
 
@@ -60,7 +69,8 @@ while IFS='|' read -r row model expected poly under; do
   if $coqc -noinit -Q "$d" StmtSeal "$d/Seal_$row.v" < /dev/null > "$d/seal_$row.log" 2>&1; then
     sealing=accepted
   elif grep -q -e 'Signature components for field f do not match' \
-         -e 'A universe comparison can only happen between variables' "$d/seal_$row.log"; then
+         -e 'A universe comparison can only happen between variables' \
+         -e 'The following term contains unresolved implicit arguments' "$d/seal_$row.log"; then
     sealing=refused
   else
     sealing=error; cat "$d/seal_$row.log"
@@ -70,6 +80,7 @@ while IFS='|' read -r row model expected poly under; do
   case "$verdict,$sealing,$under" in
     match,accepted, | mismatch,refused, | universes-differ,refused,) ;;
     universes-differ,accepted,under | universes-differ,refused,under) ;;
+    match,refused,elab) ;;
     *) fail=1 ;;
   esac
 done <<< "$rows"

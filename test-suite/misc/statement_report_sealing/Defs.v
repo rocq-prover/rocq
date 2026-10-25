@@ -27,6 +27,7 @@ Polymorphic Definition m_two@{u v | u <= v} (A : Type@{u}) (B : Type@{v}) : Set 
 Polymorphic Parameter m_poly_univ@{u v|} : Type@{u}.
 Polymorphic Definition m_poly_sort@{s;u|} (A : Univ@{s;u}) (x : A) : A := x.
 Definition m_fun : forall _ : Set, Set := fun A => A.
+Monomorphic Definition m_implicit {A : Set} (x : A) : A := x.
 Definition m_binder : forall _ : unit, Set := fun _ => unit.
 
 (* The same type. *)
@@ -65,6 +66,16 @@ Module Type S_alg. Parameter f : forall _ : Type@{c}, Set. End S_alg.
 (* A polymorphic model at a monomorphic statement: one instance of it. *)
 Parameter t_poly_mono : forall _ : Type@{a}, Type@{a}.
 Module Type S_poly_mono. Parameter f : forall _ : Type@{a}, Type@{a}. End S_poly_mono.
+
+(* The definition declares the model's fresh universe as a global one, which is
+   strictly above Set, so it cannot be taken as Set. *)
+Parameter t_poly_set : forall _ : Set, Set.
+Module Type S_poly_set. Parameter f : forall _ : Set, Set. End S_poly_set.
+
+(* The kernel accepts the model as the field, but the reference does not
+   elaborate: its maximal implicit argument stays unresolved. *)
+Polymorphic Parameter t_implicit : forall (A : Set) (_ : A), A.
+Module Type S_implicit. Polymorphic Parameter f : forall (A : Set) (_ : A), A. End S_implicit.
 
 (* The model's [u < v] contradicts the instance [u = v = a]. *)
 Parameter t_poly_mono_lt : forall _ : Type@{a}, Type@{a}.

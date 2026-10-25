@@ -569,8 +569,10 @@ let type_verdict env model trusted =
   | Monomorphic, Polymorphic at -> against_polymorphic UVars.AbstractContext.empty at
   | Polymorphic am, _ when minimizable am -> "universes-differ"
   | Polymorphic am, Monomorphic ->
-    (* The model's bound universes are fresh in [env]: they are its instance. *)
-    infer (Environ.push_context ~strict:false (UVars.AbstractContext.repr am) env)
+    (* The model's bound universes are fresh in [env]: they are its instance. The
+       definition declares them as global universes, which [Global.push_context_set]
+       does with [~strict:true], so each is above [Set] and cannot be taken as it. *)
+    infer (Environ.push_context ~strict:true (UVars.AbstractContext.repr am) env)
   | Polymorphic am, Polymorphic at -> against_polymorphic am at
 
 (** {6 The report} *)
