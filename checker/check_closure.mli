@@ -49,7 +49,16 @@ END STATEMENT REPORT
     check does not replay it, so the sealing may still accept such a model.
     It is [mismatch] when the types are not convertible, and otherwise
     [model-missing], [trusted-missing], or
-    [not-requested] (no trusted constant). The axioms are the constants
+    [not-requested] (no trusted constant).
+
+    The verdict is about the two constants as the kernel stores them.
+    Implicit arguments are elaboration data that the kernel never sees, so a
+    model declared with maximal implicit arguments reads [match] when its
+    type is the statement's. Whether a bare alias [Definition f := model]
+    then elaborates depends on the context it is written in, which this
+    checker does not see.
+
+    The axioms are the constants
     without a body that the selected proof witness of the model constant's
     body and type reaches. A public term uses a body-bearing declaration in
     the final environment; a bodyless public declaration uses its module
@@ -57,7 +66,7 @@ END STATEMENT REPORT
     view. This keeps an implementation proof's typing conditions from being
     replaced by an independent signature proof. Literal and array terms
     also reach their registered primitive type. The flags are the relaxed
-    typing conditions of what they reach: [type-in-type], [unsafe-fixpoint],
-    [unchecked-eliminations], [assumed-positive], [uip] and
-    [indices-not-mattering]. Statements keep request order; axioms and flags
-    are sorted. *)
+    typing conditions of what they reach:
+    [type-in-type], [unsafe-fixpoint], [unchecked-eliminations],
+    [assumed-positive], [uip] and [indices-not-mattering]. Statements keep
+    request order; axioms and flags are sorted. *)

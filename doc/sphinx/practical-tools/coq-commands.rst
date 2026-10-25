@@ -788,7 +788,12 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
   the definition can minimize those and the check does not replay it;
   ``not-requested`` with no *trusted*;
   ``model-missing`` or ``trusted-missing`` when a name is not in the
-  environment. It also lists the
+  environment. The verdict is about the two constants as the kernel stores
+  them. Implicit arguments are elaboration data that the kernel never sees,
+  so a *model* declared with maximal implicit arguments reads ``match``
+  when its type is *trusted*'s; whether a bare alias ``Definition f :=
+  model`` then elaborates depends on the context it is written in, which
+  ``rocqchk`` does not see. It also lists the
   axioms and relaxed typing conditions that its selected proof witness reaches.
   A public declaration uses the environment; a bodyless public declaration
   uses its module implementation and then follows references in that
