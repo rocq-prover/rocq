@@ -495,6 +495,14 @@ let type_verdict env model trusted =
 (* One message per line, so that a long report never builds one [Pp.t]. *)
 let line fmt = Printf.ksprintf (fun s -> Feedback.msg_notice (Pp.str s)) fmt
 
+(* Test-only seam: a test sets this for one process to exercise the public
+   incomplete-report contract. It has no effect unless the test variable is
+   explicitly set. *)
+let test_fault () =
+  match Sys.getenv_opt "COQ_TEST_SUITE_STATEMENT_REPORT_FAILURE" with
+  | Some "1" -> CErrors.user_err Pp.(str "test statement-report failure")
+  | None | Some _ -> ()
+
 let print env access requests =
   let index =
     Environ.fold_constants (fun c _ acc -> CString.Map.add (Constant.to_string c) c acc)
@@ -506,6 +514,7 @@ let print env access requests =
     keys = Array.make cache_size Constr.mkProp; gens = Array.make cache_size (-1);
   } in
   line "STATEMENT REPORT";
+  test_fault ();
   List.iter (fun r ->
       let trusted = Option.default "-" r.req_trusted in
       match CString.Map.find_opt r.req_model index with
