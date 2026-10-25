@@ -36,7 +36,7 @@ statement near StmtNeg.Use.near StmtNeg.Use.trusted mismatch 1
 axiom near StmtNeg.Defs.ax
 statement conv StmtNeg.Use.conv StmtNeg.Use.trusted match 1
 axiom conv StmtNeg.Defs.ax
-statement poly_mono StmtNeg.Use.pmodel StmtNeg.Use.ptrusted universes-differ 0
+statement poly_mono StmtNeg.Use.pmodel StmtNeg.Use.ptrusted match 0
 statement poly_poly StmtNeg.Use.pmodel StmtNeg.Use.ptrusted_poly match 0
 statement poly_constraints StmtNeg.Use.pmodel_lt StmtNeg.Use.ptrusted_lt universes-differ 0
 END STATEMENT REPORT

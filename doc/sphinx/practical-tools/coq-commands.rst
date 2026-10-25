@@ -775,10 +775,20 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
   be ``-`` or left out. Blank lines and lines starting with ``#`` are skipped;
   any other line, and any line with a tab or a carriage return, is an error,
   reported before any library is loaded. For each request, the report says
-  whether the type of *model* is convertible to the type of *trusted*
-  (``match``, ``mismatch``, or ``universes-differ`` when their universe
-  contexts differ; ``not-requested`` with no *trusted*; ``model-missing`` or
-  ``trusted-missing`` when a name is not in the environment), and lists the
+  whether ``Definition f := model`` (``Polymorphic`` when *trusted* is) is
+  accepted in a module sealed by a signature that declares *trusted*'s type:
+  ``match`` when the type of *model* is cumulative to the type of *trusted*
+  under universe constraints consistent with the environment (a polymorphic
+  *model* is taken at fresh universes against a monomorphic *trusted*, and
+  against a polymorphic *trusted* its universe context must be *trusted*'s);
+  ``mismatch`` when the types are not convertible; ``universes-differ`` when
+  they need universe constraints that the environment or *trusted* refuses,
+  when the universe contexts differ, and for every polymorphic *model* whose
+  universe context has sort variables or constraints, because elaborating
+  the definition can minimize those and the check does not replay it;
+  ``not-requested`` with no *trusted*;
+  ``model-missing`` or ``trusted-missing`` when a name is not in the
+  environment. It also lists the
   axioms and relaxed typing conditions that its selected proof witness reaches.
   A public declaration uses the environment; a bodyless public declaration
   uses its module implementation and then follows references in that
