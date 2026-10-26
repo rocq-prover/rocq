@@ -183,7 +183,7 @@ let decl_constant name univs c =
   in
   let () = Global.push_context_set univs in
   let types = (Typeops.infer (Global.env ()) c).uj_type in
-  let univs = UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders in
+  let univs = UState.Monomorphic_entry (Univ.ContextSet.empty, Univ.Level.Map.empty), UnivNames.empty_binders in
   (* UnsafeMonomorphic: we always do poly:false *)
   UnsafeMonomorphic.mkConst
     (declare_constant ~name
@@ -235,8 +235,10 @@ let exec_tactic env sigma n f args =
   let tac = Tacinterp.eval_tactic_ist ist (ltac_call f (args@[getter])) in
   let ((), pv, _, _, _) = Proofview.apply ~name:(Id.of_string "ring") ~poly:ist.Tacinterp.poly (Global.env ()) tac pv in
   let sigma = Evd.minimize_universes (Proofview.return pv) in
-  let nf c = constr_of sigma c in
   let uctx = UState.check_mono_univ_decl (Evd.ustate sigma) UState.default_univ_decl in
+  (* The universes are declared by the lemmas built from the results *)
+  let uctx, subst = UnivGen.globalize_context_set uctx in
+  let nf c = CVars.subst_univs_level_constr (Sorts.QVar.Map.empty, subst) (constr_of sigma c) in
   Array.map nf !tactic_res, uctx
 
 let gen_reference n = (); fun () -> (Rocqlib.lib_ref n)

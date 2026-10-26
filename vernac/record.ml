@@ -720,7 +720,7 @@ let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
     Declareops.inductive_polymorphic_context mib
   in
   let univs = match mib.mind_universes with
-    | Monomorphic -> UState.Monomorphic_entry Univ.ContextSet.empty
+    | Monomorphic -> UState.Monomorphic_entry (Univ.ContextSet.empty, Univ.Level.Map.empty)
     | Polymorphic auctx -> UState.Polymorphic_entry (UVars.AbstractContext.repr auctx)
   in
   let univs = univs, UnivNames.empty_binders in
@@ -912,7 +912,12 @@ module Declared = struct
 end
 
 let declare_structure (decl:Record_decl.t) ~schemes =
-  let () = Global.push_context_set decl.entry.global_univs in
+  let global_univs = match fst decl.entry.ubinders with
+    | UState.Monomorphic_entry (_, subst) ->
+      fst (UnivGen.globalize_context_set ~subst decl.entry.global_univs)
+    | UState.Polymorphic_entry _ -> decl.entry.global_univs
+  in
+  let () = Global.push_context_set global_univs in
   (* XXX no implicit arguments for constructors? *)
   let impls = List.make (List.length decl.entry.mie.mind_entry_inds) (decl.entry.param_impls, []) in
   let default_dep_elim = List.map (fun x -> x.RecordEntry.default_dep_elim) decl.entry.ind_infos in
@@ -968,8 +973,9 @@ let declare_class_constant entry (data:Data.t) =
       (Declare.DefinitionEntry class_entry) ~kind:Decls.(IsDefinition Definition)
   in
   let inst, univs = match univs with
-    | UState.Monomorphic_entry _, ubinders ->
-      UVars.Instance.empty, (UState.Monomorphic_entry Univ.ContextSet.empty, ubinders)
+    | UState.Monomorphic_entry (_, subst), ubinders ->
+      (* the universes are declared with the class, the projection shares them *)
+      UVars.Instance.empty, (UState.Monomorphic_entry (Univ.ContextSet.empty, subst), ubinders)
     | UState.Polymorphic_entry uctx, _ ->
       UVars.UContext.instance uctx, univs
   in

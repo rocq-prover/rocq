@@ -419,7 +419,7 @@ let find env sigma (proj,pat) =
         o_TPARAMS = params; o_NPARAMS = nparams; o_TCOMPS = us } = PatMap.find env pat (GlobRefMap.find env proj !object_table) in
   let us = List.map EConstr.of_constr us in
   let params = List.map EConstr.of_constr params in
-  let u, ctx' = UnivGen.fresh_instance_from ctx None in
+  let sigma, u = Evd.fresh_abstract_instance sigma ctx in
   let u = EConstr.EInstance.make u in
   let c = EConstr.of_constr c in
   let c' = EConstr.Vars.subst_instance_constr u c in
@@ -428,7 +428,6 @@ let find env sigma (proj,pat) =
   let bs' = List.map (EConstr.of_constr %> EConstr.Vars.subst_instance_constr u) bs in
   let params = List.map (fun c -> EConstr.Vars.subst_instance_constr u c) params in
   let us = List.map (fun c -> EConstr.Vars.subst_instance_constr u c) us in
-  let sigma = Evd.merge_sort_context_set Evd.univ_flexible ~src:UState.Internal sigma ctx' in
   sigma, { body = t'; constant = c'; abstractions_ty = bs'; nparams; params; cvalue_arguments = us; cvalue_abstraction = n }
 
 

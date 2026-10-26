@@ -532,7 +532,7 @@ let nontemplate_univ_entry ~poly sigma udecl =
     | UState.Polymorphic_entry uctx ->
       let (uinst, auctx) = UVars.abstract_universes uctx in
       Polymorphic_ind_entry auctx, uinst, Univ.ContextSet.empty
-    | UState.Monomorphic_entry uctx ->
+    | UState.Monomorphic_entry (uctx, _) ->
       Monomorphic_ind_entry, UVars.Instance.empty, uctx
   in
   sigma, uentry, ubinders, uinst, global
@@ -549,7 +549,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let uctx =
     UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
   in
-  let ubinders = UState.Monomorphic_entry uctx, Evd.universe_binders sigma in
+  let ubinders = UState.monomorphic_entry uctx (Evd.universe_binders sigma) in
   let template_univs, global = split_universe_context template_univs uctx in
   let uctx =
     UVars.UContext.of_context_set
@@ -666,10 +666,21 @@ let interp_mutual_inductive_constr ~sigma ~flags ~udecl ~variances ~ctx_params ~
 
   (* evar-normalize *)
   let usubst = UVars.make_instance_subst uinst in
-  let nf c = CVars.subst_univs_level_constr usubst @@ EConstr.to_constr sigma c in
+  (* the unification levels of a monomorphic entry are replaced by its global levels,
+     so that the entry is consistent with [global_univs] *)
+  let msubst = UState.entry_subst ubinders in
+  let global_univs = fst (UnivGen.globalize_context_set ~subst:msubst global_univs) in
+  let msubst = (Sorts.QVar.Map.empty, msubst) in
+  let nf c =
+    CVars.subst_univs_level_constr msubst @@
+    CVars.subst_univs_level_constr usubst @@ EConstr.to_constr sigma c
+  in
   let arities = List.map nf arities in
   let constructors = List.map (on_snd (fun l -> List.map nf l)) constructors in
-  let ctx_params = CVars.subst_univs_level_context usubst @@ List.map (fun d -> EConstr.to_rel_decl sigma d) ctx_params in
+  let ctx_params =
+    CVars.subst_univs_level_context msubst @@
+    CVars.subst_univs_level_context usubst @@ List.map (fun d -> EConstr.to_rel_decl sigma d) ctx_params
+  in
 
   (* Build the inductive entries *)
   let entries = List.map3 (fun indname arity (cnames,ctypes) ->
@@ -945,6 +956,10 @@ let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
     interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
+  let uctx = match fst univ_binders with
+    | UState.Monomorphic_entry (_, subst) -> fst (UnivGen.globalize_context_set ~subst uctx)
+    | UState.Polymorphic_entry _ -> uctx
+  in
   let () = Global.push_context_set uctx in
   (* Declare the mutual inductive block with its associated schemes *)
   ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);

@@ -30,6 +30,10 @@ val fold : (Level.t -> is_defined:bool -> 'a -> 'a) -> t -> 'a -> 'a
 val mem : Level.t -> t -> bool
 (** Returns [true] for both defined and undefined flexible levels. *)
 
+val global_definitions : t -> Level.t Level.Map.t
+(** The levels whose definition normalizes to a level which is not a unification level,
+    e.g. a global level that replaced them in a declaration. *)
+
 val is_algebraic : Level.t -> t -> bool
 (** Is the level allowed to be defined by an algebraic universe? *)
 
@@ -54,6 +58,11 @@ val remove :  Level.t -> t -> t
 val add_levels : Level.Set.t -> algebraic:bool -> t -> t
 (** Make the levels flexible with no definitions.
     They must not already be flexible.  *)
+
+val subst_levels : Level.t Level.Map.t -> t -> t
+(** Replace levels by global levels: the levels in the domain of the substitution become
+    flexible levels defined to their image, unless they are already defined, and the
+    substitution is applied to the definitions. *)
 
 val define : Level.t -> Universe.t -> t -> t
 (** Define the level to the given universe. The level must already

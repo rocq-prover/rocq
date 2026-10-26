@@ -17,7 +17,9 @@ open Univ
 open Sorts
 
 type universes_entry =
-| Monomorphic_entry of Univ.ContextSet.t
+| Monomorphic_entry of Univ.ContextSet.t * UVars.universe_level_subst
+  (** The context only mentions global levels, the substitution maps the
+      unification levels it replaces to them. *)
 | Polymorphic_entry of UVars.UContext.t
 
 exception UniversesDiffer
@@ -48,6 +50,13 @@ val of_names : (UnivNames.universe_binders * UnivNames.rev_binders) -> t
 val is_empty : t -> bool
 
 val union : t -> t -> t
+(** Dangerous API: avoid it when possible. The unification levels and sort variables
+    of a state are only meaningful in the lineage of this state: the states of two
+    branches forked from a common state can both generate the same fresh levels or
+    variables (e.g. ℓ5) for unrelated universes, which [union] then identifies. In
+    general, the fresh levels and variables of the two arguments must be disjoint, e.g.
+    because the second one is generated in a worker (see {!UnivGen.Supply}). When the
+    second state extends the first one, use it instead. *)
 
 (** {5 Projections and other destructors} *)
 
@@ -87,7 +96,19 @@ val context : t -> UVars.UContext.t
 type named_universes_entry = universes_entry * UnivNames.universe_binders
 
 val univ_entry : poly:PolyFlags.t -> t -> named_universes_entry
-(** Pick from {!context} or {!context_set} based on [poly]. *)
+(** Pick from {!context} or {!context_set} based on [poly]. A monomorphic
+    entry replaces the unification levels by global levels: the ones defined
+    to global levels, e.g. by a previous declaration (see
+    {!demote_global_univ_entry}), are replaced by them and not declared
+    again, the others by fresh global levels. *)
+
+val monomorphic_entry : Univ.ContextSet.t ->
+  UnivNames.universe_binders -> named_universes_entry
+(** Replace the unification levels of the context by fresh global levels,
+    see {!UnivGen.globalize_context_set}. *)
+
+val entry_subst : named_universes_entry -> UVars.universe_level_subst
+(** The substitution of a monomorphic entry, empty for a polymorphic one. *)
 
 val universe_binders : t -> UnivNames.universe_binders
 (** Return local names of universes. *)
@@ -206,8 +227,10 @@ val demote_global_univ_entry : universes_entry -> t -> t
     with [from_env (Global.env())] or using the slow
     [update_sigma_univs _ (Environ.universes (Global/env()))].
 
-    Equivalently:
-    - In the monomorphic case, call [demote_global_univs] on the contextset.
+    - In the monomorphic case, the global levels of the context are demoted
+      (see [demote_global_univs]), and the local unification levels replaced
+      by global levels become flexible levels defined to them: further
+      entries reuse these global levels (see {!univ_entry}).
     - In the polymorphic case, do nothing.
 *)
 
@@ -226,6 +249,26 @@ val new_univ_level_variable : ?loc:Loc.t -> rigid -> Id.t option -> t -> t * Uni
 
 val add_forgotten_univ : t -> Univ.Level.t -> t
 (** Don't use this, it only exists for funind *)
+
+val globalize_levels : Univ.Level.Set.t -> t -> t * UVars.universe_level_subst
+(** [globalize_levels ls uctx] replaces the undefined local unification levels of
+    [ls] by fresh global levels, which become local rigid levels of [uctx]: the
+    unification levels become flexible levels defined to them, as after a
+    declaration (see {!demote_global_univ_entry}). Returns the substitution of the
+    replaced levels. This is for clients that need names for the levels of a term
+    that stay meaningful outside of the lineage of [uctx], e.g. printed names. *)
+
+val with_supply : t -> (UnivGen.Supply.t -> UnivGen.Supply.t * 'a) -> t * 'a
+(** Generate unification levels or sort variables using the supply of the
+    state, so that they do not clash with the ones it already contains. *)
+
+val with_fresh_context : rigid -> t ->
+  (UnivGen.Supply.t -> UnivGen.Supply.t * 'a UnivGen.in_sort_context_set) -> t * 'a
+(** Generate an object with the supply of the state, and add its context to the state. *)
+
+val fresh_instance : rigid -> t -> UVars.AbstractContext.t -> t * UVars.Instance.t
+(** A fresh instance of the abstract context, whose variables and constraints are
+    added to the state. *)
 
 val make_nonalgebraic_variable : t -> Univ.Level.t -> t
 (** cf UnivFlex *)
@@ -313,7 +356,7 @@ val pr_sort_opt_subst : t -> Pp.t
 module Internal :
 sig
 
-val reboot : Environ.env -> t -> t
+val reboot : subst:UVars.universe_level_subst -> Environ.env -> t -> t
 (** Madness-inducing hack dedicated to the handling of universes of Program.
     DO NOT USE OUTSIDE OF DEDICATED AREA. *)
 

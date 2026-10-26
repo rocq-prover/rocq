@@ -379,9 +379,8 @@ let one_base where conds tac_main bas forward =
     if not (Id.Set.subset h.rew_vars (Environ.section_variables env)) then
       Tacticals.tclFAIL (str "Rewrite hint refers to unavailable variables.")
     else
-    let subst, ctx' = UnivGen.fresh_sort_context_instance h.rew_ctx in
+    let sigma, subst = Evd.fresh_sort_context_instance sigma h.rew_ctx in
     let c' = Vars.subst_univs_level_constr subst h.rew_lemma in
-    let sigma = Evd.merge_sort_context_set Evd.univ_flexible ~src:UState.Internal sigma ctx' in
     Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
       (rewrite (Bool.equal h.rew_l2r forward) c' tc)
   end in
@@ -615,14 +614,15 @@ let add_rewrite_hint ~locality ~poly bases ort t lcsr =
   let f ce =
     let c, ctx = Constrintern.interp_constr env sigma ce in
     let c = EConstr.to_constr sigma c in
-    let ctx =
+    let c, ctx =
       let ctx = UState.sort_context_set ctx in
-      if PolyFlags.univ_poly poly then ctx
+      if PolyFlags.univ_poly poly then c, ctx
       else (* This is a global universe context that shouldn't be
               refreshed at every use of the hint, declare it globally. *)
         let ((qs, us), (qcst, ucst)) = ctx in
-        let () = Global.push_context_set (us, ucst) in
-        UnivGen.empty_sort_context
+        let ctx, subst = UnivGen.globalize_context_set (us, ucst) in
+        let () = Global.push_context_set ctx in
+        Vars.subst_univs_level_constr (Sorts.QVar.Map.empty, subst) c, UnivGen.empty_sort_context
     in
     CAst.make ?loc:(Constrexpr_ops.constr_loc ce) ((c, ctx), ort, t) in
   let eqs = List.map f lcsr in
