@@ -1,0 +1,5 @@
+0 == (1 + 1)
+     : Prop
+File "./output/bug_22496.v", line 5, characters 12-18:
+The command has indeed failed with message:
+The term "0 == 1" has type "Prop" while it is expected to have type "nat".
