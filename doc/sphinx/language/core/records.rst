@@ -448,6 +448,32 @@ the :attr:`projections(primitive)` :term:`attribute`  must be supplied.
    internally omitted parameters at printing time (even though they
    are absent in the actual AST manipulated by the kernel).
 
+.. warn:: The record @qualid could not be defined as a primitive record.
+   :name: non-primitive-record
+
+   A record may not be primitive in the following cases:
+
+   - it has no projections, e.g. `Record R := {}`
+
+   - it has an anonymous projection, e.g. `Record R := { _ : nat }.`
+     (because the current implementation of primitive projections
+     requires them to have a name and a corresponding constant)
+
+   - it is not in `SProp` but all projections may be irrelevant, e.g.
+     `Record R (P:SProp) : Set := { p : P }`. This is forbiddent
+     because `R` would be definitionally proof irrelevant without
+     being in `SProp`, and implementing such proof irrelevant types
+     would make the system slower.
+
+   - its projections cannot be defined due to elimination restrictions (i.e. it is squashed),
+     e.g. `Record R : Prop := { x : nat }.`.
+
+.. warn:: @qualid used as a primitive projection but is not one.
+   :name: nonprimitive-projection-syntax
+
+   This warning is off by default. When enabled, it triggers when the
+   projection syntax :n:`@term.(@qualid)` is used with a non-primitive projection.
+
 Reduction
 +++++++++
 

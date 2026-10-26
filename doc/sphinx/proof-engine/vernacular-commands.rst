@@ -87,6 +87,14 @@ described elsewhere
 
    See :cmd:`Strategy` for details on opacity.
 
+   .. warn:: Using fallback loc for @name.
+      :name: using-fallback-loc
+
+      This warning is off by default.
+
+      Some references may be defined in a way which registers an
+      imprecise source location. This warning is used to debug such cases.
+
 .. cmd:: Check @term
 
    Displays the type of :n:`@term`. When called in proof mode, the term is
@@ -743,6 +751,29 @@ file is a particular case of a module called a *library file*.
 
       .. seealso:: Chapter :ref:`therocqcommands`
 
+   .. warn:: "From Coq" has been replaced by "From Stdlib".
+      :name: deprecated-from-Coq
+
+      For backwards compatibility, when using `From Coq` it is treated
+      as though `From Stdlib` was used. As a special case, when
+      requiring libraries in `Init`, `Setoids` or `Ltac` then `From Coq` is
+      treated as though `From Corelib` was used.
+
+   .. warn:: Coq.@qualid has been replaced by Stdlib.@qualid
+      :name: deprecated-dirpath-Coq
+
+      For backwards compatibility, qualified identifiers starting with
+      `Coq` are searched in `Stdlib` and `Corelib`.
+
+   .. warn:: Loading Stdlib without prefix is deprecated.
+      :name: deprecated-missing-stdlib
+      :undocumented:
+
+   .. warn:: Use of "Require" inside a section is fragile. \
+             It is not recommended to use this functionality in finished proof scripts.
+      :name: require-in-section
+      :undocumented:
+
 .. cmd:: Print Libraries
 
    This command displays the list of library files loaded in the
@@ -789,6 +820,13 @@ file is a particular case of a module called a *library file*.
         of available libraries by running ``ocamlfind list | grep rocq``.
       * The metadata for ``findlib`` has not been set properly (see
         above).
+
+   .. warn:: A Rocq plugin was loaded inside a local scope (such as a Section). \
+             It is recommended to load plugins at the start of the file.
+      :name: summary-out-of-scope
+
+      Loading plugins in local scopes may cause incorrect state to be
+      installed when the state is reset to what it was before entering the scope.
 
 .. cmd:: Print ML Modules
 
@@ -1029,11 +1067,11 @@ Controlling display
 
    This :term:`flag` controls the normal displaying.
 
-.. opt:: Warnings "{+, {? {| - | + } } @ident }"
+.. opt:: Warnings @string
 
-   This :term:`option` configures the display of warnings. The :n:`@ident`\s
-   are warning or category names. Adding `-` in front of a warning or category
-   disables it, adding `+` makes it an error.
+   This :term:`option` configures the display of warnings. The :n:`@string`
+   is a comma-separated list of warning or warning category names.
+   Adding `-` in front of a warning or category disables it, adding `+` makes it an error.
 
    Warning name and categories are printed between brackets when the warning
    is displayed (the warning name appears first). Warnings can belong to
@@ -1075,14 +1113,27 @@ Controlling display
    See also the :attr:`warnings` attribute, which can be used to
    configure the display of warnings for a single command.
 
-.. opt:: Debug "{+, {? - } @ident }"
+   .. warn:: Could not enable unknown warning @string
+      :name: unknown-warning
 
-   This :term:`option` configures the display of debug messages. Each :n:`@ident` enables debug messages
-   for that component, while  :n:`-@ident` disables messages for the component.
+      This warning is not emitted when disabling an unknown warning,
+      in case the disabled warning exists in another version of Rocq
+      and the disabling may be for compatibility.
+
+.. opt:: Debug @string
+
+   This :term:`option` configures the display of debug messages. The
+   :n:`@string` separated list of debug component names, each prefixed
+   by either nothing to enable it or `-` to disable its messages.
+
    ``all`` activates or deactivates all other components.  ``backtrace`` controls printing of
    error backtraces.
 
    :cmd:`Test` `Debug` displays the list of components and their enabled/disabled state.
+
+   .. warn:: There is no debug flag @string
+      :name: unknown-debug-flag
+      :undocumented:
 
 .. opt:: Printing Width @natural
 
@@ -1415,6 +1466,10 @@ Exposing constants to OCaml libraries
 
    This command supports attributes :attr:`local`, :attr:`export` and :attr:`global`.
    The default is :attr:`global`, even inside sections.
+
+   .. warn:: Unknown scheme kind @qualid.
+      :name: unknown-scheme-kind
+      :undocumented:
 
 .. cmd:: Print Registered Schemes
 

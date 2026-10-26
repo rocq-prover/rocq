@@ -206,7 +206,10 @@ are now available through the dot notation.
 
 .. cmd:: Include Type {+<+ @module_type_inl }
 
-   .. deprecated:: 8.3
+   .. warn:: Include Type is deprecated
+      :name: deprecated-include-type
+
+      .. deprecated:: 8.3
 
       Use :cmd:`Include` instead.
 

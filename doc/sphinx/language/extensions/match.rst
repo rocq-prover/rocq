@@ -376,7 +376,7 @@ result from an undetected misspelled constant constructor. By default,
 a warning is issued in such situations.
 
 .. warn:: Unused variable @ident might be a misspelled constructor. Use _ or _@ident to silence this warning.
-   :name: Unused variable ‘ident’ might be a misspelled constructor. Use _ or _‘ident’ to silence this warning.
+   :name: unused-pattern-matching-variable
 
    This indicates that an unused pattern variable :token:`ident`
    occurs in a pattern-matching clause.

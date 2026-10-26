@@ -774,7 +774,7 @@ let warn_template =
 
 let do_warn_template = CWarnings.create_in warn_template
     Pp.(fun (uctx,csts) ->
-        str "Adding constraints involving global template univs:" ++ spc() ++
+        str "Adding constraints involving global template universes:" ++ spc() ++
         UnivConstraints.pr (pr_uctx_level uctx) csts )
 
 let warn_template uctx csts =

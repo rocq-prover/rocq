@@ -202,6 +202,20 @@ has type :n:`@type`.
 
    The :n:`Inline` clause is only relevant inside module types used for functor arguments.  See :cmd:`Module`.
 
+   .. warn:: Ignoring the Inline annotation of @qualid outside of a module type.
+      :name: inline-parameter-in-module
+
+      This warning is emitted when `Parameter` is used with an
+      explicit :opt:`Inline Level` (e.g. `Parameter Inline(10) x : T`)
+      outside of a module type, because inlining level is only
+      meaningful for parameters in module types.
+
+   .. warn:: Command @string expects more than one assumption.
+      :name: plural-Command
+
+      This warning is off by default. Enable it to enforce that plural
+      forms (e.g. `Axioms`) have more than one argument.
+
 .. example:: Simple assumptions
 
     .. rocqtop:: reset in

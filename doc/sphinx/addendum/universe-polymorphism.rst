@@ -583,6 +583,10 @@ to universes and explicitly instantiate polymorphic definitions.
    .. exn:: Polymorphic universe constraints can only be declared inside sections, use Monomorphic Constraint instead
       :undocumented:
 
+   .. warn:: Redundant elimination constraint
+      :name: redundant-elimination-constraint
+      :undocumented:
+
 .. _printing-universes:
 
 Printing universes
@@ -801,8 +805,15 @@ quantify over :gdef:`sort qualities`. Definitions which quantify over
 sort qualities are called :gdef:`sort polymorphic`. The generic universe
 constructor `Univ@{s;l}` combines a sort quality `s` and a universe level `l`.
 We have the equivalences `Univ@{Prop;_} = Prop`, `Univ@{SProp;_} = SProp` and
-`Univ@{Type;i} = Type@{i}`. The syntax `Type@{s;_}` is deprecated since version
-9.4, to avoid confusion with `Type@{u} = Univ@{Type;u}` in particular.
+`Univ@{Type;i} = Type@{i}`.
+
+.. warn:: Support for Type@{s;l} is deprecated.
+   :name: deprecated-type-sort-poly-syntax
+
+   .. deprecated:: 9.4
+
+   The syntax `Type@{s;_}` is deprecated to avoid confusion with
+   `Type@{u} = Univ@{Type;u}` in particular.
 
 .. rocqtop:: all
 
@@ -1330,6 +1341,14 @@ Controlling template polymorphism
    When ``universes(template=no)`` is used, it will prevent an
    inductive type from being template polymorphic, even if the :flag:`Auto
    Template Polymorphism` flag is on.
+
+.. warn:: Adding constraints involving global template universes: ...
+   :name: bad-template-constraint
+
+   This warning is disabled by default. Turn it on to help find where
+   constraints involving template universes are generated (such
+   constraints generally indicate that the template inductive should
+   be eta expanded).
 
 .. _universe-polymorphism-in-sections:
 

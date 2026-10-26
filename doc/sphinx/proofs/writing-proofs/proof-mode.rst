@@ -210,6 +210,23 @@ When the proof is completed, you can exit proof mode with commands such as
       You tried to use a proof mode command such as :cmd:`Qed` outside of proof
       mode.
 
+   .. warn:: The proof has given up (admitted) goals.
+      :name: remaining-given-up
+
+      In rare cases it is possible to generate a goal which does not
+      appear in the final proof term. This warning appears when such a
+      goal was :tacn:`admitted <admit>`. When an admitted goal appears
+      in the final proof term we get an error "No more goals, but
+      there are some goals you gave up" instead.
+
+   .. warn:: The proof has remaining shelved goals.
+      :name: remaining-shelved-goals
+      :undocumented:
+
+   .. warn:: The proof has unresolved variables.
+      :name: remaining-unresolved-evars
+      :undocumented:
+
    .. note::
 
       Sometimes an error occurs when building the proof term, because
@@ -269,6 +286,11 @@ When the proof is completed, you can exit proof mode with commands such as
    :n:`exact @term. Qed.`
    That is, you have to give the full proof in one gulp, as a
    proof term (see Section :ref:`applyingtheorems`).
+
+   .. warn:: "Proof term." is deprecated. Use "Proof. exact term. Qed." instead.
+      :name: deprecated-exact-proof
+
+      Deprecated since 9.2.
 
    .. warning::
 
@@ -608,6 +630,11 @@ Managing goals
    The :n:`To @natural` form goes back to the specified state number.
    If :token:`natural` is not specified, the command goes back one command or tactic.
 
+   .. warn:: Command @sentence is not recommended in batch mode.
+      :name: undo-batch-mode
+
+      Going back is not efficient in batch mode as previous states are not kept.
+
 .. cmd:: Restart
 
    Restores the proof to the original goal.
@@ -904,15 +931,21 @@ Other focusing commands
    printing of the other goals is suspended until the focused goal
    is solved or unfocused.
 
-   .. deprecated:: 8.8
+   .. warn:: The Focus command is deprecated
+      :name: deprecated-focus
 
       Prefer the use of bullets or focusing braces with a goal selector (see above).
+
+      .. deprecated:: 8.8
 
 .. cmd:: Unfocus
 
    Restores to focus the goals that were suspended by the last :cmd:`Focus` command.
 
-   .. deprecated:: 8.8
+   .. warn:: The Unfocus command is deprecated
+      :name: deprecated-unfocus
+
+      .. deprecated:: 8.8
 
 .. _shelved_goals:
 
@@ -1069,6 +1102,16 @@ Proving a subgoal as a separate lemma: abstract
       exiting the current tactic block, i.e. after a dot. The only guarantee
       with explicit naming is that the subproof will be accessible with this
       name after the :cmd:`Defined` command.
+
+   .. warn:: Certificate for private constant @qualid failed.
+      :name: failed-abstract-certificate
+
+      In rare cases the global environment at :cmd:`Qed` or
+      :cmd:`Defined` cannot be verified to be an extension of the
+      environment at :tacn:`abstract`. This means the generated proof
+      must be rechecked.
+
+      This warning usually indicates a bug in Rocq or in a plugin.
 
    .. tacn:: transparent_abstract @ltac_expr3 {? using @ident }
 

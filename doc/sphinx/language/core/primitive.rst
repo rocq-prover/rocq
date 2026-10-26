@@ -119,6 +119,11 @@ wrapped into the :g:`Float64.of_float` constructor, e.g.:
 
    On by default.
 
+.. warn:: The constant ... is not a binary64 floating-point value. \
+          A closest value ... will be used and unambiguously printed ...
+   :name: inexact-float
+   :undocumented:
+
 .. _primitive-arrays:
 
 Primitive Arrays

@@ -46,6 +46,11 @@ The last component of the filename must be a valid Rocq identifier as described 
 underscores (_) with a ".v" suffix on the final component.
 For example ``/bar/foo/toto.v`` is valid, but ``/bar/foo/to-to.v`` is not.
 
+.. warn:: File @string has been implicitly expanded to @string.v
+   :name: file-no-extension
+
+   `rocq c /path/foo` is interpreted as `rocq c /path/foo.v`.
+
 We recommend specifying a :term:`logical path` (which is also the module name)
 with the `-R` or the `-Q` options.
 Generally we recommend using utilities such as `make` (using `rocq makefile`
@@ -198,6 +203,15 @@ Then, regardless of `-boot`, Rocq will search for OCamlfind package `rocq-runtim
 
    Rocq fails with this error if OCamlfind package `rocq-runtime` could not be found.
 
+.. warn:: Command line options -boot and -coqlib are incompatible, ignored -coqlib.
+   :name: boot-ignored-coqlib
+   :undocumented:
+
+.. warn:: Deprecated environment variable COQ..., use ROCQ... instead.
+   :name: deprecated-coq-env-var
+
+   Old names such as `COQLIB` are deprecated aliases of new names such as `ROCQLIB`.
+
 Customization at launch time
 ---------------------------------
 
@@ -288,7 +302,7 @@ except that ``space_overhead`` is set to 120 and ``minor_heap_size`` is set to 3
 
 .. _ROCQ_PROFILE_COMPONENTS:
 
-Specifies which components produce events when using the
+`$ROCQ_PROFILE_COMPONENTS` Specifies which components produce events when using the
 :ref:`profiling` system. It is a comma separated list of
 component names, possibly prefixed by `-` to negate it.
 
@@ -298,6 +312,12 @@ Otherwise only components in the list produce events.
 
 Component names are internally defined, but `command` which corresponds to
 the interpretation of one command is particularly notable.
+
+.. warn:: Environment variable PATH not set
+   :name: PATH-not-found
+
+   This warning may be produced when looking for an executable in `$PATH`
+   (currently only `csdp` for micromega is searched for this way).
 
 .. _command-line-options:
 
@@ -345,6 +365,26 @@ and ``rocq repl``, unless stated otherwise:
   command *or* provide a fully qualified name.
 
   The added loadpath is considered local, see :cmd:`Print LoadPath`.
+
+  .. why do we have 2 warnings for the same thing (cannot-open)?
+
+  .. warn:: Cannot open directory ...
+     :name: cannot-open-dir
+     :undocumented:
+
+  .. warn:: Cannot open ...
+     :name: cannot-open-path
+     :undocumented:
+
+  .. warn:: Directory ... cannot be used as a Rocq identifier (skipped)
+     :name: cannot-use-directory
+     :undocumented:
+
+  .. warn:: @string was previously bound to @qualid; it is remapped to @qualid
+     :name: overriding-logical-loadpath
+
+     This warning is produced when there are overlapping `-Q` (e.g.
+     `-Q /path X -Q /path/subpath Y` remaps `/path/subpath` from `X.subpath` to `Y`).
 
 :-R *directory dirpath*: Similar to ``-Q`` *directory dirpath*, but allows using
   :cmd:`Require` with a partially qualified name (i.e. without a `From` clause).
@@ -414,6 +454,13 @@ and ``rocq repl``, unless stated otherwise:
   order of command-line options.
 :-load-vernac-object *qualid*: Obsolete synonym of :n:`-require qualid`.
 :-batch: Exit just after argument parsing. Available for ``rocq repl`` only.
+:-bytecode-compiler (yes|no): Enable the :tacn:`vm_compute` reduction machine
+   and precompilation to bytecode (stored inside `.vo` files).
+
+   .. warn:: Bytecode compiler ies disabled, -bytecode-compiler option ignored.
+      :name: bytecode-compiler-disabled
+      :undocumented:
+
 :-native-compiler (yes|no|ondemand): Enable the :tacn:`native_compute`
   reduction machine and precompilation to ``.cmxs`` files for future use
   by :tacn:`native_compute`.
@@ -427,13 +474,20 @@ and ``rocq repl``, unless stated otherwise:
 
   .. _native-compiler-options:
 
-  .. deprecated:: 8.14
+  .. warn:: The native-compiler option is deprecated.
+     :name: deprecated-native-compiler-option
+
+     .. deprecated:: 8.14
 
      This flag has been deprecated in favor of calling :ref:`rocq native-precompile <rocqnative>`. The
      toolchain has been adapted to transparently rely on the latter, so if you
      use :ref:`rocq_makefile` there is nothing to do. Otherwise you should
      substitute calls to `rocq c -native-compiler yes` to calls to `rocq compile` followed
      by `rocq native-precompile` on the resulting `vo` file.
+
+  .. warn:: Native compiler is disabled.
+     :name: native-compiler-disabled
+     :undocumented:
 
   .. versionchanged:: 8.13
 
@@ -489,6 +543,11 @@ and ``rocq repl``, unless stated otherwise:
   ``.cmxs`` for :tacn:`native_compute`. Defaults to ``.coq-native``.
 :-output-directory *dir*, -output-dir *dir*: Sets the output directory for commands that
   write output to files, such as :ref:`extraction` commands, :cmd:`Redirect` and :cmd:`Print Universes`.
+
+  .. warn:: Output directoty is unset, using @string.
+     :name: default-output-directory
+     :undocumented:
+
 :-vos: Indicate Rocq to skip the processing of opaque proofs
   (i.e., proofs ending with :cmd:`Qed` or :cmd:`Admitted`), output a ``.vos`` files
   instead of a ``.vo`` file, and to load ``.vos`` files instead of ``.vo`` files
@@ -550,6 +609,11 @@ and ``rocq repl``, unless stated otherwise:
   <interleave-command-line>` regarding the order of command-line
   options apply, and this could be relevant if you are resetting some
   of the compatibility options.
+
+  .. warn:: Did not find compatibility module ... with prefix ...
+     :name: compatibility-module-not-found
+     :undocumented:
+
 :-dump-glob *file*: Dump references for global names in file *file*
   (to be used by rocq doc, see :ref:`rocqdoc`). By default, if *file.v* is being
   compiled, *file.glob* is used.
@@ -795,3 +859,15 @@ before it has been read by the second command.
   inhabited, but using fully qualified names, Corelib.Init.Logic.False will
   always refer to the absurd proposition, what we guarantee is that
   there is no proof of this latter constant.
+
+.. warn:: @ident.vo has been found in [ ... ]; loading ...
+   :name: ambiguous-file-name
+
+   This warning is produced when `rocqchk` is called on a module by
+   logical name and the file that name refers to is ambiguous.
+
+   .. note::
+
+      :cmd:`Require` handles ambiguity differently.
+
+   .. weird warning, seems like it's not emitted when searching for dependencies
