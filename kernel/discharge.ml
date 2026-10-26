@@ -44,13 +44,18 @@ let lift_private_univs info = function
     let ctx = lift_private_poly_univs info ctx in
     Opaqueproof.PrivatePolymorphic ctx
 
-let cook_opaque_proofterm info c =
+let cook_opaque_proofterm_with abstract info c =
   let fold info (c, priv) =
     let priv = lift_private_univs info priv in
-    let c = abstract_as_body (create_cache info) c in
+    let c = abstract (create_cache info) c in
     (c, priv)
   in
   List.fold_right fold info c
+
+let cook_opaque_proofterm info c = cook_opaque_proofterm_with abstract_as_body info c
+
+let cook_opaque_proofterm_shared info c =
+  cook_opaque_proofterm_with abstract_as_body_shared info c
 
 (********************************)
 (* Discharging constant         *)

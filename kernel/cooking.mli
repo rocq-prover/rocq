@@ -69,6 +69,17 @@ val expand_subterm : cooking_cache -> int -> constr -> constr
     given number of its binders; the result is under the same binders, and
     the ones [abstract_as_body] adds. *)
 
+(** The term {!abstract_as_body} gives, with the expansion of the section's
+    context built so that it keeps the sharing of the argument: a compound
+    subterm is expanded once per binder depth, so that step's cost follows
+    the number of distinct subterms rather than the size of the term's tree
+    unfolding. The memo behind it is bounded and lossy, so a term with many
+    subterms that share a [Constr.hash_bounded] value, or with more distinct
+    subterms than the memo holds, can still cost its tree unfolding. The
+    universe substitution that follows the expansion is unchanged, and in a
+    section with polymorphic universes it still walks the tree unfolding. *)
+val abstract_as_body_shared : cooking_cache -> constr -> constr
+
 val abstract_as_sort : cooking_cache -> Sorts.t -> Sorts.t
 
 val lift_mono_univs : cooking_info -> Univ.ContextSet.t -> cooking_info * Univ.ContextSet.t

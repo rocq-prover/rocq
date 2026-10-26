@@ -235,6 +235,138 @@ let expand_constr ?(depth=0) cache modlist top_abst_subst c =
   if is_empty_modlist modlist && List.is_empty top_abst_subst then c
   else substrec depth c
 
+(** A memo from a compound term and a binder depth to a term, the terms
+    compared physically, for [expand_constr_shared]. A term that expands to
+    itself does so at every depth, and is entered with depth [-1]. The memo is
+    lossy: an entry whose few probe slots are all taken overwrites one of them,
+    so keys that share a hash cost a recomputation, never a long scan. A lost
+    entry only costs sharing and time, never a different result. *)
+module ShareMemo = struct
+  type t = {
+    mutable keys : constr array;
+    mutable depths : int array;
+    mutable values : constr array;
+    mutable count : int;
+  }
+
+  (* never a key: only compound terms are entered *)
+  let no_key = mkProp
+  let probes = 8
+  let max_size = 1 lsl 22
+
+  let make size =
+    { keys = Array.make size no_key; depths = Array.make size 0;
+      values = Array.make size no_key; count = 0 }
+
+  let create () = make 1024
+
+  (* [h] is [Constr.hash_bounded c] *)
+  let find m h c k =
+    let mask = Array.length m.keys - 1 in
+    let h = Hashset.Combine.combine h k in
+    let rec probe i =
+      if Int.equal i probes then None
+      else
+        let j = (h + i) land mask in
+        let key = Array.unsafe_get m.keys j in
+        if key == no_key then None
+        else if key == c && Int.equal (Array.unsafe_get m.depths j) k then
+          Some (Array.unsafe_get m.values j)
+        else probe (i + 1)
+    in
+    probe 0
+
+  let insert m h c k v =
+    let mask = Array.length m.keys - 1 in
+    let h = Hashset.Combine.combine h k in
+    let rec probe i =
+      if Int.equal i probes then h land mask (* all taken: overwrite the first *)
+      else
+        let j = (h + i) land mask in
+        if Array.unsafe_get m.keys j == no_key then (m.count <- m.count + 1; j)
+        else probe (i + 1)
+    in
+    let j = probe 0 in
+    Array.unsafe_set m.keys j c;
+    Array.unsafe_set m.depths j k;
+    Array.unsafe_set m.values j v
+
+  let add m h c k v =
+    let size = Array.length m.keys in
+    if 2 * m.count >= size && size < max_size then begin
+      let keys = m.keys and depths = m.depths and values = m.values in
+      let m' = make (2 * size) in
+      m.keys <- m'.keys; m.depths <- m'.depths; m.values <- m'.values; m.count <- 0;
+      Array.iteri (fun j key ->
+          if key != no_key then
+            insert m (Constr.hash_bounded key) key depths.(j) values.(j)) keys
+    end;
+    insert m h c k v
+end
+
+(** [expand_constr], with each compound subterm expanded once per binder
+    depth, and once for all depths when it expands to itself: the result is
+    the same term, and keeps the sharing of [c] where the memo holds it, so
+    the cost follows the number of distinct subterms of [c] rather than the
+    size of its tree unfolding, which a proof term that shares a subterm many
+    times makes exponential. The memo is bounded and lossy: subterms that
+    share a [Constr.hash_bounded] value at one depth compete for one run of
+    probe slots, and a term with more distinct subterms than the memo holds
+    overwrites its own entries, so such a term can still cost its tree
+    unfolding. The arms are those of [expand_constr]; a leaf that
+    [expand_constr] leaves alone is returned as is. *)
+let expand_constr_shared cache modlist top_abst_subst c =
+  let share_univs = share_univs cache top_abst_subst in
+  let memo = ShareMemo.create () in
+  let rec substrec k c =
+    match kind c with
+    | Rel _ | Sort _ | Meta _ | Int _ | Float _ | String _ -> c
+    | Ind (ind,u) ->
+      (try share_univs k (IndRef ind) u modlist with Not_found -> c)
+    | Construct (cstr,u) ->
+      (try share_univs k (ConstructRef cstr) u modlist with Not_found -> c)
+    | Const (cst,u) ->
+      (try share_univs k (ConstRef cst) u modlist with Not_found -> c)
+    | Var id ->
+      (try mkRel (find_var k id top_abst_subst) with Not_found -> c)
+    | _ ->
+      let h = Constr.hash_bounded c in
+      match ShareMemo.find memo h c (-1) with
+      | Some r -> r
+      | None ->
+        match ShareMemo.find memo h c k with
+        | Some r -> r
+        | None ->
+          let r = match kind c with
+            | Case (ci, u, pms, p, iv, t, br) ->
+              begin match share cache top_abst_subst (IndRef ci.ci_ind) modlist with
+              | (abstr_uinst, abstr_inst_rel, abstr_inst_length) ->
+                let u = Instance.append abstr_uinst u in
+                let pms = Array.append (make_inst k abstr_inst_rel) pms in
+                let ci = { ci with ci_npar = ci.ci_npar + abstr_inst_length } in
+                Constr.map_with_binders succ substrec k (mkCase (ci,u,pms,p,iv,t,br))
+              | exception Not_found ->
+                Constr.map_with_binders succ substrec k c
+              end
+            | Proj (p, r, c') ->
+              let ind = Names.Projection.inductive p in
+              let p' =
+                try
+                  let exp = share cache top_abst_subst (IndRef ind) modlist in
+                  discharge_proj exp p
+                with Not_found -> p in
+              let c'' = substrec k c' in
+              if p == p' && c' == c'' then c else mkProj (p', r, c'')
+            | _ -> Constr.map_with_binders succ substrec k c
+          in
+          (* a term left as is contains nothing the expansion changes, at any
+             depth *)
+          ShareMemo.add memo h c (if r == c then -1 else k) r;
+          r
+  in
+  if is_empty_modlist modlist && List.is_empty top_abst_subst then c
+  else substrec 0 c
+
 (** Cooking is made of 4 steps:
     1. expansion of global constants by applying them to the section
        subcontext they depend on
@@ -265,6 +397,18 @@ let abstract_as_body cache c =
 (** Without the final abstraction step, for a subterm under [depth] binders
     of the judgment *)
 let expand_subterm cache depth c = expand_subst ~depth cache c
+
+(** [abstract_as_body], with the expansion step computed by
+    [expand_constr_shared], so that step keeps the sharing of [c] where the
+    memo holds it. The universe substitution that follows it is the one
+    [abstract_as_body] does, and in a section with polymorphic universes it
+    still walks the tree unfolding. *)
+let abstract_as_body_shared cache c =
+  let ctx = Lazy.force cache.rel_ctx in
+  let info = cache.info in
+  let c = expand_constr_shared cache.cache info.expand_info info.abstr_info.abstr_ctx c in
+  let c = Vars.subst_univs_level_constr (make_instance_subst info.abstr_info.abstr_ausubst) c in
+  it_mkLambda_or_LetIn c ctx
 
 (** Adding the final abstraction step, sort case (for universes) *)
 let abstract_as_sort cache s =
