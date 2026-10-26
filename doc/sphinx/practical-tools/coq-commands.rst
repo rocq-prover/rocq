@@ -768,38 +768,30 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
   assumptions and variables (constants without a :term:`body`).
 :-silent: Do not write progress information to the standard output.
 :-statement-report *file*: After checking, print a report on named
-  constants, before the summary of ``-o``. Each line of *file* is a
-  request ``name model trusted``, its tokens separated by single spaces:
-  *name* is a label printed back as given, and *model* and *trusted* are
-  fully qualified constant names as ``rocqchk`` prints them. *trusted* may
-  be ``-`` or left out. Blank lines and lines starting with ``#`` are skipped;
-  any other line, and any line with a tab or a carriage return, is an error,
-  reported before any library is loaded. For each request, the report says
-  whether ``Definition f := model`` (``Polymorphic`` when *trusted* is) is
-  accepted in a module sealed by a signature that declares *trusted*'s type:
-  ``match`` when the type of *model* is cumulative to the type of *trusted*
-  under universe constraints consistent with the environment (a polymorphic
-  *model* is taken at fresh universes against a monomorphic *trusted*, and
-  against a polymorphic *trusted* its universe context must be *trusted*'s);
-  ``mismatch`` when the types are not convertible; ``universes-differ`` when
-  they need universe constraints that the environment or *trusted* refuses,
-  when the universe contexts differ, and for every polymorphic *model* whose
-  universe context has sort variables or constraints, because elaborating
-  the definition can minimize those and the check does not replay it;
-  ``not-requested`` with no *trusted*;
-  ``model-missing`` or ``trusted-missing`` when a name is not in the
-  environment. The verdict is about the two constants as the kernel stores
-  them. Implicit arguments are elaboration data that the kernel never sees,
-  so a *model* declared with maximal implicit arguments reads ``match``
-  when its type is *trusted*'s; whether a bare alias ``Definition f :=
-  model`` then elaborates depends on the context it is written in, which
-  ``rocqchk`` does not see. It also lists the
-  axioms and relaxed typing conditions that its selected proof witness reaches.
-  A public declaration uses the environment; a bodyless public declaration
-  uses its module implementation and then follows references in that
-  implementation view. This prevents an independent signature proof from
-  hiding a relaxed implementation proof. Integer, float and string literals
-  and arrays also reach their registered primitive type.
+  constants, before the summary of ``-o``. Each line of *file* is a request
+  ``name model trusted``, separated by single spaces: *name* is a label
+  printed back as given, and *model* and *trusted* are fully qualified
+  constant names. *trusted* may be ``-`` or left out. Blank lines and lines
+  starting with ``#`` are skipped; any other malformed line is an error,
+  reported before any library is loaded.
+
+  For each request the report lists the axioms and relaxed typing conditions
+  that *model*'s proof reaches, and gives a verdict on its type:
+
+  - ``match``: a module sealed by a signature declaring *trusted*'s type
+    accepts ``Definition f := model``.
+  - ``mismatch``: the types are not convertible.
+  - ``universes-differ``: the check would need universe constraints the
+    environment or *trusted* refuses, the universe contexts differ, or
+    *model* is polymorphic with sort variables or constraints in its
+    universe context. The check never replays elaboration, so it answers
+    this rather than a ``match`` elaboration might not give.
+  - ``not-requested``: no *trusted* was given.
+  - ``model-missing``, ``trusted-missing``: the name is not in the environment.
+
+  The verdict is about the constants as the kernel stores them, so
+  elaboration data such as implicit arguments does not affect it.
+
   The report is printed between the lines ``STATEMENT REPORT`` and
   ``END STATEMENT REPORT``, one line per statement, axiom and condition:
 
@@ -811,10 +803,8 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
      flag <name> <condition> <object>
      END STATEMENT REPORT
 
-  It does not change the exit status. If the report stops after its start
-  line, it has no ``END STATEMENT REPORT`` line and the checker emits a
-  warning. A program that reads the report must treat such a stream as no
-  report, not as partial evidence.
+  The option does not change the exit status. A report that could not be
+  completed has no ``END STATEMENT REPORT`` line, and the checker warns.
 
 Environment variable ``$ROCQLIB`` can be set to override the location of
 the standard library.
