@@ -3186,9 +3186,9 @@ let interp_elim_constraints env evd cstrs =
   in
   List.fold_left interp (evd, Sorts.ElimConstraints.empty) cstrs
 
-let interp_univ_decl env decl =
+let interp_univ_decl ?sigma env decl =
   let open UState in
-  let evd = Evd.from_env env in
+  let evd = match sigma with Some sigma -> sigma | None -> Evd.from_env env in
   let evd, qualities = List.fold_left_map (fun evd lid ->
       Evd.new_quality_variable ?loc:lid.loc ~name:lid.v evd)
       evd
@@ -3241,10 +3241,10 @@ let interp_cumul_univ_decl env decl =
   in
   evd, decl, variances
 
-let interp_univ_decl_opt env l =
+let interp_univ_decl_opt ?sigma env l =
   match l with
-  | None -> Evd.from_env env, UState.default_univ_decl
-  | Some decl -> interp_univ_decl env decl
+  | None -> (match sigma with Some sigma -> sigma | None -> Evd.from_env env), UState.default_univ_decl
+  | Some decl -> interp_univ_decl ?sigma env decl
 
 let interp_cumul_univ_decl_opt env = function
   | None -> Evd.from_env env, UState.default_univ_decl, [| |]

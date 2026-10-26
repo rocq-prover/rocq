@@ -51,7 +51,9 @@ module Hook : sig
   module S : sig
     type t =
       { uctx : UState.t
-      (** [ustate]: universe constraints obtained when the term was closed *)
+      (** [ustate]: universe constraints obtained when the term was closed,
+          after the declaration: the unification levels replaced by global
+          levels in a monomorphic declaration are defined to them *)
       ; obls : (Id.t * Constr.t) list
       (** [(n1,t1),...(nm,tm)]: association list between obligation
           name and the corresponding defined term (might be a constant,
@@ -465,8 +467,10 @@ val declare_constant
   -> constant_entry
   -> Constant.t
 
-(** Like [declare_definition] but also returns the universes and universe constraints added to the
-    global environment *)
+(** Like [declare_definition] but also returns the universes of the declaration. A universe
+    state still used for further declarations must be updated with them, see
+    {!UState.demote_global_univ_entry}: in a monomorphic declaration, they replace
+    unification levels by global levels. *)
 val declare_definition_full
   :  info:Info.t
   -> cinfo:EConstr.t option CInfo.t
@@ -474,7 +478,7 @@ val declare_definition_full
   -> body:EConstr.t
   -> ?using:Vernacexpr.section_subset_expr
   -> Evd.evar_map
-  -> GlobRef.t * Univ.ContextSet.t
+  -> GlobRef.t * UState.universes_entry
 
 (** Declaration messages, for internal use *)
 

@@ -532,7 +532,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
     in
     let ctx = Context.Named.map_het
       (fun r -> EConstr.ERelevance.kind evd r)
-      (fun t -> EConstr.to_constr evd (evar_subst esubst evd t))
+      (fun t -> Vars.subst_univs_level_constr usubst (EConstr.to_constr evd (evar_subst esubst evd t)))
       ctx
     in
     let lhs = evar_subst esubst evd lhs in
@@ -541,7 +541,14 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
     let rhs = evar_subst esubst evd rhs in
     let rhs = EConstr.to_constr evd rhs in
     let rhs = Vars.subst_univs_level_constr usubst rhs in
-    ctx, lhs, rhs
+    (* The universes of the pattern variables which are not bound by the rule
+       cannot stay unification levels in the declaration: name them globally *)
+    let levels = List.fold_left (fun acc c -> Vars.universes_of_constr ~init:acc c)
+        Univ.Level.Set.empty (lhs :: rhs :: List.map Context.Named.Declaration.get_type ctx)
+    in
+    let _, gsubst = UnivGen.globalize_context_set (levels, Univ.UnivConstraints.empty) in
+    let glob = Vars.subst_univs_level_constr (Sorts.QVar.Map.empty, gsubst) in
+    Context.Named.map glob ctx, glob lhs, glob rhs
   in
 
   let rhs =

@@ -1089,6 +1089,10 @@ let new_sort_variable ?loc ?sort_rigid ?name rigid sigma =
 let add_forgotten_univ d u =
   { d with universes = UState.add_forgotten_univ d.universes u }
 
+let globalize_levels d ls =
+  let universes, subst = UState.globalize_levels ls d.universes in
+  { d with universes }, subst
+
 let make_nonalgebraic_variable evd u =
   { evd with universes = UState.make_nonalgebraic_variable evd.universes u }
 
@@ -1106,9 +1110,21 @@ let lookup_constant env sigma c = match Environ.lookup_constant_opt c env with
     let senv = get_senv_side_effects sigma.effects in
     Environ.lookup_constant c (Safe_typing.env_of_safe_env senv)
 
+let with_supply evd f =
+  let universes, x = UState.with_supply evd.universes f in
+  { evd with universes }, x
+
 let fresh_sort_in_quality ?loc ?(rigid=univ_flexible) evd s =
-  with_sort_context_set ?loc rigid ~src:UState.Internal evd
-    (UnivGen.fresh_sort_in_quality s)
+  let evd, s = with_supply evd (fun supply -> UnivGen.fresh_sort_in_quality supply s) in
+  with_sort_context_set ?loc rigid ~src:UState.Internal evd s
+
+let fresh_sort_context_instance ?loc ?(rigid=univ_flexible) evd ctx =
+  let evd, s = with_supply evd (fun supply -> UnivGen.fresh_sort_context_instance supply ctx) in
+  with_sort_context_set ?loc rigid ~src:UState.Internal evd s
+
+let fresh_abstract_instance ?loc ?(rigid=univ_flexible) evd auctx =
+  let evd, u = with_supply evd (fun supply -> UnivGen.fresh_instance supply auctx) in
+  with_sort_context_set ?loc rigid ~src:UState.Internal evd u
 
 let get_abstract env sigma gr = let open GlobRef in
   match gr with
@@ -1123,24 +1139,26 @@ let get_abstract env sigma gr = let open GlobRef in
 let fresh_instance ?loc ?names env sigma gr =
   let auctx = get_abstract env sigma gr in
   let names = Option.map (fun x -> gr, x) names in
-  let u, ctx = UnivGen.fresh_instance_from ?loc auctx names in
-  u, ctx
+  with_supply sigma (fun supply -> UnivGen.fresh_instance_from ?loc supply auctx names)
 
 let fresh_constant_instance ?loc ?(rigid=univ_flexible) env evd c =
-  let (u, ctx) = fresh_instance env evd (GlobRef.ConstRef c) in
+  let evd, (u, ctx) = fresh_instance env evd (GlobRef.ConstRef c) in
   with_sort_context_set ?loc rigid ~src:UState.Internal evd ((c, u), ctx)
 
 let fresh_inductive_instance ?loc ?sort_rigid ?(rigid=univ_flexible) env evd i =
-  with_sort_context_set ?loc ?sort_rigid rigid ~src:UState.Internal evd (UnivGen.fresh_inductive_instance env i)
+  let evd, i = with_supply evd (fun supply -> UnivGen.fresh_inductive_instance supply env i) in
+  with_sort_context_set ?loc ?sort_rigid rigid ~src:UState.Internal evd i
 
 let fresh_constructor_instance ?loc ?(rigid=univ_flexible) env evd c =
-  with_sort_context_set ?loc rigid ~src:UState.Internal evd (UnivGen.fresh_constructor_instance env c)
+  let evd, c = with_supply evd (fun supply -> UnivGen.fresh_constructor_instance supply env c) in
+  with_sort_context_set ?loc rigid ~src:UState.Internal evd c
 
 let fresh_array_instance ?loc ?(rigid=univ_flexible) env evd =
-  with_sort_context_set ?loc rigid ~src:UState.Internal evd (UnivGen.fresh_array_instance env)
+  let evd, u = with_supply evd (fun supply -> UnivGen.fresh_array_instance supply env) in
+  with_sort_context_set ?loc rigid ~src:UState.Internal evd u
 
 let fresh_global ?loc ?(rigid=univ_flexible) ?names env evd gr =
-  let (u, ctx) = fresh_instance ?loc ?names env evd gr in
+  let evd, (u, ctx) = fresh_instance ?loc ?names env evd gr in
   with_sort_context_set ?loc rigid ~src:UState.Internal evd (mkRef (gr, u), ctx)
 
 let is_flexible_level evd l =
@@ -1290,7 +1308,7 @@ let push_side_effects ?role ?ts name de ctx effs =
   let seff_univs =
     if Univ.Level.Set.is_empty (fst ctx) then effs.seff_univs
     else
-      Cmap.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.seff_univs
+      Cmap.add kn (UState.Monomorphic_entry (ctx, Univ.Level.Map.empty), UnivNames.empty_binders) effs.seff_univs
   in
   let seff_roles = match role with
   | None -> effs.seff_roles

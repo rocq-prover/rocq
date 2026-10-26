@@ -361,7 +361,7 @@ let traverse access grs =
   let () = modcache := ModPath.Map.empty in
   let env = Global.env () in
   List.fold_left (fun accu gr ->
-    let t, _ = UnivGen.fresh_global_instance env gr in
+    let _, (t, _) = UnivGen.fresh_global_instance UnivGen.Supply.empty env gr in
     traverse access gr Context.Rel.empty accu t
   ) (GlobRef.Set.empty, GlobRef.Map.empty, GlobRef.Map.empty) grs
 

@@ -55,8 +55,43 @@ exception UniverseLengthMismatch of univ_length_mismatch
 (** Side-effecting functions creating new universe levels. *)
 
 val new_univ_global : unit -> UGlobal.t
-val fresh_level : unit -> Level.t
-val fresh_sort_quality : unit -> Sorts.QVar.t
+
+(** Generation of unification levels [ℓn] and sort variables [αn]. Their
+    names are only unique relative to a given supply, typically the one of a
+    {!UState.t}: a supply must stay fresh w.r.t. all the unification levels
+    and sort variables it may be mixed with. *)
+module Supply :
+sig
+  type t
+
+  val empty : t
+
+  val fresh_level : t -> t * Level.t
+
+  val fresh_qvar : t -> t * Sorts.QVar.t
+
+  val union : t -> t -> t
+
+  val add_levels : Level.Set.t -> t -> t
+  (** Make the supply fresh w.r.t. these levels. *)
+
+  val add_qvars : Sorts.QVar.Set.t -> t -> t
+end
+
+(** {6 Globalization of unification levels}
+
+    Unification levels cannot be declared in the global environment. A
+    monomorphic declaration replaces them with fresh global levels. *)
+
+val globalize_context_set : ?subst:universe_level_subst -> ContextSet.t ->
+  ContextSet.t * universe_level_subst
+(** Extend [subst] with fresh global levels for the unification levels of the
+    context, and apply it to the context. *)
+
+val globalize_section_context : ?subst:universe_level_subst -> UContext.t ->
+  UContext.t * universe_level_subst
+(** Section-local polymorphic universes are declared in the global
+    environment as well, until the section is closed. *)
 
 (** Build a fresh instance for a given context, its associated substitution and
     the instantiated constraints. *)
@@ -77,29 +112,29 @@ val diff_sort_context : sort_context_set -> sort_context_set -> sort_context_set
 
 val pr_sort_context : Sorts.printer -> sort_context_set -> Pp.t
 
-val fresh_instance : AbstractContext.t -> Instance.t in_sort_context_set
+val fresh_instance : Supply.t -> AbstractContext.t -> Supply.t * Instance.t in_sort_context_set
 
 (** The globref is only used for the error message when there is a mismatch. *)
-val fresh_instance_from : ?loc:Loc.t -> AbstractContext.t -> (GlobRef.t * Instance.t) option ->
-  Instance.t in_sort_context_set
+val fresh_instance_from : ?loc:Loc.t -> Supply.t -> AbstractContext.t ->
+  (GlobRef.t * Instance.t) option -> Supply.t * Instance.t in_sort_context_set
 
-val fresh_sort_in_quality : QualityOrSet.t -> Sorts.t in_sort_context_set
+val fresh_sort_in_quality : Supply.t -> QualityOrSet.t -> Supply.t * Sorts.t in_sort_context_set
 (** NB: QSort is treated as QType *)
 
-val fresh_constant_instance : env -> Constant.t ->
-  pconstant in_sort_context_set
-val fresh_inductive_instance : env -> inductive ->
-  pinductive in_sort_context_set
-val fresh_constructor_instance : env -> constructor ->
-  pconstructor in_sort_context_set
-val fresh_array_instance : env ->
-  Instance.t in_sort_context_set
+val fresh_constant_instance : Supply.t -> env -> Constant.t ->
+  Supply.t * pconstant in_sort_context_set
+val fresh_inductive_instance : Supply.t -> env -> inductive ->
+  Supply.t * pinductive in_sort_context_set
+val fresh_constructor_instance : Supply.t -> env -> constructor ->
+  Supply.t * pconstructor in_sort_context_set
+val fresh_array_instance : Supply.t -> env ->
+  Supply.t * Instance.t in_sort_context_set
 
-val fresh_global_instance : ?loc:Loc.t -> ?names:UVars.Instance.t -> env -> GlobRef.t ->
-  constr in_sort_context_set
+val fresh_global_instance : ?loc:Loc.t -> ?names:UVars.Instance.t -> Supply.t -> env -> GlobRef.t ->
+  Supply.t * constr in_sort_context_set
 
-val fresh_sort_context_instance : sort_context_set ->
-  sort_level_subst * sort_context_set
+val fresh_sort_context_instance : Supply.t -> sort_context_set ->
+  Supply.t * (sort_level_subst * sort_context_set)
 
 (** Create a fresh global in the environment argument, without side effects.
     BEWARE: this raises an error on polymorphic constants/inductives:

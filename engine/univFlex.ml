@@ -68,6 +68,17 @@ let remove l { subst; algs } =
 let add_levels levels ~algebraic subst =
   Level.Set.fold (fun l subst -> add l ~algebraic subst) levels subst
 
+let subst_levels s {subst; algs} =
+  let f l = match Level.Map.find_opt l s with Some g -> g | None -> l in
+  let subst = Level.Map.map (Option.map (Universe.map f)) subst in
+  let define l g subst = match Level.Map.find_opt l subst with
+    | Some (Some _) -> subst
+    | Some None | None -> Level.Map.add l (Some (Universe.make g)) subst
+  in
+  let subst = Level.Map.fold define s subst in
+  let algs = Level.Set.filter (fun l -> not (Level.Map.mem l s)) algs in
+  { subst; algs }
+
 let define l v {subst;algs} =
   (* XXX update algs? *)
   let subst =
@@ -111,6 +122,16 @@ let normalize_univ_variable ~find =
 let normalize_univ_variable ectx =
   let find l = Option.flatten (Univ.Level.Map.find_opt l ectx.subst) in
   normalize_univ_variable ~find
+
+(* The definitions are not necessarily normalized: follow them *)
+let global_definitions ectx =
+  Level.Map.fold (fun l v acc -> match v with
+      | None -> acc
+      | Some _ ->
+        match Option.bind (normalize_univ_variable ectx l) Universe.level with
+        | Some g when not (Level.is_unif g) -> Level.Map.add l g acc
+        | Some _ | None -> acc)
+    ectx.subst Level.Map.empty
 
 let normalize_universe subst =
   let normlevel = normalize_univ_variable subst in
