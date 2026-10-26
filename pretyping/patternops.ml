@@ -438,7 +438,7 @@ let err ?loc pp = user_err ?loc pp
 
 let warn_cast_in_pattern =
   CWarnings.create ~name:"cast-in-pattern" ~category:CWarnings.CoreCategories.automation
-    (fun () -> Pp.strbrk "Cast types are ignored in patterns")
+    (fun () -> Pp.strbrk "Cast types are ignored in patterns.")
 
 type meta_accu =
   | Metas of Id.Set.t ref

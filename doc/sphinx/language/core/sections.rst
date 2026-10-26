@@ -72,6 +72,14 @@ usable outside the section as shown in this :ref:`example <section_local_declara
    in particular by relying on the :tacn:`refine` tactic.
    See :ref:`proof-editing-mode`.
 
+   .. warn:: Let definition @ident declared as an axiom.
+      :name: let-as-axiom
+
+      This warning is emitted when concluding an interactive Let with
+      :cmd:`Admitted`. Generating an axiom instead of a section
+      variable may change the behaviour of :tacn:`auto` and similar
+      tactics.
+
 .. attr:: clearbody
 
    When used with :cmd:`Let` in a section,

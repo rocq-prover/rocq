@@ -1114,6 +1114,14 @@ as top-level definitions.
 
       Qed.
 
+   .. warn:: Not a truly recursive fixpoint.
+      :name: non-recursive
+      :undocumented:
+
+   .. warn:: Not a fully mutually defined fixpoint.
+      :name: non-full-mutual
+      :undocumented:
+
 .. extracted from CIC chapter
 
 .. _guard-condition:
