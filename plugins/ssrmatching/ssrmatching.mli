@@ -145,15 +145,61 @@ type tpatterns
 
 val empty_tpatterns : Evd.evar_map -> tpatterns
 
+(** An extension of an evar map, with new undefined evars and universes *)
+type evar_map_extension
+
+(** [evar_map_extension ~env ~base sigma cs] is the extension of [base]
+    needed by the terms [cs] living in [env] and [sigma], an extension of
+    [base]:
+    - the undefined evars of [sigma] which are not in [base] and are reachable
+      from [cs] (transitively through their types), with their normalized
+      types, and whether they are typeclass candidates;
+    - the unification problems postponed in [sigma] (and not in [base]) on
+      these evars, e.g. [?P 0 == true] when interpreting [bigD1 0 isT],
+      whose evars are also part of the extension;
+    - the universes and sort variables of [cs] (and of the types of these
+      evars) which are not declared in [base], with their flexibility, and
+      the constraints of [sigma] on them, or on the universes of [base],
+      which do not hold in [base].
+    Evars and universes of [sigma] which are not needed by [cs] are not part
+    of it. The terms [cs] must be normalized, e.g. with [nf_evars_univs].
+    Partially applying [evar_map_extension ~base sigma] shares the
+    computation of what [sigma] adds to [base] between several terms; its
+    cost depends on the size of the local universe contexts, while the cost
+    of computing an extension then only depends on what [sigma] adds.
+    Extensions computed for different terms in the same [sigma] are not
+    disjoint in general: they share the evars these terms have in common. *)
+val evar_map_extension : env:env -> base:evar_map -> evar_map -> EConstr.t list -> evar_map_extension
+
+(** [nf_evars_univs sigma c] normalizes the evars and universes of [c] like
+    [Evarutil.nf_evar], but without going through the contexts of evars, so
+    that its cost does not depend on their size. *)
+val nf_evars_univs : evar_map -> EConstr.t -> EConstr.t
+
+(** [extend_evar_map sigma ext] adds the evars, universes and constraints of
+    [ext] to [sigma], which must extend the [base] of [ext] and not contain
+    the evars of [ext]. In particular, two extensions sharing evars must not
+    be added to the same evar map.
+    @raise UGraph.UniverseInconsistency if the constraints of [ext] do not
+    hold in [sigma]
+    @raise Anomaly if [sigma] already contains one of the evars of [ext] *)
+val extend_evar_map : evar_map -> evar_map_extension -> evar_map
+
 (** [mk_tpattern env sigma0 sigma_p ok p_origin dir t] compiles a term [t]
     living in [env] [sigma] (an extension of [sigma0]) intro a [tpattern].
     The [tpattern] can hold a (proof) term [p] and a diction [dir]. The [ok]
     callback is used to filter occurrences.
+    [ext] are evars and universes specific to this pattern: the pattern is
+    compiled in the evar map of the [tpatterns] extended by [ext] (using
+    [extend_evar_map]), and [ext] is only added to the evar map used for
+    matching when the pattern is considered. If [ext] is not compatible
+    with the current universe state, the pattern does not match.
   @return the compiled [tpattern] and its [evar_map]
   @raise UserEerror is the pattern is a wildcard *)
 val mk_tpattern :
   ?p_origin:ssrdir * EConstr.t ->
   ?ok:(EConstr.t -> evar_map -> bool) ->
+  ?ext:evar_map_extension ->
   rigid:(Evar.t -> bool) ->
   env ->
   EConstr.t ->
