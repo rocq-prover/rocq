@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
 
-# rocqchk -statement-report's type verdict is the sealing it stands for: for
-# each row, [Definition f := <model>] ([Polymorphic] for a polymorphic
-# statement), the spelling a grader's checker uses, is compiled by coqc in a
-# module sealed by the row's module type. [match] must be accepted, and
-# [mismatch] and [universes-differ] refused. A row marked [under] has a model
-# whose universe context elaboration can minimize: the report answers
-# [universes-differ] for it whatever the sealing does, so that it never says
-# [match] for a definition the sealing refuses. A row marked [elab] records one
-# measured form where the two sides part for a reason the verdict does not
-# cover: the model has the statement's type, so the verdict is [match], and
-# the bare alias written here does not elaborate because a maximal implicit
-# argument stays unresolved. Implicit arguments are elaboration data, not
-# kernel data; whether such an alias elaborates depends on where it is
-# written, and a sealing whose module type gives the expected type can
-# resolve it.
+# The type verdict of rocqchk -statement-report must agree with module-type
+# sealing. For each row, coqc compiles [Definition f := <model>] ([Polymorphic]
+# for a polymorphic statement) in a module sealed by the row's module type:
+# [match] must be accepted, [mismatch] and [universes-differ] refused.
+# A row marked [under] has a model whose universe context elaboration can
+# minimize, so the verdict is [universes-differ] whatever the sealing does;
+# it never answers [match] for a definition the sealing refuses.
+# A row marked [elab] has the statement's type, so the verdict is [match],
+# but the bare alias here does not elaborate: a maximal implicit argument
+# stays unresolved. Implicit arguments are elaboration data, not kernel data.
 set -eu
 
 D=misc/statement_report_sealing
