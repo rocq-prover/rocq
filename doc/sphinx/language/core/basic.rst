@@ -77,6 +77,16 @@ appending the level to the nonterminal name (as in :n:`@term100` or
 
 .. seealso:: :cmd:`Print Grammar`
 
+.. warn:: In @string, tolerating this expression at a higher level than expected.
+   :name: level-tolerance
+
+   The parser may violate precedence levels to parse expressions which
+   would otherwise be rejected. This tolerance will be eventually removed.
+
+   Insert parentheses or fix your notation declarations.
+
+   .. deprecated:: 9.2
+
 .. _lexical-conventions:
 
 Lexical conventions
@@ -90,6 +100,12 @@ Comments
   Comments are enclosed between ``(*`` and ``*)``.  They can be nested.
   They can contain any character. However, embedded :n:`@string` literals must be
   correctly closed. Comments are treated as blanks.
+
+  .. warn:: Not interpreting "*)" as the end of current non-terminated \
+            comment because it occurs in a non-terminated string of \
+            the comment.
+     :name: comment-terminator-in-string
+     :undocumented:
 
 Identifiers
   Identifiers, written :n:`@ident`, are sequences of letters, digits, ``_`` and
@@ -110,6 +126,11 @@ Identifiers
   and Katakana characters, CJK ideographs, mathematical letter-like
   symbols and non-breaking space. :production:`unicode_id_part`
   non-exhaustively includes symbols for prime letters and subscripts.
+
+  .. warn:: Not considering unicode character @string of unknown \
+            lexical status as part of identifier @string.
+     :name: unrecognized-unicode
+     :undocumented:
 
 Numbers
   Numbers are sequences of digits with an optional fractional part
@@ -410,9 +431,8 @@ An :gdef:`attribute` is used to modify the default behavior of a
 sentence or to attach information to a Rocq object.
 Syntactically, most commands and tactics can be decorated with
 attributes (cf. :n:`@sentence`), but attributes not supported by the
-command or tactic will trigger :warn:`This command does not support
-this attribute`. There is also a command :cmd:`Attributes` to
-assign attributes to a whole document.
+command or tactic will trigger :warn:`unsupported-attributes`.
+There is also a command :cmd:`Attributes` to assign attributes to a whole document.
 
 .. insertprodn attributes legacy_attr
 
@@ -454,7 +474,7 @@ boldface label "Attribute:".  Attributes are listed in the
 :ref:`attribute_index`.
 
 .. warn:: This command does not support this attribute: @ident.
-   :name: This command does not support this attribute
+   :name: unsupported-attributes
 
    This warning is configured to behave as an error by default.  You
    may turn it into a normal warning by using the :opt:`Warnings` option:
@@ -571,6 +591,20 @@ they appear after a boldface label.  They are listed in the
       To preserve the same behavior, they may need to set some
       compatibility flags or options that did not exist in previous
       Rocq versions.
+
+   .. warn:: Syntax "Export Set" is deprecated, use the attribute syntax "#[export]" instead.
+      :name: legacy-export-set
+
+      .. deprecated:: 8.18
+
+   .. warn:: Set ... Append is not supported.
+      :name: set-append-deprecated
+
+      Some options (in the base distribution :opt:`Warnings` and
+      :opt:`Debug`) append their argument to the current value instead
+      of overwriting it. `Append` is deprecated syntax for the same purpose.
+
+      .. deprecated:: 9.1
 
 .. cmd:: Unset @setting_name
 

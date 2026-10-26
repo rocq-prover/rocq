@@ -105,11 +105,19 @@ in the Rocq sources.
 
 .. cmd:: Cd {? @string }
 
-   .. deprecated:: 8.20
+   .. warn:: Command Cd is deprecated
+      :name: change-dir-deprecated
 
-      Use the command line option :n:`-output-directory` instead (see
-      :ref:`command-line-options`), or the :opt:`Extraction Output Directory`
-      option.
+      .. deprecated:: 8.20
+
+         Use the command line option :n:`-output-directory` instead
+         (see :ref:`command-line-options`), or the :opt:`Extraction
+         Output Directory` option.
+
+   .. warn:: Command Cd as a synonym of Pwd is deprecated.
+      :name: change-dir-pwd-deprecated
+
+      Use :cmd:`Pwd` instead.
 
    If :n:`@string` is specified, changes the current directory according to
    :token:`string` which can be any valid path.  Otherwise, it displays the
