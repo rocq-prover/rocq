@@ -32,6 +32,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker computes recursive argument type in the wrong environment](#guard-checker-computes-recursive-argument-type-in-the-wrong-environment)
       - [guard checker computes commutative cuts in the wrong environment and breaks propositional extensionality](#guard-checker-computes-commutative-cuts-in-the-wrong-environment-and-breaks-propositional-extensionality)
       - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
+      - [guard checker computes uniform parameters of nested fixpoints in the wrong environment](#guard-checker-computes-uniform-parameters-of-nested-fixpoints-in-the-wrong-environment)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -376,6 +377,18 @@ and lack of checking of relevance marks on constants in coqchk
   which has a letin of its own. V9.2.0 accepts the issue's file through
   [#22383](https://github.com/rocq-prover/rocq/issues/22383): it does not infer
   letin bodies at all.
+
+
+#### guard checker computes uniform parameters of nested fixpoints in the wrong environment
+- component: guard checking
+- introduced: V9.3.0 ([#22384](https://github.com/rocq-prover/rocq/pull/22384))
+- impacted released versions: V9.3.0
+- impacted coqchk versions: Same
+- fixed in: V9.3.1, V9.4 ([#22645](https://github.com/rocq-prover/rocq/pull/22645))
+- found by: Sami Jawhar
+- exploit: test-suite/bugs/bug_22645.v
+- GH issue number: none
+- risk: ?
 
 
 ### Module system
