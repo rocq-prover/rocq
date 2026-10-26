@@ -67,7 +67,9 @@ let template_default_univs () =
 module UnivFlex = UnivFlex
 
 type universes_entry =
-| Monomorphic_entry of Univ.ContextSet.t
+| Monomorphic_entry of Univ.ContextSet.t * UVars.universe_level_subst
+  (** The context only mentions global levels, the substitution maps the
+      unification levels it replaces to them. *)
 | Polymorphic_entry of UVars.UContext.t
 
 module UNameMap = Id.Map
@@ -436,6 +438,8 @@ type t =
    initial_universes : UGraph.t; (** The graph at the creation of the evar_map + local universes
                                      (but not local constraints) *)
    minim_extra : UnivMinim.extra;
+   supply : UnivGen.Supply.t;
+   (** Fresh w.r.t. the unification levels and sort variables of the state *)
  }
 
 let empty =
@@ -445,7 +449,8 @@ let empty =
     sort_variables = QState.empty;
     universes = UGraph.initial_universes;
     initial_universes = UGraph.initial_universes;
-    minim_extra = UnivMinim.empty_extra; }
+    minim_extra = UnivMinim.empty_extra;
+    supply = UnivGen.Supply.empty; }
 
 let is_empty uctx =
   PContextSet.is_empty uctx.local &&
@@ -582,7 +587,9 @@ let union uctx uctx' =
            else
              let cstrsr = PContextSet.univ_constraints uctx'.local in
              merge_univ_constraints uctx cstrsr (declarenew uctx.universes));
-        minim_extra = extra}
+        minim_extra = extra;
+        supply = UnivGen.Supply.union uctx.supply uctx'.supply;
+      }
 
 let context_set uctx = uctx.local
 
@@ -625,15 +632,18 @@ let check_mono_sort_constraints uctx =
   let () = assert (Sorts.ElimConstraints.is_empty qcst) in
   (uvar, ucst)
 
-let univ_entry ~poly uctx =
+let monomorphic_entry ?subst ctx (qs, us) =
+  let ctx, subst = UnivGen.globalize_context_set ?subst ctx in
+  Monomorphic_entry (ctx, subst), (qs, Id.Map.map (subst_univs_level_level subst) us)
+
+let entry_subst = function
+  | Monomorphic_entry (_, subst), _ -> subst
+  | Polymorphic_entry _, _ -> Level.Map.empty
+
+let univ_entry ?subst ~poly uctx =
   let (binders, _) = uctx.names in
-  let entry =
-    if PolyFlags.univ_poly poly then Polymorphic_entry (context uctx)
-    else
-      let uctx = check_mono_sort_constraints uctx in
-      Monomorphic_entry uctx
-  in
-  entry, binders
+  if PolyFlags.univ_poly poly then Polymorphic_entry (context uctx), binders
+  else monomorphic_entry ?subst (check_mono_sort_constraints uctx) binders
 
 type universe_opt_subst = UnivFlex.t
 
@@ -1304,13 +1314,10 @@ let check_poly_univ_decl uctx decl =
   let uctx = UContext.make nas (inst, (elim_csts,univ_csts)) in
   uctx
 
-let check_univ_decl ~poly uctx decl =
+let check_univ_decl ?subst ~poly uctx decl =
   let (binders, _) = uctx.names in
-  let entry =
-    if PolyFlags.univ_poly poly then Polymorphic_entry (check_poly_univ_decl uctx decl)
-    else Monomorphic_entry (check_mono_univ_decl uctx decl)
-  in
-  entry, binders
+  if PolyFlags.univ_poly poly then Polymorphic_entry (check_poly_univ_decl uctx decl), binders
+  else monomorphic_entry ?subst (check_mono_univ_decl uctx decl) binders
 
 let restrict_universe_context (univs, univ_csts) keep =
   let removed = Level.Set.diff univs keep in
@@ -1398,8 +1405,9 @@ let merge_universe_context_set ?loc ~sideff rigid uctx (levels, ucst) =
   in
   let (us, (qcst, ucst0)) = uctx.local in
   let local = (Univ.Level.Set.union us levels, (qcst, Univ.UnivConstraints.union ucst0 ucst)) in
+  let supply = UnivGen.Supply.add_levels levels uctx.supply in
   { uctx with names; local; universes;
-              initial_universes = initial }
+              initial_universes = initial; supply }
 
 let merge_sort_variables ?loc ?(sort_rigid=false) ?src ~sideff uctx (qvars, csts) =
   let sort_variables =
@@ -1423,7 +1431,8 @@ let merge_sort_variables ?loc ?(sort_rigid=false) ?src ~sideff uctx (qvars, csts
   let sort_variables = QState.merge_constraints (merge_elim_constraints ?src uctx csts) sort_variables in
   let (us, (qcst, ucst)) = uctx.local in
   let local = (us, (Sorts.ElimConstraints.union qcst csts, ucst)) in
-  { uctx with local; sort_variables; names }
+  let supply = UnivGen.Supply.add_qvars qvars uctx.supply in
+  { uctx with local; sort_variables; names; supply }
 
 let merge_sort_context_set ?loc ?sort_rigid ?src ~sideff rigid uctx ((qvars, levels), (qcst, ucst)) =
   let uctx = merge_sort_variables ?loc ?sort_rigid ?src ~sideff uctx (qvars, qcst) in
@@ -1447,8 +1456,17 @@ let demote_global_univs (lvl_set, univ_csts) uctx =
   { uctx with local = (local_univs, local_constraints); univ_variables; universes; initial_universes }
 
 let demote_global_univ_entry entry uctx = match entry with
-| Monomorphic_entry ucst ->
-  demote_global_univs ucst uctx
+| Monomorphic_entry (ucst, subst) ->
+  let uctx = demote_global_univs ucst uctx in
+  (* the unification levels are now equal to their global counterparts *)
+  let us = fst uctx.local in
+  let cstrs = Level.Map.fold (fun l g acc ->
+      if Level.Set.mem l us then UnivConstraints.add (l, Eq, g) acc else acc)
+      subst UnivConstraints.empty
+  in
+  let (us, (qcst, ucst)) = uctx.local in
+  { uctx with local = (us, (qcst, UnivConstraints.union cstrs ucst));
+              universes = merge_univ_constraints uctx cstrs uctx.universes }
 | Polymorphic_entry _ -> uctx
 
 (* Check bug_4363 bug_6323 bug_3539 and success/rewrite lemma l1
@@ -1508,7 +1526,8 @@ let add_quality_variable ?loc ?(check_fresh=true) ~name ~rigid uctx q =
     | Some n -> add_qnames ?loc n q uctx.names
     | None -> add_qloc q loc uctx.names
   in
-  { uctx with sort_variables; names }
+  let supply = UnivGen.Supply.add_qvars (QVar.Set.singleton q) uctx.supply in
+  { uctx with sort_variables; names; supply }
 
 let add_universe ?loc name strict uctx u =
   let initial_universes = UGraph.add_universe ~strict u uctx.initial_universes in
@@ -1519,15 +1538,20 @@ let add_universe ?loc name strict uctx u =
     | Some n -> add_names ?loc n u uctx.names
     | None -> add_loc u loc uctx.names
   in
-  { uctx with names; local; initial_universes; universes }
+  let supply = UnivGen.Supply.add_levels (Level.Set.singleton u) uctx.supply in
+  { uctx with names; local; initial_universes; universes; supply }
+
+let with_supply uctx f =
+  let supply, x = f uctx.supply in
+  { uctx with supply }, x
 
 let new_quality_variable ?loc ?(sort_rigid = false) ?name uctx =
-  let q = UnivGen.fresh_sort_quality () in
+  let uctx, q = with_supply uctx UnivGen.Supply.fresh_qvar in
   (* don't need to check_fresh as it's guaranteed new *)
   add_quality_variable ?loc ~name ~rigid:(sort_rigid || Option.has_some name) uctx q, q
 
 let new_univ_level_variable ?loc rigid name uctx =
-  let u = UnivGen.fresh_level () in
+  let uctx, u = with_supply uctx UnivGen.Supply.fresh_level in
   let uctx =
     match rigid with
     | UnivRigid -> uctx
@@ -1616,7 +1640,8 @@ let minimize uctx =
         sort_variables = uctx.sort_variables;
         universes = universes;
         initial_universes = uctx.initial_universes;
-        minim_extra = UnivMinim.empty_extra; (* weak constraints are consumed *) }
+        minim_extra = UnivMinim.empty_extra; (* weak constraints are consumed *)
+        supply = uctx.supply; }
 
 let universe_context_inst_decl decl qvars levels names =
   let leftqs = List.fold_left (fun acc l -> QSet.remove l acc) qvars decl.univdecl_qualities in
@@ -1714,8 +1739,11 @@ let pr ctx =
 module Internal =
 struct
 
-let reboot env uctx =
+let reboot ~subst env uctx =
   let uctx_global = from_env env in
-  { uctx_global with univ_variables = uctx.univ_variables; sort_variables = uctx.sort_variables }
+  (* The unification levels of [uctx] have been declared as global levels *)
+  let univ_variables = UnivFlex.map_levels (subst_univs_level_level subst) uctx.univ_variables in
+  { uctx_global with univ_variables; sort_variables = uctx.sort_variables;
+                     supply = uctx.supply }
 
 end

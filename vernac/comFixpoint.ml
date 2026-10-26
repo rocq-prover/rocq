@@ -254,12 +254,12 @@ let build_wellfounded env sigma poly udecl {CAst.v=recname; loc} ctx body ccl im
     Declare.Obls.prepare_obligations ~name:recname_func poly ~body:def ~types:typ env sigma in
   let hook, impls =
     if len > 1 then
-      let hook { Declare.Hook.S.dref; uctx; obls; _ } =
+      let hook { Declare.Hook.S.dref; uctx; obls; univ_subst; _ } =
         let update c = CVars.replace_vars obls (evmap mkVar (Evarutil.nf_evar (Evd.from_ustate uctx) c)) in
         let tuple_value = update tuple_value in
         let ccl = update ccl in
         let ctx = Context.Rel.map_het (ERelevance.kind sigma) update ctx in
-        let univs = UState.check_univ_decl ~poly uctx udecl in
+        let univs = UState.check_univ_decl ~subst:univ_subst ~poly uctx udecl in
         let h_body =
           let inst = UState.(match fst univs with
               | Polymorphic_entry uctx -> UVars.UContext.instance uctx

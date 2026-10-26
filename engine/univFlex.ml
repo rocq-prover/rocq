@@ -68,6 +68,14 @@ let remove l { subst; algs } =
 let add_levels levels ~algebraic subst =
   Level.Set.fold (fun l subst -> add l ~algebraic subst) levels subst
 
+let map_levels f {subst; algs} =
+  let subst = Level.Map.fold (fun l v acc ->
+      Level.Map.add (f l) (Option.map (Universe.map f) v) acc)
+      subst Level.Map.empty
+  in
+  let algs = Level.Set.fold (fun l acc -> Level.Set.add (f l) acc) algs Level.Set.empty in
+  { subst; algs }
+
 let define l v {subst;algs} =
   (* XXX update algs? *)
   let subst =

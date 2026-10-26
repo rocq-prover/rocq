@@ -29,8 +29,8 @@ a
 Arguments boz (A B)%_type_scope a b
 1 goal
   
-  f := fun (A : (* Relevant *) Univ) (_ : (* α8 *) A) => A
-    : forall (A : (* Relevant *) Univ) (_ : (* α8 *) A), Univ
+  f := fun (A : (* Relevant *) Univ) (_ : (* α2 *) A) => A
+    : forall (A : (* Relevant *) Univ) (_ : (* α2 *) A), Univ
   ============================
   True
 1 goal

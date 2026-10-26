@@ -154,6 +154,15 @@ let rebuild_bl aux bl typ = rebuild_bl aux bl typ
 
 let recompute_binder_list (rec_order, fixpoint_exprl) =
   let typel, sigma = ComFixpoint.interp_fixpoint_short rec_order fixpoint_exprl in
+  (* The types are printed and reinterpreted in other evar maps, where the
+     unification levels of [sigma] are meaningless: name them globally *)
+  let typel =
+    let levels = List.fold_left (fun acc c -> Vars.universes_of_constr ~init:acc c)
+        Univ.Level.Set.empty typel
+    in
+    let _, subst = UnivGen.globalize_context_set (levels, Univ.UnivConstraints.empty) in
+    List.map (Vars.subst_univs_level_constr (Sorts.QVar.Map.empty, subst)) typel
+  in
   let constr_expr_typel =
     let flags = full_printing_flags() in
     (List.map (fun c ->
@@ -264,7 +273,9 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
         (id_of_f, Elimschemes.make_elimination_ident id_of_f (EConstr.ESorts.quality_or_set !evd type_sort), None)
     in
     let names = ref [new_princ_name] in
-    let hook new_principle_type _ =
+    let hook _ { Declare.Hook.S.dref } =
+      (* the declared type mentions the global universes of the principle *)
+      let new_principle_type, _ = Typeops.type_of_global_in_context (Global.env ()) dref in
       if Option.is_empty sorts then (
         (*     let id_of_f = Label.to_id (con_label f) in *)
         let register_with_sort sort =
@@ -2202,8 +2213,8 @@ let build_case_scheme fa =
   in
   let dep = Elimschemes.default_case_analysis_dependence env (fst ind) in
   let sigma, scheme, scheme_type = Indrec.build_case_analysis_scheme env sigma ind dep sf in
-  let sorts = (fun (_, _, x) ->
-      EConstr.ESorts.make @@ fst @@ UnivGen.fresh_sort_in_quality x) fa in
+  let evd, sorts = (fun (_, _, x) ->
+      Evd.fresh_sort_in_quality (Evd.from_env (Global.env ())) x) fa in
   let princ_name = (fun (x, _, _) -> x) fa in
   let (_ : unit) =
     (* Pp.msgnl (str "Generating " ++ Ppconstr.pr_id princ_name ++str " with " ++
@@ -2211,7 +2222,7 @@ let build_case_scheme fa =
              );
     *)
     generate_functional_principle
-      (ref (Evd.from_env (Global.env ())))
+      (ref evd)
       (EConstr.Unsafe.to_constr scheme_type)
       (Some [|sorts|])
       (Some princ_name) this_block_funs 0

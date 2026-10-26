@@ -78,11 +78,14 @@ let default_id_of_ind ind mip =
 let fresh env id avoid =
   let freshid = next_global_ident_away (Global.safe_env ()) id avoid in
   freshid, Id.Set.add freshid avoid
-let with_context_set ctx (b, ctx') =
-  (b, UnivGen.sort_context_union ctx ctx')
+(* The universes of a scheme are rigid universes of its universe state *)
+let fresh_in uctx f =
+  let uctx, (x, ctx) = UState.with_supply uctx f in
+  UState.merge_sort_context_set ~sideff:false ~src:UState.Internal UnivRigid uctx ctx, x
 
-let of_context_set env ctx =
-  UState.merge_sort_context_set ~sideff:false ~src:UState.Internal UnivRigid (UState.from_env env) ctx
+let enforce_leq uctx u v =
+  let csts = UnivSubst.enforce_leq u v Univ.UnivConstraints.empty in
+  UState.merge_universe_context_set ~sideff:false UnivRigid uctx (Univ.Level.Set.empty, csts)
 
 let build_dependent_inductive ind (mib,mip) =
   let realargs,_ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
@@ -97,8 +100,7 @@ let build_dependent_inductive ind (mib,mip) =
    the scheme mention global template universes, so that each use of the
    scheme would in turn constrain them (see the bad-template-constraint
    warning and #22220). We thus use fresh levels, which become universes
-   of the scheme; the accompanying context set must be declared by the
-   caller. Qualities are kept at their (all-QType) defaults since the
+   of the scheme, added to its universe state [uctx]. Qualities are kept at their (all-QType) defaults since the
    scheme is monomorphic. This instance is only used for substitution
    into the copied contexts: occurrences of the inductive in the scheme
    itself keep an empty instance, as required for template inductives.
@@ -106,17 +108,18 @@ let build_dependent_inductive ind (mib,mip) =
    scheme applying a previously declared scheme also needs constraints
    relating its universes to those of the latter (see
    [enforce_scheme_param_univs]). *)
-let maybe_template_instance (mib, mip) u = match mib.mind_template with
-| None -> u, UnivGen.empty_sort_context
+let maybe_template_instance uctx (mib, mip) u = match mib.mind_template with
+| None -> uctx, u
 | Some templ ->
   let () = assert (UVars.Instance.is_empty u) in
   let qdefaults, _ = UVars.Instance.to_array templ.template_defaults in
   let _, ulen = UVars.AbstractContext.size templ.template_context in
-  let uinst = Array.init ulen (fun _ -> UnivGen.fresh_level ()) in
-  let inst = UVars.Instance.of_array (qdefaults, uinst) in
-  let us = Array.fold_right Univ.Level.Set.add uinst Univ.Level.Set.empty in
-  let csts = UVars.AbstractContext.instantiate inst templ.template_context in
-  inst, ((Sorts.QVar.Set.empty, us), csts)
+  fresh_in uctx (fun s ->
+      let s, uinst = Array.fold_left_map (fun s () -> UnivGen.Supply.fresh_level s) s (Array.make ulen ()) in
+      let inst = UVars.Instance.of_array (qdefaults, uinst) in
+      let us = Array.fold_right Univ.Level.Set.add uinst Univ.Level.Set.empty in
+      let csts = UVars.AbstractContext.instantiate inst templ.template_context in
+      s, (inst, ((Sorts.QVar.Set.empty, us), csts)))
 
 let named_hd env t na = named_hd env (Evd.from_env env) (EConstr.of_constr t) na
 let name_assumption env = function
@@ -136,11 +139,10 @@ let my_it_mkLambda_or_LetIn_name env s c =
   let mkLambda_or_LetIn_name d b = mkLambda_or_LetIn (name_assumption env d) b in
   List.fold_left (fun c d -> mkLambda_or_LetIn_name d c) c s
 
-let get_rocq_eq env ctx =
+let get_rocq_eq env uctx =
   let eq = Globnames.destIndRef (Rocqlib.lib_ref "core.eq.type") in
-  let eq, ctx = with_context_set ctx
-      (UnivGen.fresh_inductive_instance env eq) in
-  mkIndU eq, mkConstructUi (eq,1), ctx
+  let uctx, eq = fresh_in uctx (fun s -> UnivGen.fresh_inductive_instance s env eq) in
+  mkIndU eq, mkConstructUi (eq,1), uctx
 
 let univ_of_eq env eq =
   let open EConstr in
@@ -164,9 +166,9 @@ let univ_of_eq env eq =
 
 let error msg = user_err Pp.(str msg)
 
-let get_sym_eq_data env (ind,u) =
+let get_sym_eq_data env uctx (ind,u) =
   let (mib,mip as specif) = lookup_mind_specif env ind in
-  let u, ctx = maybe_template_instance specif u in
+  let uctx, u = maybe_template_instance uctx specif u in
   if not (Int.equal (Array.length mib.mind_packets) 1) ||
     not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
@@ -188,7 +190,7 @@ let get_sym_eq_data env (ind,u) =
   if not (List.equal Constr.equal params2 constrargs) then
     error "Constructors arguments must repeat the parameters.";
   (* nrealargs_ctxt and nrealargs are the same here *)
-  (specif,mip.mind_nrealargs,realsign,paramsctxt,paramsctxt1,ctx)
+  (specif,mip.mind_nrealargs,realsign,paramsctxt,paramsctxt1,uctx)
 
 (**********************************************************************)
 (* Check if an inductive type [ind] has the form                      *)
@@ -200,9 +202,9 @@ let get_sym_eq_data env (ind,u) =
 (* such that symmetry is a priori definable                           *)
 (**********************************************************************)
 
-let get_non_sym_eq_data env (ind,u) =
+let get_non_sym_eq_data env uctx (ind,u) =
   let (mib,mip as specif) = lookup_mind_specif env ind in
-  let u, ctx = maybe_template_instance specif u in
+  let uctx, u = maybe_template_instance uctx specif u in
   if not (Int.equal (Array.length mib.mind_packets) 1) ||
     not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
@@ -217,7 +219,7 @@ let get_non_sym_eq_data env (ind,u) =
   let _,constrargs = List.chop mib.mind_nparams constrargs in
   let constrargs = List.map (Vars.subst_instance_constr u) constrargs in
   let paramsctxt = Vars.subst_instance_context u mib.mind_params_ctxt in
-  (specif,constrargs,realsign,paramsctxt,mip.mind_nrealargs,ctx)
+  (specif,constrargs,realsign,paramsctxt,mip.mind_nrealargs,uctx)
 
 (**********************************************************************)
 (* Build the symmetry lemma associated to an inductive type           *)
@@ -234,10 +236,9 @@ let get_non_sym_eq_data env (ind,u) =
 (**********************************************************************)
 
 let build_sym_scheme env _handle ind =
-  let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
-    get_sym_eq_data env indu in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
+  let uctx, (ind,u as indu) = fresh_in (UState.from_env env) (fun s -> UnivGen.fresh_inductive_instance s env ind) in
+  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,uctx =
+    get_sym_eq_data env uctx indu in
   let cstr n =
     mkApp (mkConstructUi(indu,1),Context.Rel.instance mkRel n mib.mind_params_ctxt) in
   let varH,_ = fresh env (default_id_of_ind ind mip) Id.Set.empty in
@@ -267,7 +268,7 @@ let build_sym_scheme env _handle ind =
             mkRel 1 (* varH *),
             [|cstr (nrealargs+1)|])))))
   in
-  c, of_context_set env ctx
+  c, uctx
 
 let sym_scheme_kind =
   declare_individual_scheme_object "sym"
@@ -298,40 +299,38 @@ let sym_scheme_kind =
    in the sorts of the corresponding binders of the type of [c]. The
    two parameter contexts have the same shape, except that the let-ins
    of [paramsctxt] do not appear in the kernel-inferred type of [c]. *)
-let enforce_scheme_param_univs env paramsctxt c ctx =
+let enforce_scheme_param_univs env paramsctxt c uctx =
   let univ_of_param t =
     let _, s = decompose_prod_decls t in
     if isSort s then Some (Sorts.univ_of_sort (destSort s)) else None
   in
-  let rec fold ctx params t = match params with
-  | [] -> ctx
-  | LocalDef _ :: params -> fold ctx params t
+  let rec fold uctx params t = match params with
+  | [] -> uctx
+  | LocalDef _ :: params -> fold uctx params t
   | LocalAssum (_, ty) :: params ->
     let _, cty, t = destProd t in
-    let ctx = match univ_of_param ty, univ_of_param cty with
+    let uctx = match univ_of_param ty, univ_of_param cty with
     | Some u, Some cu ->
       (* trivial constraints, i.e. between global universes shared by
          the two schemes, are dropped by enforce_leq *)
-      let qus, (qcst, ucst) = ctx in
-      qus, (qcst, UnivSubst.enforce_leq u cu ucst)
-    | _ -> ctx
+      enforce_leq uctx u cu
+    | _ -> uctx
     in
-    fold ctx params t
+    fold uctx params t
   in
-  fold ctx (List.rev paramsctxt) (Typeops.type_of_constant_in env (destConst c))
+  fold uctx (List.rev paramsctxt) (Typeops.type_of_constant_in env (destConst c))
 
-let const_of_scheme kind env handle ind paramsctxt ctx =
+let const_of_scheme kind env handle ind paramsctxt uctx =
   let sym_scheme = match local_lookup_scheme handle kind ind with Some cst -> cst | None -> assert false in
-  let c, ctx = with_context_set ctx (UnivGen.fresh_global_instance env sym_scheme) in
-  c, enforce_scheme_param_univs env paramsctxt c ctx
+  let uctx, c = fresh_in uctx (fun s -> UnivGen.fresh_global_instance s env sym_scheme) in
+  c, enforce_scheme_param_univs env paramsctxt c uctx
 
 let build_sym_involutive_scheme env handle ind =
-  let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
-    get_sym_eq_data env indu in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
-  let eq,eqrefl,ctx = get_rocq_eq env ctx in
-  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind paramsctxt ctx in
+  let uctx, (ind,u as indu) = fresh_in (UState.from_env env) (fun s -> UnivGen.fresh_inductive_instance s env ind) in
+  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,uctx =
+    get_sym_eq_data env uctx indu in
+  let eq,eqrefl,uctx = get_rocq_eq env uctx in
+  let sym, uctx = const_of_scheme sym_scheme_kind env handle ind paramsctxt uctx in
   let cstr n = mkApp (mkConstructUi (indu,1),Context.Rel.instance mkRel n paramsctxt) in
   let indr = UVars.subst_instance_relevance u mip.mind_relevance in
   let varH,_ = fresh env (default_id_of_ind ind mip) Id.Set.empty in
@@ -370,7 +369,7 @@ let build_sym_involutive_scheme env handle ind =
                NoInvert,
                mkRel 1 (* varH *),
                [|mkApp(eqrefl,[|applied_ind_C;cstr (nrealargs+1)|])|])))))
-  in (c, of_context_set env ctx)
+  in (c, uctx)
 
 let sym_involutive_scheme_kind =
   declare_individual_scheme_object "sym_involutive"
@@ -438,13 +437,12 @@ let sym_involutive_scheme_kind =
 (**********************************************************************)
 
 let build_l2r_rew_scheme dep env handle ind kind =
-  let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
-    get_sym_eq_data env indu in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
-  let sym, ctx = const_of_scheme sym_scheme_kind env handle ind paramsctxt ctx in
-  let sym_involutive, ctx = const_of_scheme sym_involutive_scheme_kind env handle ind paramsctxt ctx in
-  let eq,eqrefl,ctx = get_rocq_eq env ctx in
+  let uctx, (ind,u as indu) = fresh_in (UState.from_env env) (fun s -> UnivGen.fresh_inductive_instance s env ind) in
+  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,uctx =
+    get_sym_eq_data env uctx indu in
+  let sym, uctx = const_of_scheme sym_scheme_kind env handle ind paramsctxt uctx in
+  let sym_involutive, uctx = const_of_scheme sym_involutive_scheme_kind env handle ind paramsctxt uctx in
+  let eq,eqrefl,uctx = get_rocq_eq env uctx in
   let cstr n p =
     mkApp (mkConstructUi(indu,1),
       Array.concat [Context.Rel.instance mkRel n paramsctxt1;
@@ -479,8 +477,7 @@ let build_l2r_rew_scheme dep env handle ind kind =
                      rel_vect (nrealargs+4) nrealargs;
                      rel_vect 1 nrealargs;
                      [|mkRel 1|]]) in
-  let s, ctx' = UnivGen.fresh_sort_in_quality kind in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
+  let uctx, s = fresh_in uctx (fun s -> UnivGen.fresh_sort_in_quality s kind) in
   let s = mkSort s in
   let rci = Sorts.Relevant in (* TODO relevance *)
   let ci = make_case_info env ind MatchStyle in
@@ -530,7 +527,7 @@ let build_l2r_rew_scheme dep env handle ind kind =
        [|main_body|]))
    else
      main_body))))))
-  in (c, of_context_set env ctx)
+  in (c, uctx)
 
 (**********************************************************************)
 (* Build the left-to-right rewriting lemma for hypotheses associated  *)
@@ -559,10 +556,9 @@ let build_l2r_rew_scheme dep env handle ind kind =
 (**********************************************************************)
 
 let build_l2r_forward_rew_scheme dep env ind kind =
-  let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,ctx' =
-    get_sym_eq_data env indu in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
+  let uctx, (ind,u as indu) = fresh_in (UState.from_env env) (fun s -> UnivGen.fresh_inductive_instance s env ind) in
+  let (mib,mip as specif),nrealargs,realsign,paramsctxt,paramsctxt1,uctx =
+    get_sym_eq_data env uctx indu in
   let cstr n p =
     mkApp (mkConstructUi(indu,1),
       Array.concat [Context.Rel.instance mkRel n paramsctxt1;
@@ -587,9 +583,8 @@ let build_l2r_forward_rew_scheme dep env ind kind =
     name_context env ((LocalAssum (make_annot (Name varH) indr,applied_ind))::realsign) in
   let realsign_ind_P n aP =
     name_context env ((LocalAssum (make_annot (Name varH) indr,aP))::realsign_P n) in
-  let s, ctx' = UnivGen.fresh_sort_in_quality kind in
+  let uctx, s = fresh_in uctx (fun s -> UnivGen.fresh_sort_in_quality s kind) in
   let sr = Sorts.relevance_of_sort s in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
   let s = mkSort s in
   let rci = Sorts.Relevant in
   let ci = make_case_info env ind MatchStyle in
@@ -623,7 +618,7 @@ let build_l2r_forward_rew_scheme dep env ind kind =
           (if dep then realsign_ind_P 1 applied_ind_P' else realsign_P 2) s)
       (mkNamedLambda (make_annot varHC sr) applied_PC'
         (mkVar varHC))|]))))))
-  in c, of_context_set env ctx
+  in c, uctx
 
 (**********************************************************************)
 (* Build the right-to-left rewriting lemma for hypotheses associated  *)
@@ -656,10 +651,9 @@ let build_l2r_forward_rew_scheme dep env ind kind =
 (**********************************************************************)
 
 let build_r2l_forward_rew_scheme dep env ind kind =
-  let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in
-  let ((mib,mip as specif),constrargs,realsign,paramsctxt,nrealargs,ctx') =
-    get_non_sym_eq_data env indu in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
+  let uctx, (ind,u as indu) = fresh_in (UState.from_env env) (fun s -> UnivGen.fresh_inductive_instance s env ind) in
+  let ((mib,mip as specif),constrargs,realsign,paramsctxt,nrealargs,uctx) =
+    get_non_sym_eq_data env uctx indu in
   let cstr n =
     mkApp (mkConstructUi(indu,1),Context.Rel.instance mkRel n mib.mind_params_ctxt) in
   let constrargs_cstr = constrargs@[cstr 0] in
@@ -670,9 +664,8 @@ let build_r2l_forward_rew_scheme dep env ind kind =
   let applied_ind = build_dependent_inductive indu specif in
   let realsign_ind =
     name_context env ((LocalAssum (make_annot (Name varH) indr,applied_ind))::realsign) in
-  let s, ctx' = UnivGen.fresh_sort_in_quality kind in
+  let uctx, s = fresh_in uctx (fun s -> UnivGen.fresh_sort_in_quality s kind) in
   let sr = Sorts.relevance_of_sort s in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
   let s = mkSort s in
   let ci = make_case_info env ind MatchStyle in
   let iv =
@@ -710,7 +703,7 @@ let build_r2l_forward_rew_scheme dep env ind kind =
            lift (nrealargs+3) applied_PC,
            mkRel 1)|])),
     [|mkVar varHC|]))))))
-  in c, of_context_set env ctx
+  in c, uctx
 
 (**********************************************************************)
 (* This function "repairs" the non-dependent r2l forward rewriting    *)
@@ -728,7 +721,7 @@ let build_r2l_forward_rew_scheme dep env ind kind =
 (*                                                                    *)
 (**********************************************************************)
 
-let fix_r2l_forward_rew_scheme env (c, ctx') =
+let fix_r2l_forward_rew_scheme env (c, uctx) =
   let sigma = Evd.from_env env in
   let t = Retyping.get_type_of env sigma (EConstr.of_constr c) in
   let t = EConstr.Unsafe.to_constr t in
@@ -743,7 +736,7 @@ let fix_r2l_forward_rew_scheme env (c, ctx') =
               (EConstr.Unsafe.to_constr (Reductionops.whd_beta env sigma
                 (EConstr.of_constr (applist (c,
                   Context.Rel.instance_list mkRel 3 indargs @ [mkRel 1;mkRel 3;mkRel 2]))))))))
-      in c', ctx'
+      in c', uctx
   | _ -> anomaly (Pp.str "Ill-formed non-dependent left-to-right rewriting scheme.")
 
 (**********************************************************************)
@@ -864,12 +857,10 @@ let rew_r2l_scheme_kind =
 
 (* TODO: extend it to types with more than one index *)
 
-let build_congr env (eq,refl,ctx) ind =
-  let (ind,u as indu), ctx = with_context_set ctx
-    (UnivGen.fresh_inductive_instance env ind) in
+let build_congr env (eq,refl,uctx) ind =
+  let uctx, (ind,u as indu) = fresh_in uctx (fun s -> UnivGen.fresh_inductive_instance s env ind) in
   let (mib,mip) = lookup_mind_specif env ind in
-  let u, ctx' = maybe_template_instance (mib, mip) u in
-  let ctx = UnivGen.sort_context_union ctx ctx' in
+  let uctx, u = maybe_template_instance uctx (mib, mip) u in
   if not (Int.equal (Array.length mib.mind_packets) 1) || not (Int.equal (Array.length mip.mind_nf_lc) 1) then
     error "Not an inductive type with a single constructor.";
   if not (Int.equal mip.mind_nrealargs 1) then
@@ -895,12 +886,10 @@ let build_congr env (eq,refl,ctx) ind =
   let varf,avoid = fresh env (Id.of_string "f") avoid in
   let rci = Sorts.Relevant in (* TODO relevance *)
   let ci = make_case_info env ind MatchStyle in
-  let lvl = UnivGen.fresh_level () in
+  let uctx, lvl = UState.with_supply uctx UnivGen.Supply.fresh_level in
+  let uctx = UState.merge_universe_context_set ~sideff:false UnivRigid uctx (Univ.ContextSet.singleton lvl) in
   let uni = Univ.Universe.make lvl in
-  let ctx =
-    let (qs, us), (qcst, ucst) = ctx in
-    let us = Univ.Level.Set.add lvl us in
-    ((qs, us), (qcst, UnivSubst.enforce_leq uni (univ_of_eq env eq) ucst)) in
+  let uctx = enforce_leq uctx uni (univ_of_eq env eq) in
   let c =
   my_it_mkLambda_or_LetIn paramsctxt
      (mkNamedLambda (make_annot varB Sorts.Relevant) (mkType uni)
@@ -930,9 +919,9 @@ let build_congr env (eq,refl,ctx) ind =
        [|mkApp (refl,
           [|mkVar varB;
             mkApp (mkVar varf, [|lift (mip.mind_nrealargs+3) b|])|])|])))))))
-  in c, of_context_set env ctx
+  in c, uctx
 
 let congr_scheme_kind = declare_individual_scheme_object "congr"
   (fun env _ ind ->
      (* May fail if equality is not defined *)
-   build_congr env (get_rocq_eq env UnivGen.empty_sort_context) ind)
+   build_congr env (get_rocq_eq env (UState.from_env env)) ind)

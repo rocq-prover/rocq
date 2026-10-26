@@ -1592,7 +1592,7 @@ module Strategies =
 
     let inj_open hint = (); fun _env sigma ->
       let (ctx, lemma) = Autorewrite.RewRule.rew_lemma hint in
-      let subst, ctx = UnivGen.fresh_sort_context_instance ctx in
+      let sigma, (subst, ctx) = Evd.with_supply sigma (fun s -> UnivGen.fresh_sort_context_instance s ctx) in
       let lemma = Vars.subst_univs_level_constr subst (EConstr.of_constr lemma) in
       let sigma = Evd.merge_sort_context_set UnivRigid ~src:UState.Internal sigma ctx in
       (sigma, lemma)

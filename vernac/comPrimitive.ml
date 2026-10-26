@@ -31,7 +31,8 @@ let do_primitive id udecl prim typopt =
     let env = Global.env () in
     let evd, udecl = Constrintern.interp_univ_decl_opt env udecl in
     let auctx = CPrimitives.op_or_type_univs prim in
-    let evd, u = Evd.with_sort_context_set UState.univ_flexible ~src:UState.Internal evd (UnivGen.fresh_instance auctx) in
+    let evd, u = Evd.with_supply evd (fun s -> UnivGen.fresh_instance s auctx) in
+    let evd, u = Evd.with_sort_context_set UState.univ_flexible ~src:UState.Internal evd u in
     let expected_typ = EConstr.of_constr @@ Typeops.type_of_prim_or_type env u prim in
     let evd, (typ,impls) =
       Constrintern.(interp_type_evars_impls ~impls:empty_internalization_env)

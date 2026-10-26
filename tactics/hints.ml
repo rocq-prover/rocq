@@ -988,7 +988,7 @@ let secvars_of_global env gr =
   secvars_of_idset env (vars_of_global env gr)
 
 let fresh_global_hint env sigma gr =
-  let (c, ctx) = UnivGen.fresh_global_instance env gr in
+  let _, (c, ctx) = Evd.with_supply sigma (fun s -> UnivGen.fresh_global_instance s env gr) in
   let _, u = Constr.destRef c in
   let u = EInstance.make u in
   let ctx = if Environ.is_polymorphic env gr then Some ctx else None in
@@ -1898,7 +1898,7 @@ let fresh_hint env sigma h =
   | None -> sigma, mkRef c
   | Some ctx ->
     (* Refresh the instance of the hint *)
-    let (subst, ctx) = UnivGen.fresh_sort_context_instance ctx in
+    let sigma, (subst, ctx) = Evd.with_supply sigma (fun s -> UnivGen.fresh_sort_context_instance s ctx) in
     let c = Vars.subst_univs_level_constr subst (mkRef c) in
     let sigma = Evd.merge_sort_context_set Evd.univ_flexible ~src:UState.Internal sigma ctx in
     sigma, c
