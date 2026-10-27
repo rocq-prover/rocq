@@ -468,7 +468,7 @@ let universe_subgraph kept univ =
   let open Univ in
   let parse = function
     | NamedUniv q ->
-      begin try Level.make (Nametab.locate_universe q)
+      begin try Nametab.locate_universe q
       with Not_found ->
         CErrors.user_err ?loc:q.loc Pp.(str "Undeclared universe " ++ pr_qualid q ++ str".")
       end
@@ -1418,6 +1418,12 @@ let vernac_universe ~poly l =
                  (str"Polymorphic universes can only be declared inside sections, " ++
                   str "use Monomorphic Universe instead.");
   DeclareUniv.do_universe ~poly l
+
+let vernac_universe_parameter l =
+  DeclareUniv.do_universe_parameter l
+
+let vernac_universe_definition id u =
+  DeclareUniv.do_universe_definition id u
 
 let vernac_sort ~poly l =
   if poly && not (Lib.sections_are_opened ()) then
@@ -2880,6 +2886,12 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
         vernac_combined_scheme id l ~locmap:(Ind_tables.Locmap.default loc))
   | VernacUniverse l ->
     vtdefault(fun () -> vernac_universe ~poly:(only_polymorphism atts) l)
+
+  | VernacUniverseParameter l ->
+    vtdefault(fun () -> unsupported_attributes atts; vernac_universe_parameter l)
+
+  | VernacUniverseDefinition (id, u) ->
+    vtdefault(fun () -> unsupported_attributes atts; vernac_universe_definition id u)
 
   | VernacSort l ->
     vtdefault(fun () -> vernac_sort ~poly:(only_polymorphism atts) l)

@@ -49,9 +49,11 @@ val translate_modtype :
 val finalize_module :
   ('a, Conversion.graph_inconsistency) Conversion.universe_state ->
   'b vm_state ->
-  env -> ModPath.t -> module_signature * mod_type delta_resolver ->
+  env -> ModPath.t -> module_signature * mod_type delta_resolver * Univ.UnivConstraints.t ->
   (module_type_entry * inline) option ->
   module_body * 'a * 'b
+(** The constraints are the ones on module-local universes the implementation
+    relies on, see {!Mod_declarations.mod_univs}. *)
 
 (** [translate_mse_include is_mod state vmstate env mp self inl me] translates
     the mse of a module or module type given to an [Include]. *)
@@ -59,4 +61,6 @@ val finalize_module :
 val translate_mse_include :
   bool -> ('a, Conversion.graph_inconsistency) Conversion.universe_state -> 'b vm_state ->
   Environ.env -> ModPath.t -> module_body -> inline ->
-  module_struct_entry -> structure_body * mod_type delta_resolver * 'a * 'b
+  module_struct_entry -> structure_body * mod_type delta_resolver * Univ.UnivConstraints.t * 'a * 'b
+(** The constraints on module-local universes that the included fields rely on
+    must be enforced once the fields are added. *)

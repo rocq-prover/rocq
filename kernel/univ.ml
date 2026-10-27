@@ -73,6 +73,7 @@ struct
   type t =
     | Set
     | Level of UGlobal.t
+    | Local of Names.KerName.t
     | Var of int
 
   (* Hash-consing *)
@@ -82,6 +83,7 @@ struct
       match x, y with
       | Set, Set -> true
       | Level l, Level l' -> UGlobal.equal l l'
+      | Local kn, Local kn' -> Names.KerName.equal kn kn'
       | Var n, Var n' -> Int.equal n n'
       | _ -> false
 
@@ -93,6 +95,9 @@ struct
     | Level l1, Level l2 -> UGlobal.compare l1 l2
     | Level _, _ -> -1
     | _, Level _ -> 1
+    | Local kn1, Local kn2 -> Names.KerName.compare kn1 kn2
+    | Local _, _ -> -1
+    | _, Local _ -> 1
     | Var n, Var m -> Int.compare n m
 
   let hequal x y =
@@ -101,6 +106,7 @@ struct
       | Set, Set -> true
       | UGlobal.(Level { library = d; process = s; uid = n }, Level  { library = d'; process = s'; uid = n' }) ->
         n == n' && s==s' && d == d'
+      | Local kn, Local kn' -> kn == kn'
       | Var n, Var n' -> n == n'
       | _ -> false
 
@@ -113,12 +119,17 @@ struct
       let hd, d' = Names.DirPath.hcons d in
       let x = if s' == s && d' == d then x else Level (UGlobal.make d' s' n) in
       combinesmall 3 (combine3 n hs hd), x
+    | Local kn as x ->
+      let hkn, kn' = Names.KerName.hcons kn in
+      let x = if kn' == kn then x else Local kn' in
+      combinesmall 4 hkn, x
     | Var n as x -> combinesmall 2 n, x
 
   let hash = function
     | Set -> combinesmall 1 2
     | Var n -> combinesmall 2 n
     | Level l -> combinesmall 3 (UGlobal.hash l)
+    | Local kn -> combinesmall 4 (Names.KerName.hash kn)
 
 end
 
@@ -127,6 +138,7 @@ module Level = struct
   type raw_level = RawLevel.t =
   | Set
   | Level of UGlobal.t
+  | Local of Names.KerName.t
   | Var of int
 
   (** Embed levels with their hash value *)
@@ -161,7 +173,7 @@ module Level = struct
 
   let is_small x =
     match data x with
-    | Level _ -> false
+    | Level _ | Local _ -> false
     | Var _ -> false
     | Set -> true
 
@@ -178,6 +190,7 @@ module Level = struct
     match data x with
     | Set -> "Set"
     | Level l -> UGlobal.to_string l
+    | Local kn -> Names.KerName.to_string kn
     | Var n -> "Var(" ^ string_of_int n ^ ")"
 
   let raw_pr u = str (to_string u)
@@ -193,12 +206,24 @@ module Level = struct
     match data u with
     | Var n -> Some n | _ -> None
 
+  let local kn = make (Local kn)
+
   let make qid = make (Level qid)
 
   let name u =
     match data u with
     | Level l -> Some l
     | _ -> None
+
+  let local_name u =
+    match data u with
+    | Local kn -> Some kn
+    | _ -> None
+
+  let is_local u =
+    match data u with
+    | Local _ -> true
+    | _ -> false
 
   (** Level maps *)
 

@@ -277,6 +277,9 @@ sig
   val equal : t -> t -> bool
   val hash : t -> int
 
+  val hcons : t Hashcons.f
+  (** Hashconsing of kernel names. *)
+
   module Set : CSig.USetS with type elt = t
   module Map : Map.UExtS with type key = t and module Set := Set
   module Pred : Predicate.S with type elt = t

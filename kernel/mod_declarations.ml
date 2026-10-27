@@ -39,7 +39,11 @@ and 'a generic_module_body =
     mod_type : module_signature; (** expanded type *)
     mod_type_alg : module_expression option; (** algebraic type *)
     mod_delta : 'a Mod_subst.delta_resolver; (**
-      quotiented set of equivalent constants and inductive names *) }
+      quotiented set of equivalent constants and inductive names *)
+    mod_univs : Univ.UnivConstraints.t; (**
+      universe constraints involving module-local universes (see
+      {!Univ.Level.local}) that the components of the module rely on. They are
+      enforced whenever the module is added to an environment. *) }
 
 (** For a module, there are five possible situations:
     - [Declare Module M : T] then [mod_expr = Abstract; mod_type_alg = Some T]
@@ -75,6 +79,7 @@ let make_module_body typ delta = {
   mod_type = typ;
   mod_type_alg = None;
   mod_delta = delta;
+  mod_univs = Univ.UnivConstraints.empty;
 }
 
 let make_module_type typ delta = {
@@ -82,6 +87,7 @@ let make_module_type typ delta = {
   mod_type = typ;
   mod_type_alg = None;
   mod_delta = delta;
+  mod_univs = Univ.UnivConstraints.empty;
 }
 
 let strengthen_module_body ~src typ delta mb =
@@ -109,6 +115,7 @@ let module_type_of_module mb = {
   mod_type = mb.mod_type;
   mod_type_alg = None;
   mod_delta = of_body_delta_resolver mb.mod_delta;
+  mod_univs = mb.mod_univs;
 }
 
 let module_body_of_type mtb = {
@@ -119,12 +126,16 @@ let module_body_of_type mtb = {
      of the module type, and a module implementing it does not declare
      anything. *)
   mod_delta = forget_inline_delta_resolver mtb.mod_delta;
+  mod_univs = mtb.mod_univs;
 }
 
 (** Setters *)
 
 let set_implementation e mb =
   { mb with mod_expr = ModBodyVal e }
+
+let set_univs univs mb =
+  if univs == mb.mod_univs then mb else { mb with mod_univs = univs }
 
 let set_signature typ mb =
   { mb with mod_type = typ }
@@ -138,6 +149,7 @@ let mod_expr { mod_expr = ModBodyVal v; _ } = v
 let mod_type m = m.mod_type
 let mod_type_alg m = m.mod_type_alg
 let mod_delta m = m.mod_delta
+let mod_univs m = m.mod_univs
 
 let mod_global_delta m = match m.mod_type with
 | MoreFunctor _ -> None
@@ -187,6 +199,10 @@ let rec hcons_structure_field_body sb = match sb with
   let mb' = hcons_generic_module_body mb in
   if mb == mb' then sb else SFBmodtype mb'
 | SFBrules _ -> sb (* TODO? *)
+| SFBuniv { univ_def = None } -> sb
+| SFBuniv { univ_def = Some v } ->
+  let _, v' = Univ.Level.hcons v in
+  if v == v' then sb else SFBuniv { univ_def = Some v' }
 
 and hcons_structure_body sb =
   (** FIXME *)
@@ -217,18 +233,21 @@ and hcons_generic_module_body :
   let type' = hcons_module_signature mb.mod_type in
   let type_alg' = mb.mod_type_alg in
   let delta' = mb.mod_delta in
+  let _, univs' = Univ.UnivConstraints.hcons mb.mod_univs in
 
   if
     mb.mod_expr == expr' &&
     mb.mod_type == type' &&
     mb.mod_type_alg == type_alg' &&
-    mb.mod_delta == delta'
+    mb.mod_delta == delta' &&
+    mb.mod_univs == univs'
   then mb
   else {
     mod_expr = expr';
     mod_type = type';
     mod_type_alg = type_alg';
     mod_delta = delta';
+    mod_univs = univs';
   }
 
 let hcons_module_body =
@@ -293,6 +312,16 @@ let subst_with_body subst = function
   | WithDef(id,(c,ctx)) as orig ->
     let c' = subst_mps subst c in
     if c==c' then orig else WithDef(id,(c',ctx))
+  | WithUniv(id,(c,ctx)) as orig ->
+    let c' = subst_mps subst c in
+    if c==c' then orig else WithUniv(id,(c',ctx))
+
+let subst_universe_body subst ub =
+  match ub.univ_def with
+  | None -> ub
+  | Some v ->
+    let v' = subst_level subst v in
+    if v' == v then ub else { univ_def = Some v' }
 
 let rec subst_structure skind subst mp sign =
   let subst_field ((l,body) as orig) = match body with
@@ -305,6 +334,9 @@ let rec subst_structure skind subst mp sign =
     | SFBrules rrb ->
       let rrb' = subst_rewrite_rules subst rrb in
       if rrb==rrb' then orig else (l,SFBrules rrb')
+    | SFBuniv ub ->
+      let ub' = subst_universe_body subst ub in
+      if ub==ub' then orig else (l,SFBuniv ub')
     | SFBmodule mb ->
       let mb' = subst_module skind subst (MPdot (mp, l)) mb in
       if mb==mb' then orig else (l,SFBmodule mb')
@@ -327,14 +359,16 @@ and subst_module_body : type a. _ -> _ -> _ -> _ -> a generic_module_body -> a g
   let me' = subst_impl skind subst mp me in
   let aty' = Option.Smart.map (subst_expression subst) aty in
   let delta' = apply_subst skind subst mb.mod_delta in
+  let univs' = subst_univ_constraints subst mb.mod_univs in
   if mp==mp' && me==me' && ty==ty' && aty==aty'
-     && delta'==mb.mod_delta
+     && delta'==mb.mod_delta && univs'==mb.mod_univs
   then mb
   else
     { mod_expr = me';
       mod_type = ty';
       mod_type_alg = aty';
       mod_delta = delta';
+      mod_univs = univs';
     }
 
 and subst_module skind subst mp mb =

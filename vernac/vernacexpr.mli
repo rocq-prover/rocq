@@ -427,6 +427,8 @@ type nonrec synpure_vernac_expr =
   | VernacSchemeEquality of equality_scheme_type * Libnames.qualid Constrexpr.or_by_notation
   | VernacCombinedScheme of lident * lident list
   | VernacUniverse of lident list
+  | VernacUniverseParameter of lident list
+  | VernacUniverseDefinition of lident * sort_name_expr
   | VernacSort of lident list
   | VernacConstraint of sort_constraint_expr list
   | VernacAddRewRule of lident * (universe_decl_expr option * constr_expr * constr_expr) list

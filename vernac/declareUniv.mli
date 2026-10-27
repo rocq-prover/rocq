@@ -24,6 +24,14 @@ val name_mono_section_univs : Univ.Level.Set.t -> unit
 (** Command [Universes]. *)
 val do_universe : poly:bool -> lident list -> unit
 
+(** Command [Universe Parameter], declaring abstract universes as components of
+    the current module or module type. *)
+val do_universe_parameter : lident list -> unit
+
+(** Command [Universe Definition u := v], declaring a universe component of
+    the current module equal to the (non algebraic) universe [v]. *)
+val do_universe_definition : lident -> Constrexpr.sort_name_expr -> unit
+
 (** Command [Constraint]. *)
 val do_constraint : poly:bool -> Constrexpr.sort_constraint_expr list -> unit
 

@@ -246,7 +246,7 @@ let rec collect_constants_without_body sign mp accu =
      let c = KerName.make mp lab in
      if Declareops.constant_has_body cb then s else { cset = KerName.Set.add c s.cset }
   | SFBmodule msb -> collect_constants_without_body (mod_type msb) (MPdot(mp,lab)) s
-  | SFBmind _ | SFBrules _ | SFBmodtype _ -> s in
+  | SFBmind _ | SFBrules _ | SFBuniv _ | SFBmodtype _ -> s in
   match sign with
   | MoreFunctor _ -> empty_cset (* currently ignored *)
   | NoFunctor struc ->
@@ -282,11 +282,32 @@ let rec check_mexpression env sign mbtyp mp_mse res = match sign with
     MoreFunctor(arg_id,mtb,body), delta
   | MENoFunctor me -> check_mexpr env me mp_mse res
 
+(** Module-local universes of a module: the ones declared by its signature and
+    by its hidden implementation, if any, and the constraints on them. They are
+    all declared before checking either the signature or the implementation, as
+    the constraints of one may involve the universes of the other. *)
+let rec signature_leaf = function
+  | NoFunctor struc -> struc
+  | MoreFunctor (_, _, sign) -> signature_leaf sign
+
+let declare_module_universes mp mb env =
+  let env = Modops.add_structure_universes mp (signature_leaf (mod_type mb)) env in
+  let env = match Mod_declarations.mod_expr mb with
+    | Struct (_, body) -> Modops.add_structure_universes mp body env
+    | Abstract | Algebraic _ | FullStruct -> env
+  in
+  Modops.add_universe_constraints (mod_univs mb) env
+
+let declare_modtype_universes mp mty env =
+  let env = Modops.add_structure_universes mp (signature_leaf (mod_type mty)) env in
+  Modops.add_universe_constraints (mod_univs mty) env
+
 let rec check_module env opac mp (mb : Mod_declarations.module_body) opacify =
   Flags.if_verbose Feedback.msg_notice (str "  checking module: " ++ str (ModPath.to_string mp));
   let delta_mb = mod_delta mb in
+  let univs = declare_module_universes mp mb in
   let opac =
-    check_signature env opac (mod_type mb) mp delta_mb opacify
+    check_signature env opac (mod_type mb) mp delta_mb univs opacify
   in
   let optsign, opac = match Mod_declarations.mod_expr mb with
     | Struct (reso, sign_struct) ->
@@ -303,7 +324,7 @@ let rec check_module env opac mp (mb : Mod_declarations.module_body) opacify =
           Environ.set_vm_library vmtab env, sign_struct
         else env, sign_struct
       in
-      let opac = check_signature env opac sign_struct mp reso opacify in
+      let opac = check_signature env opac sign_struct mp reso univs opacify in
       Some (sign_struct, reso), opac
     | Algebraic me -> Some (check_mexpression env me (mod_type mb) mp delta_mb), opac
     | Abstract|FullStruct -> None, opac
@@ -323,7 +344,8 @@ let rec check_module env opac mp (mb : Mod_declarations.module_body) opacify =
 and check_module_type env mp (mty : Mod_declarations.module_type_body) =
   Flags.if_verbose Feedback.msg_notice (str "  checking module type: " ++ str (ModPath.to_string @@ mp));
   let _ : check_state =
-    check_signature env empty_state (mod_type mty) mp (mod_delta mty) empty_cset in
+    check_signature env empty_state (mod_type mty) mp (mod_delta mty)
+      (declare_modtype_universes mp mty) empty_cset in
   ()
 
 and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolver -> _ -> _ -> _ =
@@ -355,15 +377,22 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
   | SFBrules rrb ->
       check_rewrite_rules_body env lab rrb;
       Environ.add_rewrite_rules rrb.rewrules_rules env, opac
+  | SFBuniv ub ->
+      Modops.add_universe_field mp lab ub env, opac
 
-and check_signature : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolver -> _ -> _ =
-  fun env opac sign mp_mse res opacify -> match sign with
+(** [univs] declares the module-local universes of the module and enforces the
+    constraints on them, see {!declare_module_universes}. This is done once the
+    functor parameters are in the environment and before the components are
+    checked. *)
+and check_signature : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolver -> (env -> env) -> _ -> _ =
+  fun env opac sign mp_mse res univs opacify -> match sign with
   | MoreFunctor (arg_id, mtb, body) ->
       let () = check_module_type env (MPbound arg_id) mtb in
       let env' = Modops.add_module_parameter arg_id mtb env in
-      let opac = check_signature env' opac body mp_mse res empty_cset in
+      let opac = check_signature env' opac body mp_mse res univs empty_cset in
       opac
   | NoFunctor struc ->
+      let env = univs env in
       let (_:env), opac = List.fold_left (fun (env, opac) (lab,mb) ->
         check_structure_field env opac mp_mse lab res opacify mb) (env, opac) struc
       in
@@ -407,6 +436,7 @@ and collect_signature_opaques : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_re
       let kn = Mod_subst.mind_of_delta_kn res (KerName.make mp lab) in
       Environ.add_mind kn mib env, opac
     | SFBrules _ -> env, opac
+    | SFBuniv ub -> Modops.add_universe_field mp lab ub env, opac
     in
     snd (List.fold_left fold (env, opac) struc)
 

@@ -235,6 +235,7 @@ type constr_pattern_expr = constr_expr
 type with_declaration_ast =
   | CWith_Module of Id.t list CAst.t * qualid
   | CWith_Definition of Id.t list CAst.t * universe_decl_expr option * constr_expr
+  | CWith_Universe of Id.t list CAst.t * sort_name_expr
 
 type module_ast_r =
   | CMident of qualid

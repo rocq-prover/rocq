@@ -171,7 +171,10 @@ let classify_vernac e =
         let ids = List.map (fun {v}->v) (CList.map_filter (fun (x,_) -> x) l) in
         VtSideff (ids, VtLater)
     | VernacCombinedScheme ({v=id},_) -> VtSideff ([id], VtLater)
-    | VernacUniverse _ | VernacSort _ | VernacConstraint _
+    | VernacUniverse l | VernacUniverseParameter l | VernacSort l ->
+        VtSideff (List.map (fun {v} -> v) l, VtLater)
+    | VernacUniverseDefinition ({v=id},_) -> VtSideff ([id], VtLater)
+    | VernacConstraint _
     | VernacCanonical _ | VernacCoercion _ | VernacIdentityCoercion _
     | VernacCreateHintDb _ | VernacRemoveHints _ | VernacHints _
     | VernacArguments _

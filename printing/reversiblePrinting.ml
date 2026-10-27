@@ -166,7 +166,8 @@ let modulo_universes_compare =
   let compare_cumul_instances _pb _variance i1 i2 () =
     compare_instances ~flex:false i1 i2 ()
   in
-  { compare_sorts; compare_instances; compare_cumul_instances }
+  { compare_sorts; compare_instances; compare_cumul_instances;
+    push_universes = (fun _ () -> ()) }
 
 (* No [eq_constr_nounivs] fast-path here: it would treat sorts of
    different qualities as equal, defeating the sort-sensitivity we want. *)

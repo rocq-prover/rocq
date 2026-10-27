@@ -75,6 +75,7 @@ together, as well as a means of massive abstraction.
       | @module_type with @with_declaration
       with_declaration ::= Definition @qualid {? @univ_decl } := @term
       | Module @qualid := @qualid
+      | Universe Definition @qualid := @universe_name
       module_expr_atom ::= @qualid
       | ( @module_expr_atom )
       of_module_type ::= : @module_type_inl
@@ -134,6 +135,77 @@ together, as well as a means of massive abstraction.
    Interactively defining the :n:`@module_type_inl`\s in a series of
    :cmd:`Include` commands is equivalent to giving them all in a single
    non-interactive :cmd:`Module Type` command.
+
+.. _module_universes:
+
+**Universes as components of modules**
+
+.. cmd:: Universe Parameter {+ @ident }
+         Universe Parameters {+ @ident }
+
+   Declares universes named :n:`@ident` as components of the module or
+   module type being defined. Like the other components, such a universe is
+   substituted when the module is used: in a functor whose parameter
+   :n:`X` has a module type declaring :n:`Universe Parameter u`,
+   :n:`X.u` is a fresh universe, which is instantiated with the universe
+   :n:`M.u` of the argument :n:`M` at each application of the functor.
+   Universe parameters live in the namespace of universes, hence they are
+   referred to as :n:`@qualid` in :n:`Type@{@qualid}` as global universes
+   declared by :cmd:`Universe` are. The constraints that the components of the
+   module type put on its universe parameters are checked for any module
+   implementing it.
+
+   .. exn:: Module universes cannot be declared inside sections.
+      :undocumented:
+
+.. cmd:: Universe Definition @ident := @universe_name
+
+   Declares the universe :n:`@ident` as a component of the module being
+   defined, equal to the universe :n:`@universe_name`, which must be either
+   ``Set`` or a previously declared universe. A module implementing a module
+   type that declares :n:`Universe Parameter @ident` must declare a universe
+   component of the same name, typically with this command. As for constants,
+   a universe definition of a module type can only be implemented by a
+   universe definition equal to it, not by a universe parameter.
+
+   A module type can be refined with
+   :n:`with Universe Definition @qualid := @universe_name`, which turns the
+   universe parameter :n:`@qualid` of the module type (possibly of one of its
+   submodules) into a universe definition. The type of a component refined
+   with :n:`with Definition @qualid := @term` must not depend on a universe
+   parameter of the module type that is still abstract: such universes are
+   to be defined first with :n:`with Universe Definition`.
+
+   .. exn:: Incorrect constraint for label @ident: its type depends on the universe parameter @qualid of the module type, which must be defined first with "with Universe Definition"
+      :undocumented:
+
+   .. exn:: Undeclared universe @qualid.
+      :undocumented:
+
+   .. example:: Universes as components of modules
+
+      .. rocqtop:: all
+
+         Module Type Container.
+           Universe Parameter u.
+           Parameter t : Type@{u}.
+           Parameter empty : t.
+         End Container.
+
+         Module ListNat : Container.
+           Universe Definition u := Set.
+           Definition t : Set := list nat.
+           Definition empty : t := nil.
+         End ListNat.
+
+         Check (ListNat.t : Type@{ListNat.u}).
+
+      Aliases and inclusions keep the universes linked:
+
+      .. rocqtop:: all
+
+         Module Alias := ListNat.
+         Check (Alias.t : Type@{ListNat.u}).
 
 .. _terminating_module:
 

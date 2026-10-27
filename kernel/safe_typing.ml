@@ -235,6 +235,7 @@ type safe_environment =
     revstruct : structure_body;
     modlabels : Id.Set.t;
     objlabels : Id.Set.t;
+    univlabels : Id.Set.t;
     univ : Univ.ContextSet.t;
     qualities : Sorts.QGlobal.Set.t;
     elims : Sorts.ElimConstraints.t;
@@ -266,6 +267,7 @@ let empty_environment =
     revstruct = [];
     modlabels = Id.Set.empty;
     objlabels = Id.Set.empty;
+    univlabels = Id.Set.empty;
     sections = None;
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;
@@ -674,6 +676,17 @@ let check_objlabel l senv =
 let check_objlabels ls senv =
   Id.Set.iter (fun l -> check_objlabel l senv) ls
 
+let check_univlabel l senv =
+  if Id.Set.mem l senv.univlabels then Modops.error_existing_label l
+
+(** Constraints involving module-local universes are stored in the module
+    structures, see {!Mod_declarations.mod_univs}, the other ones are kept in
+    the [univ] field of the safe environment. *)
+let split_local_universes (lvls, csts) =
+  let is_local (l, _, r) = Univ.Level.is_local l || Univ.Level.is_local r in
+  let local, global = Univ.UnivConstraints.partition is_local csts in
+  local, (lvls, global)
+
 (** Are we closing the right module / modtype ?
     No user error here, since the opening/ending coherence
     is now verified in [vernac_end_segment] *)
@@ -829,18 +842,21 @@ type generic_name =
   | C of Constant.t
   | I of MutInd.t
   | R
+  | U
   | M of ModPath.t
   | MT of ModPath.t
 
 let add_field ((l,sfb) as field) gn senv =
-  let mlabs,olabs = match sfb with
+  let mlabs,olabs,ulabs = match sfb with
     | SFBmind mib ->
       let l = labels_of_mib mib in
-      check_objlabels l senv; (Id.Set.empty,l)
+      check_objlabels l senv; (Id.Set.empty,l,Id.Set.empty)
     | SFBconst _ | SFBrules _ ->
-      check_objlabel l senv; (Id.Set.empty, Id.Set.singleton l)
+      check_objlabel l senv; (Id.Set.empty, Id.Set.singleton l, Id.Set.empty)
     | SFBmodule _ | SFBmodtype _ ->
-      check_modlabel l senv; (Id.Set.singleton l, Id.Set.empty)
+      check_modlabel l senv; (Id.Set.singleton l, Id.Set.empty, Id.Set.empty)
+    | SFBuniv _ ->
+      check_univlabel l senv; (Id.Set.empty, Id.Set.empty, Id.Set.singleton l)
   in
   let env' = match sfb, gn with
     | SFBconst cb, C con -> Environ.add_constant con cb senv.env
@@ -848,6 +864,7 @@ let add_field ((l,sfb) as field) gn senv =
     | SFBmodtype mtb, MT mp -> Environ.add_modtype mp mtb senv.env
     | SFBmodule mb, M mp -> Modops.add_module mp mb senv.env
     | SFBrules r, R -> Environ.add_rewrite_rules r.rewrules_rules senv.env
+    | SFBuniv ub, U -> Modops.add_universe_field senv.modpath l ub senv.env
     | _ -> assert false
   in
   let sections = match senv.sections with
@@ -860,7 +877,7 @@ let add_field ((l,sfb) as field) gn senv =
       | SFBmind mib, I mind ->
         let poly = Declareops.inductive_is_polymorphic mib in
         Some Section.(push_global ~poly env' (SecInductive mind) sections)
-      | _, (M _ | MT _) -> Some sections
+      | _, (M _ | MT _ | U) -> Some sections
       | _ -> assert false
   in
   { senv with
@@ -868,7 +885,25 @@ let add_field ((l,sfb) as field) gn senv =
     sections;
     revstruct = field :: senv.revstruct;
     modlabels = Id.Set.union mlabs senv.modlabels;
-    objlabels = Id.Set.union olabs senv.objlabels }
+    objlabels = Id.Set.union olabs senv.objlabels;
+    univlabels = Id.Set.union ulabs senv.univlabels }
+
+(** Module-local universes *)
+
+let add_universe_field l ub senv =
+  let () =
+    if Option.has_some senv.sections then
+      CErrors.user_err (Pp.str "Cannot declare module universes inside sections.")
+  in
+  let () = match ub.univ_def with
+    | None -> ()
+    | Some lvl ->
+      match UGraph.check_declared_universes (Environ.universes senv.env) (Univ.Level.Set.singleton lvl) with
+      | Ok () -> ()
+      | Error _ ->
+        CErrors.user_err Pp.(str "Undeclared universe " ++ Univ.Level.raw_pr lvl ++ str ".")
+  in
+  add_field (l, SFBuniv ub) U senv
 
 (** Applying a certain function to the resolver of a safe environment *)
 
@@ -1438,6 +1473,7 @@ let start_mod_modtype ~istype l senv =
     revstruct = [];
     modlabels = Id.Set.empty;
     objlabels = Id.Set.empty;
+    univlabels = Id.Set.empty;
     loads = [];
     local_retroknowledge = [];
   }
@@ -1501,7 +1537,7 @@ let propagate_loads loads senv =
 (** Build the module body of the current module, taking in account
     a possible return type (_:T) *)
 
-let build_module_body params restype senv =
+let build_module_body params restype univs senv =
   let struc = NoFunctor (List.rev senv.revstruct) in
   let restype' = Option.map (fun (ty,inl) -> (([],ty),inl)) restype in
   let state = check_state senv in
@@ -1509,10 +1545,18 @@ let build_module_body params restype senv =
   (* XXX why are we dropping vmtab here? *)
   let mb, _, _vmtab =
     Mod_typing.finalize_module state vmstate senv.env senv.modpath
-      (struc, senv.modresolver) restype'
+      (struc, senv.modresolver, univs) restype'
   in
   let mb' = functorize_module params mb in
   mb'
+
+(** The universe constraints added by the body of the current module that
+    involve module-local universes are stored in the module, the other ones
+    stay in the safe environment. *)
+let local_universes_of_body senv oldsenv =
+  let local = Univ.ContextSet.diff senv.univ oldsenv.univ in
+  let univs, local = split_local_universes local in
+  univs, Univ.ContextSet.union local oldsenv.univ
 
 (** Returning back to the old pre-interactive-module environment,
     with one extra component and some updated fields
@@ -1548,7 +1592,8 @@ let end_module l restype senv =
   let () = check_current_label l mp in
   let () = check_empty_context senv in
   let mbids = List.rev_map fst params in
-  let mb = build_module_body params restype senv in
+  let univs, univ = local_universes_of_body senv oldsenv in
+  let mb = build_module_body params restype univs senv in
   let newenv = Environ.set_universes (Environ.universes senv.env) oldsenv.env in
   let newenv = Environ.set_qualities (Environ.qualities senv.env) newenv in
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
@@ -1563,7 +1608,7 @@ let end_module l restype senv =
   in
   let () = assert (List.is_empty params || List.is_empty senv.local_retroknowledge) in
   (mp, mbids, mod_delta mb),
-  propagate_senv (l,SFBmodule mb) { senv with env = newenv; modresolver = newresolver } oldsenv
+  propagate_senv (l,SFBmodule mb) { senv with env = newenv; modresolver = newresolver; univ } oldsenv
 
 let build_mtb = Mod_declarations.make_module_type
 
@@ -1577,12 +1622,13 @@ let end_modtype l senv =
   let newenv = if Environ.rewrite_rules_allowed senv.env then Environ.allow_rewrite_rules newenv else newenv in
   let newenv = Environ.set_vm_library (Environ.vm_library senv.env) newenv in
   let auto_tb = functorize params (NoFunctor (List.rev senv.revstruct)) in
-  let mtb = build_mtb auto_tb senv.modresolver in
+  let univs, univ = local_universes_of_body senv oldsenv in
+  let mtb = Mod_declarations.set_univs univs (build_mtb auto_tb senv.modresolver) in
   let newenv = Environ.add_modtype mp mtb newenv in
   let newresolver = oldsenv.modresolver in
   let () = assert (List.is_empty senv.local_retroknowledge) in
   (mp,mbids),
-  propagate_senv (l,SFBmodtype mtb) { senv with env = newenv; modresolver = newresolver } oldsenv
+  propagate_senv (l,SFBmodtype mtb) { senv with env = newenv; modresolver = newresolver; univ } oldsenv
 
 (** {6 Inclusion of module or module type } *)
 
@@ -1610,7 +1656,7 @@ let add_include me is_module inl senv =
     if not is_module then
       warn_modtype_include (head me, senv.modpath)
   in
-  let str, resolver, _, vmtab =
+  let str, resolver, univs, _, vmtab =
     translate_mse_include is_module state vmstate senv.env mp_sup self inl me
   in
   let senv = set_vm_library vmtab senv in
@@ -1622,12 +1668,17 @@ let add_include me is_module inl senv =
       | SFBmind _ ->
         I (Mod_subst.mind_of_delta_kn resolver (KerName.make mp_sup l))
       | SFBrules _ -> R
+      | SFBuniv _ -> U
       | SFBmodule _ -> M (MPdot (mp_sup, l))
       | SFBmodtype _ -> MT (MPdot (mp_sup, l))
     in
     add_field field new_name senv
   in
-  resolver, List.fold_left add senv str
+  let senv = List.fold_left add senv str in
+  (* The included universes are now declared, the constraints on them are
+     recorded in the current module when it is closed. *)
+  let senv = push_context_set ~strict:false (Univ.Level.Set.empty, univs) senv in
+  resolver, senv
 
 (** {6 Libraries, i.e. compiled modules } *)
 
@@ -1673,6 +1724,7 @@ let start_library dir senv =
     revstruct = [];
     modlabels = Id.Set.empty;
     objlabels = Id.Set.empty;
+    univlabels = Id.Set.empty;
     sections = None;
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;
@@ -1687,12 +1739,14 @@ let export ~output_native_objects senv dir =
   let () = check_current_library dir senv in
   let mp = senv.modpath in
   let str = NoFunctor (List.rev senv.revstruct) in
+  let univs, comp_univs = split_local_universes senv.univ in
   (* A library is a module, not a module type: its resolver holds no inlining
      declaration. *)
   let mb =
     Mod_declarations.make_module_body str
       (Mod_subst.forget_inline_delta_resolver senv.modresolver)
   in
+  let mb = Mod_declarations.set_univs univs mb in
   let ast, symbols =
     if output_native_objects then
       Nativelibrary.dump_library mp senv.env str
@@ -1708,7 +1762,7 @@ let export ~output_native_objects senv dir =
   let lib = {
     comp_name = dir;
     comp_mod = mb;
-    comp_univs = senv.univ;
+    comp_univs;
     comp_sorts = senv.qualities, senv.elims;
     comp_deps = Array.of_list comp_deps;
     comp_flags = permanent_flags;

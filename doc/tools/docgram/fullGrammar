@@ -930,6 +930,9 @@ gallina: [
 | "Register" "Scheme" global "as" qualid "for" global
 | "Register" "Inline" global
 | "Primitive" ident_decl OPT [ ":" lconstr ] ":=" register_token
+| "Universe" "Parameter" LIST1 identref
+| "Universe" "Parameters" LIST1 identref
+| "Universe" "Definition" identref ":=" universe_name
 | "Universe" LIST1 identref
 | "Universes" LIST1 identref
 | "Sort" LIST1 identref
@@ -1295,6 +1298,7 @@ module_expr_atom: [
 with_declaration: [
 | "Definition" fullyqualid OPT univ_decl ":=" Constr.lconstr
 | "Module" fullyqualid ":=" qualid
+| "Universe" "Definition" fullyqualid ":=" universe_name
 ]
 
 module_type: [

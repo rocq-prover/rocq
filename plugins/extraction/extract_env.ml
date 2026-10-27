@@ -122,12 +122,13 @@ let get_mono_inst = function
 | SFBconst cb -> get_mono_inst_univs cb.const_universes
 | SFBmind mib -> get_mono_inst_univs mib.mind_universes
 | SFBrules _ -> [InfvInst.empty]
-| SFBmodule _ | SFBmodtype _ -> assert false
+| SFBuniv _ | SFBmodule _ | SFBmodtype _ -> assert false
 
 let add_field_label venv mp = function
   | (lab, (SFBconst _|SFBmind _ | SFBrules _  as f)) ->
     let insts = get_mono_inst f in
     List.iter (fun inst -> Visit.add_kn venv (KerName.make mp lab) inst) insts
+  | (_, SFBuniv _) -> ()
   | (lab, (SFBmodule _|SFBmodtype _)) -> Visit.add_mp_all venv (MPdot (mp,lab))
 
 let rec add_labels venv mp = function
@@ -197,7 +198,8 @@ let expand_mexpr env mp me =
   let (mb, _), (_, cst), _ = Mod_typing.translate_module state vm_state env mp0 inl (MExpr ([], me, None)) in
   let sign = mod_type mb in
   let reso = mod_delta mb in
-  Modops.subst_modtype_signature_and_resolver mp0 mp sign reso
+  let sign, reso, _ = Modops.subst_modtype_signature_and_resolver mp0 mp sign reso (mod_univs mb) in
+  sign, reso
 
 let expand_modtype env mp me =
   let inl = Declaremods.default_inline_level () in
@@ -269,7 +271,7 @@ let rec extract_structure_spec : type a.
         (l, Spec s) :: specs
     in
     List.fold_right fold minds specs
-  | (l, SFBrules _) :: msig ->
+  | (l, (SFBrules _ | SFBuniv _)) :: msig ->
       let specs = extract_structure_spec table venv env mp reso msig in
       specs
   | (l,SFBmodule mb) :: msig ->
@@ -311,6 +313,8 @@ and extract_mexpr_spec table venv env mp1 (me_struct_o,me_alg) = match me_alg wi
          | Some (vl,typ) ->
             let () = type_iter_references (fun r -> Visit.add_ref venv r) typ in
             MTwith (mt, ML_With_type (InfvInst.empty, idl, vl, typ)))
+  | MEwith(me',WithUniv _)->
+      extract_mexpr_spec table venv env mp1 (None,me')
   | MEwith(me',WithMod(idl,mp))->
       let () = Visit.add_mp_all venv mp in
       MTwith (extract_mexpr_spec table venv env mp1 (None, me'), ML_With_module(idl, mp))
@@ -405,6 +409,8 @@ let rec extract_structure table access venv env mp reso ~all = function
     in
     let inds = List.map_filter map insts in
     inds @ ms
+  | (_, SFBuniv _) :: struc ->
+      extract_structure table access venv env mp reso ~all struc
   | (l, SFBrules rrb) :: struc ->
       let inst = InfvInst.empty in (* FIXME ? *)
       let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst inst) rrb.rewrules_rules in

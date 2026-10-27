@@ -388,6 +388,9 @@ let pr_with_declaration pr_c = function
   | CWith_Module (id,qid) ->
     keyword "Module" ++ spc() ++ pr_lfqid id ++ str" := " ++
     pr_qualid qid
+  | CWith_Universe (id,u) ->
+    keyword "Universe Definition" ++ spc() ++ pr_lfqid id ++ str" := " ++
+    pr_sort_name_expr u
 
 let rec pr_module_ast leading_space pr_c = function
   | { loc ; v = CMident qid } ->
@@ -1022,6 +1025,16 @@ let pr_synpure_vernac_expr v =
     return (
       hov 2 (keyword "Universe" ++ spc () ++
              prlist_with_sep (fun _ -> str",") pr_lident v)
+    )
+  | VernacUniverseParameter v ->
+    return (
+      hov 2 (keyword "Universe Parameter" ++ spc () ++
+             prlist_with_sep (fun _ -> str",") pr_lident v)
+    )
+  | VernacUniverseDefinition (id, u) ->
+    return (
+      hov 2 (keyword "Universe Definition" ++ spc () ++ pr_lident id ++
+             spc () ++ str ":=" ++ spc () ++ pr_sort_name_expr u)
     )
   | VernacSort v ->
     return (

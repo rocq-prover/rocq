@@ -665,6 +665,7 @@ module_type: [
 with_declaration: [
 | "Definition" qualid OPT univ_decl ":=" term
 | "Module" qualid ":=" qualid
+| "Universe" "Definition" qualid ":=" universe_name
 ]
 
 module_expr_atom: [
@@ -969,6 +970,9 @@ command: [
 | "Register" "Scheme" qualid "as" qualid "for" qualid
 | "Register" "Inline" qualid
 | "Primitive" ident_decl OPT [ ":" term ] ":=" "#" ident
+| "Universe" "Parameter" LIST1 ident
+| "Universe" "Parameters" LIST1 ident
+| "Universe" "Definition" ident ":=" universe_name
 | "Universe" LIST1 ident
 | "Universes" LIST1 ident
 | "Sort" LIST1 ident

@@ -199,7 +199,15 @@ val subst_retro_action : substitution -> Retroknowledge.action -> Retroknowledge
 (** [replace_mp_in_con mp mp' con] replaces [mp] with [mp'] in [con] *)
 val replace_mp_in_kn : ModPath.t -> ModPath.t -> KerName.t -> KerName.t
 
+(** Substitution of module-local universes, see {!Univ.Level.local}. *)
+val subst_level : substitution -> Univ.Level.t -> Univ.Level.t
+val subst_universe : substitution -> Univ.Universe.t -> Univ.Universe.t
+val subst_instance : substitution -> UVars.Instance.t -> UVars.Instance.t
+val subst_sort : substitution -> Sorts.t -> Sorts.t
+val subst_univ_constraints : substitution -> Univ.UnivConstraints.t -> Univ.UnivConstraints.t
+val subst_abstract_context : substitution -> UVars.AbstractContext.t -> UVars.AbstractContext.t
+
 (** [subst_mps sub c] performs the substitution [sub] on all kernel
-   names appearing in [c] *)
+   names and module-local universes appearing in [c] *)
 val subst_mps : substitution -> constr -> constr
 val subst_mps_list : substitution list -> constr -> constr

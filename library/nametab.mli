@@ -174,7 +174,7 @@ module XRefs : WarnedTab
   with type elt = Globnames.extended_global_reference
    and type warning_data := Globnames.extended_global_reference UserWarn.with_qf
 
-module Univs : NAMETAB with type elt = Univ.UGlobal.t
+module Univs : NAMETAB with type elt = Univ.Level.t
 
 module Quality : NAMETAB with type elt = Sorts.Quality.t
 
@@ -311,7 +311,7 @@ val push_modtype : visibility -> full_path -> ModPath.t -> unit
 val push_module : visibility -> full_path -> ModPath.t -> unit
 val push_dir : visibility -> full_path -> GlobDirRef.t -> unit
 
-val push_universe : visibility -> full_path -> Univ.UGlobal.t -> unit
+val push_universe : visibility -> full_path -> Univ.Level.t -> unit
 
 (** Deprecation and user warn info *)
 
@@ -329,7 +329,7 @@ val locate_modtype : qualid -> ModPath.t
 val locate_dir : qualid -> GlobDirRef.t
 val locate_module : qualid -> ModPath.t
 val locate_section : qualid -> full_path
-val locate_universe : qualid -> Univ.UGlobal.t
+val locate_universe : qualid -> Univ.Level.t
 
 val locate_extended_nowarn : qualid -> Globnames.extended_global_reference
 
@@ -377,7 +377,7 @@ val path_of_modtype : ModPath.t -> full_path
 
 (** A universe_id might not be registered with a corresponding user name.
     @raise Not_found if the universe was not introduced by the user. *)
-val path_of_universe : Univ.UGlobal.t -> full_path
+val path_of_universe : Univ.Level.t -> full_path
 
 (** The [shortest_qualid] functions given an object with [user_name]
    Mylib.A.B.x, try to find the shortest among x, B.x, A.B.x and
@@ -389,4 +389,4 @@ val shortest_qualid_of_module : ?loc:Loc.t -> ?force_short:bool -> ModPath.t -> 
 val shortest_qualid_of_dir : ?loc:Loc.t -> ?force_short:bool -> GlobDirRef.t -> qualid
 
 (** In general we have a [UnivNames.universe_binders] around rather than a [Id.Set.t] *)
-val shortest_qualid_of_universe : ?loc:Loc.t -> ?force_short:bool -> 'u Id.Map.t -> Univ.UGlobal.t -> qualid
+val shortest_qualid_of_universe : ?loc:Loc.t -> ?force_short:bool -> 'u Id.Map.t -> Univ.Level.t -> qualid

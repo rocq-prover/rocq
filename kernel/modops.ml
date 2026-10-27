@@ -56,11 +56,20 @@ type signature_mismatch_error =
   | IncompatibleUnivConstraints of { env : env; got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
   | IncompatibleVariance
   | NoRewriteRulesSubtyping
+  | UniverseDefinitionFieldExpected
+  | UnsatisfiedUniverseConstraint of Univ.UnivConstraint.t
 
 type with_constraint_error =
   | WithSignatureMismatch of signature_mismatch_error
   | WithCannotConstrainPrimitive
   | WithCannotConstrainSymbol
+  | WithUniverseParameter of Univ.Level.t
+  (** [with Definition]: the type of the component depends on a universe
+      parameter of the module type, to be defined with
+      [with Universe Definition] first *)
+  | WithNotAUniverseLevel
+  | WithUndeclaredUniverse of Univ.Level.t
+  | WithUniverseDefined
 
 type subtyping_trace_elt =
   | Submodule of Id.t
@@ -76,6 +85,7 @@ type module_typing_error =
   | NoSuchLabel of Id.t * ModPath.t
   | NotAModuleLabel of Id.t
   | NotAConstant of Id.t
+  | NotAUniverse of Id.t
   | IncorrectWithConstraint of Id.t * with_constraint_error
   | GenerativeModuleExpected of Id.t
   | LabelMissing of Id.t * string
@@ -109,6 +119,9 @@ let error_not_a_module_label s =
 
 let error_not_a_constant l =
   raise (ModuleTypingError (NotAConstant l))
+
+let error_not_a_universe l =
+  raise (ModuleTypingError (NotAUniverse l))
 
 let error_incorrect_with_constraint l err =
   raise (ModuleTypingError (IncorrectWithConstraint (l, err)))
@@ -172,6 +185,63 @@ let subst_structure subst = subst_structure subst_codom subst
 let add_retroknowledge l env =
   List.fold_left Primred.add_retroknowledge env l
 
+(** Module-local universes. Declaring an already declared level is a no-op and
+    enforcing a constraint is idempotent, so that the universes of a module can
+    be added again when the module is closed or imported. *)
+
+let add_universe_field mp l ub env =
+  let u = Univ.Level.local (KerName.make mp l) in
+  let csts = match ub.univ_def with
+    | None -> Univ.UnivConstraints.empty
+    | Some v -> Univ.UnivConstraints.singleton (u, Univ.UnivConstraint.Eq, v)
+  in
+  Environ.push_context_set ~strict:false (Univ.Level.Set.singleton u, csts) env
+
+let add_universe_constraints csts env =
+  if Univ.UnivConstraints.is_empty csts then env
+  else Environ.push_context_set ~strict:false (Univ.Level.Set.empty, csts) env
+
+(** The module-local universes of a module, including the ones of its hidden
+    implementation, together with the constraints it relies on. Only
+    meaningful for non-functor modules, whose universes live in the current
+    environment. *)
+let rec universes_of_structure mp struc accu =
+  let add_field accu (l, elem) = match elem with
+    | SFBuniv ub ->
+      let u = Univ.Level.local (KerName.make mp l) in
+      let accu = Univ.ContextSet.add_universe u accu in
+      begin match ub.univ_def with
+      | None -> accu
+      | Some v -> Univ.ContextSet.add_constraints (Univ.UnivConstraints.singleton (u, Univ.UnivConstraint.Eq, v)) accu
+      end
+    | SFBmodule mb -> universes_of_module (MPdot (mp, l)) mb accu
+    | SFBconst _ | SFBmind _ | SFBrules _ | SFBmodtype _ -> accu
+  in
+  List.fold_left add_field accu struc
+
+and universes_of_module mp mb accu = match mod_type mb with
+  | NoFunctor struc ->
+    let accu = universes_of_structure mp struc accu in
+    let accu = match mod_expr mb with
+      | Struct (_, body) -> universes_of_structure mp body accu
+      | Abstract | Algebraic _ | FullStruct -> accu
+    in
+    Univ.ContextSet.add_constraints (mod_univs mb) accu
+  | MoreFunctor _ -> accu
+
+let universes_of_structure mp struc = universes_of_structure mp struc Univ.ContextSet.empty
+let universes_of_module mp mb = universes_of_module mp mb Univ.ContextSet.empty
+
+let add_structure_universes mp struc env =
+  Environ.push_context_set ~strict:false (universes_of_structure mp struc) env
+
+let add_module_universes mp mb env =
+  Environ.push_context_set ~strict:false (universes_of_module mp mb) env
+
+let add_implementation_universes mp mb env = match mod_expr mb with
+  | Struct (_, body) -> add_structure_universes mp body env
+  | Abstract | Algebraic _ | FullStruct -> env
+
 let rec add_structure : type a. _ -> _ -> a delta_resolver -> _ -> _ -> _ =
   fun mp sign resolver linkinfo env ->
   let add_field env (l,elem) = match elem with
@@ -189,6 +259,7 @@ let rec add_structure : type a. _ -> _ -> a delta_resolver -> _ -> _ -> _ =
     | SFBmodule mb -> add_module (MPdot (mp, l)) mb linkinfo env (* adds components as well *)
     | SFBmodtype mtb -> Environ.add_modtype (MPdot (mp, l)) mtb env
     | SFBrules r -> Environ.add_rewrite_rules r.rewrules_rules env
+    | SFBuniv ub -> add_universe_field mp l ub env
   in
   List.fold_left add_field env sign
 
@@ -197,7 +268,10 @@ and add_module mp mb linkinfo env =
   match mod_type mb with
   | NoFunctor struc ->
     let delta = get_global_delta mb in
-    add_structure mp struc delta linkinfo env
+    let env = add_structure mp struc delta linkinfo env in
+    (* The universes of a hidden implementation are part of the global graph *)
+    let env = add_implementation_universes mp mb env in
+    add_universe_constraints (mod_univs mb) env
   | MoreFunctor _ -> env
 
 let add_linked_module mp mb linkinfo env =
@@ -258,6 +332,8 @@ let rec compile_structure env vmtab mp res struc =
     Environ.add_modtype mp mtb env, vmtab, (lab, SFBmodtype mtb) :: accu
   | SFBrules rrb ->
     Environ.add_rewrite_rules rrb.rewrules_rules env, vmtab, (lab, sfb) :: accu
+  | SFBuniv ub ->
+    add_universe_field mp lab ub env, vmtab, (lab, sfb) :: accu
   in
   let (_ : env), vmtab, accu = List.fold_left fold (env, vmtab, []) struc in
   vmtab, List.rev accu
@@ -291,6 +367,11 @@ let strengthen_const mp_from l cb resolver =
         const_body = Def (mkConstU (con,u));
         const_body_code = Vmbytegen.compile_alias con }
 
+(** An abstract universe [u] of [mp_from] becomes [u := mp_from.u] *)
+let strengthen_univ mp_from l ub = match ub.univ_def with
+  | Some _ -> ub
+  | None -> { univ_def = Some (Univ.Level.local (KerName.make mp_from l)) }
+
 let rec strengthen_module mp mb = match mod_type mb with
 | NoFunctor struc ->
   let delta_mb = get_global_delta mb in
@@ -308,6 +389,8 @@ and strengthen_signature : type a.
   let strengthen_field reso item = match item with
   | (l, SFBconst cb) ->
     reso, (l, SFBconst (strengthen_const mp l cb reso0))
+  | (l, SFBuniv ub) ->
+    reso, (l, SFBuniv (strengthen_univ mp l ub))
   | (l, SFBmodule mb) ->
     let mp' = MPdot (mp, l) in
     let mb' = strengthen_module mp' mb in
@@ -416,6 +499,15 @@ and strengthen_and_subst_struct struc subst mp_from mp_to alias incl reso =
         let item' = if rrb' == rrb then item else (l, SFBrules rrb') in
         (* Same as constant *)
         include_field reso' l, item'
+    | (l, SFBuniv ub) ->
+        let ub' = subst_universe_body subst ub in
+        let ub' =
+          if alias then (* already strengthened, or transient source *) ub'
+          else strengthen_univ mp_from l ub'
+        in
+        let item' = if ub' == ub then item else (l, SFBuniv ub') in
+        (* Universes are not subject to delta-equivalences *)
+        reso', item'
     | (l,SFBmodule mb) ->
         let mp_from' = MPdot (mp_from,l) in
         let mp_to' = MPdot (mp_to,l) in
@@ -448,7 +540,7 @@ and strengthen_and_subst_struct struc subst mp_from mp_to alias incl reso =
 (** [include_applied_structure mp_from struc reso mp] includes into [mp] the
     result of a functor application. Nothing is strengthened, as there is no module
     at [mp_from], the functor's path. *)
-let include_applied_structure mp_from struc reso mp =
+let include_applied_structure mp_from struc reso univs mp =
   let subst =
     let subst = map_mp mp_from mp (empty_delta_resolver mp) in
     map_mp mp_from mp
@@ -457,7 +549,7 @@ let include_applied_structure mp_from struc reso mp =
   let reso', struc' =
     strengthen_and_subst_struct struc subst mp_from mp true (AliasIncl false) reso
   in
-  struc', reso'
+  struc', reso', subst_univ_constraints subst univs
 
 (** Let P be a module path when we write:
      "Module M:=P." or "Module M. Include P. End M."
@@ -503,9 +595,11 @@ let strengthen_and_subst_module_body mp_from mb mp include_b = match mod_type mb
     Mod_declarations.subst_module subst_dom_codom subst mp_from mb
 
 (* [mp_from] is the ambient modpath of [sign] *)
-let subst_modtype_signature_and_resolver mp_from mp_to sign reso =
+let subst_modtype_signature_and_resolver mp_from mp_to sign reso univs =
   let subst = map_mp mp_from mp_to (empty_delta_resolver mp_to) in
-  Mod_declarations.subst_signature subst_dom_codom subst mp_from sign, subst_dom_codom_delta_resolver subst reso
+  Mod_declarations.subst_signature subst_dom_codom subst mp_from sign,
+  subst_dom_codom_delta_resolver subst reso,
+  subst_univ_constraints subst univs
 
 let rec collect_mbid l sign =  match sign with
   | MoreFunctor (mbid,ty,m) ->

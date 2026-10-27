@@ -153,6 +153,7 @@ type ('a, 'err) universe_compare = {
   compare_instances: flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
   compare_cumul_instances : conv_pb -> UVars.Variance.t array ->
     UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
+  push_universes : Univ.ContextSet.t -> 'a -> 'a;
 }
 
 type ('a, 'err) universe_state = 'a * ('a, 'err) universe_compare
@@ -1041,10 +1042,16 @@ let check_inductive_instances qeq = (); fun cv_pb variance u1 u2 state ->
   then Result.Ok state
   else Result.Error None
 
+let checked_push_universes (lvls, csts) g =
+  let add l g = try UGraph.add_universe l ~strict:false g with UGraph.AlreadyDeclared -> g in
+  let g = Univ.Level.Set.fold add lvls g in
+  UGraph.merge_constraints csts g
+
 let checked_universes_gen qeq =
   { compare_sorts = checked_sort_cmp_universes qeq;
     compare_instances = check_convert_instances qeq;
-    compare_cumul_instances = check_inductive_instances qeq; }
+    compare_cumul_instances = check_inductive_instances qeq;
+    push_universes = checked_push_universes; }
 
 let checked_universes = checked_universes_gen Sorts.Quality.equal
 

@@ -384,6 +384,10 @@ type ('ty,'a) functorize =
 type 'uconstr with_declaration =
   | WithMod of Id.t list * ModPath.t
   | WithDef of Id.t list * 'uconstr
+  | WithUniv of Id.t list * 'uconstr
+  (** [with Universe Definition u := v]: the universe parameter [u] of the
+      module type becomes the universe definition [u := v]. The universe [v]
+      is given as the (monomorphic) term [Type@{v}]. *)
 
 type 'uconstr module_alg_expr =
   | MEident of ModPath.t
@@ -398,19 +402,32 @@ type 'uconstr functor_alg_expr =
 
 type module_expression = (constr * UVars.AbstractContext.t option) functor_alg_expr
 
+(** A universe declared as a component of a module structure, by
+    [Universe Parameter u] (abstract, [univ_def = None]) or by
+    [Universe Definition u := v] ([univ_def = Some v]). The universe itself
+    is the level [Univ.Level.local (KerName.make mp l)] where [mp] is the
+    path of the enclosing module and [l] the label of the component. When the
+    structure is added to an environment, the level is declared with
+    [Set <= u] and, for a definition, the constraint [u = v] is enforced. *)
+type universe_body = {
+  univ_def : Univ.Level.t option;
+}
+
 (** A component of a module structure *)
 
 type ('mod_body, 'mod_type) structure_field_body =
   | SFBconst of constant_body
   | SFBmind of mutual_inductive_body
   | SFBrules of rewrite_rules_body
+  | SFBuniv of universe_body
   | SFBmodule of 'mod_body
   | SFBmodtype of 'mod_type
 
 (** A module structure is a list of labeled components.
 
-    Note : we may encounter now (at most) twice the same label in
-    a [structure_body], once for a module ([SFBmodule] or [SFBmodtype])
-    and once for an object ([SFBconst] or [SFBmind]) *)
+    Note : we may encounter now (at most) three times the same label in
+    a [structure_body], once for a module ([SFBmodule] or [SFBmodtype]),
+    once for an object ([SFBconst], [SFBmind] or [SFBrules]) and once for
+    a universe ([SFBuniv]). *)
 
 and ('mod_body, 'mod_type) structure_body = (Id.t * ('mod_body, 'mod_type) structure_field_body) list

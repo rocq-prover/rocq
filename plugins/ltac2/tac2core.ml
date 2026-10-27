@@ -1560,18 +1560,19 @@ let () = define "module_contents" (modpath @-> ret (option (list module_field)))
         | MoreFunctor _ -> (* functor *) None
         | NoFunctor body -> Some body
   in
-  let to_field (lab, f) : ModField.t = match (f:_ Declarations.structure_field_body) with
+  let to_field (lab, f) : ModField.t option = match (f:_ Declarations.structure_field_body) with
     | SFBconst _ ->
       let kn = KerName.make m lab in
-      Ref (ConstRef (Global.constant_of_delta_kn kn))
+      Some (Ref (ConstRef (Global.constant_of_delta_kn kn)))
     | SFBmind _ ->
       let kn = KerName.make m lab in
-      Ref (IndRef ((Global.mind_of_delta_kn kn, 0)))
-    | SFBrules _ -> Rewrule
-    | SFBmodule _ -> Submodule (MPdot (m, lab))
-    | SFBmodtype _ -> Submodule (MPdot (m, lab))
+      Some (Ref (IndRef ((Global.mind_of_delta_kn kn, 0))))
+    | SFBrules _ -> Some Rewrule
+    | SFBuniv _ -> None
+    | SFBmodule _ -> Some (Submodule (MPdot (m, lab)))
+    | SFBmodtype _ -> Some (Submodule (MPdot (m, lab)))
   in
-  Option.map (List.map to_field) body
+  Option.map (List.filter_map to_field) body
 
 module MapTagDyn = Dyn.Make()
 

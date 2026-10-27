@@ -1159,7 +1159,7 @@ let intern_sort_name ~local_univs = function
     match local with
     | Some u -> GUniv u
     | None ->
-      try GUniv (Univ.Level.make (Nametab.locate_universe qid))
+      try GUniv (Nametab.locate_universe qid)
       with Not_found ->
         if is_id && local_univs.unb_univs
         then GLocalUniv (CAst.make ?loc:qid.loc (qualid_basename qid))
@@ -3092,8 +3092,7 @@ let interp_context_evars ?program_mode ?unconstrained_sorts ?poly ?impl_env env 
 let known_universe_level_name evd lid =
   try Evd.universe_of_name evd lid.CAst.v
   with Not_found ->
-    let u = Nametab.locate_universe (Libnames.qualid_of_lident lid) in
-    Univ.Level.make u
+    Nametab.locate_universe (Libnames.qualid_of_lident lid)
 
 let known_glob_level evd = function
   | GSProp | GProp ->

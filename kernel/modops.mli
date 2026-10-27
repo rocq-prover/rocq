@@ -43,8 +43,32 @@ val subst_structure : substitution -> ModPath.t -> structure_body -> structure_b
 val add_structure :
   ModPath.t -> structure_body -> 'a delta_resolver -> env -> env
 
-(** adds a module and its components, but not the constraints *)
+(** adds a module and its components, including its module-local universes
+    and the constraints on them (see {!Mod_declarations.mod_univs}), but not
+    the constraints of its global universes *)
 val add_module : ModPath.t -> module_body -> env -> env
+
+(** {6 Module-local universes } *)
+
+(** Declare the universe [mp.l] of a module structure, and enforce its
+    definition if any. A no-op if the universe is already declared. *)
+val add_universe_field : ModPath.t -> Id.t -> universe_body -> env -> env
+
+(** Enforce constraints on already declared universes. *)
+val add_universe_constraints : Univ.UnivConstraints.t -> env -> env
+
+(** Declare the module-local universes of a structure and of its submodules. *)
+val add_structure_universes : ModPath.t -> structure_body -> env -> env
+
+(** The universes declared by the functions above, as a context set:
+    the levels, their definitions and the constraints of the submodules. *)
+val universes_of_structure : ModPath.t -> structure_body -> Univ.ContextSet.t
+val universes_of_module : ModPath.t -> module_body -> Univ.ContextSet.t
+
+(** Declare all the module-local universes of a (non functor) module,
+    including the ones of its hidden implementation and of its submodules, and
+    enforce the constraints they rely on. *)
+val add_module_universes : ModPath.t -> module_body -> env -> env
 
 (** same as add_module, but for a module whose native code has been linked by
 the native compiler. The linking information is updated. *)
@@ -81,11 +105,12 @@ val strengthen_and_subst_module_body : ModPath.t -> module_body -> ModPath.t -> 
     Nothing is strengthened, there being no module at [mp_from], and no
     equivalence is recorded for [mp] itself. *)
 val include_applied_structure :
-  ModPath.t -> structure_body -> mod_body delta_resolver ->
-  ModPath.t -> structure_body * mod_body delta_resolver
+  ModPath.t -> structure_body -> mod_body delta_resolver -> Univ.UnivConstraints.t ->
+  ModPath.t -> structure_body * mod_body delta_resolver * Univ.UnivConstraints.t
 
 val subst_modtype_signature_and_resolver : ModPath.t -> ModPath.t ->
-  module_signature -> 'a delta_resolver -> module_signature * 'a delta_resolver
+  module_signature -> 'a delta_resolver -> Univ.UnivConstraints.t ->
+  module_signature * 'a delta_resolver * Univ.UnivConstraints.t
 
 (** {6 Building map of constants to inline } *)
 
@@ -136,11 +161,20 @@ type signature_mismatch_error =
   | IncompatibleUnivConstraints of { env : env; got : UVars.AbstractContext.t; expect : UVars.AbstractContext.t }
   | IncompatibleVariance
   | NoRewriteRulesSubtyping
+  | UniverseDefinitionFieldExpected
+  | UnsatisfiedUniverseConstraint of Univ.UnivConstraint.t
 
 type with_constraint_error =
   | WithSignatureMismatch of signature_mismatch_error
   | WithCannotConstrainPrimitive
   | WithCannotConstrainSymbol
+  | WithUniverseParameter of Univ.Level.t
+  (** [with Definition]: the type of the component depends on a universe
+      parameter of the module type, to be defined with
+      [with Universe Definition] first *)
+  | WithNotAUniverseLevel
+  | WithUndeclaredUniverse of Univ.Level.t
+  | WithUniverseDefined
 
 type subtyping_trace_elt =
   | Submodule of Id.t
@@ -156,6 +190,7 @@ type module_typing_error =
   | NoSuchLabel of Id.t * ModPath.t
   | NotAModuleLabel of Id.t
   | NotAConstant of Id.t
+  | NotAUniverse of Id.t
   | IncorrectWithConstraint of Id.t * with_constraint_error
   | GenerativeModuleExpected of Id.t
   | LabelMissing of Id.t * string
@@ -176,6 +211,8 @@ val error_no_such_label : Id.t -> ModPath.t -> 'a
 val error_not_a_module_label : Id.t -> 'a
 
 val error_not_a_constant : Id.t -> 'a
+
+val error_not_a_universe : Id.t -> 'a
 
 val error_incorrect_with_constraint : Id.t -> with_constraint_error -> 'a
 

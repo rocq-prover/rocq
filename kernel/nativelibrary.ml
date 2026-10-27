@@ -50,6 +50,7 @@ and translate_field mp cenv env acc (l,x) =
         let msg = Printf.sprintf "Not Compiling rules %s..." (Id.to_string l) in
         Pp.str msg));
      compile_rewrite_rules env l acc rrb
+  | SFBuniv _ -> acc
   | SFBmodule md ->
      let mp = MPdot (mp, l) in
      (debug_native_compiler (fun () ->

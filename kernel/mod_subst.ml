@@ -393,6 +393,55 @@ let subst_kn subst kn =
 
 exception No_subst
 
+(** {6 Substitution of module-local universes } *)
+
+let subst_level subst l =
+  match Univ.Level.local_name l with
+  | None -> l
+  | Some kn ->
+    let kn' = subst_kn subst kn in
+    if kn' == kn then l else Univ.Level.local kn'
+
+let subst_universe_fn fu u = Univ.Universe.map fu u
+
+let subst_instance_fn fu u =
+  let qs, us = UVars.Instance.to_array u in
+  let us' = CArray.Smart.map fu us in
+  if us' == us then u else UVars.Instance.of_array (qs, us')
+
+let subst_sort_fn fu s =
+  Sorts.subst_fn ((fun q -> Sorts.Quality.QVar q), subst_universe_fn fu) s
+
+let subst_universe subst u =
+  if is_empty_subst subst then u else subst_universe_fn (subst_level subst) u
+
+let subst_instance subst u =
+  if is_empty_subst subst then u else subst_instance_fn (subst_level subst) u
+
+let subst_sort subst s =
+  if is_empty_subst subst then s else subst_sort_fn (subst_level subst) s
+
+let subst_univ_constraints subst csts =
+  if is_empty_subst subst then csts
+  else
+    let fu = subst_level subst in
+    let fold (l, d, r as cst) (changed, accu) =
+      let l' = fu l and r' = fu r in
+      if l' == l && r' == r then changed, Univ.UnivConstraints.add cst accu
+      else true, Univ.UnivConstraints.add (l', d, r') accu
+    in
+    let changed, csts' = Univ.UnivConstraints.fold fold csts (false, Univ.UnivConstraints.empty) in
+    if changed then csts' else csts
+
+let subst_abstract_context subst auctx =
+  if is_empty_subst subst then auctx
+  else
+    let csts = UVars.AbstractContext.constraints auctx in
+    let ucsts = PConstraints.univs csts in
+    let ucsts' = subst_univ_constraints subst ucsts in
+    if ucsts' == ucsts then auctx
+    else UVars.AbstractContext.make (UVars.AbstractContext.names auctx) (PConstraints.set_univs ucsts' csts)
+
 let subst_dual_mp subst mp1 mp2 =
   let o1 = subst_mp_opt subst mp1 in
   let o2 = if mp1 == mp2 then o1 else subst_mp_opt subst mp2 in
@@ -470,10 +519,20 @@ let subst_retro_action subst action =
     let c' = subst_constant subst c in
     if c == c' then action else Register_type(prim, c')
 
-let rec map_kn f f' c =
-  let func = map_kn f f' in
+(** [map_kn fu f f' c] substitutes inductive names with [f], constants with
+    [f'] (which gets the already substituted universe instance and raises
+    [No_subst] when the constant is unchanged) and module-local universe levels
+    with [fu] in [c]. *)
+let rec map_kn fu f f' c =
+  let func = map_kn fu f f' in
+  let finst = subst_instance_fn fu in
     match kind c with
-      | Const kn -> (try f' kn with No_subst -> c)
+      | Const (kn,u) ->
+          let u' = finst u in
+          (try f' (kn,u') with No_subst -> if u' == u then c else mkConstU (kn,u'))
+      | Sort s ->
+          let s' = subst_sort_fn fu s in
+          if s' == s then c else mkSort s'
       | Proj (p,r,t) ->
           let p' = Projection.map f p in
           let t' = func t in
@@ -481,10 +540,12 @@ let rec map_kn f f' c =
             else mkProj (p', r, t')
       | Ind ((kn,i),u) ->
           let kn' = f kn in
-          if kn'==kn then c else mkIndU ((kn',i),u)
+          let u' = finst u in
+          if kn'==kn && u'==u then c else mkIndU ((kn',i),u')
       | Construct (((kn,i),j),u) ->
           let kn' = f kn in
-          if kn'==kn then c else mkConstructU (((kn',i),j),u)
+          let u' = finst u in
+          if kn'==kn && u'==u then c else mkConstructU (((kn',i),j),u')
       | Case (ci,u,pms,(p,r),iv,ct,l) ->
           let ci_ind =
             let (kn,i) = ci.ci_ind in
@@ -495,16 +556,24 @@ let rec map_kn f f' c =
             let c' = func c in
             if c' == c then d else (nas, c')
           in
+          let u' = finst u in
           let pms' = Array.Smart.map func pms in
           let p' = f_ctx p in
           let iv' = map_invert func iv in
           let ct' = func ct in
           let l' = Array.Smart.map f_ctx l in
-            if (ci.ci_ind==ci_ind && pms'==pms && p'==p && iv'==iv
+            if (ci.ci_ind==ci_ind && u'==u && pms'==pms && p'==p && iv'==iv
                 && l'==l && ct'==ct)then c
             else
-              mkCase ({ci with ci_ind = ci_ind}, u,
+              mkCase ({ci with ci_ind = ci_ind}, u',
                       pms',(p',r),iv',ct', l')
+      | Array (u,elems,def,ty) ->
+          let u' = finst u in
+          let elems' = Array.Smart.map func elems in
+          let def' = func def in
+          let ty' = func ty in
+            if u'==u && elems'==elems && def'==def && ty'==ty then c
+            else mkArray (u',elems',def',ty')
       | Cast (ct,k,t) ->
           let ct' = func ct in
           let t'= func t in
@@ -555,7 +624,7 @@ let subst_mps subst c =
     | Some t -> Vars.univ_instantiate_constr u t
   in
   if is_empty_subst subst then c
-  else map_kn (subst_mind subst) (subst_pcon_term subst) c
+  else map_kn (subst_level subst) (subst_mind subst) (subst_pcon_term subst) c
 
 let subst_mps_aux subst = function
 | Inl (con, u) ->
@@ -590,7 +659,8 @@ let subst_mps_list substs c =
       let () = cache_ind := Mindmap.add ind ans !cache_ind in
       ans
     in
-    map_kn subst_mind subst_const c
+    let subst_level l = List.fold_right subst_level substs l in
+    map_kn subst_level subst_mind subst_const c
 
 let rec replace_mp_in_mp mpfrom mpto mp =
   match mp with

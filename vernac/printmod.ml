@@ -214,6 +214,9 @@ let nametab_register_body mp dir (l,body) =
     | SFBmodule _ -> () (* TODO *)
     | SFBmodtype _ -> () (* TODO *)
     | SFBrules _ -> () (* TODO? *)
+    | SFBuniv _ ->
+      Nametab.push_universe (Nametab.Until (1+List.length (DirPath.repr dir)))
+        (make_path dir l) (Univ.Level.local (KerName.make mp l))
     | SFBconst _ ->
       push l (GlobRef.ConstRef (Constant.make2 mp l))
     | SFBmind mib ->
@@ -266,6 +269,19 @@ let print_body is_impl extent env mp (l,body) =
     | SFBmodule _ -> keyword "Module" ++ spc () ++ name
     | SFBmodtype _ -> keyword "Module Type" ++ spc () ++ name
     | SFBrules _ -> keyword "Rewrite Rule" ++ spc () ++ name (* TODO: correct? *)
+    | SFBuniv { univ_def = None } ->
+      keyword "Universe Parameter" ++ spc () ++ name ++
+      begin match extent with
+      | OnlyNames -> mt ()
+      | WithContents -> str "."
+      end
+    | SFBuniv { univ_def = Some u } ->
+      keyword "Universe Definition" ++ spc () ++ name ++
+      begin match extent with
+      | OnlyNames -> mt ()
+      | WithContents ->
+        spc () ++ str ":=" ++ spc () ++ UnivNames.pr_level_with_global_universes u ++ str "."
+      end
     | SFBconst cb ->
       let auctx = Declareops.constant_polymorphic_context cb in
       begin match cb.const_body with
@@ -337,6 +353,24 @@ let rec print_typ_expr extent env mp locals mty =
             mt() in
       hov 2 (print_typ_expr extent env mp locals me ++ spc() ++ str "with" ++ spc()
              ++ def "Definition"++ spc() ++ str s ++ body)
+  | MEwith(me,WithUniv(idl,(c, _)))->
+      let s = String.concat "." (List.map Id.to_string idl) in
+      let body = match extent with
+        | WithContents ->
+            let lvl = match Constr.kind c with
+              | Constr.Sort (Sorts.Type u) -> Univ.Universe.level u
+              | Constr.Sort Sorts.Set -> Some Univ.Level.set
+              | _ -> None
+            in
+            let pr = match lvl with
+              | Some l -> UnivNames.pr_level_with_global_universes l
+              | None -> let sigma = Evd.from_env env in Printer.pr_lconstr_env env sigma c
+            in
+            spc() ++ str ":=" ++ spc() ++ pr
+        | OnlyNames ->
+            mt() in
+      hov 2 (print_typ_expr extent env mp locals me ++ spc() ++ str "with" ++ spc()
+             ++ def "Universe Definition"++ spc() ++ str s ++ body)
   | MEwith(me,WithMod(idl,mp'))->
       let s = String.concat "." (List.map Id.to_string idl) in
       let body = match extent with

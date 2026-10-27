@@ -258,6 +258,10 @@ val check_duplicate : ?loc:Loc.t -> (qualid * constr_expr) list -> unit
 (** Check that a list of record field definitions doesn't contain
     duplicates. *)
 
+val interp_known_level : Evd.evar_map -> sort_name_expr -> Univ.Level.t
+(** Interpret an already declared universe level, [Set] or a named universe.
+    Fails on [Prop] and [SProp]. *)
+
 val interp_univ_constraint
   : Evd.evar_map
   -> sort_name_expr * Univ.UnivConstraint.kind * sort_name_expr

@@ -23,11 +23,10 @@ let empty_rev_binders = QVar.Map.empty, Level.Map.empty
 type univ_name_list = lname list * lname list
 
 let qualid_of_level (_,ctx) l =
-  match Level.name l with
-  | Some qid  ->
-    (try Some (Nametab.shortest_qualid_of_universe ctx qid)
-     with Not_found -> None)
-  | None -> None
+  if Level.is_set l || Option.has_some (Level.var_index l) then None
+  else
+    try Some (Nametab.shortest_qualid_of_universe ctx l)
+    with Not_found -> None
 
 let pr_level_with_global_universes ?(binders=empty_binders) l =
   match qualid_of_level binders l with

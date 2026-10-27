@@ -733,9 +733,9 @@ end
 module XRefs = MakeWarned(XRefNoWarn)(XRefWarn)()
 
 module UnivsV = struct
-  include Univ.UGlobal
+  include Univ.Level
   let is_var _ = None
-  module Map = HMap.Make(Univ.UGlobal)
+  module Map = Univ.Level.Map
   let stage = Summary.Stage.Interp
   let summary_name = "univtab"
 end

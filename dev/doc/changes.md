@@ -1,3 +1,34 @@
+## Changes between Rocq 9.1 and Rocq 9.2
+
+### Kernel
+
+- `Univ.Level.t` has a new kind of levels, `Univ.Level.local kn`, for
+  universes declared as components of modules by `Universe Parameter`
+  and `Universe Definition`. They are substituted by `Mod_subst.subst_mps`
+  (and `Mod_subst.subst_level`, `subst_universe`, `subst_instance`,
+  `subst_sort`, `subst_univ_constraints`) like constants are.
+- `Declarations.structure_field_body` has a new constructor `SFBuniv` of
+  `universe_body`, and module bodies carry the universe constraints on
+  module-local universes they rely on (`Mod_declarations.mod_univs`,
+  `set_univs`), enforced by `Modops.add_module` and checked by
+  `Subtyping.check_subtypes`. `Mod_typing.finalize_module` and
+  `translate_mse_include` thread these constraints.
+- `Safe_typing.add_universe_field` adds a universe component to the current
+  module or module type.
+- `Declarations.with_declaration` has a new constructor `WithUniv` for
+  `with Universe Definition u := v`, where `v` is given as the term `Type@{v}`;
+  `with Definition` is refused on a component whose type depends on a
+  universe parameter of the module type that is still abstract.
+- `Conversion.universe_compare` has a new field `push_universes`, used by
+  module subtyping to declare the module-local universes of functor
+  parameters in the universe state.
+
+### Library
+
+- `Nametab.Univs` (`push_universe`, `locate_universe`,
+  `shortest_qualid_of_universe`, `path_of_universe`) now works on
+  `Univ.Level.t` rather than `Univ.UGlobal.t`.
+
 ## Changes between Coq 8.17 and Coq 8.18
 
 ### XML protocol

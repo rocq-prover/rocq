@@ -96,6 +96,25 @@ let subst_const_def subst def = match def with
   | Def c -> Def (subst_mps subst c)
   | OpaqueDef o -> OpaqueDef (Opaqueproof.subst_opaque subst o)
 
+let subst_universes subst = function
+  | Monomorphic -> Monomorphic
+  | Polymorphic auctx as u ->
+    let auctx' = subst_abstract_context subst auctx in
+    if auctx' == auctx then u else Polymorphic auctx'
+
+let subst_template_universes subst = function
+  | None -> None
+  | Some ar as t ->
+    let ctx' = subst_abstract_context subst ar.template_context in
+    (* The sorts may mention the module-local universes of the ambient module *)
+    let concl' = Mod_subst.subst_sort subst ar.template_concl in
+    let params' = List.Smart.map (Option.Smart.map (Mod_subst.subst_sort subst)) ar.template_param_arguments in
+    let defaults' = Mod_subst.subst_instance subst ar.template_defaults in
+    if ctx' == ar.template_context && concl' == ar.template_concl
+       && params' == ar.template_param_arguments && defaults' == ar.template_defaults then t
+    else Some { template_context = ctx'; template_concl = concl';
+                template_param_arguments = params'; template_defaults = defaults' }
+
 let subst_const_body subst cb =
   (* we're outside sections *)
   assert (List.is_empty cb.const_hyps && UVars.Instance.is_empty cb.const_univ_hyps);
@@ -103,7 +122,8 @@ let subst_const_body subst cb =
   else
     let body' = subst_const_def subst cb.const_body in
     let type' = subst_const_type subst cb.const_type in
-    if body' == cb.const_body && type' == cb.const_type
+    let univs' = subst_universes subst cb.const_universes in
+    if body' == cb.const_body && type' == cb.const_type && univs' == cb.const_universes
     then cb
     else
       { const_hyps = [];
@@ -111,7 +131,7 @@ let subst_const_body subst cb =
         const_body = body';
         const_type = type';
         const_body_code = Vmemitcodes.subst_body_code subst cb.const_body_code;
-        const_universes = cb.const_universes;
+        const_universes = univs';
         const_relevance = cb.const_relevance;
         const_inline_code = cb.const_inline_code;
         const_typing_flags = cb.const_typing_flags;
@@ -231,7 +251,7 @@ let subst_mind_packet subst mbp =
     mind_nf_lc = Array.Smart.map (fun (ctx, c) -> Context.Rel.map (subst_mps subst) ctx, subst_mps subst c) mbp.mind_nf_lc;
     mind_arity_ctxt = subst_rel_context subst mbp.mind_arity_ctxt;
     mind_user_arity = subst_mps subst mbp.mind_user_arity;
-    mind_sort = mbp.mind_sort;
+    mind_sort = Mod_subst.subst_sort subst mbp.mind_sort;
     mind_record = subst_mind_record subst mbp.mind_record;
     mind_user_lc = Array.Smart.map (subst_mps subst) mbp.mind_user_lc;
     mind_nrealargs = mbp.mind_nrealargs;
@@ -255,8 +275,8 @@ let subst_mind_body subst mib =
     mind_params_ctxt =
       Context.Rel.map (subst_mps subst) mib.mind_params_ctxt;
     mind_packets = Array.Smart.map (subst_mind_packet subst) mib.mind_packets ;
-    mind_universes = mib.mind_universes;
-    mind_template = mib.mind_template;
+    mind_universes = subst_universes subst mib.mind_universes;
+    mind_template = subst_template_universes subst mib.mind_template;
     mind_variance = mib.mind_variance;
     mind_sec_variance = mib.mind_sec_variance;
     mind_private = mib.mind_private;

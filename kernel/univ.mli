@@ -50,6 +50,13 @@ sig
 
   val make : UGlobal.t -> t
 
+  val local : Names.KerName.t -> t
+  (** Universe declared as a field of a module structure by [Universe Parameter]
+      or [Universe Definition]. The kernel name is the module path of the
+      enclosing module together with the label of the universe. Such a level is
+      substitutive: it follows module paths through functor application,
+      module aliasing and inclusion. *)
+
   val raw_pr : t -> Pp.t
   (** Pretty-printing.
       When possible you should use name-aware printing. *)
@@ -65,6 +72,11 @@ sig
   val var_index : t -> int option
 
   val name : t -> UGlobal.t option
+
+  val local_name : t -> Names.KerName.t option
+  (** Kernel name of a module-local universe, see {!local}. *)
+
+  val is_local : t -> bool
 
   module Set :
     sig

@@ -82,7 +82,7 @@ let lookup_polymorphism env base kind fqid =
     | [id] ->
       let test (lab,obj) =
         match Id.equal lab id, obj with
-        | false, _ | _, (SFBrules _ | SFBmodule _ | SFBmodtype _) -> None
+        | false, _ | _, (SFBrules _ | SFBuniv _ | SFBmodule _ | SFBmodtype _) -> None
         | true, SFBmind mind -> Some (Declareops.inductive_is_polymorphic mind)
         | true, SFBconst const -> Some (Declareops.constant_is_polymorphic const)
       in
@@ -94,7 +94,7 @@ let lookup_polymorphism env base kind fqid =
       in
       let test (lab,obj) =
         match Id.equal lab id, obj with
-        | false, _ | _, (SFBrules _ | SFBconst _ | SFBmind _) -> None
+        | false, _ | _, (SFBrules _ | SFBuniv _ | SFBconst _ | SFBmind _) -> None
         | true, SFBmodule body -> Some (next @@ mod_type body)
         | true, SFBmodtype body ->  (* XXX is this valid? If not error later *)
           Some (next @@ mod_type body)
@@ -108,6 +108,9 @@ let intern_with_decl = function
     WithMod (fqid,lookup_module qid)
   | CWith_Definition ({CAst.v=fqid},udecl,c) ->
     WithDef (fqid,(udecl,c))
+  | CWith_Universe ({CAst.v=fqid},u) ->
+    (* The universe, as the term [Type@{u}] *)
+    WithUniv (fqid,(None,CAst.make (CSort (None, Glob_term.UNamed [(u, 0)]))))
 
 let loc_of_module l = l.CAst.loc
 
@@ -132,6 +135,15 @@ let rec intern_module_ast kind m = match m with
 
 let interp_with_decl env base kind = function
   | WithMod (fqid,mp) -> WithMod (fqid,mp), Univ.ContextSet.empty
+  | WithUniv (fqid,(_,c)) ->
+    let sigma, udecl = interp_univ_decl_opt env None in
+    let c, ectx = interp_constr env sigma c in
+    begin match fst (UState.check_univ_decl ~poly:(PolyFlags.of_univ_poly false) ectx udecl) with
+      | UState.Monomorphic_entry ctx ->
+        let c = EConstr.to_constr sigma c in
+        WithUniv (fqid,(c, None)), ctx
+      | UState.Polymorphic_entry _ -> assert false
+    end
   | WithDef(fqid,(udecl,c)) ->
     let sigma, udecl = interp_univ_decl_opt env udecl in
     let c, ectx = interp_constr env sigma c in

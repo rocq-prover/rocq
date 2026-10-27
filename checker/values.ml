@@ -180,7 +180,7 @@ let v_cons = v_tuple "constructor" [|v_ind;v_int|]
 (** kernel/univ *)
 let v_level_global = v_tuple "Level.Global.t" [|v_dp;v_string;v_int|]
 let v_raw_level = v_sum "raw_level" 1 (* Set *)
-  [|(*Level*)[|v_level_global|]; (*Var*)[|v_int|]|]
+  [|(*Level*)[|v_level_global|]; (*Local*)[|v_kn|]; (*Var*)[|v_int|]|]
 let v_level = v_tuple "level" [|v_int;v_raw_level|]
 let v_expr = v_tuple "levelexpr" [|v_level;v_int|]
 let v_univ = v_list v_expr
@@ -573,6 +573,7 @@ let v_rrb = v_tuple "rewrite_rules_body"
 let v_module_with_decl = v_sum "with_declaration" 0 [|
     [|v_list v_id; v_mp|];
     [|v_list v_id; v_pair v_constr (v_opt v_abs_context)|];
+    [|v_list v_id; v_pair v_constr (v_opt v_abs_context)|];
   |]
 
 let v_mae =
@@ -591,6 +592,7 @@ let [_v_sfb;_v_struc;_v_sign;_v_mexpr;_v_impl;v_module;_v_modtype] : _ Vector.t 
          [|[|v_cb|];       (* SFBconst *)
            [|v_ind_pack|]; (* SFBmind *)
            [|v_rrb|];      (* SFBrules *)
+           [|v_tuple "universe_body" [|v_opt v_level|]|]; (* SFBuniv *)
            [|v_module|];   (* SFBmodule *)
            [|v_modtype|]   (* SFBmodtype *)
          |])
@@ -609,10 +611,10 @@ let [_v_sfb;_v_struc;_v_sign;_v_mexpr;_v_impl;v_module;_v_modtype] : _ Vector.t 
            [|v_modbody_resolver; v_struc|]|])  (* Struct *)
   and v_module =
     v_tuple_c ("module_body",
-           [|v_sum_c ("when_mod_body", 0, [|[|v_impl|]|]);v_sign;v_opt v_mexpr;v_modbody_resolver|])
+           [|v_sum_c ("when_mod_body", 0, [|[|v_impl|]|]);v_sign;v_opt v_mexpr;v_modbody_resolver;v_univ_cstrs|])
   and v_modtype =
     v_tuple_c ("module_type_body",
-           [|v_noimpl;v_sign;v_opt v_mexpr;v_modtype_resolver|])
+           [|v_noimpl;v_sign;v_opt v_mexpr;v_modtype_resolver;v_univ_cstrs|])
   in
   [v_sfb;v_struc;v_sign;v_mexpr;v_impl;v_module;v_modtype])
 

@@ -1240,7 +1240,8 @@ let check_inductive_instances cv_pb variance u1 u2 univs =
 let checked_universes =
   { compare_sorts = checked_sort_cmp_universes;
     compare_instances = check_convert_instances;
-    compare_cumul_instances = check_inductive_instances; }
+    compare_cumul_instances = check_inductive_instances;
+    push_universes = (fun ctx sigma -> Evd.merge_universe_context_set UState.univ_rigid sigma ctx); }
 
 end
 
@@ -1284,6 +1285,7 @@ let is_conv_nounivs ?(reds=TransparentState.full) env sigma t1 t2 =
         compare_sorts = (fun _ _ _ () -> Ok ());
         compare_instances = (fun ~flex:_ _ _ () -> Ok ());
         compare_cumul_instances = (fun _ _ _ _ () -> Ok ());
+        push_universes = (fun _ () -> ());
       }
       in
       begin match Conversion.generic_conv ~l2r:false CONV ~evars reds env ((), ignore_univs) t1 t2 with
@@ -1324,7 +1326,8 @@ let sigma_univ_state =
   let open Conversion in
   { compare_sorts = sigma_compare_sorts;
     compare_instances = sigma_compare_instances;
-    compare_cumul_instances = sigma_check_inductive_instances; }
+    compare_cumul_instances = sigma_check_inductive_instances;
+    push_universes = (fun ctx sigma -> Evd.merge_universe_context_set UState.univ_rigid sigma ctx); }
 
 let univproblem_compare_sorts pb s0 s1 uset =
   let open UnivProblem in
@@ -1342,7 +1345,10 @@ let univproblem_univ_state =
   let open Conversion in
   { compare_sorts = univproblem_compare_sorts;
     compare_instances = univproblem_compare_instances;
-    compare_cumul_instances = univproblem_check_inductive_instances; }
+    compare_cumul_instances = univproblem_check_inductive_instances;
+    (* Universe problems are solved later against an evar map, in which the
+       universes are expected to be declared. *)
+    push_universes = (fun _ uset -> uset); }
 
 type genconv = {
   genconv : 'a 'err. conv_pb -> l2r:bool -> Evd.evar_map -> TransparentState.t ->
@@ -1728,10 +1734,17 @@ let infer_inductive_instances cv_pb variance u1 u2 (univs,csts) =
     | exception (UGraph.UniverseInconsistency err) -> Result.Error (Some (Univ err))
   else Result.Error None
 
+let infer_push_universes (lvls, csts) (univs, cstrs) =
+  let add l g = try UGraph.add_universe l ~strict:false g with UGraph.AlreadyDeclared -> g in
+  let univs = Univ.Level.Set.fold add lvls univs in
+  (* Assumed constraints are not part of the inferred ones *)
+  (UGraph.merge_constraints csts univs, cstrs)
+
 let inferred_universes =
   { compare_sorts = infer_cmp_universes;
     compare_instances = infer_convert_instances;
-    compare_cumul_instances = infer_inductive_instances; }
+    compare_cumul_instances = infer_inductive_instances;
+    push_universes = infer_push_universes; }
 
 end
 

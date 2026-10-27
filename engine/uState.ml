@@ -923,6 +923,9 @@ let process_constraints uctx cstrs =
             (* Unbounded universe constrained from above, we equalize it *)
             let () = instantiate_variable l' Universe.type0 vars in
             add_univ_local (l', Eq, Level.set) local
+          else if UGraph.check_leq_sort Sorts.Quality.equal univs l r then
+            (* A module universe defined as Set *)
+            local
           else
             univ_inconsistency Le l r
         | UMax (_, levels) ->
@@ -931,6 +934,9 @@ let process_constraints uctx cstrs =
               let l = sort_of_univ @@ Universe.make l' in
               if Level.is_set l' || is_local l' then
                 equalize_variables false l' Level.set local
+              else if UGraph.check_leq_sort Sorts.Quality.equal univs l r then
+                (* A module universe defined as Set *)
+                local
               else univ_inconsistency Le l r
             in
             Level.Set.fold fold levels local

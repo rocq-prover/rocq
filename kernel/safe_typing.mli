@@ -155,6 +155,11 @@ val add_modtype :
 val push_context_set :
   strict:bool -> Univ.ContextSet.t -> safe_transformer0
 
+(** Adding a module-local universe to the current module or module type:
+    [Universe Parameter u] with [univ_def = None], [Universe Definition u := v]
+    with [univ_def = Some v], see {!Univ.Level.local}. *)
+val add_universe_field : Id.t -> Declarations.universe_body -> safe_transformer0
+
 (** Adding global sort qualities *)
 
 val new_global_sort : Sorts.QGlobal.t safe_transformer

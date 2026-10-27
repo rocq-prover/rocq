@@ -67,6 +67,9 @@ val add_univ_constraints : Univ.UnivConstraints.t -> unit
 
 val push_context_set : Univ.ContextSet.t -> unit
 
+(** Module-local universes: [Universe Parameter] and [Universe Definition] *)
+val add_universe_field : Id.t -> Declarations.universe_body -> unit
+
 (** Extra sort qualities *)
 val new_global_sort : unit -> Sorts.QGlobal.t
 val merge_elim_constraints : Sorts.ElimConstraints.t -> unit

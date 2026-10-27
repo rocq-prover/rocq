@@ -731,7 +731,7 @@ let rec get_module_sobjs is_mod env inl = function
       (mbids,Ref (mp, empty_subst)) (* we create an alias *)
     | sobjs -> sobjs
     end
-  | MEwith (mty, WithDef _) -> get_module_sobjs is_mod env inl mty
+  | MEwith (mty, (WithDef _ | WithUniv _)) -> get_module_sobjs is_mod env inl mty
   | MEwith (mty, WithMod (idl,mp1)) ->
     assert (not is_mod);
     let sobjs0 = get_module_sobjs is_mod env inl mty in
@@ -970,13 +970,43 @@ module Interp = struct
 
 (** {6 Auxiliary functions concerning subtyping checks} *)
 
-let check_sub env mp sub_mtb_l =
+(** The universe constraints inferred by the typing of a module or module
+    type [mp] declared as a whole are added to the global environment. If
+    [mp] is a functor, with parameters [mbids], they cannot involve the
+    universes of its parameters or of its components, which do not exist
+    outside of it: such constraints have to be declared in its module type
+    (see {!Mod_declarations.mod_univs}). *)
+let check_inferred_constraints mp mbids cst =
+  if not (List.is_empty mbids) then
+    let is_local l = match Univ.Level.local_name l with
+      | None -> false
+      | Some kn ->
+        let kmp = KerName.modpath kn in
+        ModPath.subpath mp kmp || List.exists (fun mbid -> ModPath.subpath (MPbound mbid) kmp) mbids
+    in
+    let check (l, d, r) =
+      if is_local l || is_local r then
+        let pr = UnivNames.pr_level_with_global_universes in
+        user_err (str "The functor " ++ ModPath.print mp ++
+                  strbrk " requires the universe constraint " ++
+                  pr l ++ Univ.UnivConstraint.pr_kind d ++ pr r ++
+                  strbrk " on the universes of its parameters or components," ++
+                  strbrk " which cannot be inferred outside of it: declare it in its module type.")
+    in
+    Univ.UnivConstraints.iter check cst
+
+let rec functor_parameters acc = function
+  | MoreFunctor (mbid, _, body) -> functor_parameters (mbid :: acc) body
+  | NoFunctor _ -> List.rev acc
+
+let check_sub ?(mbids=[]) env mp sub_mtb_l =
   let fold sub_mtb (cst, env) =
     let state = ((Environ.universes env, cst), Reductionops.inferred_universes) in
     let ugraph, cst = Subtyping.check_subtypes state env mp mp sub_mtb in
     (cst, Environ.set_universes ugraph env)
   in
   let cst, _ = List.fold_right fold sub_mtb_l (Univ.UnivConstraints.empty, env) in
+  let () = check_inferred_constraints mp mbids cst in
   Global.add_univ_constraints cst
 
 (** This function checks if the type calculated for the module [mp] is
@@ -984,7 +1014,10 @@ let check_sub env mp sub_mtb_l =
     the global environment. *)
 
 let check_subtypes mp sub_mtb_l =
-  check_sub (Global.env ()) mp sub_mtb_l
+  let mb =
+    try Global.lookup_module mp with Not_found -> assert false
+  in
+  check_sub ~mbids:(functor_parameters [] (mod_type mb)) (Global.env ()) mp sub_mtb_l
 
 (** Same for module type [mp] *)
 
@@ -993,7 +1026,18 @@ let check_subtypes_mt mp sub_mtb_l =
     try Global.lookup_modtype mp with Not_found -> assert false
   in
   let env = Modops.add_module mp (module_body_of_type mtb) (Global.env ()) in
-  check_sub env mp sub_mtb_l
+  check_sub ~mbids:(functor_parameters [] (mod_type mtb)) env mp sub_mtb_l
+
+(** Same for the module being built interactively, whose structure is
+    [struc]: the check is done while its parameters and its universes are
+    still part of the environment, so that the constraints inferred on them
+    become constraints of the module. *)
+
+let check_subtypes_current mp struc sub_mtb_l =
+  if not (List.is_empty sub_mtb_l) then
+    let reso = forget_inline_delta_resolver (Safe_typing.delta_of_senv @@ Global.safe_env ()) in
+    let env = Environ.shallow_add_module mp (make_module_body struc reso) (Global.env ()) in
+    check_sub env mp sub_mtb_l
 
 let current_modresolver () =
   Safe_typing.delta_of_senv @@ Global.safe_env ()
@@ -1063,7 +1107,7 @@ let subst_reso_of_struct inlined mp struc reso =
         | NoFunctor struc -> walk (MPdot (mp, l)) struc accu
         | MoreFunctor _ -> accu
         end
-      | SFBmind _ | SFBrules _ | SFBmodtype _ -> accu
+      | SFBmind _ | SFBrules _ | SFBuniv _ | SFBmodtype _ -> accu
       in
       List.fold_left fold accu struc
     in
@@ -1078,29 +1122,30 @@ let subst_reso_of_module env inlined mp reso =
 
 (** Prepare the module type list for check of subtypes *)
 
-let build_subtypes env mp args mtys =
+(** The types [<:] of the module [mp], computed with the functor arguments
+    already part of the env, without the functorial part. *)
+let build_subtypes env mp mtys =
   let (ctx, ans) = List.fold_left_map
     (fun ctx (mte,base,kind,inl) ->
       let mte, ctx' = Modintern.interp_module_ast env Modintern.ModType base mte in
       let env = Environ.push_context_set  ~strict:true ctx' env in
       let ctx = Univ.ContextSet.union ctx ctx' in
       let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes) in
-      (* functor arguments are already part of the env, we compute the type
-         and requantify over them *)
       let mtb, (_, cst), () = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
-      let fold (mbid, mtb, _, _) accu =
-        MoreFunctor (mbid, mtb, accu)
-      in
-      (* XXX: parameters will be rechecked for subtyping, even though we
-         statically know they are the same as the ones of the ambient
-         module *)
-      let sign = List.fold_right fold args (mod_type mtb) in
-      let mtb = make_module_type sign (mod_delta mtb) in
       let ctx = Univ.ContextSet.add_constraints cst ctx in
       ctx, mtb)
     Univ.ContextSet.empty mtys
   in
   (ans, ctx)
+
+(** Requantifying the types [<:] over the functor arguments [args], for a
+    functor declared as a whole. *)
+let functorize_subtypes args mtbs =
+  let fold (mbid, mtb, _, _) accu = MoreFunctor (mbid, mtb, accu) in
+  (* XXX: parameters will be rechecked for subtyping, even though we
+     statically know they are the same as the ones of the ambient
+     module *)
+  List.map (fun mtb -> make_module_type (List.fold_right fold args (mod_type mtb)) (mod_delta mtb)) mtbs
 
 (** Process a declaration of functor parameter(s) (Id1 .. Idn : Typ)
     i.e. possibly multiple names with the same module type.
@@ -1166,7 +1211,7 @@ let start_module_core id args res =
         let ctx = Univ.ContextSet.add_constraints cst ctx in
         Some (mte, inl), [], ctx
     | Check resl ->
-      let typs, ctx = build_subtypes env mp params resl in
+      let typs, ctx = build_subtypes env mp resl in
       None, typs, ctx
   in
   let () = Global.push_context_set ctx' in
@@ -1195,14 +1240,13 @@ let end_module_core id m_info objects fs =
   let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes) in
   let _, (_, cst), _ =
     Mod_typing.finalize_module state vm_state (Global.env ()) (Global.current_modpath ())
-      (struc, current_modresolver ()) restype'
+      (struc, current_modresolver (), Univ.UnivConstraints.empty) restype'
   in
   let () = Global.add_univ_constraints cst in
+  let () = check_subtypes_current (Global.current_modpath ()) struc m_info.cur_typs in
 
   let mp,mbids,resolver = Global.end_module fs id m_info.cur_typ in
   let sobjs = let (ms,objs) = sobjs0 in (mbids@ms,objs) in
-
-  let () = check_subtypes mp m_info.cur_typs in
 
   (* We substitute objects if the module is sealed by a signature *)
   let sobjs =
@@ -1245,6 +1289,7 @@ let declare_module id args res mexpr_o =
   (* We simulate the beginning of an interactive module,
      then we adds the module parameters to the global env. *)
   let mp, mty_entry_o, subs, params, ctx = start_module_core id args res in
+  let subs = functorize_subtypes params subs in
   let env = Global.env () in
   let mexpr_entry_o, inl_expr, ctx' = match mexpr_o with
     | None -> None, default_inline_level (), Univ.ContextSet.empty
@@ -1284,6 +1329,7 @@ let declare_module id args res mexpr_o =
   let () = Global.push_context_set ctx in
   let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes) in
   let _, (_, cst), _ = Mod_typing.translate_module state vm_state (Global.env ()) mp inl entry in
+  let () = check_inferred_constraints mp (List.map (fun (mbid, _, _) -> mbid) params) cst in
   let () = Global.add_univ_constraints cst in
   let mp_env,resolver = Global.add_module id entry inl in
 
@@ -1369,7 +1415,8 @@ let start_modtype_core id args mtys =
   let params, params_ctx = RawModOps.Interp.intern_args args in
   let () = Global.push_context_set params_ctx in
   let env = Global.env () in
-  let sub_mty_l, sub_mty_ctx = RawModOps.Interp.build_subtypes env mp params mtys in
+  let sub_mty_l, sub_mty_ctx = RawModOps.Interp.build_subtypes env mp mtys in
+  let sub_mty_l = RawModOps.Interp.functorize_subtypes params sub_mty_l in
   let () = Global.push_context_set sub_mty_ctx in
   mp, params, sub_mty_l, Univ.ContextSet.union params_ctx sub_mty_ctx
 
@@ -1539,7 +1586,7 @@ let declare_one_include_core (me,base,kind,inl) =
     make_module_body (RawModOps.Interp.current_struct ())
       (forget_inline_delta_resolver (RawModOps.Interp.current_modresolver ()))
   in
-  let _str, _resolver, (_, cst), _ =
+  let _str, _resolver, _univs, (_, cst), _ =
     Mod_typing.translate_mse_include is_mod state vm_state (Global.env ())
       (Global.current_modpath ()) self inl me
   in

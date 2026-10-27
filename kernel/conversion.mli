@@ -27,6 +27,11 @@ type ('a, 'err) universe_compare = {
   compare_instances: flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
   compare_cumul_instances : conv_pb -> UVars.Variance.t array ->
     UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
+  push_universes : Univ.ContextSet.t -> 'a -> 'a;
+  (** Declare universes and assume constraints on them in the state. Used by
+      module subtyping to declare the module-local universes of functor
+      parameters, which are not part of the global environment. Declaring an
+      already declared universe is a no-op. *)
 }
 
 type ('a, 'err) universe_state = 'a * ('a, 'err) universe_compare

@@ -62,6 +62,12 @@ val mod_type : 'a generic_module_body -> module_signature
 val mod_type_alg : 'a generic_module_body -> module_expression option
 val mod_delta : 'a generic_module_body -> 'a delta_resolver
 
+val mod_univs : 'a generic_module_body -> Univ.UnivConstraints.t
+(** Universe constraints involving module-local universes (see
+    {!Univ.Level.local}) that the components of the module rely on. They are
+    enforced whenever the module is added to an environment, and checked by
+    subtyping. *)
+
 val mod_global_delta : 'a generic_module_body -> 'a delta_resolver option
 (** [None] if the argument is a functor, [mod_delta] otherwise *)
 
@@ -94,6 +100,9 @@ val set_signature : module_signature -> 'a generic_module_body -> 'a generic_mod
 (** Replace the expanded type, keeping the implementation and the algebraic
     type. *)
 
+val set_univs : Univ.UnivConstraints.t -> 'a generic_module_body -> 'a generic_module_body
+(** Replace the module-local universe constraints, see {!mod_univs}. *)
+
 (** {6 Substitution} *)
 
 type subst_kind
@@ -111,6 +120,8 @@ val subst_module : subst_kind -> substitution ->
 
 val subst_modtype : subst_kind -> substitution ->
   ModPath.t -> module_type_body -> module_type_body
+
+val subst_universe_body : substitution -> universe_body -> universe_body
 
 (** {6 Hashconsing} *)
 

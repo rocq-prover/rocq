@@ -54,7 +54,7 @@ let qualify_univ i dp src id =
 let do_univ_name ~check i dp src (id,univ) =
   let i, sp = qualify_univ i dp src id in
   if check then check_exists_universe sp;
-  Nametab.push_universe i sp univ
+  Nametab.push_universe i sp (Level.make univ)
 
 let cache_univ_names (prefix, (src, univs)) =
   let depth = Lib.sections_depth () in
@@ -188,6 +188,49 @@ let name_mono_section_univs univs =
       univs ((Id.Map.empty, 0), [])
   in
   input_univ_names (QualifiedUniv sections, univs)
+
+(** Module-local universes: the level is [Level.local kn] where [kn] is the
+    kernel name of the object, so the name follows the module path through
+    functor application, module aliasing and inclusion. *)
+
+let cache_univ_field ((sp, kn), ()) =
+  Nametab.push_universe (Nametab.Until 1) sp (Level.local kn)
+
+let load_univ_field i ((sp, kn), ()) =
+  Nametab.push_universe (Nametab.Until i) sp (Level.local kn)
+
+let open_univ_field i ((sp, kn), ()) =
+  Nametab.push_universe (Nametab.Exactly i) sp (Level.local kn)
+
+let input_univ_field : Id.t -> unit -> Libobject.obj =
+  let open Libobject in
+  declare_named_object
+    { (default_object "Module universe name") with
+      cache_function = cache_univ_field;
+      load_function = load_univ_field;
+      open_function = filtered_open open_univ_field;
+      subst_function = ident_subst_function;
+      discharge_function = (fun x -> Some x);
+      classify_function = (fun _ -> Substitute) }
+
+let check_module_universe () =
+  if Lib.sections_are_opened () then
+    CErrors.user_err (Pp.str "Module universes cannot be declared inside sections.")
+
+let declare_universe_field { CAst.v = id; loc } def =
+  let () = check_exists_universe (Lib.make_path id) in
+  let () = Global.add_universe_field id { Declarations.univ_def = def } in
+  Lib.add_leaf (input_univ_field id ())
+
+let do_universe_parameter l =
+  let () = check_module_universe () in
+  List.iter (fun id -> declare_universe_field id None) l
+
+let do_universe_definition id u =
+  let () = check_module_universe () in
+  let evd = Evd.from_env (Global.env ()) in
+  let u = Constrintern.interp_known_level evd u in
+  declare_universe_field id (Some u)
 
 let do_universe ~poly l =
   let in_section = Lib.sections_are_opened () in

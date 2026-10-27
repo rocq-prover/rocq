@@ -128,8 +128,9 @@ let check_one_lib ~output_context admit senv (dir,m) =
        let opac =
          if not output_context then snd senv
          else
-           let env = Safe_typing.env_of_safe_env
-             (Safe_typing.check_flags_for_library md (fst senv)) in
+           (* The universes of the library must be declared: the components
+              of the module are added to the environment along the way *)
+           let env = Safe_checking.env_of_library (fst senv) md in
            Mod_checking.collect_module_opaques env (snd senv)
              (ModPath.MPfile dir) (Safe_typing.module_of_library md)
        in

@@ -62,9 +62,13 @@ let add_mib_nameobjects mp l mib map =
 
 (* creates (namedobject/namedmodule) map for the whole signature *)
 
-type labmap = { objs : namedobject Id.Map.t; mods : namedmodule Id.Map.t }
+type labmap = {
+  objs : namedobject Id.Map.t;
+  mods : namedmodule Id.Map.t;
+  ulabs : universe_body Id.Map.t;
+}
 
-let empty_labmap = { objs = Id.Map.empty; mods = Id.Map.empty }
+let empty_labmap = { objs = Id.Map.empty; mods = Id.Map.empty; ulabs = Id.Map.empty }
 
 let get_obj mp map l =
   try Id.Map.find l map.objs
@@ -82,8 +86,63 @@ let make_labmap mp list =
     | SFBmind mib -> { map with objs = add_mib_nameobjects mp l mib map.objs }
     | SFBmodule mb -> { map with mods = Id.Map.add l (Module mb) map.mods }
     | SFBmodtype mtb -> { map with mods = Id.Map.add l (Modtype mtb) map.mods }
+    | SFBuniv ub -> { map with ulabs = Id.Map.add l ub map.ulabs }
   in
   CList.fold_right add_one list empty_labmap
+
+(** Universe constraints are checked through the universe state, as sort
+    comparisons, so that they are handled as the other universe comparisons
+    of the subtyping check. *)
+let check_univ_constraint error (cst, ustate) (l, d, r as c) =
+  let s1 = Sorts.sort_of_univ (Univ.Universe.make l) in
+  let s2 = Sorts.sort_of_univ (Univ.Universe.make r) in
+  let pb, s1 = match d with
+    | Univ.UnivConstraint.Eq -> Conversion.CONV, s1
+    | Univ.UnivConstraint.Le -> Conversion.CUMUL, s1
+    | Univ.UnivConstraint.Lt -> Conversion.CUMUL, Sorts.super s1
+  in
+  match Conversion.sort_cmp_universes pb s1 s2 (cst, ustate) with
+  | Result.Ok cst, _ -> cst
+  | Result.Error _, _ -> error (UnsatisfiedUniverseConstraint c)
+
+let univ_constraint_label (l, _, r) =
+  match Univ.Level.local_name l, Univ.Level.local_name r with
+  | Some kn, _ | None, Some kn -> KerName.label kn
+  | None, None -> Id.of_string "universe"
+
+(** Check that the universe constraints [univs] a signature relies on hold. *)
+let check_univ_constraints (cst, ustate) trace univs =
+  let check c cst =
+    let error why = error_signature_mismatch trace (univ_constraint_label c) why in
+    check_univ_constraint error (cst, ustate) c
+  in
+  Univ.UnivConstraints.fold check univs cst
+
+(** The universe [l] of the signature must be a universe of the implementation.
+    As for constants, a universe definition of the signature can only be
+    implemented by a universe definition, equal to it. The definition of the
+    implementation already holds in the environment, so it is enough to compare
+    the universe of the implementation with the definition of the signature.
+    NB: the implementation has been strengthened, so a universe parameter
+    appears as a definition equal to itself. *)
+let check_universe (cst, ustate) trace mp1 map1 l ub2 subst1 subst2 =
+  let error why = error_signature_mismatch trace l why in
+  let ub1 =
+    try Id.Map.find l map1.ulabs
+    with Not_found -> error_no_such_label_sub l (ModPath.to_string mp1)
+  in
+  match ub2.univ_def with
+  | None -> cst
+  | Some v2 ->
+    let u1 = Univ.Level.local (KerName.make mp1 l) in
+    let is_parameter = match ub1.univ_def with
+    | None -> true
+    | Some v1 -> Univ.Level.equal (subst_level subst1 v1) u1
+    in
+    if is_parameter then error UniverseDefinitionFieldExpected
+    else
+      let v2 = subst_level subst2 v2 in
+      check_univ_constraint error (cst, ustate) (u1, Univ.UnivConstraint.Eq, v2)
 
 let check_conv_error error why state poly pb env a1 a2 =
   if poly then match Conversion.default_conv pb env a1 a2 with
@@ -358,6 +417,8 @@ and check_signatures (cst, ustate) trace env mp1 sig1 mp2 sig2 subst1 subst2 res
               mp2 mib2 subst1 subst2 reso1 reso2
         | SFBrules _ ->
             error_signature_mismatch trace l NoRewriteRulesSubtyping
+        | SFBuniv ub2 ->
+            check_universe (cst, ustate) trace mp1 map1 l ub2 subst1 subst2
         | SFBmodule msb2 ->
             let mp1' = MPdot (mp1, l) in
             let mp2' = MPdot (mp2, l) in
@@ -400,6 +461,7 @@ and check_modtypes (cst, ustate) trace env mp1 mtb1 mp2 mtb2 subst1 subst2 =
       match struc1,struc2 with
       | NoFunctor list1,
         NoFunctor list2 ->
+        let univs2 = subst_univ_constraints subst2 (mod_univs mtb2) in
         let env =
           if Int.equal nargs 0 then
             (* Not a functor, so the body and all its subcomponents should
@@ -408,13 +470,32 @@ and check_modtypes (cst, ustate) trace env mp1 mtb1 mp2 mtb2 subst1 subst2 =
           else
             (* We only add the subcomponents, the functor per se is already
                part of the environment but the subtyping check will never access
-               it directly *)
-            Modops.add_structure mp1 (subst_structure subst1 mp1 list1) delta1 env
+               it directly. The universe constraints both functor bodies rely on
+               are assumptions on the parameters: they are enforced at each
+               application, so we can assume them here. *)
+            let list1 = subst_structure subst1 mp1 list1 in
+            let env = Modops.add_structure mp1 list1 delta1 env in
+            let univs1 = subst_univ_constraints subst1 (mod_univs mtb1) in
+            Modops.add_universe_constraints (Univ.UnivConstraints.union univs1 univs2) env
+        in
+        let cst =
+          if Int.equal nargs 0 then cst
+          else
+            (* The universe state must know these universes as well *)
+            let univs = Modops.universes_of_structure mp1 (subst_structure subst1 mp1 list1) in
+            let univs1 = subst_univ_constraints subst1 (mod_univs mtb1) in
+            let univs = Univ.ContextSet.add_constraints (Univ.UnivConstraints.union univs1 univs2) univs in
+            ustate.push_universes univs cst
         in
         let delta_mtb2 = mod_delta mtb2 in
-        check_signatures (cst, ustate) trace env
-          mp1 list1 mp2 list2 subst1 subst2
-          delta1 delta_mtb2
+        let cst =
+          check_signatures (cst, ustate) trace env
+            mp1 list1 mp2 list2 subst1 subst2
+            delta1 delta_mtb2
+        in
+        (* The constraints of the signature must hold for the implementation *)
+        if Int.equal nargs 0 then check_univ_constraints (cst, ustate) trace univs2
+        else cst
       | MoreFunctor (arg_id1,arg_t1,body_t1),
         MoreFunctor (arg_id2,arg_t2,body_t2) ->
         let mparg1 = MPbound arg_id1 in
@@ -426,6 +507,7 @@ and check_modtypes (cst, ustate) trace env mp1 mtb1 mp2 mtb2 subst1 subst2 =
         let delta1 = subst_codom_delta_resolver nsubst delta1 in
         let subst2 = add_mp mp2 mp1 (forget_inline_delta_resolver delta1) subst2 in
         let env = add_module_parameter arg_id2 arg_t2 env in
+        let cst = ustate.push_universes (Modops.universes_of_module mparg2 (module_body_of_type arg_t2)) cst in
         let cst = check_modtypes (cst, ustate) (FunctorArgument (nargs+1) :: trace) env mparg2 arg_t2 mparg1 arg_t1 subst2 subst1 in
         (* contravariant *)
         check_structure cst ~nargs:(nargs + 1) env body_t1 body_t2 subst1 subst2 delta1

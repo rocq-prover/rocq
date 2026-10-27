@@ -293,6 +293,10 @@ GRAMMAR EXTEND Gram
           { VernacRegister(g, RegisterInline) }
       | IDENT "Primitive"; id = ident_decl; typopt = OPT [ ":"; typ = lconstr -> { typ } ]; ":="; r = register_token ->
           { VernacPrimitive(id, r, typopt) }
+      | IDENT "Universe"; IDENT "Parameter"; l = LIST1 identref -> { VernacUniverseParameter l }
+      | IDENT "Universe"; IDENT "Parameters"; l = LIST1 identref -> { VernacUniverseParameter l }
+      | IDENT "Universe"; IDENT "Definition"; id = identref; ":="; u = universe_name ->
+          { VernacUniverseDefinition (id, u) }
       | IDENT "Universe"; l = LIST1 identref -> { VernacUniverse l }
       | IDENT "Universes"; l = LIST1 identref -> { VernacUniverse l }
       | IDENT "Sort"; l = LIST1 identref -> { VernacSort l }
@@ -792,6 +796,8 @@ GRAMMAR EXTEND Gram
           { CWith_Definition (fqid,udecl,c) }
       | IDENT "Module"; fqid = fullyqualid; ":="; qid = qualid ->
           { CWith_Module (fqid,qid) }
+      | IDENT "Universe"; "Definition"; fqid = fullyqualid; ":="; u = universe_name ->
+          { CWith_Universe (fqid,u) }
       ] ]
   ;
   module_type:

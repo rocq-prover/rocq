@@ -23,3 +23,7 @@ val unsafe_import
   -> compiled_library
   -> vodigest
   -> safe_environment
+
+(** The environment of the safe environment, with the universes of the
+    library declared, in which its contents can be added. *)
+val env_of_library : Safe_typing.safe_environment -> Safe_typing.compiled_library -> Environ.env

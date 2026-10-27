@@ -1377,6 +1377,13 @@ module Internal = struct
       | SFBmodule mb -> overwrite_module (MPdot (mp, l)) mb env
       | SFBmodtype mtb -> add_modtype (MPdot (mp, l)) mtb env
       | SFBrules r -> add_rewrite_rules r.rewrules_rules env
+      | SFBuniv ub ->
+        let u = Univ.Level.local (KerName.make mp l) in
+        let csts = match ub.univ_def with
+          | None -> Univ.UnivConstraints.empty
+          | Some v -> Univ.UnivConstraints.singleton (u, Univ.UnivConstraint.Eq, v)
+        in
+        push_context_set ~strict:false (Univ.Level.Set.singleton u, csts) env
     in
     List.fold_left add_field env sign
 
@@ -1385,7 +1392,8 @@ module Internal = struct
     match mod_type mb with
     | NoFunctor struc ->
       let delta = Option.get (Mod_declarations.mod_global_delta mb) in
-      overwrite_structure mp struc delta env
+      let env = overwrite_structure mp struc delta env in
+      push_context_set ~strict:false (Univ.Level.Set.empty, Mod_declarations.mod_univs mb) env
     | MoreFunctor _ -> env
 
   let overwrite_module_parameter mbid mtb env =

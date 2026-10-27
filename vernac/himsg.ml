@@ -1357,6 +1357,12 @@ let explain_not_match_error = function
     str "incompatible variance information"
   | NoRewriteRulesSubtyping ->
     strbrk "subtyping for rewrite rule blocks is not supported"
+  | UniverseDefinitionFieldExpected ->
+    strbrk "a universe definition is expected"
+  | UnsatisfiedUniverseConstraint (l, d, r) ->
+    let pr = UnivNames.pr_level_with_global_universes in
+    strbrk "the universe constraint " ++ pr l ++
+    Univ.UnivConstraint.pr_kind d ++ pr r ++ strbrk " is not satisfied"
 
 let rec get_submodules acc = function
   | [] -> acc, []
@@ -1427,6 +1433,16 @@ let explain_with_constraint_error = function
       str "cannot constrain a primitive"
   | WithCannotConstrainSymbol ->
       str "cannot constrain a symbol"
+  | WithUniverseParameter u ->
+      str "its type depends on the universe parameter " ++
+      UnivNames.pr_level_with_global_universes u ++
+      strbrk " of the module type, which must be defined first with \"with Universe Definition\""
+  | WithNotAUniverseLevel ->
+      str "a universe level is expected"
+  | WithUndeclaredUniverse u ->
+      str "undeclared universe " ++ UnivNames.pr_level_with_global_universes u
+  | WithUniverseDefined ->
+      str "the universe is already a universe definition of the module type"
 
 let explain_incorrect_with_constraint l err =
   str "Incorrect constraint for label " ++ quote (Id.print l) ++ str ": " ++
@@ -1456,6 +1472,7 @@ let explain_module_error = function
   | NoSuchLabel (l,mp) -> explain_no_such_label l mp
   | NotAModuleLabel l -> explain_not_a_module_label l
   | NotAConstant l -> explain_not_a_constant l
+  | NotAUniverse l -> quote (Id.print l) ++ str " is not a universe."
   | IncorrectWithConstraint (l, err) -> explain_incorrect_with_constraint l err
   | GenerativeModuleExpected l -> explain_generative_module_expected l
   | LabelMissing (l,s) -> explain_label_missing l s
