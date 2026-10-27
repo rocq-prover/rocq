@@ -81,6 +81,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [incorrect handling of universe polymorphism](#incorrect-handling-of-universe-polymorphism)
       - [Forgotten universe substitution with Register Inline on universe polymorphic definition](#forgotten-universe-substitution-with-register-inline-on-universe-polymorphic-definition)
       - [kernel reduction drops the lift on a primitive array](#kernel-reduction-drops-the-lift-on-a-primitive-array)
+      - [VM conversion entered a mutual fixpoint with the block's last component](#vm-conversion-entered-a-mutual-fixpoint-with-the-blocks-last-component)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -970,6 +971,19 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - risk: when reducing a primitive array under binders, the lift on the
   array was eagerly dropped, producing wrong normal forms and letting the
   kernel accept ill-typed terms
+
+#### VM conversion entered a mutual fixpoint with the block's last component
+
+- component: "virtual machine" (compilation to bytecode ran by a C-interpreter)
+- introduced: V8.13 ([#12894](https://github.com/rocq-prover/rocq/pull/12894))
+- impacted released versions: V8.13-V9.3.0
+- impacted coqchk versions: V8.16-V9.3.0 (only when using -bytecode-compiler yes)
+- fixed in: V9.4
+- found by: Sami Jawhar
+- GH issue number: rocq-prover/rocq#22651
+- exploit: see issue
+- risk: needs a VM conversion that eta-expands a mutual fixpoint and compares
+  two different components of its block
 
 ### Side-effects
 
