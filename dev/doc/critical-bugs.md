@@ -1095,7 +1095,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - introduced: V8.13 ([#12894](https://github.com/rocq-prover/rocq/pull/12894))
 - impacted released versions: V8.13-V9.3.0
 - impacted coqchk versions: V8.16-V9.3.0 (only when using -bytecode-compiler yes)
-- fixed in: V9.4
+- fixed in: V9.4 ([#22652](https://github.com/rocq-prover/rocq/pull/22652))
 - found by: Sami Jawhar
 - GH issue number: rocq-prover/rocq#22651
 - exploit: see issue
