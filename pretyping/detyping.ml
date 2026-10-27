@@ -673,9 +673,19 @@ let rec share_names detype flags n l avoid env sigma c t =
         let env = add_name (set_name (Name id) decl) env in
         let appc = mkApp (lift 1 c,[|mkRel 1|]) in
         share_names detype flags (n-1) ((Name id,detype_relevance_info ~flags:flags.flg sigma na',Explicit,None,t'')::l) avoid env sigma appc c'
+    (* Unfold type abbreviations when necessary to expose the recursive
+       argument. *)
+    | _ when n > 0 ->
+        let t' = Reductionops.whd_all (snd env) sigma t in
+        (match EConstr.kind sigma t' with
+        | Prod _ -> share_names detype flags n l avoid env sigma c t'
+        | _ ->
+            Feedback.msg_debug (strbrk "Detyping.detype: cannot factorize fix enough");
+            let c = detype flags avoid env sigma c in
+            let t = detype flags avoid env sigma t in
+            (List.rev l,c,t))
     (* If built with the f/n notation: we renounce to share names *)
     | _ ->
-        if n>0 then Feedback.msg_debug (strbrk "Detyping.detype: cannot factorize fix enough");
         let c = detype flags avoid env sigma c in
         let t = detype flags avoid env sigma t in
         (List.rev l,c,t)
