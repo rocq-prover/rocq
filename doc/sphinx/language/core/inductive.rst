@@ -720,7 +720,9 @@ written directly within a term using a :ref:`fix <prim-fix>` expression, which i
 construction to which :cmd:`Fixpoint` declarations are elaborated.
 
 The following subsections describe these two forms and their use.
-Rocq only accepts terminating recursive functions to preserve consistency.
+Rocq only accepts well-founded recursive functions to preserve consistency,
+and to retain metatheoretic properties such as compatibility with propositional
+extensionality or univalence.
 Termination checking is performed by the :ref:`guard condition <guard-condition>`.
 
 .. _Fixpoint:
@@ -754,6 +756,18 @@ over inductive types.
    consequently :n:`forall {* @binder }, @type` and its value is equivalent
    to :n:`fun {* @binder } => @term`.
 
+   The :n:`{struct @ident}` annotation (see :n:`@fixannot`) selects the
+   *structural argument*, also called the decreasing argument. Definitions
+   must satisfy the :ref:`guard condition <guard-condition>` for that
+   argument. A fixpoint is unfolded only when the structural argument is
+   instantiated with a fully applied constructor.
+
+   If the :n:`{struct @ident}` annotation is omitted, Rocq tries arguments from
+   left to right until it finds one that satisfies the guard condition.
+   If no argument satisfies it, the definition is rejected.
+   Specifying the structural argument explicitly can therefore significantly speed up
+   type checking of large mutual fixpoints.
+
    This command accepts the same attributes as :cmd:`Definition`.
    The :attr:`bypass_check(guard)` attribute disables termination checking for
    this definition.
@@ -766,26 +780,20 @@ over inductive types.
    without :attr:`program`. See :ref:`program_fixpoint` for their syntax,
    defaults, and examples.
 
-   The :n:`{struct @ident}` annotation (see :n:`@fixannot`) selects the
-   *structural argument*, also called the decreasing argument. Definitions
-   must satisfy the :ref:`guard condition <guard-condition>` for that
-   argument. A fixpoint is unfolded only when the structural argument is
-   instantiated with a term starting with a constructor.
-
-   If the :n:`{struct @ident}` annotation is omitted, Rocq tries arguments from
-   left to right until it finds one that satisfies the guard condition.
-   If no argument satisfies it, the definition is rejected.
-   Specifying the structural argument explicitly can therefore significantly speed up
-   type checking of large mutual fixpoints.
-
    .. _example_minimum:
+
+   .. _reversed_add_example:
+
+   .. _alternative_struct_example:
 
    .. example:: Minimum of two natural numbers
 
       The following function computes the minimum of two natural numbers.
       It matches both arguments: if both are successors, it adds one to the
-      minimum of their predecessors; otherwise, it returns zero. The structural
-      argument is inferred to be :g:`n`.
+      minimum of their predecessors; otherwise, it returns zero.
+      As the structural argument is not specified, Rocq tries arguments from
+      left to right and selects :g:`n`, though :g:`m` also satisfies the guard
+      condition.
 
       .. rocqtop:: in
 
@@ -799,8 +807,9 @@ over inductive types.
              end
            end.
 
-      The function unfolds when its first argument starts with a constructor.
-      For :g:`0`, it reduces to :g:`0`, even when :g:`m` is a variable:
+      As :g:`n` is selected to be the structural argument, :g:`min_left` unfolds
+      when its first argument starts with a constructor. For :g:`0`, it reduces
+      to :g:`0`, even when :g:`m` is a variable:
 
       .. rocqtop:: in
 
@@ -809,9 +818,7 @@ over inductive types.
            reflexivity.
          Qed.
 
-      For :g:`S p`, it reduces to the inner match on :g:`m`. This match returns
-      :g:`0` when :g:`m` is :g:`0`, and :g:`S (min_left p q)` when :g:`m` is
-      :g:`S q`:
+      For :g:`S p`, it reduces to the inner match on :g:`m`.
 
       .. rocqtop:: in
 
@@ -825,52 +832,9 @@ over inductive types.
            reflexivity.
          Qed.
 
-   .. example:: Inferring or selecting the structural argument
-
-      In this addition function, the recursive call leaves :g:`n` unchanged
-      and decreases :g:`m`. Rocq therefore selects :g:`m` as the structural
-      argument:
-
-      .. rocqtop:: in
-
-         Fixpoint plus_second (n m : nat) : nat :=
-           match m with
-           | 0 => n
-           | S p => S (plus_second n p)
-           end.
-
-      Explicitly selecting :g:`n` prevents this choice. Since only :g:`m`
-      decreases, the following definition is rejected. Selecting :g:`m`
-      instead would allow this definition.
-
-      .. rocqtop:: all
-
-         Fail Fixpoint wrongplus (n m : nat) {struct n} : nat :=
-           match m with
-           | 0 => n
-           | S p => S (wrongplus n p)
-           end.
-
-      When no argument decreases, inference cannot find a structural
-      argument, and the definition is rejected:
-
-      .. rocqtop:: all
-
-         Fail Fixpoint unchanged (n : nat) : nat := unchanged n.
-
-   Some fixpoints satisfy the guard condition for more than one argument.
-   The choice affects reduction, since a fixpoint unfolds only when its structural
-   argument starts with a constructor. An explicit annotation is needed to
-   select an argument other than the first one accepted by Rocq.
-
-   .. _reversed_add_example:
-
-   .. _alternative_struct_example:
-
-   .. example:: Choosing another structural argument
-
       In :g:`min_left`, the recursive call decreases both :g:`n` and :g:`m`.
-      The same body can therefore use :g:`m` as its structural argument.
+      An explicit annotation selects :g:`m` instead of the first argument
+      accepted by Rocq. The same body can therefore be written as follows:
 
       .. rocqtop:: in
 
@@ -885,7 +849,7 @@ over inductive types.
            end.
 
       Both functions compute the same minimum, but :g:`m` now controls unfolding.
-      Unlike :g:`min_left 0 m` in the :ref:`previous example <example_minimum>`,
+      Unlike :g:`min_left 0 m`,
       :g:`min_right 0 m` cannot unfold while :g:`m` is a variable.
       Its value can still be shown to be zero by case analysis on :g:`m`:
 
@@ -908,9 +872,32 @@ over inductive types.
            reflexivity.
          Qed.
 
-   The :n:`with` clause enables users to declare mutually recursive functions.
-   In particular, it can be used to declare functions over mutually defined
-   inductive types.
+   .. example:: Errors with the structural argument
+
+      In the following addition function, the recursive call decreases
+      :g:`m` but leaves :g:`n` unchanged. Explicitly selecting :g:`n`
+      causes the definition to be rejected: the error message explains why the recursive
+      call does not use a smaller argument.
+
+      .. rocqtop:: all
+
+         Fail Fixpoint wrongplus (n m : nat) {struct n} : nat :=
+           match m with
+           | 0 => n
+           | S p => S (wrongplus n p)
+           end.
+
+      When no structural argument is specified and no argument satisfies the
+      guard condition, Rocq reports the following error:
+
+      .. rocqtop:: all
+
+         Fail Fixpoint unchanged (n m : nat) : nat := unchanged n m.
+
+   The :n:`with` clause allows several mutually recursive functions to be defined
+   simultaneously.
+   It is especially useful when defining functions over mutually defined
+   inductive types. Example: :ref:`Mutual fixpoints <example_mutual_fixpoints>`.
 
    .. _example_mutual_fixpoints:
 
@@ -946,34 +933,37 @@ over inductive types.
       branch of the body. The successor branch makes a recursive call on the
       predecessor :g:`p`.
 
-      .. rocqtop:: in
+      .. list-table::
+         :widths: 1 1
 
-         Fixpoint double (n : nat) : nat.
-         Proof.
-           destruct n as [|p].
-           - exact 0.
-           - exact (S (S (double p))).
-         Defined.
+         * - .. rocqtop:: in
 
-      .. rocqtop:: all
+                Fixpoint double (n : nat) : nat.
+                Proof.
+                  destruct n as [|p].
+                  - exact 0.
+                  - exact (S (S (double p))).
+                Defined.
 
-         Compute double 3.
+             .. rocqtop:: all
 
-      .. rocqtop:: in
+                Compute double 3.
 
-         #[refine]
-         Fixpoint double' (n : nat) : nat :=
-           match n with
-           | 0 => 0
-           | S p => _
-           end.
-         Proof.
-           exact (S (S (double' p))).
-         Defined.
+           - .. rocqtop:: in
 
-      .. rocqtop:: all
+                #[refine]
+                Fixpoint double' (n : nat) : nat :=
+                  match n with
+                  | 0 => 0
+                  | S p => _
+                  end.
+                Proof.
+                  exact (S (S (double' p))).
+                Defined.
 
-         Compute double' 3.
+             .. rocqtop:: all
+
+                Compute double' 3.
 
 .. _prim-fix:
 
@@ -1000,14 +990,9 @@ A local definition of a single recursive function has a special syntax:
 :n:`let @ident := fix @ident {* @binder } := @term in`. The same abbreviation
 is available for :ref:`cofixpoints <prim-cofix>`.
 
-The :n:`fix` and :n:`let fix` expressions support only the :n:`struct` form of
-:n:`@fixannot`. The :n:`wf` and :n:`measure` forms are supported by commands
-such as :cmd:`Fixpoint` with the :attr:`program` attribute and :cmd:`Function`.
-
-The :n:`{struct @ident}` annotation selects the structural argument as for
-:cmd:`Fixpoint`; it can also be omitted to let Rocq infer that argument.
-Local fixpoints satisfy the same :ref:`guard condition <guard-condition>`
-as top-level definitions.
+As for top-level fixpoints, primitive fixpoints must satisfy the :ref:`guard
+condition <guard-condition>` with a structural argument that can be given by the
+:n:`{struct @ident}` annotation.
 
 .. warning::
 
@@ -1131,7 +1116,7 @@ The Guard Condition
 
 Rocq checks termination of fixpoints using a *guard condition*: a syntactic
 check triggered every time a fixpoint is type-checked. It can also be
-tested earlier in proof mode using the :cmd:`Guarded` command.
+tested at any time in proof mode using the :cmd:`Guarded` command.
 
 The guard condition ensures that each recursive call is performed on a strict
 subterm of the structural argument, and hence, that the function terminates.
@@ -1319,6 +1304,117 @@ can be recognized as strict subterms of the caller's structural argument.
         | 0 => 0
         | S p => S (rid ((fun x => x) p))
         end.
+
+.. _guard-checking-reduction:
+
+Checking Fixpoints up to Reduction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When writing a recursive function, it can be useful to give it a local name,
+pass it as an argument to another function, or partially apply it within its
+own body. These uses do not immediately expose a recursive call on a strict
+subterm. To support them, the guard checker reduces the enclosing expressions
+and checks the recursive calls exposed by reduction.
+
+This mechanism supports beta reduction, unfolding local and global
+definitions, and reducing matches, primitive projections, fixpoints, and
+cofixpoints when their reduction rules apply.
+
+It is distinct from the weak-head reduction used by subterm analysis to
+recognize recursive arguments, as in the :g:`rid` example above.
+The recursive argument is itself checked for guarded recursive calls before
+being reduced to determine whether it is a strict subterm.
+
+.. example:: Instantiating a recursive argument by beta reduction
+
+   In the body of the local function :g:`fun q => beta q`, the variable :g:`q`
+   is not known to be a strict subterm of :g:`n`. Applying this function to
+   :g:`p` and reducing the beta redex produces :g:`beta p`, whose recursive
+   argument is a strict subterm exposed by the match.
+
+   .. rocqtop:: in
+
+      Fixpoint beta (n : nat) : nat :=
+        match n with
+        | 0 => 0
+        | S p => (fun q => beta q) p
+        end.
+
+.. example:: Giving a recursive function a local name
+
+   The binding :g:`let g := alias` gives the recursive function a local name.
+   Unfolding this binding replaces :g:`g p` with :g:`alias p`, so the guard
+   checker can verify that the recursive call uses the strict subterm :g:`p`.
+
+   .. rocqtop:: in
+
+      Fixpoint alias (n : nat) : nat :=
+        let g := alias in
+        match n with
+        | 0 => 0
+        | S p => g p
+        end.
+
+.. example:: Rejecting a recursive call exposed by reduction
+
+   As in :g:`beta`, the call on the locally bound variable :g:`q` requires
+   reduction to be checked further. Here, however, the local function is
+   applied to :g:`n`. Beta reduction exposes :g:`beta_same n`, whose recursive
+   argument is the unchanged structural argument rather than a strict subterm.
+   The definition is therefore rejected.
+
+   .. rocqtop:: in
+
+      Fail Fixpoint beta_same (n : nat) : nat :=
+        match n with
+        | 0 => 0
+        | S _ => (fun q => beta_same q) n
+        end.
+
+A recursive call on an argument already known not to be a strict subterm is
+rejected before reduction, even if the call would be erased by reducing an
+enclosing expression. This avoids accepting calls that would cause
+nontermination under call-by-value evaluation.
+
+.. example:: Rejecting an invalid recursive call before it can be erased
+
+   The recursive argument :g:`S n` is not a strict subterm of :g:`n`, so the
+   following definition is rejected. Reducing the :g:`let` expression would
+   erase the call and return :g:`0`, but call-by-value evaluation would first
+   evaluate :g:`invalid (S n)`, causing an infinite sequence of recursive calls.
+
+   .. rocqtop:: in
+
+      Fail Fixpoint invalid (n : nat) : nat :=
+        let _ := invalid (S n) in 0.
+
+The guard checker checks the subterms of an expression. If it detects a
+partially applied recursive call or a recursive call on a locally bound variable,
+the guard checker attempts to reduce the redex. If reduction is possible,
+it checks the reduct.
+Otherwise, the need for reduction is propagated to an outer expression, whose
+reduction may instantiate or erase the delayed recursive call, allowing the
+fixpoint to be accepted. The definition is rejected if this requirement remains
+unresolved after checking the whole body.
+
+.. example:: Erasing a blocked inner redex by reducing an outer one
+
+   In the following definition, the match cannot reduce because :g:`b` is a
+   variable. Its :g:`false` branch contains the partially applied recursive
+   function :g:`blocked b`, which requires reduction to be checked further.
+   This requirement is propagated to the enclosing :g:`let` expression.
+   The bound value is unused, so reducing the :g:`let` erases the match and
+   leaves :g:`0`. The definition is therefore accepted.
+
+   .. rocqtop:: in
+
+      Fixpoint blocked (b : bool) (n : nat) : nat :=
+        let _ :=
+          match b with
+          | true => fun _ : nat => 0
+          | false => blocked b
+          end
+        in 0.
 
 .. _traversing-subterm-analysis:
 
