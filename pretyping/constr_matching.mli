@@ -80,11 +80,7 @@ val match_subterm : env -> Evd.evar_map ->
    against [pat] taking partial subterms into consideration *)
 val is_matching_appsubterm : ?closed:bool -> env -> Evd.evar_map -> constr_pattern -> constr -> bool
 
-type subterm_cache_entry = {
-  term: Evd.econstr;
-  result: bool;
-}
-type subterm_cache = subterm_cache_entry option array ref
+type subterm_cache
 
 val make_subterm_cache : unit -> subterm_cache
 
