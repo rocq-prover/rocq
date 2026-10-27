@@ -10,3 +10,5 @@ Set < u
     < v
 v < u (because v <(from PrintUnivsSubgraph.T.foo) u)
 
+w = Set
+

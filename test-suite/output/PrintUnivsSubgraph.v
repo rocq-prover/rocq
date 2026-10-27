@@ -19,3 +19,11 @@ End T.
 
 Print Universes Subgraph (u v).
 (* T.foo does not exist but we don't fail *)
+
+Set Universe Polymorphism.
+Section S.
+  Universe w.
+  Constraint w = Set.
+  Print Universes Subgraph (w).
+  (* should print [w = Set], not [Set <= w] *)
+End S.
