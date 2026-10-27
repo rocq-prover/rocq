@@ -1089,7 +1089,8 @@ let declare_mutual_definitions ~info ~cinfo ~opaque ~eff ~uctx ~bodies ~possible
   let possible_guard, fixrelevances = possible_guard in
   let fixtypes = List.map (fun CInfo.{typ} -> typ) cinfo in
   let rec_declaration = prepare_recursive_declaration cinfo fixtypes fixrelevances bodies in
-  let bodies_types, sigma, indexes = make_recursive_bodies ~sigma:(Evd.from_ustate uctx) env ~typing_flags ~rec_declaration ~possible_guard in
+  let sigma = Evd.set_side_effects eff (Evd.from_ustate uctx) in
+  let bodies_types, sigma, indexes = make_recursive_bodies ~sigma env ~typing_flags ~rec_declaration ~possible_guard in
   let uctx = Evd.ustate sigma in
   let entries = List.map (fun (body, typ) -> (body, Some typ)) bodies_types in
   let entries_for_using = List.map (fun (body, typ) -> (body, Some typ)) bodies_types in
