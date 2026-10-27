@@ -93,6 +93,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Forgotten universe substitution with Register Inline on universe polymorphic definition](#forgotten-universe-substitution-with-register-inline-on-universe-polymorphic-definition)
       - [conversion under contexts is done in the wrong environment](#conversion-under-contexts-is-done-in-the-wrong-environment)
       - [translation of identifiers from Coq to OCaml was not injective](#translation-of-identifiers-from-coq-to-ocaml-was-not-injective)
+      - [VM conversion entered a mutual fixpoint with the block's last component](#vm-conversion-entered-a-mutual-fixpoint-with-the-blocks-last-component)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -1087,6 +1088,19 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - GH issue number: rocq-rocq-prover/rocq#22364
 - exploit: see issue
 - risk: systematic when using native compilation
+
+#### VM conversion entered a mutual fixpoint with the block's last component
+
+- component: "virtual machine" (compilation to bytecode ran by a C-interpreter)
+- introduced: V8.13 ([#12894](https://github.com/rocq-prover/rocq/pull/12894))
+- impacted released versions: V8.13-V9.3.0
+- impacted coqchk versions: V8.16-V9.3.0 (only when using -bytecode-compiler yes)
+- fixed in: V9.4
+- found by: Sami Jawhar
+- GH issue number: rocq-prover/rocq#22651
+- exploit: see issue
+- risk: needs a VM conversion that eta-expands a mutual fixpoint and compares
+  two different components of its block
 
 ### Side-effects
 
