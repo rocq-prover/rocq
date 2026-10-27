@@ -1048,6 +1048,18 @@ let add_poly_constraints ?src uctx (qcstrs, ucstrs) =
   let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints ?src uctx qcstrs cst) uctx.sort_variables in
   { uctx with local; sort_variables }
 
+(** Constraints already checked by the kernel, e.g. those of the universe
+    context of a global declaration. They are merged in the graphs as they are
+    rather than going through the unification of [process_constraints], which
+    refuses to identify a rigid universe with Set whereas the kernel allows it
+    (e.g. for a polymorphic section universe constrained by [u = Set]). *)
+let add_trusted_poly_constraints ?src uctx (qcstrs, ucstrs as cstrs) =
+  let univs, local = uctx.local in
+  { uctx with
+    local = (univs, PConstraints.union local cstrs);
+    universes = merge_univ_constraints uctx ucstrs uctx.universes;
+    sort_variables = QState.merge_constraints (merge_elim_constraints ?src uctx qcstrs) uctx.sort_variables }
+
 let check_elim_constraints uctx csts =
   Sorts.ElimConstraints.for_all (fun (l,k,r) ->
       let l = nf_quality uctx l in
@@ -1560,7 +1572,7 @@ let from_auctx ?(of_template=false) env auctx =
   in
   let ustate = Array.fold_left_i add_qvar ustate names.quals in
   let ustate = Array.fold_left_i (fun i ustate name -> add_universe (name_to_option name) false ustate (Level.var i)) ustate names.univs in
-  let ustate = add_poly_constraints ustate (AbstractContext.constraints auctx) in
+  let ustate = add_trusted_poly_constraints ustate (AbstractContext.constraints auctx) in
   ustate
 
 let make_nonalgebraic_variable uctx u =
