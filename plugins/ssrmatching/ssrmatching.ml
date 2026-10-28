@@ -1278,6 +1278,42 @@ type pattern = {
 let pp_pattern env { pat_sigma = sigma; pat_pat = p } =
   pr_pattern_aux (fun t -> pr_econstr_pat env sigma t) p
 
+(* A pattern whose terms are normalized, with the extension of its base
+   it needs. [pext_pattern] is the original pattern, for printing. *)
+type pattern_extension = {
+  pext_pattern : pattern;
+  pext_pat : (in_pattern, EConstr.t) ssrpattern;
+  pext_ext : evar_map_extension;
+}
+
+let pattern_extension ~env ~base ({ pat_sigma = sigma; pat_pat } as p) =
+  let nf = nf_evars_univs sigma in
+  let nf_in { in_hole; in_func; in_patt } =
+    let in_hole = match EConstr.kind sigma (nf (EConstr.mkEvar in_hole)) with
+      | Evar e -> e
+      | _ -> in_hole
+    in
+    { in_hole; in_func = nf in_func; in_patt = nf in_patt }
+  in
+  let in_terms { in_hole; in_func; in_patt } = [EConstr.mkEvar in_hole; in_func; in_patt] in
+  let pext_pat, terms = match pat_pat with
+    | T t -> let t = nf t in T t, [t]
+    | In_T t -> let t = nf t in In_T t, [t]
+    | X_In_T q -> let q = nf_in q in X_In_T q, in_terms q
+    | In_X_In_T q -> let q = nf_in q in In_X_In_T q, in_terms q
+    | E_In_X_In_T (e, q) ->
+      let e = nf e and q = nf_in q in E_In_X_In_T (e, q), e :: in_terms q
+    | E_As_X_In_T (e, q) ->
+      let e = nf e and q = nf_in q in E_As_X_In_T (e, q), e :: in_terms q
+  in
+  { pext_pattern = p; pext_pat;
+    pext_ext = evar_map_extension ~env ~base sigma terms }
+
+let extend_pattern sigma { pext_pat; pext_ext } =
+  { pat_sigma = extend_evar_map sigma pext_ext; pat_pat = pext_pat }
+
+let pp_pattern_extension env { pext_pattern } = pp_pattern env pext_pattern
+
 type cpattern =
   { kind : ssrtermkind
   ; pattern : Genintern.glob_constr_and_expr

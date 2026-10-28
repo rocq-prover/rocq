@@ -53,6 +53,24 @@ type pattern = {
 
 val pp_pattern : env -> pattern -> Pp.t
 
+(** A pattern as an extension of an evar map *)
+type pattern_extension
+
+(** [pattern_extension ~env ~base p] is the pattern [p], whose evar map
+    extends [base], as an extension of [base] (see [evar_map_extension]):
+    its evars and universes which are not in [base] and are needed by its
+    (normalized) terms. *)
+val pattern_extension : env:env -> base:evar_map -> pattern -> pattern_extension
+
+(** [extend_pattern sigma pext] is the pattern of [pext] in [sigma] extended
+    by [pext] (using [extend_evar_map]): [sigma] must extend the [base] of
+    [pext] and not contain its evars.
+    @raise UGraph.UniverseInconsistency if its constraints do not hold in
+    [sigma] *)
+val extend_pattern : evar_map -> pattern_extension -> pattern
+
+val pp_pattern_extension : env -> pattern_extension -> Pp.t
+
 (** The type of rewrite patterns, the patterns of the [rewrite] tactic.
     These patterns also include patterns that identify all the subterms
     of a context (i.e. "in" prefix) *)
