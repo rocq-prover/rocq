@@ -651,13 +651,13 @@ let is_matching_appsubterm ?(closed=true) env sigma pat c =
 
 let cache_size = 1 lsl 18
 
-type subterm_cache_entry = {
-  term: Evd.econstr;
-  result: bool;
-}
-type subterm_cache = subterm_cache_entry option array ref
+type subterm_cache_entry =
+| Missing
+| Found of { term: Evd.econstr; result: bool; }
 
-let make_subterm_cache () = ref (Array.make cache_size None)
+type subterm_cache = subterm_cache_entry array ref
+
+let make_subterm_cache () = ref (Array.make cache_size Missing)
 
 (* A bounded hash of the top of the term.  Any function of a term agrees with
    [==]; what this one has to be is O(1), where [Constr.hash] walks the whole
@@ -704,8 +704,8 @@ let sub_match_cached cache env sigma pat c =
   let hash = hash_top sigma c land (cache_size - 1) in
   let keys = !cache in
   let (cache_hit, cached_result) = match Array.unsafe_get keys hash with
-  | Some {term; result} -> (term == c, result)
-  | None -> (false, false)
+  | Found {term; result} -> (term == c, result)
+  | Missing -> (false, false)
   in
   if cache_hit then
     cached_result
@@ -763,7 +763,7 @@ let sub_match_cached cache env sigma pat c =
     | Construct _|Ind _|Evar _|Const _|Rel _|Meta _|Var _|Sort _|Int _|Float _|String _ -> false
     in
     let result = here || next() in
-    Array.unsafe_set keys hash (Some {term = c; result}); (* add result to the cache *)
+    Array.unsafe_set keys hash (Found {term = c; result}); (* add result to the cache *)
     result
   end
 
