@@ -433,7 +433,7 @@ and lack of checking of relevance marks on constants in coqchk
 - introduced: V9.3.0 ([#22384](https://github.com/rocq-prover/rocq/pull/22384))
 - impacted released versions: V9.3.0
 - impacted coqchk versions: Same
-- fixed in: V9.3.1, V9.4 ([#22645](https://github.com/rocq-prover/rocq/pull/22645))
+- fixed in: V9.2.1, V9.3.1, V9.4 ([#22645](https://github.com/rocq-prover/rocq/pull/22645))
 - found by: Sami Jawhar
 - exploit: test-suite/bugs/bug_22645.v
 - GH issue number: none
