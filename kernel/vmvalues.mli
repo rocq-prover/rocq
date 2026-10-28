@@ -66,6 +66,7 @@ val cofix_upd_val : to_update -> values
 val inj_env : values array -> vm_env
 val fun_env : vfun -> vm_env
 val fix_env : vfix -> vm_env
+val fix_self : vfix -> vm_env
 val cofix_env : vcofix -> vm_env
 val cofix_upd_env : to_update -> vm_env
 

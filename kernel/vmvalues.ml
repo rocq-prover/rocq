@@ -498,6 +498,7 @@ external tcode_array : tcode_array -> tcode array = "rocq_tcode_array"
 
 let first_fix o = shift_fix o (- current_fix o)
 let fix_env v = (Obj.magic (last_fix v) : vm_env)
+let fix_self v = (Obj.magic v : vm_env)
 
 let last o = (Obj.field o (Obj.size o - 1))
 let fix_types (v:vfix) = tcode_array (Obj.magic (last (Obj.repr v)) : tcode_array)

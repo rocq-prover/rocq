@@ -145,7 +145,7 @@ let rec apply_stack a stk v =
             push_val a;
             push_arguments args;
             let a =
-              interprete (fix_code f) (fix_val f) (fix_env f)
+              interprete (fix_code f) (fix_val f) (fix_self f)
                 (nargs args+ nargs args') in
             a, stk
         | _ ->
@@ -153,7 +153,7 @@ let rec apply_stack a stk v =
             push_val a;
             push_arguments args;
             let a =
-              interprete (fix_code f) (fix_val f) (fix_env f)
+              interprete (fix_code f) (fix_val f) (fix_self f)
                 (nargs args) in
             a, stk in
       apply_stack a stk v
@@ -169,12 +169,12 @@ let apply_whd k whd =
   | Vfix(f, None) ->
       push_ra stop;
       push_val v;
-      interprete (fix_code f) (fix_val f) (fix_env f) 0
+      interprete (fix_code f) (fix_val f) (fix_self f) 0
   | Vfix(f, Some args) ->
       push_ra stop;
       push_val v;
       push_arguments args;
-      interprete (fix_code f) (fix_val f) (fix_env f) (nargs args)
+      interprete (fix_code f) (fix_val f) (fix_self f) (nargs args)
   | Vcofix(_,to_up,_) ->
       push_ra stop;
       push_val v;
