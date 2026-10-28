@@ -153,10 +153,12 @@ let redex_of_pattern env p = match redex_of_pattern p with
 | None -> CErrors.anomaly (Pp.str "pattern without redex.")
 | Some (sigma, e) -> Evarutil.nf_evar sigma e, Evd.ustate sigma
 
-let unif_redex env sigma0 nsigma p t = (* t is a hint for the redex of p *)
-  let t, evs, ucst = abs_evars env sigma0 (nsigma, fire_subst nsigma t) in
+(* [pext] is a pattern extension of a base which [nsigma] extends, the
+   returned pattern extends [nsigma] *)
+let unif_redex env sigma0 nsigma pext t = (* t is a hint for the redex of p *)
+  let p = extend_pattern nsigma pext in
+  let t, evs, _ = abs_evars env sigma0 (nsigma, fire_subst nsigma t) in
   let t, _, _, sigma = saturate ~beta:true env p.pat_sigma t (List.length evs) in
-  let sigma = Evd.merge_ustate sigma ucst in
   match p.pat_pat with
   | X_In_T p -> { pat_sigma = sigma; pat_pat = E_As_X_In_T (t, p) }
   | _ ->
@@ -196,7 +198,7 @@ let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
         let pc = match c_gen with
           | Some p -> interp_cpattern env sigma p None
           | _ -> mkTpat env sigma (sigma, c) in
-        Some(c, c_ty, pc), sigma in
+        Some(c, c_ty, pattern_extension ~env ~base:sigma pc), sigma in
     sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred
   | None ->
     let c = Option.get oc in
@@ -246,7 +248,7 @@ let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
     let pc = match n_c_args, c_gen with
       | 0, Some p -> interp_cpattern env sigma p None
       | _ -> mkTpat env sigma (sigma, c) in
-    let cty = Some (c, c_ty, pc) in
+    let cty = Some (c, c_ty, pattern_extension ~env ~base:sigma pc) in
     let elimty = Reductionops.whd_all env sigma elimty in
     sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred
 
@@ -330,21 +332,25 @@ let generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n
   let error sigma t inf_t = errorstrm Pp.(str"The given pattern matches the term"++
     spc()++pr_econstr_env env sigma t++spc()++str"while the inferred pattern"++
     spc()++pr_econstr_pat env sigma (fire_subst sigma inf_t)++spc()++ str"doesn't") in
-  let match_or_postpone (cl, sigma, post) (h, p, inf_t, occ) =
-    let p = unif_redex env sigma0 sigma p inf_t in
+  (* Each pattern is added to the current [sigma], and only the universe
+     state of the result is kept: the evars of the pattern are not added to
+     [sigma], so that a postponed pattern can be added again later. *)
+  let match_or_postpone (cl, sigma, post) (h, pext, inf_t, occ as pat) =
+    let p = unif_redex env sigma0 sigma pext inf_t in
     if is_undef_pat p then
       let () = debug_ssr (fun () -> Pp.(str"postponing " ++ pp_pattern env p)) in
-      cl, sigma, post @ [h, p, inf_t, occ]
+      cl, sigma, post @ [pat]
     else try
       let c, cl, ucst = match_pat env sigma0 p occ h cl in
-      let sigma = Evd.merge_ustate sigma ucst in
+      (* [ucst] extends the universe state of [p], which extends [sigma] *)
+      let sigma = Evd.set_ustate sigma ucst in
       let sigma = try unify_HO env sigma inf_t c
                 with exn when CErrors.noncritical exn -> error sigma c inf_t in
       cl, sigma, post
     with
     | NoMatch | NoProgress ->
         let e, ucst = redex_of_pattern env p in
-        let sigma = Evd.merge_ustate sigma ucst in
+        let sigma = Evd.set_ustate sigma ucst in
         let e, evs, _ucst = abs_evars env sigma (p.pat_sigma, e) in
         let e, _, _, sigma = saturate ~beta:true env sigma e (List.length evs) in
         let sigma = try unify_HO env sigma inf_t e
@@ -382,7 +388,9 @@ let generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n
           let open Proofview.Notations in
           Proofview.Goal.enter begin fun s ->
           let sigma = Proofview.Goal.sigma s in
-          let sigma = Evd.merge_ustate sigma ucst in
+          (* This tactic runs first on the goal of [ssrelim], whose evar map
+             is [sigma0], hence [ucst] extends its universe state *)
+          let sigma = Evd.set_ustate sigma ucst in
           let sigma, shelve = Evar.Map.fold (fun e info (sigma, shelve) ->
               if not @@ Evd.mem sigma e then
                 Evd.add sigma e info, e::shelve else
@@ -421,12 +429,16 @@ let compute_patterns env sigma0 what c_is_head_p cty deps inf_deps_r occ orig_cl
           interp_clr sigma (oclr,(tag_of_cpattern t, fst (redex_of_pattern env p))) in
         (* if we are the index for the equation we do not clear *)
         let clr_t = if deps = [] && eqid <> None then [] else clr_t in
-        let p = if is_undef_pat p then mkTpat env sigma0 (sigma, inf_t) else p in
+        let p =
+          if is_undef_pat p then
+            pattern_extension ~env ~base:sigma (mkTpat env sigma0 (sigma, inf_t))
+          else pattern_extension ~env ~base:sigma0 p in
         loop (patterns @ [i, p, inf_t, occ])
           (clr_t @ clr) (i+1) (deps, inf_deps)
     | [], c :: inf_deps ->
         debug_ssr (fun () -> Pp.(str"adding inf pattern " ++ pr_econstr_pat env sigma c));
-        loop (patterns @ [i, mkTpat env sigma0 (sigma, c), c, allocc])
+        let p = pattern_extension ~env ~base:sigma (mkTpat env sigma0 (sigma, c)) in
+        loop (patterns @ [i, p, c, allocc])
           clr (i+1) ([], inf_deps)
     | _::_, [] -> errorstrm Pp.(str "Too many dependent abstractions") in
   let deps, head_p, inf_deps_r = match what, c_is_head_p, cty with
@@ -479,7 +491,7 @@ let ssrelim ?(is_case=false) deps what ?elim eqid elim_intro_tac =
    * looking at the ones provided by the user and the inferred ones looking at
    * the type of the elimination principle *)
   let sigma, patterns, clr = compute_patterns env sigma0 what c_is_head_p cty deps inf_deps_r occ orig_clr eqid sigma in
-  let pp_pat (_,p,_,occ) = Pp.(pr_occ occ ++ pp_pattern env p) in
+  let pp_pat (_,p,_,occ) = Pp.(pr_occ occ ++ pp_pattern_extension env p) in
   let pp_inf_pat (_,_,t,_) = pr_econstr_pat env sigma (fire_subst sigma t) in
   debug_ssr (fun () -> Pp.(pp_concat (str"patterns=") (List.map pp_pat patterns)));
   debug_ssr (fun () -> Pp.(pp_concat (str"inf. patterns=") (List.map pp_inf_pat patterns)));
