@@ -464,11 +464,7 @@ let pp_val table e typ =
 
 let pp_callback r name =
   try
-    let alias =
-      match find_callback r with
-        | Some s -> str s
-        | None -> name
-    in
+    let alias = str (find_callback r) in
     cut2 () ++ hov 0 (str "let () = Stdlib.Callback.register \"" ++
                      alias ++ str "\" " ++ name)
   with Not_found -> mt ()

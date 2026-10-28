@@ -1,0 +1,13 @@
+(** val f : nat -> nat **)
+
+let f n =
+  S n
+
+let () = Stdlib.Callback.register "A.f" f
+(** val f : nat -> nat **)
+
+let f n =
+  n
+
+let () = Stdlib.Callback.register "B.f" f
+Extracted code successfully compiled
