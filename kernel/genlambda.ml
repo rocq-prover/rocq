@@ -633,18 +633,19 @@ module Cache =
 
 let evar_value sigma ev = sigma.evars_val.CClosure.evar_expand ev
 
-(** Extract the inductive type over which a fixpoint is decreasing *)
-let rec get_fix_struct env i t = match kind (Reduction.whd_all env t) with
+(** Extract the inductive type over which a fixpoint is decreasing and the
+    context prefix before the recursive argument *)
+let rec get_fix_struct env i t accu = match kind (Reduction.whd_all env t) with
 | Prod (na, dom, t) ->
   if Int.equal i 0 then
     let dom = Reduction.whd_all env dom in
     let (dom, _) = decompose_app dom in
     match kind dom with
-    | Ind (ind, _) -> ind
+    | Ind (ind, _) -> ind, na :: accu
     | _ -> assert false
   else
     let env = Environ.push_rel (RelDecl.LocalAssum (na, dom)) env in
-    get_fix_struct env (i - 1) t
+    get_fix_struct env (i - 1) t (na :: accu)
 | _ -> assert false
 
 let rec lambda_of_constr cache env sigma c =
@@ -743,10 +744,24 @@ let rec lambda_of_constr cache env sigma c =
 
   | Fix((pos, i), (names,type_bodies,rec_bodies)) ->
       let ltypes = lambda_of_args cache env sigma 0 type_bodies in
-      let map i t = get_fix_struct env i t in
-      let inds = Array.map2 map pos type_bodies in
+      let map i t = get_fix_struct env i t [] in
+      let inds, nas = Array.split @@ Array.map2 map pos type_bodies in
       let env = Environ.push_rec_types (names, type_bodies, rec_bodies) env in
       let lbodies = lambda_of_args cache env sigma 0 rec_bodies in
+      let map nas lfix =
+        let nas = List.rev nas in
+        let ids, lbody = decompose_Llam lfix in
+        (* Perform an eta-expansion on the fly to ensure we have enough abstractions *)
+        match List.skipn_at_best (Array.length ids) nas with
+        | [] -> lfix
+        | rem ->
+          let rem = Array.of_list rem in
+          let len = Array.length rem in
+          let args = Array.mapi (fun i na -> mknode @@ Lrel (Context.binder_name na, len - i)) rem in
+          let lbody = mkLapp (lam_lift len lbody) args in
+          mkLlam (Array.append ids rem) lbody
+      in
+      let lbodies = Array.map2 map nas lbodies in
       mknode @@ Lfix((pos, inds, i), (names, ltypes, lbodies))
 
   | CoFix(init,(names,type_bodies,rec_bodies)) ->
