@@ -462,28 +462,42 @@ let pp_val table e typ =
 
 (*s Pretty-printing of [Dfix] *)
 
+let pp_callback r name =
+  try
+    let alias =
+      match find_callback r with
+        | Some s -> str s
+        | None -> name
+    in
+    cut2 () ++ hov 0 (str "let () = Stdlib.Callback.register \"" ++
+                     alias ++ str "\" " ++ name)
+  with Not_found -> mt ()
+
 let pp_Dfix table (rv,c,t) =
   let names = Array.map
     (fun r -> if is_inline_custom r then mt () else pp_global_name table Term r) rv
   in
+  let is_void i = is_inline_custom rv.(i) ||
+    (not (is_custom rv.(i)) &&
+     match c.(i) with MLexn "UNUSED" -> true | _ -> false)
+  in
   let rec pp init i =
     if i >= Array.length rv then mt ()
+    else if is_void i then pp init (i+1)
     else
-      let void = is_inline_custom rv.(i) ||
-        (not (is_custom rv.(i)) &&
-         match c.(i) with MLexn "UNUSED" -> true | _ -> false)
+      let def =
+        if is_custom rv.(i) then str " = " ++ str (find_custom rv.(i))
+        else pp_function table (empty_env table ()) c.(i)
       in
-      if void then pp init (i+1)
-      else
-        let def =
-          if is_custom rv.(i) then str " = " ++ str (find_custom rv.(i))
-          else pp_function table (empty_env table ()) c.(i)
-        in
-        (if init then mt () else cut2 ()) ++
-        pp_val table names.(i) t.(i) ++
-        str (if init then "let rec " else "and ") ++ names.(i) ++ def ++
-        pp false (i+1)
-  in pp true 0
+      (if init then mt () else cut2 ()) ++
+      pp_val table names.(i) t.(i) ++
+      str (if init then "let rec " else "and ") ++ names.(i) ++ def ++
+      pp false (i+1)
+  in
+  let callbacks = Array.fold_left (++) (mt ())
+    (Array.mapi (fun i r -> if is_void i then mt () else pp_callback r names.(i)) rv)
+  in
+  pp true 0 ++ callbacks
 
 (*s Pretty-printing of inductive types declaration. *)
 
@@ -615,18 +629,7 @@ let pp_decl table = function
         let name = pp_global_name table Term r in
         (* If it is an foreign custom, begin the expression with 'external'/'foreign' instead of 'let' *)
         let expr_begin = if is_foreign_custom r then str "external " else str "let " in
-        (* Make sure that a callback registration is synthesised, if specified for that term. *)
-        let callback_def =
-          try
-            let alias =
-              match find_callback r with
-                | Some s -> str s
-                | None   -> name (* No alias specified, use the qualid name. *)
-            in
-            cut2 () ++ hov 0 ((str "let () = Stdlib.Callback.register \"") ++ alias ++ (str "\" ") ++ name)
-          with Not_found -> (* No callback registration specified for qualid. *)
-            mt()
-        in pp_val table name t ++ hov 0 (expr_begin ++ name ++ def ++ mt ()) ++ callback_def;
+        pp_val table name t ++ hov 0 (expr_begin ++ name ++ def ++ mt ()) ++ pp_callback r name;
 
     | Dfix (rv,defs,typs) ->
         pp_Dfix table (rv,defs,typs)
