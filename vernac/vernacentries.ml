@@ -489,7 +489,9 @@ let universe_subgraph kept univ =
       end
   in
   let kept = List.fold_left (fun kept q -> Level.Set.add (parse q) kept) Level.Set.empty kept in
-  let csts = UGraph.constraints_for ~kept univ in
+  (* Set is always part of the graph: keeping it reports the constraints
+     between the kept universes and Set, in particular equalities. *)
+  let csts = UGraph.constraints_for ~kept:(Level.Set.add Level.set kept) univ in
   let add u newgraph =
     let strict = UGraph.check_constraint univ (Level.set,Lt,u) in
     UGraph.add_universe u ~strict newgraph
