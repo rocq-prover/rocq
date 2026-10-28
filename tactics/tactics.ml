@@ -2090,10 +2090,21 @@ let keep hyps =
 let apply_type ~typecheck newcl args =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    Refine.refine_with_principal ~typecheck begin fun sigma ->
+    let concl = Proofview.Goal.concl gl in
+    Refine.refine_with_principal ~typecheck:false begin fun sigma ->
       let newcl = nf_betaiota env sigma newcl (* As in former Logic.refine *) in
       let (sigma, ev) = Evarutil.new_evar env sigma newcl in
-      (sigma, applist (ev, args), Some (fst @@ destEvar sigma ev))
+      let sigma, c =
+        if typecheck then
+          let sigma, _ = Typing.sort_of env sigma newcl in
+          let mk c = Retyping.get_judgment_of env sigma c in
+          let jev = { uj_val = ev; uj_type = newcl } in
+          let sigma, jf = Typing.judge_of_apply env sigma jev (Array.map_of_list mk args) in
+          let sigma = Typing.check_actual_type env sigma jf concl in
+          sigma, jf.uj_val
+        else sigma, applist (ev, args)
+      in
+      (sigma, c, Some (fst @@ destEvar sigma ev))
     end
   end
 
