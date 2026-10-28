@@ -681,7 +681,7 @@ let rec hash_top n sigma c =
   | Prod (_, t, b) -> combinesmall 8 (combine (sub t) (sub b))
   | LetIn (_, b, t, c) -> combinesmall 9 (combine3 (sub b) (sub t) (sub c))
   | Proj (p, _, c) ->
-    combinesmall 10 (combine (Projection.CanOrd.hash p) (sub c))
+    combinesmall 10 (combine (Projection.UserOrd.hash p) (sub c))
   | Case (ci, _, _, _, _, c, br) ->
     combinesmall 11 (combine3 (Ind.UserOrd.hash ci.Constr.ci_ind)
                        (Array.length br) (sub c))
