@@ -178,26 +178,6 @@ let unif_HO env ise p c =
   with Evarconv.UnableToUnify(ise, err) ->
     raise Pretype_errors.(PretypeError(env,ise,CannotUnify(p,c,Some err)))
 
-(* The head constant, inductive or constructor of a pattern is matched
-   syntactically, as if it could not be unfolded: its universe instance is
-   unified with the one of the head [f] of the subterm (equal to [p] up to
-   universes) level by level, with [ULub] problems. A flexible level is
-   substituted by the other one, while two rigid levels must already be
-   equal, otherwise [Evd.UniversesDiffer] is raised and the pattern does not
-   match. Unification would instead produce weak constraints for the
-   irrelevant universes of a cumulative inductive type and for the universes
-   of its constructors, leaving the universes of the pattern in the matched
-   instance, and could unfold a constant whose instance differs. *)
-let unif_head ise p f =
-  let open EConstr in
-  match EConstr.kind ise p, EConstr.kind ise f with
-  | Const (_, u), Const (_, u') | Ind (_, u), Ind (_, u')
-  | Construct (_, u), Construct (_, u') ->
-    let u = EInstance.kind ise u and u' = EInstance.kind ise u' in
-    Evd.add_constraints ise
-      (UnivProblem.enforce_eq_instances_univs ~weak:true u u' UnivProblem.Set.empty)
-  | _ -> ise
-
 let unif_HO_args env ise0 pa i ca =
   let n = Array.length pa in
   let rec loop ise j =
@@ -897,9 +877,9 @@ let match_upats_FO upats env sigma0 ise orig_c =
              unif_FO env ise metas p_FO c'
            in
            let ise' = (* Unify again using HO to assign evars *)
-             if u.up_k = KpatConst || u.up_k = KpatFixed then
+             if u.up_k = KpatConst then
               try
-                let ise = unif_head ise u.up_f f in
+                let ise = unif_HO env ise u.up_f f in
                 unif_HO_args env ise u.up_a (i - Array.length u.up_a) a
               with e when CErrors.noncritical e -> raise NoMatch
              else
@@ -945,7 +925,7 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
         | KpatFixed
         | KpatConst -> (* Ensure universe instances are unified *)
           pp(lazy(str"match_upats_HO: " ++ pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise f));
-          unif_head ise u.up_f f
+          unif_HO env ise u.up_f f
         | KpatEvar _ ->
           let open EConstr in
           let pka = Evd.expand_existential ise @@ destEvar ise u.up_f in
@@ -1051,6 +1031,13 @@ let subst_occ occ_ref =
   let () = if Int.equal nocc max_occ then occ_ref := { !occ_ref with skip_occ = use_occ } in
   if nocc <= max_occ then occ_set.(nocc - 1) else not use_occ
 
+let match_constr_universes env sigma x y =
+  match EConstr.eq_constr_universes env sigma x y with
+  | None -> None
+  | Some pbs ->
+      try Some (Evd.add_constraints sigma pbs)
+      with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer | QGraph.EliminationError _ -> None
+
 let match_EQ env sigma (ise, u) =
   let open EConstr in
   match u.up_k with
@@ -1064,12 +1051,8 @@ let match_EQ env sigma (ise, u) =
       | Some sigma' -> unif_EQ env' sigma' pb b
       | None -> None end
     | _ -> None in match_let
-  | KpatFixed | KpatConst -> fun c ->
-    if not (eq_constr_nounivs sigma u.up_f c) then None
-    else
-      (try Some (unif_head sigma u.up_f c)
-       with UGraph.UniverseInconsistency _ | Evd.UniversesDiffer
-          | QGraph.EliminationError _ -> None)
+  | KpatFixed -> fun c -> match_constr_universes env sigma u.up_f c
+  | KpatConst -> fun c -> match_constr_universes env sigma u.up_f c
   | KpatLam -> fun c ->
       (match EConstr.kind sigma c with
       | Lambda _ -> unif_EQ env sigma u.up_f c
