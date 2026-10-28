@@ -195,7 +195,7 @@ let unif_head ise p f =
   | Construct (_, u), Construct (_, u') ->
     let u = EInstance.kind ise u and u' = EInstance.kind ise u' in
     Evd.add_constraints ise
-      (UnivProblem.enforce_eq_instances_univs true u u' UnivProblem.Set.empty)
+      (UnivProblem.enforce_eq_instances_univs ~weak:true u u' UnivProblem.Set.empty)
   | _ -> ise
 
 let unif_HO_args env ise0 pa i ca =
@@ -430,13 +430,12 @@ type pattern_class =
   | KpatFlex
   | KpatProj of Constant.t
 
-(* An extension of a universe state: new sort variables, universes (rigid,
-   flexible or flexible algebraic) and constraints. *)
+(* An extension of a universe state: new sort variables, universes (rigid
+   or flexible) and constraints. *)
 type univ_extension = {
   ext_sorts : Sorts.QContextSet.t;
   ext_rigid : Univ.Level.Set.t;
   ext_flexible : Univ.Level.Set.t;
-  ext_algebraic : Univ.Level.Set.t;
   ext_constraints : Univ.UnivConstraints.t;
 }
 
@@ -445,7 +444,7 @@ type univ_extension = {
    the size of the goal's context. *)
 let nf_evars_univs sigma c =
   let uctx = Evd.ustate sigma in
-  let univ = UnivFlex.normalize_univ_variable (Evd.universe_subst sigma) in
+  let univ = UState.subst_fn uctx in
   let qual q = UState.nf_qvar uctx q in
   let rel r = UState.nf_relevance uctx r in
   let rec self () c = match Constr.kind c with
@@ -478,7 +477,7 @@ let univ_extension ~base sigma =
   let delta_levels = Univ.Level.Set.diff levels base_levels in
   let delta_ucst = Univ.UnivConstraints.diff ucst base_ucst in
   let delta_qcst = Sorts.ElimConstraints.diff qcst base_qcst in
-  let flex = Evd.universe_subst sigma in
+  let uctx = Evd.ustate sigma in
   fun (qs, us) ->
   let new_levels = match UGraph.check_declared_universes base_graph us with
     | Ok () -> Univ.Level.Set.empty
@@ -492,8 +491,8 @@ let univ_extension ~base sigma =
      transitive constraints between the remaining ones *)
   let _, ucst = UState.restrict_universe_context (delta_levels, delta_ucst) new_levels in
   let is_new l = Univ.Level.Set.mem l new_levels in
-  let needed (l, _, r as c) =
-    is_new l || is_new r ||
+  let needed c =
+    Univ.Level.Set.exists is_new (Univ.UnivConstraint.levels c) ||
     try not (UGraph.check_constraint base_graph c) with e when CErrors.noncritical e -> true
   in
   let is_new_q = function
@@ -501,10 +500,9 @@ let univ_extension ~base sigma =
     | _ -> false
   in
   let qcst = Sorts.ElimConstraints.filter (fun (q, _, q') -> is_new_q q || is_new_q q') delta_qcst in
-  let flexible, rigid = Univ.Level.Set.partition (fun l -> UnivFlex.mem l flex) new_levels in
-  let algebraic, flexible = Univ.Level.Set.partition (fun l -> UnivFlex.is_algebraic l flex) flexible in
+  let flexible, rigid = Univ.Level.Set.partition (fun l -> UState.is_flexible l uctx) new_levels in
   { ext_sorts = (new_qvars, qcst);
-    ext_rigid = rigid; ext_flexible = flexible; ext_algebraic = algebraic;
+    ext_rigid = rigid; ext_flexible = flexible;
     ext_constraints = Univ.UnivConstraints.filter needed ucst }
 
 let extend_universes sigma ext =
@@ -521,8 +519,7 @@ let extend_universes sigma ext =
     else Evd.merge_universe_context_set rigid sigma (levels, UnivConstraints.empty)
   in
   let sigma = declare UState.UnivRigid ext.ext_rigid sigma in
-  let sigma = declare (UState.UnivFlexible false) ext.ext_flexible sigma in
-  let sigma = declare (UState.UnivFlexible true) ext.ext_algebraic sigma in
+  let sigma = declare UState.UnivFlexible ext.ext_flexible sigma in
   if UnivConstraints.is_empty ext.ext_constraints then sigma
   else Evd.merge_universe_context_set UState.UnivRigid sigma (Level.Set.empty, ext.ext_constraints)
 

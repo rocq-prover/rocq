@@ -397,8 +397,7 @@ let check_conv_record env sigma ((proji, u), (params1, c1, extra_args1)) (t2,sk2
 
          if List.length solution.cvalue_arguments = k + (List.length args2') then (sigma, solution), args2' @ args2 else raise Not_found
        with | Not_found ->
-        debug_cs_unification Pp.(fun () -> str"backtrack to 
-        Not_found");
+        debug_cs_unification Pp.(fun () -> str"backtrack to Not_found");
          let (sigma, solution) = CanonicalSolution.find env sigma (Names.GlobRef.ConstRef proji, Default_cs) in
         debug_cs_unification Pp.(fun () -> str"Solution " ++ CanonicalSolution.print env sigma solution);
          (* We have to drop the arguments args2 because the default solution does not have them. *)

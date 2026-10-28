@@ -18,7 +18,8 @@ option is template universe polymorphic
 Arguments option A%_type_scope
 Expands to: Inductive Corelib.Init.Datatypes.option
 Declared in library Corelib.Init.Datatypes, line 214, characters 10-16
-option : Type@{option.u0} -> Type@{option.u0}
+option : Type@{u} -> Type@{u}
+(* u |  *)
 
 option is template universe polymorphic (default instance: {option.u0})
 Arguments option A%_type_scope
