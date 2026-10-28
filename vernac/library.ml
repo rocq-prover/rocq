@@ -219,7 +219,7 @@ let access_opaque_table o =
   match stored_opaque o with
   | None -> None
   | Some (c, ctx) ->
-    let (c, ctx) = Discharge.cook_opaque_proofterm_shared ci (c, ctx) in
+    let (c, ctx) = Discharge.cook_opaque_proofterm ci (c, ctx) in
     let c = Mod_subst.subst_mps_list sub c in
     Some (c, ctx)
 
