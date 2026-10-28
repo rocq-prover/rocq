@@ -172,11 +172,8 @@ type compare_result =
    Additionally flexible universes in irrelevant positions are unified
    if possible. Returns [Inr p] when the former is impossible.
    [flex] determines if the comparison comes from a rigid or flexible
-    head comparison (flex should be true only for unfoldable constants).
-   With [irrelevant_lub] (default [false]), universes in irrelevant positions
-   are unified with [ULub] problems instead of weak constraints when one of
-   them is a flexible level, and left unrelated otherwise. *)
-val compare_cumulative_instances : ?irrelevant_lub:bool -> flex:bool -> Conversion.conv_pb -> nargs:UVars.application -> UVars.Variances.t ->
+    head comparison (flex should be true only for unfoldable constants) *)
+val compare_cumulative_instances : flex:bool -> Conversion.conv_pb -> nargs:UVars.application -> UVars.Variances.t ->
   UVars.Instance.t -> UVars.Instance.t -> evar_map ->
   (evar_map, compare_result) Util.union
 

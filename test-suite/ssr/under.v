@@ -1,7 +1,7 @@
 Require Import ssreflect.
 Require Import ssrbool TestSuite.ssr_mini_mathcomp.
 Global Unset SsrOldRewriteGoalsOrder.
-Unset Universe Polymorphism.
+
 (* under <names>: {occs}[patt]<lemma>.
    under <names>: {occs}[patt]<lemma> by tac1.
    under <names>: {occs}[patt]<lemma> by [tac1 | ...].
