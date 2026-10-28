@@ -703,10 +703,12 @@ let sub_match_cached cache env sigma pat c =
   let rec aux env c =
   let hash = hash_top sigma c land (cache_size - 1) in
   let keys = !cache in
-  let (cache_hit, cached_result) = (match Array.unsafe_get keys hash with
+  let (cache_hit, cached_result) = match Array.unsafe_get keys hash with
   | Some {term; result} -> (term == c, result)
-  | None -> (false, false)) in
-  if cache_hit then cached_result
+  | None -> (false, false)
+  in
+  if cache_hit then
+    cached_result
   else begin
     let here = (try
       let _ = matches_core_closed env sigma pat c in true
