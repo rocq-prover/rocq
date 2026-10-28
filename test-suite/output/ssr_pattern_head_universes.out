@@ -2,13 +2,16 @@
   
   ============================
   tag_id@{i} Tag@{i} = Tag@{i}
-File "./output/ssr_pattern_head_universes.v", line 31, characters 12-26:
+1 goal
+  
+  ============================
+  itag_id@{i} ITag@{i} = ITag@{i}
+1 goal
+  
+  ============================
+  itag_id@{i} ITag@{i} = ITag@{i}
+File "./output/ssr_pattern_head_universes.v", line 61, characters 12-27:
 The command has indeed failed with message:
-The LHS of tagE@{j}
-    Tag@{j}
-does not match any subterm of the goal
-File "./output/ssr_pattern_head_universes.v", line 39, characters 12-23:
-The command has indeed failed with message:
-The LHS of pidE@{j}
-    (pid@{j} _)
+The LHS of itagE@{j}
+    ITag@{j}
 does not match any subterm of the goal

@@ -753,7 +753,7 @@ type compare_result =
 
 (* Add equality constraints for covariant/invariant positions. For
    irrelevant positions, unify universes when flexible. *)
-let compare_cumulative_instances ~flex cv_pb ~nargs variances u u' sigma =
+let compare_cumulative_instances ?(irrelevant_lub=false) ~flex cv_pb ~nargs variances u u' sigma =
   let open UnivProblem in
   let cstrs = Univ.UnivConstraints.empty in
   let soft = Set.empty in
@@ -768,7 +768,15 @@ let compare_cumulative_instances ~flex cv_pb ~nargs variances u u' sigma =
       let open Univ in
       let v = UVars.VarianceOccurrence.variance_app nargs v in
       match v.cumul_variance with
-      | Irrelevant -> cstrs, Set.add (UWeak (u,u')) soft
+      | Irrelevant ->
+        if irrelevant_lub then
+          let is_flexible u = match Universe.level u with
+            | Some l -> Evd.is_flexible_level sigma l
+            | None -> false
+          in
+          if is_flexible u || is_flexible u' then cstrs, Set.add (ULub (Eq,u,u')) soft
+          else cstrs, soft
+        else cstrs, Set.add (UWeak (u,u')) soft
       | Covariant when cv_pb == Conversion.CUMUL ->
         if flex then cstrs, Set.add (ULub (Le,u,u')) soft
         else UnivConstraints.add (u,Le,u') cstrs, soft
