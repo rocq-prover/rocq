@@ -138,10 +138,16 @@ val exists_objlabel  : Id.t -> bool
 val constant_of_delta_kn : KerName.t -> Constant.t
 val mind_of_delta_kn : KerName.t -> MutInd.t
 
+(** An opaque proof as stored, before the section discharge, together with
+    what the discharge does to it: [uncooked_bound] are the section variables
+    it binds, [uncooked_context] the binders it adds above the body, and
+    [uncooked_cook k c] what it turns [c] into, for [c] a subterm of
+    [uncooked_body] under [k] of its binders ([None] when that is [c]). *)
 type uncooked_proofterm = {
   uncooked_body : Constr.t;
   uncooked_bound : Names.Id.Set.t;
   uncooked_context : Constr.rel_context;
+  uncooked_cook : (int -> Constr.t -> Constr.t) option;
 }
 
 type indirect_accessor = {

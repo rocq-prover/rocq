@@ -64,6 +64,11 @@ val abstract_as_type : cooking_cache -> types -> types
 
 val abstract_as_body : cooking_cache -> constr -> constr
 
+val expand_subterm : cooking_cache -> int -> constr -> constr
+(** What [abstract_as_body] does to a subterm of the body that is under the
+    given number of its binders; the result is under the same binders, and
+    the ones [abstract_as_body] adds. *)
+
 val abstract_as_sort : cooking_cache -> Sorts.t -> Sorts.t
 
 val lift_mono_univs : cooking_info -> Univ.ContextSet.t -> cooking_info * Univ.ContextSet.t

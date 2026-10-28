@@ -1115,7 +1115,7 @@ let rec hash_bounded_gen n c =
   | Lambda (_, t, b) -> combinesmall 7 (combine (sub t) (sub b))
   | Prod (_, t, b) -> combinesmall 8 (combine (sub t) (sub b))
   | LetIn (_, b, t, c) -> combinesmall 9 (combine3 (sub b) (sub t) (sub c))
-  | Proj (p, _, c) -> combinesmall 10 (combine (Projection.CanOrd.hash p) (sub c))
+  | Proj (p, _, c) -> combinesmall 10 (combine (Projection.UserOrd.hash p) (sub c))
   | Case (ci, _, _, _, _, c, br) ->
     combinesmall 11 (combine3 (Ind.UserOrd.hash ci.ci_ind) (Array.length br) (sub c))
   | Cast (c, _, _) -> combinesmall 12 (sub c)
