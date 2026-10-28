@@ -316,6 +316,8 @@ end
     unfolding. The arms are those of [expand_constr]; a leaf that
     [expand_constr] leaves alone is returned as is. *)
 let expand_constr_shared cache modlist top_abst_subst c =
+  if is_empty_modlist modlist && List.is_empty top_abst_subst then c
+  else
   let share_univs = share_univs cache top_abst_subst in
   let memo = ShareMemo.create () in
   let rec substrec k c =
@@ -364,8 +366,7 @@ let expand_constr_shared cache modlist top_abst_subst c =
           ShareMemo.add memo h c (if r == c then -1 else k) r;
           r
   in
-  if is_empty_modlist modlist && List.is_empty top_abst_subst then c
-  else substrec 0 c
+  substrec 0 c
 
 (** Cooking is made of 4 steps:
     1. expansion of global constants by applying them to the section
