@@ -172,9 +172,11 @@ Coercion Classes
 
      :token:`qualid` is not defined globally.
 
-  .. exn:: @qualid is already a coercion.
+  .. warn:: @qualid is already a coercion.
+     :name: coercion-already-exists
 
      :token:`qualid` is already registered as a coercion.
+     This warning is an error by default.
 
   .. exn:: Funclass cannot be a source class.
 
