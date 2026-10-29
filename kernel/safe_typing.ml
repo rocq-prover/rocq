@@ -1222,7 +1222,8 @@ type opaque_certificate = {
   opq_body : Constr.t;
   opq_univs : Univ.ContextSet.t Opaqueproof.delayed_universes;
   opq_handle : Opaqueproof.opaque_handle;
-  opq_nonce : Nonce.t option;
+  opq_nonce : Nonce.t;
+  opq_admitted : bool;
 }
 
 let check_opaque ~admit senv (i : Opaqueproof.opaque_handle) pf =
@@ -1251,17 +1252,14 @@ let check_opaque ~admit senv (i : Opaqueproof.opaque_handle) pf =
   | Opaqueproof.PrivatePolymorphic u ->
     Opaqueproof.PrivatePolymorphic (snd @@ Univ.ContextSet.hcons u)
   in
-  let opq_nonce = if admit then None else Some nonce in
-  { opq_body = c; opq_univs = ctx; opq_handle = i; opq_nonce }
+  { opq_body = c; opq_univs = ctx; opq_handle = i; opq_nonce = nonce; opq_admitted = admit }
 
 let fill_opaque { opq_univs = ctx; opq_handle = i; opq_nonce = n; _ } senv =
   let () = if not @@ HandleMap.mem i senv.future_cst then
     CErrors.anomaly Pp.(str "Missing opaque handle" ++ spc () ++ int (Opaqueproof.repr_handle i))
   in
   let _, _, nonce = HandleMap.find i senv.future_cst in
-  let () = match n with
-  | None -> () (* Admitted opaque *)
-  | Some n ->
+  let () =
     if not (Nonce.equal n nonce) then
       CErrors.anomaly  Pp.(str "Invalid opaque certificate")
   in
@@ -1278,8 +1276,8 @@ let is_filled_opaque i senv =
   let () = assert (Opaqueproof.mem_handle i senv.opaquetab) in
   not (HandleMap.mem i senv.future_cst)
 
-let repr_certificate { opq_body = body; opq_univs = ctx; opq_nonce; _ } =
-  body, ctx, Option.is_empty opq_nonce
+let repr_certificate { opq_body = body; opq_univs = ctx; opq_admitted; _ } =
+  body, ctx, opq_admitted
 
 let check_constraints uctx = function
 | Entries.Polymorphic_entry _ -> Univ.ContextSet.is_empty uctx
