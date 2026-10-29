@@ -141,17 +141,6 @@ let type_of_logical_kind = function
   | IsPrimitive -> "prim"
   | IsSymbol -> "symb"
 
-
-(** Data associated to global parameters and constants *)
-
-let csttab = Summary.ref (Names.Cmap.empty : logical_kind Names.Cmap.t) ~name:"CONSTANT"
-let add_constant_kind env kn k =
-  let open Summary.Ref in
-  csttab := Names.Cmap.add kn k !csttab
-let constant_kind env kn =
-  let open Summary.Ref in
-  Names.Cmap.find kn !csttab
-
 let type_of_global_ref gr =
   if Typeclasses.is_class (Global.env ()) gr then
     "class"
