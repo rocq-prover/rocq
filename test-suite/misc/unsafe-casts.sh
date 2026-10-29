@@ -51,6 +51,20 @@ check_unregistered_library () {
   fi
 }
 
+# Exercise the checker API with registered handlers too: refusing all unsafe
+# casts, or only checking registration without running the callback, is wrong.
+check_original_inductive_casts () {
+  if ! "${OCAMLFIND:-ocamlfind}" ocamlopt -rectypes -linkpkg \
+      -package rocq-runtime.checklib checker_cast_test.ml -o checker_cast_test.exe; then
+    echo "FAIL #1: could not build the original-inductive-cast checker test"
+    return 1
+  fi
+  if ! ./checker_cast_test.exe; then
+    echo "FAIL #1: original inductive casts were not independently checked"
+    return 1
+  fi
+}
+
 check_relevance () {
   if ! rocq compile -q -test-mode -R . UnsafeCasts -I . Relevance.v \
       > relevance.out 2>&1; then
@@ -82,6 +96,7 @@ run_regression () {
 
 run_regression check_unregistered_library NonTemplate
 run_regression check_unregistered_library Template
+run_regression check_original_inductive_casts
 run_regression check_relevance
 run_regression check_sealed_interfaces SealedInterfaces
 run_regression check_sealed_interfaces ImportedSealedInterfaces

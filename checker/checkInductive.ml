@@ -212,12 +212,84 @@ let check_packet mind ind
 
   ()
 
+let rec has_unsafe_cast c =
+  match Constr.kind c with
+  | Constr.Cast (_, Constr.UNSAFEcast _, _) -> true
+  | _ -> Constr.fold (fun found c -> found || has_unsafe_cast c) false c
+
+let context_has_unsafe_cast ctx =
+  List.exists (Context.Rel.Declaration.exists has_unsafe_cast) ctx
+
+(* Reconstruction can erase casts, and the comparisons above ignore them.
+   Before installing the original descriptor, independently check its retained
+   unsafe casts. Use only the checked reconstruction for recursive references.
+   Include derived types too: cast-insensitive equality must not allow an
+   unchecked cast to be inserted into one of the redundant fields. *)
+let check_original_unsafe_casts env mind original checked =
+  let packet_has_unsafe_cast packet =
+    has_unsafe_cast packet.mind_user_arity ||
+    Array.exists has_unsafe_cast packet.mind_user_lc ||
+    context_has_unsafe_cast packet.mind_arity_ctxt ||
+    Array.exists (fun (ctx, t) -> context_has_unsafe_cast ctx || has_unsafe_cast t)
+      packet.mind_nf_lc ||
+    match packet.mind_record with
+    | NotRecord | FakeRecord -> false
+    | PrimRecord { tys; _ } -> Array.exists has_unsafe_cast tys
+  in
+  (* Ordinary declarations need no additional typing or temporary environment. *)
+  if not (context_has_unsafe_cast original.mind_params_ctxt ||
+          Array.exists packet_has_unsafe_cast original.mind_packets) then ()
+  else
+  let env = CheckFlags.set_local_flags original.mind_typing_flags env in
+  let env = add_mind mind checked env in
+  let env = match original.mind_universes, original.mind_template with
+    | Monomorphic, None -> env
+    | Monomorphic, Some template ->
+      (* As in IndTyping, check the abstract template universes and qualities,
+         not just one default instance of the original comparison. *)
+      Environ.Internal.push_template_context (AbstractContext.repr template.template_context) env
+    | Polymorphic uctx, None -> push_context (AbstractContext.repr uctx) env
+    | Polymorphic _, Some _ -> assert false (* rejected by check_template *)
+  in
+  let check_type env t =
+    if has_unsafe_cast t then ignore (Typeops.infer_type env t)
+  in
+  let check_context ctx =
+    if context_has_unsafe_cast ctx then ignore (Typeops.check_context env ctx)
+  in
+  check_context original.mind_params_ctxt;
+  Array.iteri (fun i packet ->
+      check_type env packet.mind_user_arity;
+      Array.iter (check_type env) packet.mind_user_lc;
+      check_context packet.mind_arity_ctxt;
+      Array.iter (fun (ctx, t) ->
+          if context_has_unsafe_cast ctx || has_unsafe_cast t then
+            check_type env (Term.it_mkProd_or_LetIn t ctx))
+        packet.mind_nf_lc;
+      match packet.mind_record with
+      | NotRecord | FakeRecord -> ()
+      | PrimRecord { id; tys; _ } ->
+        if Array.exists has_unsafe_cast tys then begin
+          (* Projection types are under parameters without let-ins, followed
+             by the record argument. Reconstruct that context, not the
+             constructor's context of individual fields. *)
+          let params = Vars.smash_rel_context original.mind_params_ctxt in
+          let env, _ = Typeops.check_context env params in
+          let u = make_abstract_instance (Declareops.inductive_polymorphic_context original) in
+          let ind = Constr.mkApp (Constr.mkIndU ((mind, i), u),
+              Context.Rel.instance Constr.mkRel 0 params) in
+          let na = Context.make_annot (Name id) packet.mind_relevance in
+          let env = push_rel (Context.Rel.Declaration.LocalAssum (na, ind)) env in
+          Array.iter (check_type env) tys
+        end)
+    original.mind_packets
+
 let check_inductive env mind mb retro =
   let entry = to_entry mind mb in
-  let { mind_packets; mind_finite; mind_hyps; mind_univ_hyps;
+  let ({ mind_packets; mind_finite; mind_hyps; mind_univ_hyps;
         mind_nparams; mind_nparams_rec; mind_params_ctxt;
         mind_universes; mind_template; mind_variance; mind_sec_variance;
-        mind_private; mind_typing_flags; }
+        mind_private; mind_typing_flags; } as checked)
     =
     (* Locally set typing flags for further typechecking *)
     let env = CheckFlags.set_local_flags mb.mind_typing_flags env in
@@ -252,6 +324,7 @@ let check_inductive env mind mb retro =
   ignore mind_typing_flags;
   (* TODO non oracle flags *)
 
+  check_original_unsafe_casts env mind mb checked;
   add_mind mind mb env
 
 let check_inductive env mind mb retro : Environ.env =

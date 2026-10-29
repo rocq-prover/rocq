@@ -2,3 +2,4 @@
 /Makefile.conf
 /META.unsafe_cast
 /*.out
+/checker_cast_test.exe
