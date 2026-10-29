@@ -437,6 +437,9 @@ Module Cast.
   Ltac2 @ external default : cast := "rocq-runtime.plugins.ltac2" "constr_cast_default".
   Ltac2 @ external vm : cast := "rocq-runtime.plugins.ltac2" "constr_cast_vm".
   Ltac2 @ external native : cast := "rocq-runtime.plugins.ltac2" "constr_cast_native".
+  Ltac2 @ external unsafe : string -> cast := "rocq-runtime.plugins.ltac2" "constr_cast_unsafe".
+  (** Construct a named unsafe cast kind. Its checker must be registered by an
+      OCaml plugin; uses are reported by [Print Assumptions]. *)
 
   Ltac2 @ external equal : cast -> cast -> bool := "rocq-runtime.plugins.ltac2" "constr_cast_equal".
 

@@ -363,6 +363,7 @@ let cast_kind_display k =
   | VMcast -> "VMcast"
   | DEFAULTcast -> "DEFAULTcast"
   | NATIVEcast -> "NATIVEcast"
+  | UNSAFEcast id -> "UNSAFEcast " ^ Printf.sprintf "%S" id
 
 let constr_display csr =
   let rec term_display c = match kind c with

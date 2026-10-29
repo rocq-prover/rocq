@@ -98,7 +98,9 @@ val mkType : Univ.Universe.t -> types
 
 
 (** This defines the strategy to use for verifiying a Cast *)
-type cast_kind = VMcast | NATIVEcast | DEFAULTcast
+type cast_kind = VMcast | NATIVEcast | DEFAULTcast | UNSAFEcast of string
+
+val equal_cast_kind : cast_kind -> cast_kind -> bool
 
 (** Constructs the term [t1::t2], i.e. the term t{_ 1} casted with the
    type t{_ 2} (that means t2 is declared as the type of t1). *)

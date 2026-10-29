@@ -135,11 +135,7 @@ let rec mk_cases_pattern_eq g p1 p2 = match DAst.get p1, DAst.get p2 with
       Name.equal na1 na2
   | (PatVar _ | PatCstr _), _ -> false
 
-let cast_kind_eq t1 t2 = let open Constr in match t1, t2 with
-  | DEFAULTcast, DEFAULTcast
-  | VMcast, VMcast
-  | NATIVEcast, NATIVEcast -> true
-  | (DEFAULTcast | VMcast | NATIVEcast), _ -> false
+let cast_kind_eq = Constr.equal_cast_kind
 
 let matching_var_kind_eq k1 k2 = match k1, k2 with
 | FirstOrderPatVar ido1, FirstOrderPatVar ido2 -> Id.equal ido1 ido2

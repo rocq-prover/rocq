@@ -1,3 +1,13 @@
+## Unreleased
+
+### Plugin interface
+
+- `Constr.cast_kind` has a new constructor, `UNSAFEcast of string`.
+  `Unsafe_cast.register` installs named, trusted cast checkers and optional
+  source/target elaboration aids. Checkers perform their own explicit calls to
+  conversion; uses are preserved in terms and reported by `Print Assumptions`.
+  `Constr.equal_cast_kind` compares cast kinds including their identifiers.
+
 ## Changes between Coq 8.17 and Coq 8.18
 
 ### XML protocol

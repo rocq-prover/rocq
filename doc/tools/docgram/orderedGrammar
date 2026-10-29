@@ -447,6 +447,7 @@ term_generalizing: [
 
 term_cast: [
 | term99 "<:" type
+| term99 "<:" "[" string "]" type
 | term99 "<<:" type
 | term99 ":>" type
 | term99 ":" type

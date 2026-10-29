@@ -205,7 +205,9 @@ GRAMMAR EXTEND Gram
   term:
     [ "200" RIGHTA [ ]
     | "100" RIGHTA
-      [ c1 = term; "<:"; c2 = term LEVEL "200" ->
+      [ c1 = term; "<:"; "["; id = string; "]"; c2 = term LEVEL "200" ->
+                 { CAst.make ~loc @@ CCast(c1, Some (UNSAFEcast id), c2) }
+      | c1 = term; "<:"; c2 = term LEVEL "200" ->
                  { CAst.make ~loc @@ CCast(c1, Some VMcast, c2) }
       | c1 = term; "<<:"; c2 = term LEVEL "200" ->
                  { CAst.make ~loc @@ CCast(c1, Some NATIVEcast, c2) }

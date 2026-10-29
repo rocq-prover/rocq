@@ -646,6 +646,7 @@ type axiom =
   | UIP of MutInd.t
   | IndicesNotMattering of MutInd.t
   | ImpredicativeSet of GlobRef.t
+  | UnsafeCast of string * GlobRef.t
 
 type context_object =
   | Variable of Id.t (* A section variable or a Let definition *)
@@ -671,6 +672,9 @@ struct
     | TypeInType k1, TypeInType k2
     | ImpredicativeSet k1, ImpredicativeSet k2 ->
       GlobRef.UserOrd.compare k1 k2
+    | UnsafeCast (id1, gr1), UnsafeCast (id2, gr2) ->
+      let c = String.compare id1 id2 in
+      if Int.equal c 0 then GlobRef.UserOrd.compare gr1 gr2 else c
     | Constant _, _ -> -1
     | _, Constant _ -> 1
     | Positive _, _ -> -1
@@ -683,6 +687,8 @@ struct
     | _, UIP _ -> 1
     | IndicesNotMattering _, _ -> -1
     | _, IndicesNotMattering _ -> 1
+    | ImpredicativeSet _, _ -> -1
+    | _, ImpredicativeSet _ -> 1
 
   let compare x y =
     match x , y with
@@ -775,6 +781,9 @@ let pr_assumptionset ?(flags=current_combined()) env sigma theory_info s =
           hov 2 (safe_pr_inductive env mind ++ spc () ++ strbrk"relies on indices not mattering.")
       | ImpredicativeSet gr ->
           hov 2 (safe_pr_global env gr ++ spc () ++ strbrk"was typed with Set being impredicative.")
+      | UnsafeCast (id, gr) ->
+          hov 2 (safe_pr_global env gr ++ spc () ++
+            strbrk "relies on unsafe cast " ++ qstring id ++ str ".")
     in
     let fold t typ accu =
       let (v, a, o, u, tr) = accu in

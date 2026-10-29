@@ -340,6 +340,9 @@ let check_cast env c ct k expected_type =
     | NATIVEcast ->
       let sigma = Genlambda.empty_evars env in
       Nativeconv.native_conv CUMUL sigma env ct expected_type
+    | UNSAFEcast id ->
+      let () = Unsafe_cast.check id CUMUL env ct expected_type in
+      Result.Ok ()
   in
   match ans with
   | Result.Ok () -> ()

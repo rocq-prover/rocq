@@ -1,0 +1,72 @@
+Closed under the global context
+vm_source = lhs <:["test.vm-lhs"] rhs
+     : rhs
+Axioms:
+vm_source relies on unsafe cast "test.vm-lhs".
+Axioms:
+vm_source relies on unsafe cast "test.vm-lhs".
+File "./Main.v", line 18, characters 0-40:
+The command has indeed failed with message:
+Unsafe cast "test.missing" is not registered.
+File "./Main.v", line 19, characters 0-39:
+The command has indeed failed with message:
+Unsafe cast "test.reject": rejected by the test checker
+File "./Main.v", line 20, characters 0-43:
+The command has indeed failed with message:
+The term "lhs" has type "4 = 4" while it is expected to have type "2 = 3".
+File "./Main.v", line 21, characters 13-17:
+The command has indeed failed with message:
+The term "true" has type "bool" while it is expected to have type "nat".
+File "./Main.v", line 22, characters 32-33:
+The command has indeed failed with message:
+The term "0" has type "nat" which should be Set, Prop or Type.
+Axioms:
+local relies on unsafe cast "test.vm-lhs".
+inferred : value_of 4
+     : value_of 4
+Axioms:
+inferred relies on unsafe cast "test.vm-rhs".
+File "./Main.v", line 36, characters 0-54:
+The command has indeed failed with message:
+Unsafe cast "test.vm-lhs" does not support unresolved evars or metas in the local environment.
+File "./Main.v", line 37, characters 0-69:
+The command has indeed failed with message:
+Unsafe cast "test.vm-lhs" does not support unresolved evars or metas in this type.
+Axioms:
+opaque_direct relies on unsafe cast "test.vm-lhs".
+Axioms:
+type_only relies on unsafe cast "test.vm-lhs".
+Axioms:
+type_axiom relies on unsafe cast "test.vm-lhs".
+type_axiom : nat <:["test.vm-lhs"] Set
+Axioms:
+arity_cast relies on unsafe cast "test.vm-lhs".
+Axioms:
+constructor_cast relies on unsafe cast "test.vm-lhs".
+Section Variables:
+x
+: nat <:["test.vm-lhs"] Set
+Axioms:
+section_use relies on unsafe cast "test.vm-lhs".
+x relies on unsafe cast "test.vm-lhs".
+Axioms:
+section_use relies on unsafe cast "test.vm-lhs".
+Axioms:
+Sealed.proof relies on unsafe cast "test.vm-lhs".
+Axioms:
+unsafe_false relies on unsafe cast "test.accept".
+Axioms:
+nested relies on unsafe cast "test.vm-lhs".
+nested relies on unsafe cast "test.accept".
+     = 0
+     : nat
+Axioms:
+nested relies on unsafe cast "test.vm-lhs".
+nested relies on unsafe cast "test.accept".
+Axioms:
+cumulative relies on unsafe cast "test.vm-lhs".
+Axioms:
+eliminated relies on unsafe cast "test.vm-lhs".
+absurd : False
+used in eliminated to prove
+ nat <:["test.vm-lhs"] Set

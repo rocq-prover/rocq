@@ -34,7 +34,12 @@ type existential_key = Evar.t
 type metavariable = int
 
 (* This defines the strategy to use for verifiying a Cast *)
-type cast_kind = VMcast | NATIVEcast | DEFAULTcast
+type cast_kind = VMcast | NATIVEcast | DEFAULTcast | UNSAFEcast of string
+
+let equal_cast_kind k1 k2 = match k1, k2 with
+  | VMcast, VMcast | NATIVEcast, NATIVEcast | DEFAULTcast, DEFAULTcast -> true
+  | UNSAFEcast id1, UNSAFEcast id2 -> String.equal id1 id2
+  | (VMcast | NATIVEcast | DEFAULTcast | UNSAFEcast _), _ -> false
 
 (* This defines Cases annotations *)
 type case_style = LetStyle | IfStyle | LetPatternStyle | MatchStyle
@@ -1060,7 +1065,7 @@ let hasheq_kind t1 t2 =
     | Meta m1, Meta m2 -> m1 == m2
     | Var id1, Var id2 -> id1 == id2
     | Sort s1, Sort s2 -> s1 == s2
-    | Cast (c1,k1,t1), Cast (c2,k2,t2) -> c1 == c2 && k1 == k2 && t1 == t2
+    | Cast (c1,k1,t1), Cast (c2,k2,t2) -> c1 == c2 && equal_cast_kind k1 k2 && t1 == t2
     | Prod (n1,t1,c1), Prod (n2,t2,c2) -> n1 == n2 && t1 == t2 && c1 == c2
     | Lambda (n1,t1,c1), Lambda (n2,t2,c2) -> n1 == n2 && t1 == t2 && c1 == c2
     | LetIn (n1,b1,t1,c1), LetIn (n2,b2,t2,c2) ->
@@ -1119,6 +1124,7 @@ let hash_cast_kind = function
 | VMcast -> 0
 | NATIVEcast -> 1
 | DEFAULTcast -> 2
+| UNSAFEcast id -> combinesmall 3 (String.hash id)
 
 module CaseinfoHash =
 struct
@@ -1392,9 +1398,13 @@ let rec debug_print c =
   | Meta n -> str "Meta(" ++ int n ++ str ")"
   | Var id -> Id.print id
   | Sort s -> Sorts.debug_print s
-  | Cast (c,_, t) -> hov 1
-      (str"(" ++ debug_print c ++ cut() ++
-       str":" ++ debug_print t ++ str")")
+  | Cast (c,k,t) ->
+    let cast = match k with
+      | UNSAFEcast id -> str "<:[" ++ qstring id ++ str "]"
+      | VMcast | NATIVEcast | DEFAULTcast -> str ":"
+    in
+    hov 1 (str "(" ++ debug_print c ++ cut () ++
+      cast ++ debug_print t ++ str ")")
   | Prod ({binder_name=Name id;_},t,c) -> hov 1
       (str"forall " ++ Id.print id ++ str":" ++ debug_print t ++ str"," ++
        spc() ++ debug_print c)

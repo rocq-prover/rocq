@@ -1,0 +1,13 @@
+erased = eq_refl <:["test.erase"] true = negb false
+     : true = negb false
+Axioms:
+erased relies on unsafe cast "test.erase".
+erased : true = true
+     : true = true
+File "./Erasure.v", line 11, characters 0-53:
+The command has indeed failed with message:
+The term "eq_refl" has type "true = true" while it is expected to have type
+ "true = false"
+(cannot unify "true" and "false").
+Axioms:
+erased_opaque relies on unsafe cast "test.erase".

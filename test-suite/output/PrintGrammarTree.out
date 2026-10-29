@@ -12,7 +12,8 @@ Entry term is
   [  ]
 | "100" RIGHTA
   [ SELF;
-    [ "<:"; term LEVEL "200"
+    [ "<:"; [ "["; string; "]"; term LEVEL "200"
+            | term LEVEL "200" ]
     | "<<:"; term LEVEL "200"
     | ":>"; term LEVEL "200"
     | ":"; term LEVEL "200" ] ]

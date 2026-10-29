@@ -237,7 +237,7 @@ let v_caseinfo =
   let v_cprint = v_tuple "case_printing" [|v_cstyle|] in
   v_tuple "case_info" [|v_ind;v_int;v_array v_int;v_array v_int;v_cprint|]
 
-let v_cast = v_enum "cast_kind" 3
+let v_cast = v_sum "cast_kind" 3 [|[|v_string|]|]
 
 let v_proj_repr = v_tuple "projection_repr" [|v_ind;v_int;v_int|]
 let v_proj = v_tuple "projection" [|v_proj_repr; v_bool|]

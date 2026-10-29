@@ -1527,6 +1527,10 @@ struct
               error_actual_type ?loc !!env sigma cj tval
                 (ConversionFailed (!!env,cty,tval))
           end
+        | Some (UNSAFEcast id) ->
+          let sigma, cj = pretype empty_tycon env sigma c in
+          let sigma = Typing.check_unsafe_cast !!env sigma id cj tval in
+          (sigma, cj), tval
         | None | Some DEFAULTcast ->
           pretype (mk_tycon tval) env sigma c, tval
       in

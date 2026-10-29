@@ -185,6 +185,9 @@ let fold_with_full_binders g f n acc c =
   | Proj (_,_,c) -> f n acc c
   | Evar _ -> assert false
   | Case (ci, u, pms, p, iv, c, bl) ->
+    (* Keep dependencies in the original parameters, including cast markers
+       which expanding the case may erase from reconstructed binder types. *)
+    let acc = Array.fold_left (f n) acc pms in
     let mib = lookup_mind (fst ci.ci_ind) in
     let (ci, (p,_), iv, c, bl) = Inductive.expand_case_specif mib (ci, u, pms, p, iv, c, bl) in
     Array.fold_left (f n) (f n (fold_invert (f n) (f n acc p) iv) c) bl
@@ -233,19 +236,29 @@ let rec traverse access (current:GlobRef.t) ctx accu t =
 | Construct (((mind, _), _) as cst, _) ->
   traverse_inductive access accu mind (ConstructRef cst)
 | Meta _ | Evar _ -> assert false
+| Cast (_, UNSAFEcast id, _) ->
+  let curr, data, ax2ty, casts = accu in
+  let ids = match GlobRef.Map.find_opt current casts with
+    | None -> String.Set.singleton id
+    | Some ids -> String.Set.add id ids
+  in
+  let casts = GlobRef.Map.add current ids casts in
+  fold_with_full_binders Context.Rel.add (traverse access current) ctx
+    (curr, data, ax2ty, casts) t
 | Case (_, _, _, (([|_|], oty),_), _, c, [||]) when Vars.noccurn 1 oty ->
     (* non dependent match on an inductive with no constructors *)
     begin match Constr.kind c with
     | Const (kn, _) when not (Declareops.constant_has_body (lookup_constant kn)) ->
-      let (curr, data, ax2ty) = accu in
+      let curr, data, ax2ty, casts = traverse access current ctx accu c in
       let obj = ConstRef kn in
-      let already_in = GlobRef.Map.mem obj data in
-      let data = if not already_in then GlobRef.Map.add obj None data else data in
       let ty = (current, ctx, Vars.subst1 mkProp oty) in
       let ax2ty =
         try let l = GlobRef.Map.find obj ax2ty in GlobRef.Map.add obj (ty::l) ax2ty
         with Not_found -> GlobRef.Map.add obj [ty] ax2ty in
-      (GlobRef.Set.add obj curr, data, ax2ty)
+      (* Also inspect the predicate: it can contain unsafe casts even though
+         the empty elimination itself is justified by this axiom. *)
+      fold_with_full_binders Context.Rel.add (traverse access current) ctx
+        (curr, data, ax2ty, casts) t
     | _ ->
         fold_with_full_binders
           Context.Rel.add (traverse access current) ctx accu t
@@ -253,81 +266,60 @@ let rec traverse access (current:GlobRef.t) ctx accu t =
 | _ -> fold_with_full_binders
           Context.Rel.add (traverse access current) ctx accu t
 
-and traverse_object access (curr, data, ax2ty) body obj =
-  let data, ax2ty =
-    let already_in = GlobRef.Map.mem obj data in
-    if already_in then data, ax2ty
-    else match body () (* Beware: this can be very costly *) with
-    | None ->
-      (* This is an axiom. Always traverse its type to find dependencies *)
+and traverse_object access (curr, data, ax2ty, casts) body obj =
+  let data, ax2ty, casts =
+    if GlobRef.Map.mem obj data then data, ax2ty, casts
+    else
+      let body = body () (* Beware: this can be very costly *) in
       let data = GlobRef.Map.add obj None data in
-      begin match obj with
-      | GlobRef.ConstRef kn ->
-        let cb = lookup_constant kn in
-        let typ = cb.Declarations.const_type in
-        let _, data, ax2ty =
-          traverse access obj Context.Rel.empty
-                   (GlobRef.Set.empty, data, ax2ty) typ in
-        data, ax2ty
-      (* VarRef, IndRef and ConstructRef don't need recursive type traversal.
-         For VarRef (section variables), the dependencies are already tracked.
-         For IndRef and ConstructRef, dependencies are handled by traverse_inductive *)
-      | GlobRef.VarRef _ | GlobRef.IndRef _ | GlobRef.ConstructRef _ -> data, ax2ty end
-    | Some body ->
-      let contents,data,ax2ty =
-        traverse access obj Context.Rel.empty
-                 (GlobRef.Set.empty,data,ax2ty) body in
-      (* Also traverse the type of globals, which may mention unrelated
-         references depending on axioms even if they convert to something else. *)
-      let contents,data,ax2ty = match obj with
-        | GlobRef.ConstRef kn ->
-          let cb = lookup_constant kn in
-          let typ = cb.Declarations.const_type in
-          traverse access obj Context.Rel.empty
-                   (contents,data,ax2ty) typ
-        | _ -> (contents,data,ax2ty)
+      let accu = (GlobRef.Set.empty, data, ax2ty, casts) in
+      let accu = match body with
+        | None -> accu
+        | Some body -> traverse access obj Context.Rel.empty accu body
       in
-      GlobRef.Map.add obj (Some contents) data, ax2ty
+      (* Inspect original types, too, even for axioms and section variables:
+         conversion or decomposition could otherwise hide an unsafe cast. *)
+      let contents, data, ax2ty, casts = match obj with
+        | GlobRef.ConstRef kn ->
+          traverse access obj Context.Rel.empty accu (lookup_constant kn).const_type
+        | GlobRef.VarRef id ->
+          traverse access obj Context.Rel.empty accu
+            (NamedDecl.get_type (Global.lookup_named id))
+        | GlobRef.IndRef _ | GlobRef.ConstructRef _ -> accu
+      in
+      let contents = Option.map (fun _ -> contents) body in
+      GlobRef.Map.add obj contents data, ax2ty, casts
   in
-  (GlobRef.Set.add obj curr, data, ax2ty)
+  (GlobRef.Set.add obj curr, data, ax2ty, casts)
 
 (** Collects the references occurring in the declaration of mutual inductive
     definitions. All the constructors and names of a mutual inductive
     definition share exactly the same dependencies. Also, there is no explicit
     dependency between mutually defined inductives and constructors. *)
-and traverse_inductive access (curr, data, ax2ty) mind obj =
+and traverse_inductive access (curr, data, ax2ty, casts) mind obj =
   let firstind_ref = (GlobRef.IndRef (mind, 0)) in
-  let data, ax2ty =
+  let data, ax2ty, casts =
    (* Invariant : I_0 \in data iff I_i \in data iff c_ij \in data
       where I_0, I_1, ... are in the same mutual definition and c_ij
       are all their constructors. *)
    if
      (* recursive call: *) GlobRef.Set.mem firstind_ref curr ||
      (* already in: *) GlobRef.Map.mem firstind_ref data
-   then data, ax2ty
+   then data, ax2ty, casts
    else
      (* Take into account potential recursivity of ind in itself *)
      let curr = GlobRef.Set.add firstind_ref GlobRef.Set.empty in
-     let accu = (curr, data, ax2ty) in
+     let accu = (curr, data, ax2ty, casts) in
      let mib = lookup_mind mind in
      (* Collects references of parameters *)
      let param_ctx = mib.mind_params_ctxt in
-     let nparam = List.length param_ctx in
-     let accu = traverse_context access obj Context.Rel.empty accu param_ctx in
-     (* For each inductive, collects references in their arity and in the type
-        of constructors*)
-     let (contents, data, ax2ty) = Array.fold_left (fun accu oib ->
-         let arity_wo_param =
-           List.rev (List.skipn nparam (List.rev oib.mind_arity_ctxt))
-         in
-         let accu =
-           traverse_context
-             access obj param_ctx accu arity_wo_param
-         in
-         Array.fold_left (fun accu cst_typ ->
-            let param_ctx, cst_typ_wo_param = Term.decompose_prod_n_decls nparam cst_typ in
-            traverse access obj param_ctx accu cst_typ_wo_param)
-          accu oib.mind_user_lc)
+     let accu = traverse_context access firstind_ref Context.Rel.empty accu param_ctx in
+     (* Inspect user syntax, rather than decomposed arities and constructor
+        types, so that casts around products are retained. *)
+     let contents, data, ax2ty, casts = Array.fold_left (fun accu oib ->
+         let accu = traverse access firstind_ref Context.Rel.empty accu oib.mind_user_arity in
+         Array.fold_left (traverse access firstind_ref Context.Rel.empty)
+           accu oib.mind_user_lc)
        accu mib.mind_packets
      in
      (* Maps all these dependencies to inductives and constructors*)
@@ -340,9 +332,9 @@ and traverse_inductive access (curr, data, ax2ty) mind obj =
          GlobRef.Map.add (GlobRef.ConstructRef (ind, k+1)) (Some contents) data
        ) data oib.mind_consnames) data mib.mind_packets
      in
-     (data, ax2ty)
+     (data, ax2ty, casts)
   in
-  (GlobRef.Set.add obj curr, data, ax2ty)
+  (GlobRef.Set.add obj curr, data, ax2ty, casts)
 
 (** Collects references in a rel_context. *)
 and traverse_context access current ctx accu ctxt =
@@ -357,13 +349,17 @@ and traverse_context access current ctx accu ctxt =
           let ctx = Context.Rel.add decl ctx in
            ctx, accu) ctxt ~init:(ctx, accu))
 
-let traverse access grs =
+let traverse_with_unsafe_casts access grs =
   let () = modcache := ModPath.Map.empty in
   let env = Global.env () in
   List.fold_left (fun accu gr ->
     let t, _ = UnivGen.fresh_global_instance env gr in
     traverse access gr Context.Rel.empty accu t
-  ) (GlobRef.Set.empty, GlobRef.Map.empty, GlobRef.Map.empty) grs
+  ) (GlobRef.Set.empty, GlobRef.Map.empty, GlobRef.Map.empty, GlobRef.Map.empty) grs
+
+let traverse access grs =
+  let refs, graph, ax2ty, _ = traverse_with_unsafe_casts access grs in
+  refs, graph, ax2ty
 
 (** Hopefully bullet-proof function to recover the type of a constant. It just
     ignores all the universe stuff. There are many issues that can arise when
@@ -381,7 +377,7 @@ let uses_uip mib =
 let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
   let open Printer in
   (* Only keep the transitive dependencies *)
-  let (_, graph, ax2ty) = traverse access grs in
+  let _, graph, ax2ty, casts = traverse_with_unsafe_casts access grs in
   let open GlobRef in
   let has_impredicative_set = ref false in
   let has_rewrite_rules = ref false in
@@ -480,7 +476,13 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
       in
       accu
   in
-  let map = GlobRef.Map.fold fold graph ContextObjectMap.empty in
+  let map = GlobRef.Map.fold (fun obj ids accu ->
+      String.Set.fold (fun id accu ->
+          ContextObjectMap.add (Axiom (UnsafeCast (id, obj), [])) Constr.mkProp accu)
+        ids accu)
+      casts ContextObjectMap.empty
+  in
+  let map = GlobRef.Map.fold fold graph map in
   let theory = {
     has_impredicative_set = !has_impredicative_set;
     has_rewrite_rules = !has_rewrite_rules;

@@ -1,0 +1,13 @@
+Axioms:
+opaque_direct relies on unsafe cast "test.vm-lhs".
+Axioms:
+type_only relies on unsafe cast "test.vm-lhs".
+Axioms:
+arity_cast relies on unsafe cast "test.vm-lhs".
+Axioms:
+Sealed.proof relies on unsafe cast "test.vm-lhs".
+Axioms:
+unsafe_false relies on unsafe cast "test.accept".
+Closed under the global context
+Axioms:
+erased_opaque relies on unsafe cast "test.erase".

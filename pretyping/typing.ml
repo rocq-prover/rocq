@@ -320,9 +320,50 @@ let check_actual_type env sigma cj t =
   try Evarconv.unify_leq_delay env sigma cj.uj_type t
   with Evarconv.UnableToUnify (sigma,e) -> error_actual_type env sigma cj t e
 
+let unsafe_cast_env id env sigma =
+  let ground c = not (Evarutil.has_undefined_evars_or_metas sigma (EConstr.of_constr c)) in
+  if not (List.for_all (Context.Rel.Declaration.for_all ground) (Environ.rel_context env)
+       && List.for_all (Context.Named.Declaration.for_all ground) (Environ.named_context env)) then
+    user_err Pp.(str "Unsafe cast " ++ qstring id ++
+      str " does not support unresolved evars or metas in the local environment.");
+  Evarutil.nf_env_evar sigma env
+  |> Environ.set_universes (Evd.universes sigma)
+  |> Environ.set_qualities (Evd.elim_graph sigma)
+
+let unsafe_cast_type id sigma ty =
+  if Evarutil.has_undefined_evars_or_metas sigma ty then
+    user_err Pp.(str "Unsafe cast " ++ qstring id ++
+      str " does not support unresolved evars or metas in this type.");
+  EConstr.to_constr sigma ty
+
+let check_unsafe_cast env sigma id cj target =
+  let source = cj.uj_type in
+  let handler = Unsafe_cast.find id in
+  let prepare f ty = match f with
+    | None -> ty
+    | Some f ->
+      let env = unsafe_cast_env id env sigma in
+      let ty = unsafe_cast_type id sigma ty in
+      EConstr.of_constr (Unsafe_cast.transform id f env ty)
+  in
+  let source' = prepare handler.prepare_source source in
+  let target' = prepare handler.prepare_target target in
+  let sigma = match handler.prepare_source, handler.prepare_target with
+    | None, None -> sigma
+    | _ -> check_actual_type env sigma { cj with uj_type = source' } target'
+  in
+  let env = unsafe_cast_env id env sigma in
+  let source = unsafe_cast_type id sigma source in
+  let target = unsafe_cast_type id sigma target in
+  let () = Unsafe_cast.check id Conversion.CUMUL env source target in
+  sigma
+
 let judge_of_cast env sigma cj k tj =
   let expected_type = tj.utj_val in
-  let sigma = check_actual_type env sigma cj expected_type in
+  let sigma = match k with
+    | UNSAFEcast id -> check_unsafe_cast env sigma id cj expected_type
+    | VMcast | NATIVEcast | DEFAULTcast -> check_actual_type env sigma cj expected_type
+  in
   sigma, { uj_val = mkCast (cj.uj_val, k, expected_type);
            uj_type = expected_type }
 

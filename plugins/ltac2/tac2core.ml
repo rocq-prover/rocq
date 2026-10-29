@@ -730,6 +730,8 @@ let () =
 let () = define "constr_cast_default" (ret valexpr) (of_cast DEFAULTcast)
 let () = define "constr_cast_vm" (ret valexpr) (of_cast VMcast)
 let () = define "constr_cast_native" (ret valexpr) (of_cast NATIVEcast)
+let () = define "constr_cast_unsafe" (string @-> ret cast) @@ fun id ->
+  UNSAFEcast id
 
 let () =
   define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) @@ fun id t c ->

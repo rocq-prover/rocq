@@ -30,6 +30,7 @@ for :n:`let @ident := fun {+ @binder} => @term__1 in @term__2`.
    single: ... : ... (type cast)
    single: ... <: ... (VM type cast)
    single: ... <<: ... (native compute type cast)
+   single: ... <: [...] ... (unsafe type cast)
    single: ... :> ... (volatile type cast)
 
 .. _type-cast:
@@ -41,6 +42,7 @@ Type cast
 
 .. prodn::
    term_cast ::= @term99 <: @type
+   | @term99 <: [ @string ] @type
    | @term99 <<: @type
    | @term99 :> @type
    | @term99 : @type
@@ -53,6 +55,29 @@ to type check that :n:`@term99` has type :n:`@type` (see :tacn:`vm_compute`).
 
 :n:`@term99 <<: @type` specifies that compilation to OCaml will be used
 to type check that :n:`@term99` has type :n:`@type` (see :tacn:`native_compute`).
+
+The expression ``term <:["plugin.cast-id"] type`` invokes a named unsafe
+cast checker registered by an OCaml plugin. The kernel checks that the operand
+is well typed and that the target is a type, then delegates the cumulative
+comparison of their types to the registered checker. The checker explicitly
+chooses any conversion procedures it calls. An unknown identifier or a rejected
+comparison is an error.
+
+.. warning::
+
+   Unsafe cast checkers are trusted extensions of the kernel and can accept
+   otherwise invalid proofs. Casts are erased during evaluation; they are not
+   computational coercions. :cmd:`Print Assumptions` reports the identifiers
+   used in a declaration and its dependencies, including opaque proofs.
+   Merely loading a plugin does not add such an assumption.
+
+Plugin authors register handlers through ``Unsafe_cast.register``. Optional
+source and target preparation callbacks can assist elaboration and evar
+inference, but the kernel independently invokes the ``check`` callback on the
+original types. Callbacks receive an evar-free local environment; preparation
+callbacks also require their input type to be evar-free. The kernel check is
+repeated when an opaque proof is checked or a library is rechecked, so the plugin
+must also be available in those checking processes.
 
 :n:`@term99 :> @type` enforces the type of :n:`@term99` to be
 :n:`@type` without leaving a trace in the produced value.
