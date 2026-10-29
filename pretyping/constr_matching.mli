@@ -79,3 +79,11 @@ val match_subterm : env -> Evd.evar_map ->
 (** [is_matching_appsubterm pat c] tells if a subterm of [c] matches
    against [pat] taking partial subterms into consideration *)
 val is_matching_appsubterm : ?closed:bool -> env -> Evd.evar_map -> constr_pattern -> constr -> bool
+
+type subterm_cache
+
+val make_subterm_cache : unit -> subterm_cache
+
+(** [is_matching_appsubterm_cached cache pat c] tells if a subterm of [c] matches
+   against [pat] taking partial subterms into consideration *)
+val is_matching_appsubterm_cached : subterm_cache  -> env -> Evd.evar_map -> constr_pattern -> constr -> bool
