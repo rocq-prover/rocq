@@ -101,7 +101,8 @@ let congrtac ((n, t), ty) ist =
   debug_ssr (fun () -> (Pp.str"===congr==="));
   debug_ssr (fun () -> Pp.(str"concl=" ++ Printer.pr_econstr_env env sigma concl));
   let nsigma, _ as it = interp_term env sigma ist t in
-  let sigma = Evd.merge_ustate sigma (Evd.ustate nsigma) in
+  (* [nsigma] is an extension of [sigma] *)
+  let sigma = Evd.set_ustate sigma (Evd.ustate nsigma) in
   let f, _, _ucst = abs_evars env sigma it in
   let ist' = {ist with lfun =
     Id.Map.add pattern_id (Tacinterp.Value.of_constr f) Id.Map.empty } in
@@ -230,7 +231,7 @@ let simplintac occ rdx sim =
       simpltac (Simpl m)
     end else
       let sigma0, concl0, env0 = Proofview.Goal.(sigma gl, concl gl, env gl) in
-      let simp env _ c _ _ = red_safe Tacred.simpl env sigma0 c in
+      let simp env us c _ _ = red_safe Tacred.simpl env sigma0 c, us in
       convert_concl_no_check (fst (eval_pattern env0 sigma0 (Reductionops.nf_evar sigma0 concl0) rdx occ simp))
     end
   in
@@ -285,8 +286,8 @@ let unfoldintac occ rdx t (kt,_) =
     let u = mk_tpattern env0 ~rigid t L2R t (empty_tpatterns (Evd.create_evar_defs sigma)) in
     let find_T, end_T = mk_tpattern_matcher ~raise_NoMatch:true sigma0 occ u in
     (fun env us c _ h ->
-      try find_T env c h ~k:(fun env _ c _ _ -> body env t c)
-      with NoMatch when easy -> c
+      try find_T env us c h ~k:(fun env us c _ _ -> body env t c, us)
+      with NoMatch when easy -> c, us
       | NoMatch | NoProgress -> errorstrm Pp.(str"No occurrence of "
         ++ pr_econstr_pat env sigma t ++ spc() ++ str "in " ++ Printer.pr_econstr_env env sigma0 c)),
     (fun () -> try ignore @@ end_T () with
@@ -297,22 +298,25 @@ let unfoldintac occ rdx t (kt,_) =
       if const then
         let rec aux c =
           match EConstr.kind sigma0 c with
-          | Const _ when EConstr.eq_constr_nounivs sigma0 c t -> body env c c
-          | App (f,a) when EConstr.eq_constr_nounivs sigma0 f t -> EConstr.mkApp (body env t t,a)
-          | Proj _ when same_proj env sigma0 c t -> body env t c
+          | Const _ when EConstr.eq_constr_nounivs sigma0 c t -> body env c c, us
+          | App (f,a) when EConstr.eq_constr_nounivs sigma0 f t -> EConstr.mkApp (body env t t,a), us
+          | Proj _ when same_proj env sigma0 c t -> body env t c, us
           | _ ->
             let c = Reductionops.whd_betaiotazeta env sigma0 c in
             match EConstr.kind sigma0 c with
-            | Const _ when EConstr.eq_constr_nounivs sigma0 c t -> body env c c
-            | App (f,a) when EConstr.eq_constr_nounivs sigma0 f t -> EConstr.mkApp (body env t t,a)
-            | Proj _ when same_proj env sigma0 c t -> body env t c
+            | Const _ when EConstr.eq_constr_nounivs sigma0 c t -> body env c c, us
+            | App (f,a) when EConstr.eq_constr_nounivs sigma0 f t -> EConstr.mkApp (body env t t,a), us
+            | Proj _ when same_proj env sigma0 c t -> body env t c, us
             | Const f -> aux (body env c c)
             | App (f, a) -> aux (EConstr.mkApp (body env f f, a))
             | _ -> errorstrm Pp.(str "The term "++ pr_econstr_env env sigma orig_c ++
                 str" contains no " ++ pr_econstr_env env sigma t ++ str" even after unfolding")
           in aux c
       else
-        try body env t (fs (unify_HO env sigma c t) t)
+        try
+          (* [us] extends the universe state of [sigma] *)
+          let sigma = unify_HO env (Evd.set_ustate sigma us) c t in
+          body env t (fs sigma t), Evd.ustate sigma
         with e when CErrors.noncritical e -> errorstrm Pp.(str "The term " ++
           pr_econstr_env env sigma c ++spc()++ str "does not unify with " ++ pr_econstr_pat env sigma t)),
     ignore in
@@ -334,19 +338,20 @@ let foldtac occ rdx ft =
     let rigid ev = Evd.mem sigma0 ev in
     let ut = mk_tpattern ~rigid env0 t L2R ut (empty_tpatterns (Evd.create_evar_defs sigma)) in
     let find_T, end_T = mk_tpattern_matcher ~raise_NoMatch:true sigma0 occ ut in
-    (fun env _ c _ h -> try find_T env c h ~k:(fun env _ t _ _ -> t) with NoMatch ->c),
+    (fun env us c _ h -> try find_T env us c h ~k:(fun env us t _ _ -> t, us) with NoMatch -> c, us),
     (fun () -> try ignore @@ end_T () with NoMatch -> ())
   | Some _ ->
     (fun env us c _ h ->
        try
-         let sigma = Evd.merge_ustate sigma us in
+         (* [us] extends the universe state of [sigma] *)
+         let sigma = Evd.set_ustate sigma us in
          let sigma = unify_HO env sigma c t in
-         Reductionops.nf_evar sigma t
+         Reductionops.nf_evar sigma t, Evd.ustate sigma
        with e when CErrors.noncritical e ->
          errorstrm Pp.(str "fold pattern " ++ pr_econstr_pat env sigma t ++ spc ()
                        ++ str "does not match redex " ++ pr_econstr_pat env sigma c)),
     ignore in
-  let concl, us = eval_pattern env0 sigma0 concl0 rdx occ fold in
+  let concl, _ = eval_pattern env0 sigma0 concl0 rdx occ fold in
   let () = conclude () in
   convert_concl ~check:true concl
   end
@@ -459,9 +464,6 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
        | _ -> Proofview.tclZERO ~info:i e)
   end
 
-let pf_merge_uc_of s sigma =
-  Evd.merge_ustate sigma (Evd.ustate s)
-
 let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
   let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
@@ -491,7 +493,8 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
       | _ ->
           let cl' = EConstr.mkApp (EConstr.mkNamedLambda sigma (make_annot pattern_id ERelevance.relevant) rdxt cl, [|rdx|]) in
           let sigma, _ = Typing.type_of env sigma cl' in
-          let sigma0 = pf_merge_uc_of sigma sigma0 in
+          (* [sigma] is an extension of [sigma0] *)
+          let sigma0 = Evd.set_ustate sigma0 (Evd.ustate sigma) in
           convert_concl ~check:true cl', rewritetac ?under dir r', sigma0
     else
       let dc, r2 = EConstr.decompose_lambda_n_assum sigma0 n r' in
@@ -539,8 +542,7 @@ let lz_setoid_relation =
   | Some (env', srel) when env' == env -> srel
   | _ ->
     let srel =
-       try Some (UnivGen.constr_of_monomorphic_global (Global.env ()) @@
-                 Rocqlib.lib_ref "rewrite.prop.RewriteRelation")
+       try Some (Rocqlib.lib_ref "rewrite.prop.RewriteRelation")
        with e when CErrors.noncritical e -> None in
     last_srel := Some (env, srel); srel
 
@@ -637,24 +639,57 @@ let rwprocess_rule env dir rule =
   in
     r_sigma, rules
 
+(* Make the rules of a multirule independent lemmas. [sigma0] is the evar map
+   in which the multirule was interpreted and [r_sigma] the one obtained by
+   [rwprocess_rule]. Each rule comes with the extension of [sigma0] with the
+   evars and universes of this rule only, so that the evars and universes of
+   the rules which are not used never end up in the proof.
+   Matching then starts from [sigma0], and the extension of a rule is only
+   added when this rule is tried.
+   The evars of the rules are not necessarily disjoint: e.g. for a rule
+   [forall x, A x * B x], [rwprocess_rule] creates the evar for [x] before
+   splitting the product, so the two rules share it. The extensions of two
+   rules must hence never be added to the same evar map ([extend_evar_map]
+   raises an anomaly in that case). This holds as a rewrite step only ever
+   uses one rule, each rule being tried from [sigma0]. *)
+let independent_rules env sigma0 r_sigma rules =
+  (* The rules must not depend on the universe substitution of [r_sigma],
+     which is not part of their extension *)
+  let nf c = nf_evars_univs r_sigma c in
+  let extension = evar_map_extension ~env ~base:sigma0 r_sigma in
+  let rule_ext (d, r, lhs, rhs) =
+    let r, lhs, rhs = nf r, nf lhs, nf rhs in
+    (d, r, lhs, rhs, extension [r; lhs; rhs])
+  in
+  List.map rule_ext rules
+
+(* The universe state of [rule] must extend the ones of the goal and of
+   [rdx_pat]. *)
 let rwrxtac ?under ?map_redex occ rdx_pat dir rule =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma0 = Proofview.Goal.sigma gl in
   let r_sigma, rules = rwprocess_rule env dir rule in
+  let rules = independent_rules env sigma0 r_sigma rules in
+  (* The universe state of the goal extends the one of [rdx_pat]: we start
+     matching from the goal, the evars and universes of a rule being added
+     when it is tried *)
+  let rdx_pat =
+    Option.map (fun p -> { p with pat_sigma = Evd.set_ustate p.pat_sigma (Evd.ustate sigma0) }) rdx_pat in
   let find_rule us rdx =
-    let ise = (Evd.create_evar_defs r_sigma) in
-    let ise = Evd.merge_ustate ise us in
+    let ise = Evd.create_evar_defs sigma0 in
+    let ise = Evd.set_ustate ise us in
     let rec rwtac = function
       | [] ->
         errorstrm Pp.(str "pattern " ++ pr_econstr_pat env sigma0 rdx ++
                    str " does not match " ++ pr_dir_side dir ++
                    str " of " ++ pr_econstr_pat env sigma0 (snd rule))
-      | (d, r, lhs, rhs) :: rs ->
+      | (d, r, lhs, rhs, ext) :: rs ->
         try
+          let ise = extend_evar_map ise ext in
           let ise = unify_HO env ise lhs rdx in
           if not (rw_progress rhs rdx ise) then raise NoMatch else
-          d, (ise, Evd.ustate ise, Reductionops.nf_evar ise r)
+          d, (ise, Reductionops.nf_evar ise r)
         with e when CErrors.noncritical e -> rwtac rs in
      rwtac rules
   in
@@ -664,26 +699,32 @@ let rwrxtac ?under ?map_redex occ rdx_pat dir rule =
   let find_R, conclude = match classify_pattern rdx_pat with
   | None ->
       let upats_origin = dir, (snd rule) in
-      let rpat pats (d, r, lhs, rhs) =
-        let r = Reductionops.nf_evar r_sigma r in
-        let lhs = Reductionops.nf_evar r_sigma lhs in
-        mk_tpattern ~ok:(rw_progress rhs) ~rigid env0 r d lhs pats
+      let rpat pats (d, r, lhs, rhs, ext) =
+        mk_tpattern ~ok:(rw_progress rhs) ~ext ~rigid env0 r d lhs pats
       in
-      let rpats = List.fold_left rpat (empty_tpatterns r_sigma) rules in
+      let rpats = List.fold_left rpat (empty_tpatterns sigma0) rules in
       let find_R, end_R = mk_tpattern_matcher sigma0 occ ~upats_origin rpats in
-      (fun e _ c _ i -> find_R ~k:(fun _ _ _ _ h -> EConstr.mkRel h) e c i),
+      (fun e us c _ i -> find_R ~k:(fun _ us _ _ h -> EConstr.mkRel h, us) e us c i),
       fun cl -> let rdx,d,r = end_R () in closed0_check env0 sigma0 cl rdx; (d,r),rdx
   | Some (_, e) ->
+      debug_ssr Pp.(fun () -> str"rwxtac: rdx_pat = Some _");
       let r = ref None in
-      (fun env us c _ h -> do_once r (fun () -> find_rule us c, c); EConstr.mkRel h),
+      (fun env us c _ h ->
+        let us = match !r with
+          | Some _ -> us
+          | None ->
+            let (_, (ise, _)) as rule = find_rule us c in
+            r := Some (rule, c); Evd.ustate ise
+        in
+        EConstr.mkRel h, us),
       (fun concl -> closed0_check env0 sigma0 concl e;
-        let (d,(ev,ctx,c)) , x = assert_done r in
-        (d,(true, ev,ctx, Reductionops.nf_evar ev c)) , x) in
+        let (d,(ev,c)) , x = assert_done r in
+        (d,(true, ev, Reductionops.nf_evar ev c)) , x) in
   let concl0 = Reductionops.nf_evar sigma0 concl0 in
-  let concl, uc' = eval_pattern env0 sigma0 concl0 rdx_pat occ find_R in
-  let (d, (_, sigma, uc, t)), rdx = conclude concl in
-  let sigma = Evd.merge_ustate sigma uc' in
-  let r = Evd.merge_ustate sigma uc, t in
+  let concl, us = eval_pattern env0 sigma0 concl0 rdx_pat occ find_R in
+  let (d, (_, sigma, t)), rdx = conclude concl in
+  (* [us] is the final universe state, extending the one of [sigma] *)
+  let r = Evd.set_ustate sigma us, t in
   rwcltac ?under ?map_redex concl rdx d r
   end
 
@@ -695,18 +736,17 @@ let ssrinstancesofrule ist dir arg =
   let rigid ev = Evd.mem sigma0 ev in
   let rule = interp_term env0 sigma0 ist arg in
   let r_sigma, rules = rwprocess_rule env0 dir rule in
+  let rules = independent_rules env0 sigma0 r_sigma rules in
   let find =
-    let rpat pats (d, r, lhs, rhs) =
-      let r = Reductionops.nf_evar r_sigma r in
-      let lhs = Reductionops.nf_evar r_sigma lhs in
-      mk_tpattern ~ok:(rw_progress rhs) ~rigid env0 r d lhs pats
+    let rpat pats (d, r, lhs, rhs, ext) =
+      mk_tpattern ~ok:(rw_progress rhs) ~ext ~rigid env0 r d lhs pats
     in
-    let rpats = List.fold_left rpat (empty_tpatterns r_sigma) rules in
+    let rpats = List.fold_left rpat (empty_tpatterns sigma0) rules in
     find_all_instances sigma0 rpats
   in
-  let print env _ p c _ = Feedback.msg_info Pp.(hov 1 (str"instance:" ++ spc() ++ pr_econstr_env env r_sigma p ++ spc() ++ str "matches:" ++ spc() ++ pr_econstr_env env r_sigma c)); c in
+  let print env us p c _ = Feedback.msg_info Pp.(hov 1 (str"instance:" ++ spc() ++ pr_econstr_env env r_sigma p ++ spc() ++ str "matches:" ++ spc() ++ pr_econstr_env env r_sigma c)); c, us in
   let () = Feedback.msg_info Pp.(str"BEGIN INSTANCES") in
-  let () = find env0 (Reductionops.nf_evar sigma0 concl0) 1 ~k:print in
+  let (), _ = find env0 (Evd.ustate r_sigma) (Reductionops.nf_evar sigma0 concl0) 1 ~k:print in
   let () = Feedback.msg_info Pp.(str"END INSTANCES") in
   Tacticals.tclIDTAC
   end
@@ -739,18 +779,27 @@ let rwargtac ?under ?map_redex ist ((dir, mult), (((oclr, occ), grx), (kind, gt)
     | Some { pat_sigma = s } -> Evd.set_ustate sigma (Evd.ustate s)
     in
     let t = interp env sigma gt in
-    let us = Evd.ustate (fst t) in
-    let sigma = Evd.set_ustate sigma us in
-    (* Record the term's ustate unifications in the rx_pat *)
-    let rx = match rx with
-      | None -> None
-      | Some p -> Some { p with pat_sigma = Evd.set_ustate p.pat_sigma us }
+    (* Commit the term's ustate unifications to the goal and the rx_pat *)
+    let commit_term_univs () =
+      let us = Evd.ustate (fst t) in
+      let rx = match rx with
+        | None -> None
+        | Some p -> Some { p with pat_sigma = Evd.set_ustate p.pat_sigma us }
+      in
+      Proofview.Unsafe.tclEVARS (Evd.set_ustate sigma us), rx
     in
-    Proofview.Unsafe.tclEVARS sigma <*>
-    (match kind with
-    | RWred sim -> simplintac occ rx sim
-    | RWdef -> if dir = R2L then foldtac occ rx t else unfoldintac occ rx t gt
-    | RWeq -> rwrxtac ?under ?map_redex occ rx dir t)
+    match kind with
+    | RWred sim ->
+      let commit, rx = commit_term_univs () in
+      commit <*> simplintac occ rx sim
+    | RWdef ->
+      let commit, rx = commit_term_univs () in
+      commit <*> if dir = R2L then foldtac occ rx t else unfoldintac occ rx t gt
+    | RWeq ->
+      (* The universes of the rule are not committed to the goal: [rwrxtac]
+         only keeps the ones of the rule that is used *)
+      Proofview.Unsafe.tclEVARS sigma <*>
+      rwrxtac ?under ?map_redex occ rx dir t
     end
   in
   let ctac = cleartac (interp_clr sigma (oclr, (fst gt, snd (interp env sigma gt)))) in

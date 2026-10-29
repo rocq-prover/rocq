@@ -63,7 +63,8 @@ let ssrsettac id ((_, (pat, pty)), (_, occ)) =
   let (c, ucst), cl =
     try fill_occ_pattern ~raise_NoMatch:true env sigma cl pat occ 1
     with NoMatch -> redex_of_pattern_tc env pat, cl in
-  let sigma = Evd.merge_ustate sigma ucst in
+  (* [ucst] extends the universe state of [pat], itself an extension of [sigma]'s *)
+  let sigma = Evd.set_ustate sigma ucst in
   if Termops.occur_existential sigma c then errorstrm(str"The pattern"++spc()++
     pr_econstr_pat env sigma c++spc()++str"did not match and has holes."++spc()++
     str"Did you mean pose?") else
@@ -146,11 +147,11 @@ let basecuttac k c =
           | _ ->
           let f = Rocqlib.lib_ref ("plugins.ssreflect.ssr_have_upoly") in
           let sigma, uc = match qc with
-            | QConstant (QSProp | QProp) -> sigma, Univ.Level.set
-            | _ -> Evd.new_univ_level_variable Evd.univ_flexible sigma in
+            | QConstant (QSProp | QProp) -> sigma, Univ.Universe.type0
+            | _ -> Evd.new_univ_variable Evd.univ_flexible sigma in
           let sigma, ug = match qg with
-            | QConstant (QSProp | QProp) -> sigma, Univ.Level.set
-            | _ -> Evd.new_univ_level_variable Evd.univ_flexible sigma in
+            | QConstant (QSProp | QProp) -> sigma, Univ.Universe.type0
+            | _ -> Evd.new_univ_variable Evd.univ_flexible sigma in
           let names = EInstance.make @@ UVars.Instance.of_array ([|qc;qg|],[|uc;ug|]) in
           let sigma, f = EConstr.fresh_global env sigma ~names f in
           let sigma, step = Evarutil.new_evar env sigma c in
