@@ -23,3 +23,5 @@ Print Assumptions test.
 Definition simple := 1 + 1.
 
 Print Assumptions simple.
+
+Print Assumptions C test simple.

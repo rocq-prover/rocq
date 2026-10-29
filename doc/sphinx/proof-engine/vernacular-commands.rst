@@ -451,8 +451,14 @@ Requests to the environment
    :flag:`Guard Checking`, :flag:`Positivity Checking`,
    :flag:`Universe Checking`, and :flag:`Definitional UIP`.
 
-   The message "Closed under the global context" indicates that all the theorems and
-   definitions have no dependencies.
+   When several references are given, each report is labeled with the references
+   it describes. Consecutive references with equivalent reports share a report;
+   reference order and repetitions are preserved. Reports are grouped only when
+   their assumptions, usage annotations and theory assumptions agree. This also
+   applies to the dependency commands below. Single-reference output is unchanged.
+
+   The message "Closed under the global context" indicates that the reported
+   theorems and definitions have no dependencies.
 
    The body of an opaque constant is not available when the library defining
    it was compiled with ``-vos``, which is in particular the case in ``-vok``
