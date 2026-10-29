@@ -27,7 +27,6 @@ let loc_of_bool b = if b then `LOCAL else `GLOBAL
 (* Errors *)
 
 type coercion_error_kind =
-  | AlreadyExists of GlobRef.t
   | NotAFunction of GlobRef.t
   | NoSource of GlobRef.t * cl_typ option
   | ForbiddenSourceClass of cl_typ
@@ -38,8 +37,6 @@ type coercion_error_kind =
 exception CoercionError of coercion_error_kind
 
 let explain_coercion_error = function
-  | AlreadyExists g ->
-      (Printer.pr_global g ++ str" is already a coercion")
   | NotAFunction g ->
       (Printer.pr_global g ++ str" is not a function")
   | NoSource (g, Some cl) ->
@@ -300,11 +297,14 @@ let warn_uniform_inheritance =
           Printer.pr_global g ++
             strbrk" does not respect the uniform inheritance condition.")
 
+let warn_already_exists = CWarnings.create ~name:"coercion-already-exists" ~category:CWarnings.CoreCategories.coercions ~default:AsError
+    Pp.(fun g -> Printer.pr_global g ++ str" is already a coercion.")
+
 let add_new_coercion_core coef ~local ~reversible source target isid : unit =
   check_source source;
+  if coercion_exists coef then warn_already_exists coef else
   let env = Global.env () in
   let t, _ = Typeops.type_of_global_in_context env coef in
-  if coercion_exists coef then raise (CoercionError (AlreadyExists coef));
   let lp,tg = decompose_prod_decls t in
   let llp = List.length lp in
   if Int.equal llp 0 then raise (CoercionError (NotAFunction coef));
