@@ -334,23 +334,23 @@ let add_new_coercion_core coef ~local ~reversible source target isid : unit =
   let params = List.length (Context.Rel.instance_list EConstr.mkRel 0 ctx) in
   declare_coercion coef ~local ~reversible ~isid ~src:cls ~target:clt ~params ()
 
-let try_add_new_coercion ref ~local ~reversible =
+let add_new_coercion ref ~local ~reversible =
   add_new_coercion_core ref ~local ~reversible None None false
 
-let try_add_new_coercion_subclass ?loc cl ~local ~poly ~reversible =
+let add_new_coercion_subclass ?loc cl ~local ~poly ~reversible =
   let coe_ref = build_id_coercion ?loc None cl poly in
   add_new_coercion_core coe_ref ~local ~reversible (Some cl) None true
 
-let try_add_new_coercion_with_target ref ~local ~reversible ~source ~target =
+let add_new_coercion_with_target ref ~local ~reversible ~source ~target =
   add_new_coercion_core ref ~local ~reversible
     (Some source) (Some target) false
 
-let try_add_new_identity_coercion {CAst.v=id; loc} ~local ~poly ~source ~target =
+let add_new_identity_coercion {CAst.v=id; loc} ~local ~poly ~source ~target =
   let ref = build_id_coercion ?loc (Some id) source poly in
   add_new_coercion_core ref ~local ~reversible:true
     (Some source) (Some target) true
 
-let try_add_new_coercion_with_source ref ~local ~reversible ~source =
+let add_new_coercion_with_source ref ~local ~reversible ~source =
   add_new_coercion_core ref ~local ~reversible (Some source) None false
 
 let coercion_hook ~reversible = Declare.Hook.make @@ fun { scope; dref; _ } ->
@@ -360,7 +360,7 @@ let coercion_hook ~reversible = Declare.Hook.make @@ fun { scope; dref; _ } ->
   | Global ImportNeedQualified -> true
   | Global ImportDefaultBehavior -> false
   in
-  let () = try_add_new_coercion dref ~local ~reversible in
+  let () = add_new_coercion dref ~local ~reversible in
   let msg = Nametab.pr_global_env Id.Set.empty dref ++ str " is now a coercion" in
   Flags.if_verbose Feedback.msg_info msg
 
@@ -373,7 +373,7 @@ let subclass_hook ~poly ~reversible = Declare.Hook.make @@ fun { scope; dref; _ 
   in
   let cl = class_of_global dref in
   let loc = Nametab.cci_src_loc (TrueGlobal dref) in
-  try_add_new_coercion_subclass ?loc cl ~local:stre ~poly ~reversible
+  add_new_coercion_subclass ?loc cl ~local:stre ~poly ~reversible
 
 let warn_reverse_no_change =
   CWarnings.create ~name:"reversible-no-change" ~category:CWarnings.CoreCategories.coercions
