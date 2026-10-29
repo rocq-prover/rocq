@@ -1,0 +1,14 @@
+Axioms:
+InterfaceOnly.value relies on unsafe cast "test.vm-lhs".
+Axioms:
+InterfaceOnly.value relies on unsafe cast "test.vm-lhs".
+Axioms:
+Mixed.value relies on unsafe cast "test.vm-lhs".
+Mixed.value relies on unsafe cast "test.accept".
+Axioms:
+Mixed.value relies on unsafe cast "test.vm-lhs".
+Mixed.value relies on unsafe cast "test.accept".
+Axioms:
+AxiomType.ax : nat
+Axioms:
+Flagged.value relies on an unsafe hierarchy.

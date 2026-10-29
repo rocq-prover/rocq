@@ -7,3 +7,8 @@ Main.v
 Erasure.v
 Imported.v
 Async.v
+Template.v
+NonTemplate.v
+Relevance.v
+SealedInterfaces.v
+ImportedSealedInterfaces.v

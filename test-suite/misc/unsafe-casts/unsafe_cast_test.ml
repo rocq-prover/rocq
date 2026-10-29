@@ -73,6 +73,39 @@ let () = Unsafe_cast.register ~id:"test.accept" Unsafe_cast.{
   prepare_target = None;
 }
 
+(* Invoked only by Relevance.v, so the failing regression does not prevent
+   the original tests from loading this plugin. Rejecting relevance-changing
+   casts is the proposed policy; the probe checks the kernel independently
+   of the surface-syntax rejection tests. *)
+let () = Unsafe_cast.register ~id:"test.relevance-regression" Unsafe_cast.{
+  check = (fun _ env _ _ ->
+    let open Context.Rel.Declaration in
+    let env = Environ.push_rel (LocalAssum (Context.anonR, mkSProp)) env in
+    let irrelevant = Context.make_annot Names.Name.Anonymous Sorts.Irrelevant in
+    let env = Environ.push_rel (LocalAssum (irrelevant, mkRel 1)) env in
+    let strict_type = mkRel 2 and strict_proof = mkRel 1 in
+    (* Positive controls ensure the local context and both kinds of operand
+       are valid, and same-relevance unsafe casts are still accepted. *)
+    let source_type = (Typeops.infer env mkProp).Environ.uj_type in
+    ignore (Typeops.infer_type env strict_type);
+    ignore (Typeops.infer env (mkCast (mkProp, UNSAFEcast "test.accept", source_type)));
+    ignore (Typeops.infer env (mkCast (strict_proof, UNSAFEcast "test.accept", strict_type)));
+    let casts = [
+      "relevant-to-SProp", mkCast (mkProp, UNSAFEcast "test.accept", strict_type);
+      "SProp-to-relevant", mkCast (strict_proof, UNSAFEcast "test.accept", mkProp);
+    ] in
+    let accepted = List.filter_map (fun (label, cast) ->
+        try ignore (Typeops.infer env cast); Some label
+        with e when CErrors.noncritical e -> None)
+      casts in
+    match accepted with
+    | [] -> Ok ()
+    | accepted -> Error Pp.(str "kernel accepted relevance-changing unsafe casts: " ++
+        str (String.concat ", " accepted)));
+  prepare_source = None;
+  prepare_target = None;
+}
+
 let expect_error f =
   let failed = try f (); false with e when CErrors.noncritical e -> true in
   assert failed

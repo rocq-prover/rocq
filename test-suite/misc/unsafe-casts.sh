@@ -27,3 +27,66 @@ if "${BIN}rocqchk" -silent -R . UnsafeCasts UnsafeCasts.Imported > checker.out 2
   exit 1
 fi
 grep -q 'Unsafe cast .* is not registered' checker.out
+
+# Regressions for review findings #1-3. Collect failures so that one bug does
+# not hide the other reproductions. The references describe fixed behavior;
+# these checks intentionally fail until the implementation is repaired.
+regression_failures=0
+
+check_unregistered_library () {
+  local library="$1"
+  if ! rocq compile -q -test-mode -R . UnsafeCasts -I . "$library.v" \
+      > "$library.out" 2>&1; then
+    echo "FAIL #1: could not compile $library.v (see $library.out)"
+    return 1
+  fi
+  if "${BIN}rocqchk" -silent -R . UnsafeCasts "UnsafeCasts.$library" \
+      > "$library-checker.out" 2>&1; then
+    echo "FAIL #1: rocqchk accepted UnsafeCasts.$library without its cast plugin"
+    return 1
+  fi
+  if ! grep -Fq 'Unsafe cast "test.accept" is not registered.' "$library-checker.out"; then
+    echo "FAIL #1: $library failed for an unexpected reason (see $library-checker.out)"
+    return 1
+  fi
+}
+
+check_relevance () {
+  if ! rocq compile -q -test-mode -R . UnsafeCasts -I . Relevance.v \
+      > relevance.out 2>&1; then
+    echo "FAIL #2: relevance-changing casts were not rejected consistently (see relevance.out)"
+    return 1
+  fi
+}
+
+check_sealed_interfaces () {
+  local library="$1"
+  if ! rocq compile -q -test-mode -R . UnsafeCasts -I . "$library.v" \
+      > "$library.out" 2>&1; then
+    echo "FAIL #3: could not compile $library.v (see $library.out)"
+    return 1
+  fi
+  if ! diff -u --strip-trailing-cr sealed-interfaces.out.reference "$library.out"; then
+    echo "FAIL #3: $library lost exposed-interface assumptions"
+    return 1
+  fi
+}
+
+run_regression () {
+  if "$@"; then
+    :
+  else
+    regression_failures=$((regression_failures + 1))
+  fi
+}
+
+run_regression check_unregistered_library NonTemplate
+run_regression check_unregistered_library Template
+run_regression check_relevance
+run_regression check_sealed_interfaces SealedInterfaces
+run_regression check_sealed_interfaces ImportedSealedInterfaces
+
+if [ "$regression_failures" -ne 0 ]; then
+  echo "$regression_failures unsafe-cast regression checks failed"
+  exit 1
+fi
