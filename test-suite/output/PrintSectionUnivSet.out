@@ -1,0 +1,25 @@
+foo@{u} = nat
+     : Type@{u}
+(* u | u = Set *)
+foo@{u} : Type@{u}
+(* u | u = Set *)
+
+foo is universe polymorphic
+foo is transparent
+Expands to: Constant PrintSectionUnivSet.foo
+Declared in library PrintSectionUnivSet, line 9, characters 13-16
+foo@{Set}
+     : Set
+(* {} | Set = Set
+Normalized constraints:
+  *)
+goo@{v} = nat
+     : Type@{v}
+(* v | v <= Set *)
+goo@{v} : Type@{v}
+(* v | v <= Set *)
+
+goo is universe polymorphic
+goo is transparent
+Expands to: Constant PrintSectionUnivSet.goo
+Declared in library PrintSectionUnivSet, line 19, characters 13-16
