@@ -79,6 +79,11 @@ Return a non-zero exit code if the context analysis finds axioms or unsafe featu
 The trust assumptions of \-admit and \-norec still apply.
 .
 .TP
+.BI \-allow\-axiom " name"
+With \-axiom\-free, allow this fully qualified axiom name. May be repeated.
+Names match the Axioms entries from \-o exactly; unsafe features still cause failure.
+.
+.TP
 .B \-impredicative\-set
 Allows the checker to accept libraries that have been compiled with
 this flag.
