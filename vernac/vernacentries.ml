@@ -1739,7 +1739,7 @@ let vernac_coercion ~atts ref qidst =
      let reversible = Option.default false reversible in
      let target = cl_of_qualid qidt in
      let source = cl_of_qualid qids in
-     ComCoercion.try_add_new_coercion_with_target ref' ~local ~reversible
+     ComCoercion.add_new_coercion_with_target ref' ~local ~reversible
        ~source ~target;
      Flags.if_verbose Feedback.msg_info (pr_global ref' ++ str " is now a coercion")
   | None ->
@@ -1753,7 +1753,7 @@ let vernac_identity_coercion ~atts id qids qidt =
   let target = cl_of_qualid qidt in
   let source = cl_of_qualid qids in
   let poly = PolyFlags.of_univ_poly poly (* FIXME cumulativity not handled *) in
-  ComCoercion.try_add_new_identity_coercion id ~local ~poly ~source ~target
+  ComCoercion.add_new_identity_coercion id ~local ~poly ~source ~target
 
 (* Type classes *)
 
