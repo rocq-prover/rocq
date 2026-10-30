@@ -10,8 +10,6 @@ git_download unicoq
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 ( cd "${CI_BUILD_DIR}/unicoq"
-  coq_makefile -f _CoqProject -o Makefile
-  make .merlin
-  make
-  make install
+  dune build --root . --only-packages=coq-unicoq @install @runtest
+  dune install --root . coq-unicoq --prefix="$CI_INSTALL_DIR"
 )
