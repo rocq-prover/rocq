@@ -19,7 +19,6 @@ open Inductiveops
 open Names
 open Reductionops
 open Environ
-open Termops
 open EConstr
 open Vars
 open Arguments_renaming
@@ -218,13 +217,19 @@ let type_of_template_knowing_parameters ~forbid_polyprop arity_sort_of typ args 
   let empty_subst = Int.Map.empty, Int.Map.empty in
   type_of_template_knowing_parameters ~forbid_polyprop arity_sort_of empty_subst typ args
 
+(* Unlike ordinary conversion casts, an unsafe cast in an inferred type
+   can determine its sort. Do not erase that annotation when returning types. *)
+let rec strip_outer_type_cast sigma c = match EConstr.kind sigma c with
+  | Cast (c, (VMcast | NATIVEcast | DEFAULTcast), _) -> strip_outer_type_cast sigma c
+  | _ -> c
+
 let retype ?metas ?(polyprop=true) sigma =
   let rec type_of env cstr =
     match EConstr.kind sigma cstr with
     | Meta n ->
       begin match safe_meta_type metas n with
       | None -> retype_error (BadMeta n)
-      | Some ty -> strip_outer_cast sigma ty
+      | Some ty -> strip_outer_type_cast sigma ty
       end
     | Rel n ->
       let ty = try RelDecl.get_type (lookup_rel n env)
@@ -265,7 +270,7 @@ let retype ?metas ?(polyprop=true) sigma =
       if Termops.is_template_polymorphic_ref env sigma f then
         substituted_type_of_global_reference_knowing_parameters env f args
       else
-        strip_outer_cast sigma
+        strip_outer_type_cast sigma
           (subst_type env sigma (type_of env f) (Array.to_list args))
     | Proj (p,_,c) ->
       let ty = type_of env c in
@@ -301,7 +306,7 @@ let retype ?metas ?(polyprop=true) sigma =
     match EConstr.kind sigma c with
     | Ind (ind, u) ->
       let ty = type_of_global_reference_knowing_parameters env c args in
-      strip_outer_cast sigma (subst_type env sigma ty (Array.to_list args))
+      strip_outer_type_cast sigma (subst_type env sigma ty (Array.to_list args))
     | Construct ((ind, i as ctor), u) ->
       let mib, mip = Inductive.lookup_mind_specif env ind in
       let ty =
@@ -311,7 +316,7 @@ let retype ?metas ?(polyprop=true) sigma =
       else
         type_of_global_reference_knowing_parameters env c args
       in
-      strip_outer_cast sigma (subst_type env sigma ty (Array.to_list args))
+      strip_outer_type_cast sigma (subst_type env sigma ty (Array.to_list args))
     | _ -> assert false
 
   and type_of_global_reference_knowing_parameters env c args =
@@ -429,40 +434,33 @@ let relevance_of_projection_repr env (p, u) =
   ERelevance.make @@ Relevanceops.relevance_of_projection_repr env (p, EConstr.Unsafe.to_instance u)
 
 let relevance_of_term env sigma c =
-  if Environ.sprop_allowed env then
-    let rec aux rels c =
-      match kind sigma c with
-      | Rel n ->
-        let len = Range.length rels in
-        if n <= len then Range.get rels (n - 1)
-        else ERelevance.make @@ Relevanceops.relevance_of_rel env (n - len)
-      | Var x -> ERelevance.make @@ Relevanceops.relevance_of_var env x
-      | Sort _ -> ERelevance.relevant
-      | Cast (c, _, _) -> aux rels c
-      | Prod _ -> ERelevance.relevant
-      | Lambda ({binder_relevance=r}, _, bdy) ->
-        aux (Range.cons r rels) bdy
-      | LetIn ({binder_relevance=r}, _, _, bdy) ->
-        aux (Range.cons r rels) bdy
-      | App (c, _) -> aux rels c
-      | Const (c,u) ->
-        relevance_of_constant env sigma (c, u)
-      | Ind _ -> ERelevance.relevant
-      | Construct (c,u) ->
-        let u = Unsafe.to_instance u in
-        ERelevance.make @@ Relevanceops.relevance_of_constructor env (c,u)
-      | Case (_, _, _, (_, r), _, _, _) -> r
-      | Fix ((_,i),(lna,_,_)) -> (lna.(i)).binder_relevance
-      | CoFix (i,(lna,_,_)) -> (lna.(i)).binder_relevance
-      | Proj (p, r, _) -> r
-      | Evar (evk, _) ->
-          let evi = Evd.find_undefined sigma evk in
-          Evd.evar_relevance evi
-      | Int _ | Float _ | String _ | Array _ -> ERelevance.relevant
-      | Meta _ -> ERelevance.relevant
-    in
-    aux Range.empty c
-  else ERelevance.relevant
+  if not (Environ.sprop_allowed env) then ERelevance.relevant
+  else match kind sigma c with
+    | Rel n -> ERelevance.make @@ Relevanceops.relevance_of_rel env n
+    | Var x -> ERelevance.make @@ Relevanceops.relevance_of_var env x
+    | Sort _ | Prod _ | Ind _ -> ERelevance.relevant
+    | Cast _ | Lambda _ | LetIn _ | App _ ->
+      (* Unsafe casts can change a type's sort indirectly. In particular,
+         the head of an application no longer determines its relevance. *)
+      let type_of, sort_of, _ = retype sigma in
+      begin try ESorts.relevance_of_sort (sort_of env (type_of env c))
+      with RetypeError _ ->
+        (* Partial unification terms may contain metas without known types.
+           Do not assume proof irrelevance when their relevance is unknown. *)
+        ERelevance.relevant
+      end
+    | Const (c,u) -> relevance_of_constant env sigma (c, u)
+    | Construct (c,u) ->
+      let u = Unsafe.to_instance u in
+      ERelevance.make @@ Relevanceops.relevance_of_constructor env (c,u)
+    | Case (_, _, _, (_, r), _, _, _) -> r
+    | Fix ((_,i),(lna,_,_)) -> (lna.(i)).binder_relevance
+    | CoFix (i,(lna,_,_)) -> (lna.(i)).binder_relevance
+    | Proj (p, r, _) -> r
+    | Evar (evk, _) ->
+      let evi = Evd.find_undefined sigma evk in
+      Evd.evar_relevance evi
+    | Int _ | Float _ | String _ | Array _ | Meta _ -> ERelevance.relevant
 
 let is_term_irrelevant env sigma c =
   let r = relevance_of_term env sigma c in

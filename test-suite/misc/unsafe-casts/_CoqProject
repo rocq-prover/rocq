@@ -10,5 +10,6 @@ Async.v
 Template.v
 NonTemplate.v
 Relevance.v
+ImportedRelevance.v
 SealedInterfaces.v
 ImportedSealedInterfaces.v

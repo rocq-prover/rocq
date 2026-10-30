@@ -68,7 +68,12 @@ check_original_inductive_casts () {
 check_relevance () {
   if ! rocq compile -q -test-mode -R . UnsafeCasts -I . Relevance.v \
       > relevance.out 2>&1; then
-    echo "FAIL #2: relevance-changing casts were not rejected consistently (see relevance.out)"
+    echo "FAIL #2: relevance checks or metadata invariants failed (see relevance.out)"
+    return 1
+  fi
+  if ! rocq compile -q -test-mode -R . UnsafeCasts -I . ImportedRelevance.v \
+      > imported-relevance.out 2>&1; then
+    echo "FAIL #2: serialized relevance metadata is inconsistent (see imported-relevance.out)"
     return 1
   fi
 }

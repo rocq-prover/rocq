@@ -355,6 +355,9 @@ let check_unsafe_cast env sigma id cj target =
   let env = unsafe_cast_env id env sigma in
   let source = unsafe_cast_type id sigma source in
   let target = unsafe_cast_type id sigma target in
+  let source_sort = (Typeops.infer_type env source).utj_type in
+  let target_sort = (Typeops.infer_type env target).utj_type in
+  let () = Typeops.check_unsafe_cast_relevance env id source_sort target_sort in
   let () = Unsafe_cast.check id Conversion.CUMUL env source target in
   sigma
 

@@ -22,6 +22,9 @@ type handler = {
       calls to conversion. Cast checking always supplies [CUMUL]. The operand
       and the original target have already been typechecked by the kernel.
       Acceptance is trusted, even if the types are not ordinarily convertible.
+      The kernel independently requires the original source and target types
+      to have the same relevance in the current context; a handler cannot
+      override this restriction. Elaboration enforces it after preparation.
       Checks must be deterministic and respect the kernel's context-sensitive
       term sharing: unrelated local declarations must not affect their result. *)
 

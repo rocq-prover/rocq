@@ -73,10 +73,8 @@ let () = Unsafe_cast.register ~id:"test.accept" Unsafe_cast.{
   prepare_target = None;
 }
 
-(* Invoked only by Relevance.v, so the failing regression does not prevent
-   the original tests from loading this plugin. Rejecting relevance-changing
-   casts is the proposed policy; the probe checks the kernel independently
-   of the surface-syntax rejection tests. *)
+(* Invoked only by Relevance.v. Check the kernel independently of the
+   surface-syntax rejection tests, including its public incremental API. *)
 let () = Unsafe_cast.register ~id:"test.relevance-regression" Unsafe_cast.{
   check = (fun _ env _ _ ->
     let open Context.Rel.Declaration in
@@ -94,14 +92,102 @@ let () = Unsafe_cast.register ~id:"test.relevance-regression" Unsafe_cast.{
       "relevant-to-SProp", mkCast (mkProp, UNSAFEcast "test.accept", strict_type);
       "SProp-to-relevant", mkCast (strict_proof, UNSAFEcast "test.accept", mkProp);
     ] in
-    let accepted = List.filter_map (fun (label, cast) ->
-        try ignore (Typeops.infer env cast); Some label
-        with e when CErrors.noncritical e -> None)
+    let rejects f =
+      try f (); false with
+      | CErrors.UserError message ->
+        let message = Pp.string_of_ppcmds message in
+        if CString.string_contains ~where:message ~what:"cannot change relevance" then true
+        else CErrors.user_err (Pp.str ("unexpected rejection: " ^ message))
+    in
+    let accepted = List.concat_map (fun (label, cast) ->
+        let full = if rejects (fun () -> ignore (Typeops.infer env cast))
+          then [] else [label] in
+        let c, k, t = destCast cast in
+        let cj = Typeops.infer env c and tj = Typeops.infer_type env t in
+        let incremental = if rejects (fun () -> Typeops.check_cast env cj k tj)
+          then [] else [label ^ " (check_cast)"] in
+        full @ incremental)
       casts in
     match accepted with
     | [] -> Ok ()
     | accepted -> Error Pp.(str "kernel accepted relevance-changing unsafe casts: " ++
         str (String.concat ", " accepted)));
+  prepare_source = None;
+  prepare_target = None;
+}
+
+(* Inspect the declarations and compound terms built in Relevance.v, without
+   relying on successful surface elaboration to validate cached metadata. *)
+let () = Unsafe_cast.register ~id:"test.relevance-metadata" Unsafe_cast.{
+  check = (fun _ env _ _ ->
+    let lookup name = match Nametab.locate (Libnames.qualid_of_string name) with
+      | Names.GlobRef.ConstRef c -> Environ.lookup_constant c env
+      | _ -> assert false
+    in
+    let assert_relevance label expected actual =
+      if not (Sorts.relevance_equal expected actual) then
+        CErrors.user_err Pp.(str "incorrect relevance for " ++ str label)
+    in
+    List.iter (fun (name, expected) ->
+        let cb = lookup name in
+        let ty = Typeops.infer_type env cb.Declarations.const_type in
+        assert_relevance (name ^ " (type)") expected (Sorts.relevance_of_sort ty.Environ.utj_type);
+        assert_relevance (name ^ " (metadata)") expected cb.Declarations.const_relevance)
+      ["relevance_indirect", Sorts.Irrelevant;
+       "relevance_inferred", Sorts.Irrelevant;
+       "relevance_relevant", Sorts.Relevant;
+       "relevance_fun_indirect", Sorts.Irrelevant];
+    List.iter (fun name ->
+        let local = Names.Id.of_string name in
+        if Environ.mem_named local env then begin
+          let decl = Environ.lookup_named local env in
+          let ty = Typeops.infer_type env (Context.Named.Declaration.get_type decl) in
+          assert_relevance (name ^ " (section local metadata)")
+            (Sorts.relevance_of_sort ty.Environ.utj_type)
+            (Context.Named.Declaration.get_relevance decl)
+        end)
+      ["p"; "inferred_p"];
+    let body name = match (lookup name).Declarations.const_body with
+      | Declarations.Def c -> c
+      | _ -> assert false
+    in
+    let zero = body "relevance_indirect" in
+    let proof = body "relevance_relevant" in
+    let nat = (Typeops.infer env zero).Environ.uj_type in
+    let strict = (Typeops.infer env proof).Environ.uj_type in
+    let strict_type = mkCast (nat, UNSAFEcast "test.accept", mkSProp) in
+    let relevant_type = mkCast (strict, UNSAFEcast "test.accept", mkSet) in
+    let into_strict = mkCast (zero, DEFAULTcast, strict_type) in
+    let into_relevant = mkCast (proof, DEFAULTcast, relevant_type) in
+    let lambda = mkLambda (Context.anonR, nat, Vars.lift 1 into_strict) in
+    let ordinary_function = mkCast (mkLambda (Context.anonR, nat, Vars.lift 1 zero),
+        DEFAULTcast, mkProd (Context.anonR, nat, Vars.lift 1 strict_type)) in
+    let irrelevant = Context.make_annot Names.Name.Anonymous Sorts.Irrelevant in
+    let terms = [
+      "ordinary cast into SProp", into_strict, Sorts.Irrelevant;
+      "ordinary cast out of SProp", into_relevant, Sorts.Relevant;
+      "lambda", lambda, Sorts.Irrelevant;
+      "application", mkApp (ordinary_function, [|zero|]), Sorts.Irrelevant;
+      "let", mkLetIn (irrelevant, into_strict, strict_type, mkRel 1), Sorts.Irrelevant;
+      "cast under a binder", mkLambda (irrelevant, strict,
+        mkCast (mkRel 1, DEFAULTcast, Vars.lift 1 relevant_type)), Sorts.Relevant;
+    ] in
+    let sigma = Evd.from_env env in
+    List.iter (fun (label, term, expected) ->
+        let j = Typeops.infer env term in
+        let tj = Typeops.infer_type env j.Environ.uj_type in
+        assert_relevance (label ^ " (kernel type)") expected
+          (Sorts.relevance_of_sort tj.Environ.utj_type);
+        assert_relevance (label ^ " (kernel relevance)") expected
+          (Relevanceops.relevance_of_term env term);
+        let term = EConstr.of_constr term in
+        assert_relevance (label ^ " (retyping)") expected
+          (EConstr.ERelevance.kind sigma (Retyping.relevance_of_term env sigma term));
+        let ty = Retyping.get_type_of env sigma term in
+        assert_relevance (label ^ " (retyped type)") expected
+          (EConstr.ERelevance.kind sigma (Retyping.relevance_of_type env sigma ty)))
+      terms;
+    Ok ());
   prepare_source = None;
   prepare_target = None;
 }

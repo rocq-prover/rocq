@@ -61,6 +61,10 @@ val print_retype_error : retype_error -> Pp.t
 val relevance_of_projection_repr : env -> Names.Projection.Repr.t EConstr.puniverses -> ERelevance.t
 
 val relevance_of_term : env -> evar_map -> constr -> ERelevance.t
+(** Use cached annotations for atomic terms and checked constructs, and the
+    inferred type for casts, applications, and binders. Partial terms without
+    enough type information are conservatively treated as relevant. *)
+
 val relevance_of_type : env -> evar_map -> types -> ERelevance.t
 val relevance_of_sort : ESorts.t -> ERelevance.t
 

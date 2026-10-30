@@ -1303,7 +1303,7 @@ struct
     let sigma, j = pretype tycon1 env sigma c1 in
     let sigma, t = Evarsolve.refresh_universes
       ~onlyalg:true ~status:Evd.univ_flexible (Some false) !!env sigma j.uj_type in
-    let r = Retyping.relevance_of_term !!env sigma j.uj_val in
+    let r = Retyping.relevance_of_type !!env sigma t in
     let var = LocalDef (make_annot name r, j.uj_val, t) in
     let tycon = lift_tycon 1 tycon in
     let var, env = push_rel sigma var env in

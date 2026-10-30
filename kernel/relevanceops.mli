@@ -8,9 +8,10 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-(** We can take advantage of non-cumulativity of SProp to avoid fully
-   retyping terms when we just want to know if they inhabit some
-   proof-irrelevant type. *)
+(** Compute relevance from the term's checked type. Unsafe casts can affect
+    relevance indirectly through types, so following only the operand or head
+    is insufficient. Callers already holding a checked type judgment should
+    obtain relevance directly from its sort instead of rechecking the term. *)
 
 val relevance_of_term : Environ.env -> Constr.constr -> Sorts.relevance
 

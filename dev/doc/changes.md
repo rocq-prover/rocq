@@ -6,6 +6,7 @@
   `Unsafe_cast.register` installs named, trusted cast checkers and optional
   source/target elaboration aids. Checkers perform their own explicit calls to
   conversion; uses are preserved in terms and reported by `Print Assumptions`.
+  Unsafe casts must preserve relevance, independently of the plugin's answer.
   `Constr.equal_cast_kind` compares cast kinds including their identifiers.
 
 ## Changes between Coq 8.17 and Coq 8.18

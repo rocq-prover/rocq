@@ -217,14 +217,14 @@ let infer_definition ~sec_univs env entry =
   let body = entry.definition_entry_body in
   let hbody = HConstr.of_constr env body in
   let j = Typeops.infer_hconstr env hbody in
-  let typ = match entry.definition_entry_type with
-    | None ->
-      j.uj_type
+  let typj = match entry.definition_entry_type with
+    | None -> Typeops.infer_type env j.uj_type
     | Some t ->
       let tj = Typeops.infer_type env t in
       let () = Typeops.check_cast env j DEFAULTcast tj in
-      tj.utj_val
+      tj
   in
+  let typ = typj.utj_val in
   let body = j.uj_val in
   let hbody = Some hbody in
   let def = Def body in
@@ -237,7 +237,7 @@ let infer_definition ~sec_univs env entry =
     const_type = typ;
     const_body_code = ();
     const_universes = univs;
-    const_relevance = Relevanceops.relevance_of_term env body;
+    const_relevance = Sorts.relevance_of_sort typj.utj_type;
     const_inline_code = entry.definition_entry_inline_code;
     const_typing_flags = Environ.typing_flags env;
     const_def_height = Some def_h
@@ -305,13 +305,13 @@ let infer_local_assum env t =
 
 let infer_local_def env _id { secdef_body; secdef_type; } =
   let j = Typeops.infer env secdef_body in
-  let typ = match secdef_type with
-    | None -> j.uj_type
+  let typj = match secdef_type with
+    | None -> Typeops.infer_type env j.uj_type
     | Some typ ->
       let tj = Typeops.infer_type env typ in
       let () = Typeops.check_cast env j DEFAULTcast tj in
-      tj.utj_val
+      tj
   in
   let c = j.uj_val in
-  let r = Relevanceops.relevance_of_term env c in
-  c, r, typ
+  let r = Sorts.relevance_of_sort typj.utj_type in
+  c, r, typj.utj_val

@@ -82,6 +82,12 @@ let nf_relevance env = function
 let check_relevance env r r' =
   Sorts.relevance_equal (nf_relevance env r) (nf_relevance env r')
 
+let check_unsafe_cast_relevance env id source_sort target_sort =
+  let source = Sorts.relevance_of_sort source_sort in
+  let target = Sorts.relevance_of_sort target_sort in
+  if not (check_relevance env source target) then
+    user_err Pp.(str "Unsafe cast " ++ qstring id ++ str " cannot change relevance.")
+
 let check_assumption env x t ty =
   let r = x.binder_relevance in
   let r' = infer_assumption env t ty in
@@ -682,7 +688,16 @@ and execute_aux tbl env cstr =
 
     | Cast (c,k,t) ->
       let ct = execute tbl env c in
-      let _ts : Sorts.t = execute_is_type tbl env t in
+      let ts = execute_is_type tbl env t in
+      let () = match k with
+        | UNSAFEcast id ->
+          (* Reifying the inferred type creates fresh context identifiers:
+             its checking table must not be shared with the operand's. *)
+          let hct = HConstr.of_constr env ct in
+          let cs = execute_is_type (HConstr.Tbl.create ()) env hct in
+          check_unsafe_cast_relevance env id cs ts
+        | VMcast | NATIVEcast | DEFAULTcast -> ()
+      in
       let () = check_cast env (self c) ct k (self t) in
       self t
 
@@ -890,6 +905,12 @@ let check_context env rels =
     rels ~init:(env,[])
 
 let check_cast env cj k tj =
+  let () = match k with
+    | UNSAFEcast id ->
+      let source = infer_type env cj.uj_type in
+      check_unsafe_cast_relevance env id source.utj_type tj.utj_type
+    | VMcast | NATIVEcast | DEFAULTcast -> ()
+  in
   check_cast env cj.uj_val cj.uj_type k tj.utj_val
 
 (* Building type of primitive operators and type *)

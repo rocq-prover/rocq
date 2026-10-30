@@ -56,6 +56,11 @@ val type_of_projection : env -> Projection.t -> constr -> types -> Sorts.relevan
 val sort_of_product : env -> Sorts.t -> Sorts.t -> Sorts.t
 
 (** {6 Type of a cast. } *)
+
+val check_unsafe_cast_relevance : env -> string -> Sorts.t -> Sorts.t -> unit
+(** Reject an unsafe cast if the sorts of its original source and target
+    types do not establish the same relevance in the current environment. *)
+
 val check_cast :
   env -> unsafe_judgment -> cast_kind -> unsafe_type_judgment -> unit
 

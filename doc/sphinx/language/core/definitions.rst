@@ -63,6 +63,12 @@ comparison of their types to the registered checker. The checker explicitly
 chooses any conversion procedures it calls. An unknown identifier or a rejected
 comparison is an error.
 
+An unsafe cast must preserve relevance: it cannot directly cast a term whose
+type lies in ``SProp`` to a term of a relevant type, or conversely. Both the
+kernel and elaborator enforce this restriction independently of the handler;
+preparation callbacks cannot override it. This restriction does not make an
+arbitrary handler sound: comparisons of nonconvertible types are still trusted.
+
 .. warning::
 
    Unsafe cast checkers are trusted extensions of the kernel and can accept
