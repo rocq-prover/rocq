@@ -761,8 +761,9 @@ file is a particular case of a module called a *library file*.
    The first component of the plugin name is a package name that has to
    be in scope of ``findlib``'s' search path. One can see the paths
    explored by ``findlib`` by running ``ocamlfind printconf`` and get
-   the list of available libraries by running ``ocamlfind list | grep
-   coq`` (Coq libraries are typically named ``coq-something``).
+   the list of available libraries by running ``ocamfind list | grep rocq``
+   (Rocq libraries are typically named ``rocq-something``)
+   (`grep coq` may also be useful to find libraries using the old name of Rocq).
 
    This command is reserved for plugin developers, who should provide
    a ``.v`` file containing the command. Users of the plugin will
@@ -785,20 +786,9 @@ file is a particular case of a module called a *library file*.
       are:
 
       * The plugin does not exist or is misspelled. You can get the list
-        of available libraries by running ``ocamlfind list | grep coq``.
+        of available libraries by running ``ocamlfind list | grep rocq``.
       * The metadata for ``findlib`` has not been set properly (see
         above).
-
-   .. exn:: Dynlink error: execution of module initializers in the
-            shared library failed: Coq Error: @string is not a valid
-            plugin name anymore. Plugins should be loaded using their
-            public name according to findlib, for example
-            package-name.foo and not foo_plugin.
-
-      The plugin declaration in some ``.mlg`` file does not match the
-      ``findlib`` plugin name. In the example of
-      ``rocq-runtime.plugins.ltac``, one has to write ``DECLARE PLUGIN
-      "rocq-runtime.plugins.ltac"``.
 
 .. cmd:: Print ML Modules
 
