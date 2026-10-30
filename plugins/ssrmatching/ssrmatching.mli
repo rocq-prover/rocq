@@ -83,18 +83,27 @@ val interp_cpattern :
  *  to signal the complement of this set (i.e. \{-1 3\}) *)
 type occ = (bool * int list) option
 
-(** [subst e p t i]. [i] is the number of binders
-    traversed so far, [p] the term from the pattern, [t] the matched one *)
-type subst = Environ.env -> UState.t -> EConstr.t -> EConstr.t -> int -> EConstr.t
+(** [subst e us p t i]. [i] is the number of binders
+    traversed so far, [p] the term from the pattern, [t] the matched one.
+    [us] is the current universe state, which includes the universe
+    constraints of the match. The callback returns the substituted term
+    together with an extension of [us], which is threaded through the
+    following matches. *)
+type subst = Environ.env -> UState.t -> EConstr.t -> EConstr.t -> int -> EConstr.t * UState.t
 
 (** [eval_pattern b env sigma t pat occ subst] maps [t] calling [subst] on every
     [occ] occurrence of [pat]. The [int] argument is the number of
     binders traversed. If [pat] is [None] then then subst is called on [t].
     [t] must live in [env] and [sigma], [pat] must have been interpreted in
     (an extension of) [sigma].
+    The universe state is threaded through the matches and the calls to
+    [subst], starting from the one of [pat] (or [sigma] if [pat] is [None]).
+    In particular, the matchers used by [subst] must have been created
+    from evar maps whose universe state is extended by the one of [pat].
   @raise NoMatch if [pat] has no occurrence and [b] is [true] (default [false])
   @return [t] where all [occ] occurrences of [pat] have been mapped using
-    [subst] *)
+    [subst], and the final universe state, which extends the ones of
+    [sigma] and [pat]. *)
 val eval_pattern :
   ?raise_NoMatch:bool ->
   env -> evar_map -> EConstr.t ->
@@ -107,7 +116,8 @@ val eval_pattern :
     [t] must live in [env] and [sigma], [pat] must have been interpreted in
     (an extension of) [sigma].
   @raise NoMatch if [pat] has no occurrence and [b] is [true] (default [false])
-  @return the instance of the redex of [pat] that was matched and [t]
+  @return the instance of the redex of [pat] that was matched, the
+    universe state (an extension of the one of [pat]) and [t]
     transformed as described above. *)
 val fill_occ_pattern :
   ?raise_NoMatch:bool ->
@@ -116,7 +126,8 @@ val fill_occ_pattern :
     EConstr.t Evd.in_ustate * EConstr.t
 
 (** Variant of the above function where we fix [h := 1] and return
-    [redex_of_pattern pat] if [pat] has no occurrence. *)
+    [redex_of_pattern pat] if [pat] has no occurrence. The returned
+    [evar_map] is [sigma] with the universe state of the match. *)
 val fill_rel_occ_pattern :
   env -> evar_map -> EConstr.t -> pattern -> occ ->
     evar_map * EConstr.t * EConstr.t
@@ -149,25 +160,28 @@ val mk_tpattern :
   ssrdir -> EConstr.t ->
   tpatterns -> tpatterns
 
-(** [findP env t i k] is a stateful function that finds the next occurrence
+(** [findP env us t i k] is a stateful function that finds the next occurrence
     of a tpattern and calls the callback [k] to map the subterm matched.
     The [int] argument passed to [k] is the number of binders traversed so far
     plus the initial value [i].
+    [us] is the current universe state: it must extend the universe state of
+    the [tpatterns] and the one returned by the previous calls to [findP].
   @return [t] where the subterms identified by the selected occurrences of
-    the patter have been mapped using [k]
+    the patter have been mapped using [k], and the resulting universe state
   @raise NoMatch if the raise_NoMatch flag given to [mk_tpattern_matcher] is
     [true] and if the pattern did not match
   @raise UserEerror if the raise_NoMatch flag given to [mk_tpattern_matcher] is
     [false] and if the pattern did not match *)
 type 'a find_P =
-  Environ.env -> EConstr.t -> int -> k:subst -> 'a
+  Environ.env -> UState.t -> EConstr.t -> int -> k:subst -> 'a * UState.t
 
 (** [conclude ()] asserts that all mentioned occurrences have been visited.
   @return the instance of the pattern, the evarmap after the pattern
-    instantiation, the proof term and the ssrdit stored in the tpattern
+    instantiation (with the universe state of the last call to [find_P]),
+    the proof term and the ssrdit stored in the tpattern
   @raise UserEerror if too many occurrences were specified *)
 type conclude =
-  unit -> EConstr.t * ssrdir * (bool * evar_map * UState.t * EConstr.t)
+  unit -> EConstr.t * ssrdir * (bool * evar_map * EConstr.t)
 
 (** [mk_tpattern_matcher b o sigma0 occ sigma_tplist] creates a pair
     a function [find_P] and [conclude] with the behaviour explained above.
@@ -198,10 +212,10 @@ val mk_tpattern_matcher :
         sigma, pats @ [pat] in
       let rpats = List.fold_left aux (r_sigma, []) rules in
       let find_R, end_R = mk_tpattern_matcher sigma0 occ rpats in
-      find_R ~k:(fun _ _ h -> mkRel h),
+      find_R ~k:(fun _ us _ _ h -> mkRel h, us),
       fun cl -> let rdx, d, r = end_R () in (d,r),rdx
   | _ -> ... in
-  let concl = eval_pattern env0 sigma0 concl0 pat occ find_R in
+  let concl, us = eval_pattern env0 sigma0 concl0 pat occ find_R in
   let (d, r), rdx = conclude concl in
 ]} *)
 
