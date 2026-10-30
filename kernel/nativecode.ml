@@ -1429,28 +1429,10 @@ let compile_prim env decl cond paux =
       (* Compilation of norm_i *)
       let ndef = Array.length ids in
       let lf,env_n = push_rels (restart_env env) ids in
-      let t_params = Array.make ndef [||] in
       let t_norm_f = Array.make ndef (Gnorm (l,-1)) in
-      let mk_let _envi (id,def) t = MLlet (id,def,t) in
-      let mk_lam_or_let (params,lets,env) (id,def) =
-        let ln,env' = push_rel env id in
-        match def with
-        | None -> (ln::params,lets,env')
-        | Some lam -> (params, (ln,ml_of_lam env l lam)::lets,env')
-      in
       let ml_of_fix i body =
-        let varsi, bodyi = decompose_Llam_Llet body in
-        let paramsi,letsi,envi =
-          Array.fold_left mk_lam_or_let ([],[],env_n) varsi
-        in
-        let paramsi,letsi =
-          Array.of_list (List.rev paramsi), Array.of_list (List.rev letsi)
-        in
-        t_norm_f.(i) <- fresh_gnorm env.env_cenv l;
-        let bodyi = ml_of_lam envi l bodyi in
-        t_params.(i) <- paramsi;
-        let bodyi = Array.fold_right (mk_let envi) letsi bodyi in
-        mkMLlam paramsi bodyi
+        let () = t_norm_f.(i) <- fresh_gnorm env.env_cenv l in
+        ml_of_lam env_n l body
       in
       let tnorm = Array.mapi ml_of_fix tb in
       let fvn,fvr = !(env_n.env_named), !(env_n.env_urel) in
@@ -1468,7 +1450,8 @@ let compile_prim env decl cond paux =
       let lf_args = Array.map (fun id -> MLlocal id) lf in
       let mk_norm = MLapp(MLglobal norm, fv_args) in
       let mkrec i lname =
-        let paramsi = t_params.(i) in
+        let paramsi, _ = decompose_MLlam tnorm.(i) in
+        let () = assert (rec_pos.(i) < Array.length paramsi) in
         let reci = MLlocal (paramsi.(rec_pos.(i))) in
         let pargsi = Array.map (fun id -> MLlocal id) paramsi in
         let ind = inds.(i) in
