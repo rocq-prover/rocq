@@ -152,7 +152,7 @@ let generic_search env sigma (fn : GlobRef.t -> (Vernacexpr.discharge * Decls.lo
     fn (GlobRef.VarRef id) kind env sigma (NamedDecl.get_type d))
     (Environ.named_context env);
   let search_constant c cb =
-    let kind = Dumpglob.constant_kind env c in
+    let kind = Decls.constant_kind env c in
     fn (ConstRef c) (Some (NoDischarge, kind)) env sigma cb.const_type
   in
   let search_mind mind mib =

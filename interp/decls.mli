@@ -78,3 +78,7 @@ val variable_opacity : variable -> bool
 
 (* Used in declare, very dubious *)
 val variable_exists : variable -> bool
+
+(** Registration of constant information *)
+val add_constant_kind : Environ.env -> Names.Constant.t -> logical_kind -> unit
+val constant_kind : Environ.env -> Names.Constant.t -> logical_kind
