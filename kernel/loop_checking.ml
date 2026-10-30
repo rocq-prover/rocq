@@ -3,6 +3,7 @@ open Univ
 let debug_loop_checking_invariants_flag, debug_loop_checking_invariants = CDebug.create_full ~name:"loop-checking-invariants" ()
 let _debug_loop_checking_flag, debug_loop_checking = CDebug.create_full ~name:"loop-checking" ()
 let _debug_loop_checking_set_can_flag, debug_loop_checking_set_can = CDebug.create_full ~name:"loop-checking-set-can" ()
+let debug_loop_checking_merged_flag, _debug_loop_checking_merged = CDebug.create_full ~name:"loop-checking-merged" ()
 
 module Index :
 sig
@@ -751,6 +752,21 @@ let remove_subst_deps w prems deps =
             if Index.Set.is_empty s then None else Some s) deps)
     prems deps
 
+(** [remove_dominated_set index setidx prems] drops [Set + k] from [prems] when they also have a
+  premise [b + k'] with [k <= k']: [Set] is below every universe, so it is never the maximum. The
+  premises of clauses and substitutions are kept in that form, so that e.g. [max(Set, b)] is [b]. *)
+let remove_dominated_set index setidx prems =
+  match prems with
+  | NeList.Tip _ -> prems
+  | NeList.Cons _ ->
+    let is_set (p, _) = Index.equal (index p) setidx in
+    match NeList.fold (fun x acc -> if is_set x then Some (snd x) else acc) prems None with
+    | None -> prems
+    | Some kset ->
+      if NeList.exists (fun (_, k as x) -> not (is_set x) && kset <= k) prems then
+        Option.default prems (NeList.filter (fun x -> not (is_set x)) prems)
+      else prems
+
 (* [enter_equiv m u local v] makes the canonical node [u] an alias of the
    canonical premises [v]. The substitutions mentioning [u] are rewritten to
    mention [v] instead, so that the premises of the substitution stay
@@ -758,6 +774,8 @@ let remove_subst_deps w prems deps =
    following chains of aliases whose length can grow linearly with the number
    of equations. *)
 let enter_equiv m u local v =
+  let setidx = Index.find Level.set m.table in
+  let v = remove_dominated_set Fun.id setidx v in
   let deps = PMap.find_opt u m.subst_deps in
   let subst_deps = PMap.remove u m.subst_deps in
   let subst, subst_deps = match deps with
@@ -765,7 +783,7 @@ let enter_equiv m u local v =
     | Some ws ->
       Index.Set.fold (fun w (subst, subst_deps) ->
           let (prems, local, local_eq) = PMap.find w subst in
-          let prems = Premises.subst u v prems in
+          let prems = remove_dominated_set Fun.id setidx (Premises.subst u v prems) in
           PMap.add w (prems, local, local_eq) subst, add_subst_deps w v subst_deps)
         ws (m.subst, subst_deps)
   in
@@ -878,9 +896,10 @@ type 'a canonical_result =
   | Contradictory
   | Canonical of 'a
 
-let simplify_can_premises prems concl conclk =
+let simplify_can_premises setidx prems concl conclk =
   (* The result is sorted according to the order on the [canon] indices, mentioning each
-     universe once with its largest increment, as built by [Premises.add] *)
+     universe once with its largest increment, as built by [Premises.add], and without
+     [Set + k] when another premise has an increment [k' >= k] (see [remove_dominated_set]) *)
   let rec insert ((prem, k) as x) prems =
     match prems with
     | NeList.Tip ((prem', k') as p) ->
@@ -910,7 +929,7 @@ let simplify_can_premises prems concl conclk =
   match NeList.fold update prems None with
   | exception IsTrivial -> Trivial
   | None -> Contradictory
-  | Some prems -> Canonical prems
+  | Some prems -> Canonical (remove_dominated_set (fun can -> can.canon) setidx prems)
 
 (** Simplify u <= max (Set, v) clauses to u <= v and filter away u <= ... u + n , ... clauses, always valid *)
 let simplify_can_clause m ((prems, (concl, k as conclk)) : can_clause) : can_clause canonical_result =
@@ -920,7 +939,7 @@ let simplify_can_clause m ((prems, (concl, k as conclk)) : can_clause) : can_cla
   if concl.canon == setidx && NeList.exists (fun (_prem, k') -> k' >= k && k > 0) prems then
     Trivial
   else
-    match simplify_can_premises prems concl k with
+    match simplify_can_premises setidx prems concl k with
     | Canonical prems -> Canonical (prems, conclk)
     | Trivial -> Trivial
     | Contradictory -> Contradictory
@@ -938,12 +957,15 @@ let is_trivial_clause setidx (prems, (concl, k)) =
   Premises.exists (fun (prem, k') -> k' >= k && (Index.equal prem concl || (Index.equal concl setidx && k > 0))) prems
 
 (** [simplify_clause setidx cl] simplifies the clause [cl] on canonical sorted premises as
-  [simplify_can_clause]: if it is not trivial, its premises on its conclusion are dropped. *)
+  [simplify_can_clause]: if it is not trivial, its premises on its conclusion and [Set + k] below
+  another premise are dropped. *)
 let simplify_clause setidx (prems, (concl, k) as cl) =
   if is_trivial_clause setidx cl then Trivial
   else match Premises.filter (fun (idx, _) -> not (Index.equal idx concl)) prems with
     | None -> Contradictory
-    | Some prems' -> Canonical (if prems' == prems then cl else (prems', (concl, k)))
+    | Some prems' ->
+      let prems' = remove_dominated_set Fun.id setidx prems' in
+      Canonical (if prems' == prems then cl else (prems', (concl, k)))
 
 (** [fwd_premises prem kprem others] are the premises of the forward clause [prem + kprem, others -> _] *)
 let fwd_premises prem kprem others =
@@ -957,6 +979,7 @@ let check_invariants ~(required_canonical:Level.t -> bool) model =
   (* The clause [prems -> concl + k], stored in the [kind] clauses of [node], only mentions canonical universes,
      has sorted premises mentioning each universe once but not its conclusion, and is neither trivial
      nor contradictory *)
+  let setidx = Index.find Level.set model.table in
   let check_clause kind node (prems, (concl, k) as cl) =
     let err msg =
       CErrors.user_err Pp.(str kind ++ str" clause " ++ pr_clause_idx model cl ++ str" of " ++
@@ -972,6 +995,8 @@ let check_invariants ~(required_canonical:Level.t -> bool) model =
       err Pp.(str"mentions its conclusion in its premises");
     if not (sorted_premises prems) then
       err Pp.(str"has unsorted premises, or premises mentioning the same universe several times");
+    if remove_dominated_set Fun.id setidx prems != prems then
+      err Pp.(str"has a premise Set + k below another premise");
     let canprems = NeList.map (fun (idx, k) -> (repr model idx, k)) prems in
     match simplify_can_clause model (canprems, (repr model concl, k)) with
     | Trivial -> err Pp.(str"is trivial")
@@ -1035,6 +1060,9 @@ let check_invariants ~(required_canonical:Level.t -> bool) model =
     if not (sorted_premises u) then
       CErrors.user_err Pp.(str"The substitution of " ++ pr_raw_index_point model idx ++ str" by " ++
         pr_raw_premises model u ++ str" has unsorted premises, or premises mentioning the same universe several times");
+    if remove_dominated_set Fun.id setidx u != u then
+      CErrors.user_err Pp.(str"The substitution of " ++ pr_raw_index_point model idx ++ str" by " ++
+        pr_raw_premises model u ++ str" has a premise Set + k below another premise");
     Premises.iter (fun (idx', k) ->
       assert (k >= 0);
       assert (PMap.mem idx' model.entries); (* The substitution is canonical *)
@@ -1371,15 +1399,18 @@ let defined_expr_value m (can, k) = get_canonical_value m can - k
 let pr_model ?(local=false) model =
   Pp.(str"clauses: " ++ pr_local model.locality ++ fnl () ++ pr_clauses_all ~local model)
 
-let remove_premise idx kprem prems =
+(** [remove_premise idx prems] removes the premise on [idx] from [prems], which are sorted and
+  mention each universe once (see [sorted_premises]) *)
+let remove_premise idx prems =
   let rec aux = function
-    | NeList.Tip (idx', k) as l -> 
-      if Index.equal idx idx' && Int.equal k kprem then None else Some l
-    | NeList.Cons ((idx', k) as prem, l') ->
-      if Index.equal idx idx' && Int.equal k kprem then aux l'
+    | NeList.Tip (idx', _) as l -> if Index.equal idx idx' then None else Some l
+    | NeList.Cons ((idx', _) as prem, l') as l ->
+      let c = Index.compare idx idx' in
+      if Int.equal c 0 then Some l'
+      else if c < 0 then Some l
       else match aux l' with
         | None -> Some (NeList.Tip prem)
-        | Some l' -> Some (NeList.Cons (prem, l'))
+        | Some l'' -> Some (if l'' == l' then l else NeList.Cons (prem, l''))
   in aux prems
 
 (** [add_can_clause_model m cl] adds the clause [cl] to [m].
@@ -1401,7 +1432,7 @@ let add_can_clause_model m ((prems, (canl, conclk)) : can_clause) : (can_clause 
       let idx = if idx0 == canl then canl' else idx0 in
       let idx' =
         let fwd = ForwardClauses.add { kprem; concl = canl'.canon;
-          prems = PartialClausesOf.singleton (conclk, remove_premise idx0.canon kprem canprems) } idx.clauses_fwd in
+          prems = PartialClausesOf.singleton (conclk, remove_premise idx0.canon canprems) } idx.clauses_fwd in
         if fwd == idx.clauses_fwd then idx
         else { idx with clauses_fwd = fwd }
       in
@@ -1447,11 +1478,11 @@ let subst_fwd_clauses setidx prem idx (idx', k' as u) fwd =
         | Trivial -> fwd
         | Contradictory -> assert false (* The substituted equality holds in the model *)
         | Canonical (prems', _) ->
-          (* [prem'] is dropped from the premises when it is the conclusion *)
-          if not (in_premises prem' prems') then fwd else
-          let kprem = NeList.find (fun p -> Index.equal p prem') prems' in
-          let others = remove_premise prem' kprem prems' in
-          ForwardClauses.add { kprem; concl = concl'; prems = PartialClausesOf.singleton (kconcl', others) } fwd)
+          match NeList.find (fun p -> Index.equal p prem') prems' with
+          | exception Not_found -> fwd (* [prem'] is dropped from the premises when it is the conclusion *)
+          | kprem ->
+            let others = remove_premise prem' prems' in
+            ForwardClauses.add { kprem; concl = concl'; prems = PartialClausesOf.singleton (kconcl', others) } fwd)
         prems fwd)
     fwd ForwardClauses.empty
 
@@ -1531,7 +1562,8 @@ let subst_fwd_clauses idx u fwd =
       in
       if Index.equal concl idx then
         NeList.fold (fun (concl, kconcl) fwd' ->
-          ForwardClauses.add { kprem = kprem; concl; prems = PartialClausesOf.shift kconcl prems' } fwd') u fwd'
+          ForwardClauses.add { kprem = kprem; concl;
+            prems = PartialClausesOf.shift kconcl prems' } fwd') u fwd'
       else ForwardClauses.add { kprem; concl; prems = prems' } fwd')
       fwd ForwardClauses.empty
 
@@ -1725,7 +1757,10 @@ let infer_clause_extension cl minit =
    involving them active. I.e. we make the premises true but let the conclusion be inferred.
    Then we check that the conclusion holds in this new minimal model. *)
 
-let check_one_clause model prems concl k =
+(** [premises_model model prems] is the model where only the premises [prems] have values,
+  and their forward clauses, from which the consequences of [prems] are propagated: in the
+  resulting model, [x] has value [v] when [x + v <= max(prems)] is derived *)
+let premises_model model prems =
   let model = NeList.fold (fun prem values ->
     let x, k = refresh_can_expr model prem in
     let v = model_value values x.canon in
@@ -1733,6 +1768,10 @@ let check_one_clause model prems concl k =
     { model with values = Some PMap.empty }
   in
   let cls = NeList.fold (fun (prem, _k) cls -> CanSet.add prem.canon prem.clauses_fwd cls) prems CanSet.empty in
+  model, cls
+
+let check_one_clause model prems concl k =
+  let model, cls = premises_model model prems in
   (* We have a model where only the premises are true, check if the conclusion follows.
      The premises are not updated universes: starting with them would answer [Loop] as
      soon as all the other universes are updated (as in MetaRocq's [loop_check]) *)
@@ -1794,29 +1833,69 @@ let rec reach next todo seen =
     in
     reach next todo seen
 
+(** [reach_all model next within start] The universes reachable from the ones of [start] through
+  [next] ([fold_above] or [fold_below]), among the ones satisfying [within] *)
+let reach_all model next within start =
+  List.fold_left (fun seen x -> if PMap.mem (fst x).canon seen then seen else
+      reach (fun x f -> next model x (fun ~single:_ y acc -> if within y then f y acc else acc))
+        [x] (PMap.add (fst x).canon x seen))
+    PMap.empty start
+
+(** [entails model prems (x, kx)] decides [x + kx <= max(prems)] in all the valuations of [model] *)
+let entails model prems (x, kx) =
+  NeList.exists (fun (p, kp) -> p == x && kx <= kp) prems ||
+  let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- kx)) in
+  let prems = NeList.map (fun (p, kp) -> (p, kp + s)) prems in
+  check_one_clause model prems x (kx + s) || check_one_clause_complete model prems x (kx + s)
+
 (** [find_to_merge model prems (canv, kv)] For a clause [prems -> canv + kv] of [model], whose
   values make [max(prems)] and [canv + kv] equal, computes the universes [x + kx] such that
   [max(prems) <= x + kx <= canv + kv], which are all equal to [canv + kv]. The result is a list
   starting with [canv + kv], or [[]] if there is no other such universe.
   In any model, the clauses between equal universes hold with equality: they are tight, and
-  the increment [kx] of each universe [x] is determined by its value. For a single premise
-  [p + kp], these universes are the ones reachable from [p + kp] through tight clauses from
-  which [canv + kv] is reachable. For several premises, they are the ones below [canv + kv]
-  through tight clauses that entail all the premises. Only the clauses with a single premise
-  are followed, so that the search is complete on graphs of clauses with single premises. *)
+  the increment [kx] of each universe [x] is determined by its value.
+  For a single premise [p + kp], these universes are the ones reachable from [p + kp] through
+  tight clauses with a single premise from which [canv + kv] is reachable: if no clause with
+  several premises is met above [p + kp], this is complete. Otherwise, and for several
+  premises, the universes above and below [canv + kv] in the graph of clauses are checked to
+  be equal to it in all valuations, as in [check_leq]: this is complete. *)
 let find_to_merge model prems (canv, kv) =
   let value = defined_expr_value model (canv, kv) in
   let tight x = Int.equal (defined_expr_value model x) value in
-  (* The universes above through the tight clauses [can + c <= q + kq] *)
-  let above x f = fold_above model x (fun ~single y acc -> if single && tight y then f y acc else acc) in
+  (* The universes above through the tight clauses [can + c <= q + kq], noting in [skipped]
+     if a clause with several premises is met *)
+  let skipped = ref false in
+  let above x f =
+    fold_above model x (fun ~single y acc ->
+        if not single then (skipped := true; acc)
+        else if tight y then f y acc else acc)
+  in
   (* The universes below through the tight clauses [concl + kconcl <= can + kprem], among the
      ones satisfying [within] *)
   let below within x f = fold_below model x (fun ~single y acc -> if single && within y then f y acc else acc) in
+  (* The universes [t + kt] equal to [canv + kv] in all valuations: as [model] has the clause,
+     [max(prems) <= t + kt] is not required, a premise can be below [canv + kv] in all valuations.
+     Such a [t] is below [canv] in the graph of clauses, following all their premises:
+     otherwise, the universes above [t] could all be raised. It is also above [canv], through
+     universes below [canv] as well. Its increment [kt] is [value(t) - value]. *)
+  let complete () =
+    (* [Set] is below every universe *)
+    let setcan = repr model (Index.find Level.set model.table) in
+    let below = reach_all model fold_below (fun _ -> true) [(canv, kv); (setcan, 0)] in
+    let above = reach_all model fold_above (fun (y, _) -> PMap.mem y.canon below) [(canv, kv)] in
+    PMap.fold (fun idx _ acc ->
+        let t = repr model idx in
+        let kt = get_canonical_value model t - value in
+        if entails model (NeList.tip (canv, kv)) (t, kt) && entails model (NeList.tip (t, kt)) (canv, kv)
+        then (t, kt) :: acc else acc)
+      above []
+  in
   let members = match prems with
     | NeList.Tip (p, _ as pk) ->
       if not (tight pk) then [] else
       let f = reach above [pk] (PMap.singleton p.canon pk) in
-      if not (PMap.mem canv.canon f) then []
+      if !skipped then complete ()
+      else if not (PMap.mem canv.canon f) then []
       else
         (* The increment found going down must be the one of [x] in [f]: the clause is tight *)
         let within (x, k) =
@@ -1826,20 +1905,53 @@ let find_to_merge model prems (canv, kv) =
         in
         let d = reach (below within) [(canv, kv)] (PMap.singleton canv.canon (canv, kv)) in
         PMap.fold (fun _ x acc -> x :: acc) d []
-    | NeList.Cons _ ->
-      (* The universes [t + kt] below [canv + kv] such that [p + kp <= t + kt] for all premises *)
-      let d = reach (below tight) [(canv, kv)] (PMap.singleton canv.canon (canv, kv)) in
-      let above_prem (t, kt) (p, kp) =
-        if p == t then kp <= kt
-        else
-          let s = max 0 (- kt) in
-          check_one_clause model (NeList.Tip (t, kt + s)) p (kp + s)
-      in
-      PMap.fold (fun _ t acc -> if NeList.for_all (above_prem t) prems then t :: acc else acc) d []
+    | NeList.Cons _ -> complete ()
   in
   match List.filter (fun (can, _) -> not (Index.equal can.canon canv.canon)) members with
   | [] -> []
   | members -> (canv, kv) :: members
+
+(** [zone_classes model prems (canv, kv)] For a clause [prems -> canv + kv] of [model], computes
+  the classes of equal universes, other than the class of [canv + kv], that the clause can create.
+  They are not necessarily between [canv] and a premise: the clause can make a premise of another
+  clause [c <= max(q, ...)] useless (always below [c]), e.g. [canv] itself, creating equalities
+  through the remaining premises. They are looked for in the zone of the universes below [canv]
+  or [Set], and above a premise, in the graph of clauses following all their premises. Two
+  universes of the zone are candidates if they are in the same strongly connected component,
+  through the clauses and the implicit clauses [Set <= x], and are then checked to be equal in
+  all valuations, as in [check_leq]. This is checked by [-d loop-checking-merged]. *)
+let zone_classes model prems (canv, kv) =
+  (* [Set] is below every universe *)
+  let setcan = repr model (Index.find Level.set model.table) in
+  let below = reach_all model fold_below (fun _ -> true) [(canv, kv); (setcan, 0)] in
+  let zone = reach_all model fold_above (fun (y, _) -> PMap.mem y.canon below) (NeList.to_list prems) in
+  let zone = PMap.filter (fun idx _ -> PMap.mem idx below) zone in
+  if PMap.cardinal zone <= 1 then [] else
+  (* The universes of the zone above each one, all of them for [Set] *)
+  let up = PMap.mapi (fun idx _ ->
+      if Index.equal idx setcan.canon then zone else
+      let x = repr model idx in
+      let up = reach_all model fold_above (fun (y, _) -> PMap.mem y.canon zone) [(x, 0)] in
+      if PMap.mem setcan.canon up then zone else up) zone
+  in
+  let done_ = ref PSet.empty in
+  PMap.fold (fun idx upx classes ->
+      if PSet.mem idx !done_ then classes else
+      let scc = PMap.filter (fun idy _ -> not (Index.equal idx idy) &&
+                                          PMap.mem idx (PMap.find idy up)) upx in
+      if PMap.is_empty scc then classes else
+      let r = repr model idx in
+      let vr = get_canonical_value model r in
+      let cls = PMap.fold (fun idy _ cls ->
+          if PSet.mem idy !done_ then cls else
+          let y = repr model idy in
+          let ky = get_canonical_value model y - vr in
+          if entails model (NeList.tip (r, 0)) (y, ky) && entails model (NeList.tip (y, ky)) (r, 0)
+          then (done_ := PSet.add idy !done_; (y, ky) :: cls) else cls) scc []
+      in
+      done_ := PSet.add idx !done_;
+      match cls with [] -> classes | _ -> ((r, 0) :: cls) :: classes)
+    up []
 
 (** [simplify_clauses_between model u v] Checks if [v <= u] holds, in which case it
   merges the equivalence classes of universes between [u] and [v]. If [v] is the lub
@@ -1847,13 +1959,22 @@ let find_to_merge model prems (canv, kv) =
     @param model Assumes [u <= v] holds already
     @return a potentially modified model, without changing any values *)
 let simplify_clauses_between model u prems : t * equivalences =
-  let premsmax = (Premises.fold (fun u m -> max_opt (expr_value model u) m) prems None) in
-  if not (Option.equal Int.equal premsmax (expr_value model u)) then
+  (* Values are inverted: the value of [max(prems)] is the least value of the premises *)
+  let premsmax = (Premises.fold (fun u m -> min_opt (expr_value model u) m) prems None) in
+  let model, equivs =
+    if not (Option.equal Int.equal premsmax (expr_value model u)) then
       (* We know v -> u and check for u -> v, this can only be true if both expressions
         already have the same value *)
-    model, []
-  else
-    make_equiv model (find_to_merge model prems u)
+      model, []
+    else
+      make_equiv model (find_to_merge model prems u)
+  in
+  (* [make_equiv] may have merged [u] or the premises: their nodes are no longer canonical *)
+  let u = refresh_can_expr_can model u in
+  let prems = NeList.map (refresh_can_expr_can model) prems in
+  List.fold_left (fun (model, equivs) cls ->
+      let model, equivs' = make_equiv model cls in model, equivs' @ equivs)
+    (model, equivs) (zone_classes model prems u)
 
 (** Enforce u <= v and check if v <= u already held, in that case, enforce u = v *)
 let enforce_leq_can_internal (v, u) m =
@@ -1903,11 +2024,6 @@ let rec enforce_leq_premises (u : Premises.t) (v : Premises.t) m =
         | Some (m, equivs') -> Some (m, equivs @ equivs'))
       | _ -> enforce_leq_premises (canonical_can_premises canu) v m) u (Some (m, []))
 
-let check_eq_level_expr u v m =
-  let u = canonical_repr_level_expr m u in
-  let v = canonical_repr_level_expr m v in
-  NeList.equal eq_can_expr u v
-
 let unrepr_equivalences model (idxs : equivalences) =
   List.map (fun (idx, (idx', k)) -> (Index.repr idx model.table, (Index.repr idx' model.table, k))) idxs
 
@@ -1933,8 +2049,53 @@ let enforce_constraint u k v (m : t) =
       | None -> None
       | Some (m, equivs') -> Some (m, equivs @ equivs')) (Some (m, [])) cls
 
+(* The queries of the checks of [-d loop-checking-merged] would check the invariants of the whole
+   model each time *)
+let without_invariant_checks f =
+  let inv = CDebug.get_flag debug_loop_checking_invariants_flag in
+  CDebug.set_flag debug_loop_checking_invariants_flag false;
+  Fun.protect ~finally:(fun () -> CDebug.set_flag debug_loop_checking_invariants_flag inv) f
+
+(** With [-d loop-checking-merged], [check_merged model u v] checks that the canonical universes
+  near the ones of [u] and [v], at most two clauses away in both directions, and [Set], are not
+  equal in all valuations: the equalities created by enforcing a constraint between [u] and [v]
+  have been merged. This is checked exactly, independently of [find_to_merge] and [zone_classes],
+  for at most 16 universes. *)
+let check_merged model u v =
+  let max_near = 16 in
+  let setcan = repr model (Index.find Level.set model.table) in
+  let start = List.concat_map (fun u ->
+      Level.Set.fold (fun l acc -> NeList.to_list (canonical_repr_level_expr model (l, 0)) @ acc)
+        (Universe.levels u) []) [u; v]
+  in
+  let add near (x, _) = if PMap.cardinal near >= max_near then near else PMap.add x.canon x near in
+  let near = List.fold_left add (PMap.singleton setcan.canon setcan) start in
+  let rec visit d near xs =
+    if d = 0 then near else
+    let near, next = List.fold_left (fun acc x ->
+        let f ~single:_ (y, _ as e) (near, next as acc) =
+          if PMap.mem y.canon near || PMap.cardinal near >= max_near then acc
+          else (add near e, e :: next)
+        in
+        fold_below model x f (fold_above model x f acc)) (near, []) xs
+    in
+    visit (d - 1) near next
+  in
+  let near = PMap.bindings (visit 2 near start) in
+  List.iter (fun (idx, x) ->
+      List.iter (fun (idy, y) ->
+          if Index.compare idx idy < 0 then
+            let ky = get_canonical_value model y - get_canonical_value model x in
+            if entails model (NeList.tip (x, 0)) (y, ky) && entails model (NeList.tip (y, ky)) (x, 0) then
+              CErrors.anomaly Pp.(str "Loop_checking: the universes " ++ pr_can_expr model (x, 0) ++
+                                  str " and " ++ pr_can_expr model (y, ky) ++ str " are equal but not merged."))
+        near)
+    near
+
 let enforce u k v m =
   let res = enforce_constraint u k v m in
+  if CDebug.get_flag debug_loop_checking_merged_flag then
+    without_invariant_checks (fun () -> Option.iter (fun (m, _) -> check_merged m u v) res);
   Option.map (fun (m, equivs) -> m, unrepr_equivalences m equivs) res
 
 let enforce_eq u v m = enforce u UnivConstraint.Eq v m
@@ -1967,8 +2128,23 @@ let check_constraint (m : t) u k u' =
 let check_leq m u v = check_constraint m u UnivConstraint.Le v
 let check_eq m u v =
   match Universe.repr u, Universe.repr v with
-  | [ur], [vr] -> check_eq_level_expr ur vr m
-   || check_constraint m u UnivConstraint.Eq v
+  | [ur], [vr] ->
+    begin match canonical_repr_level_expr m ur, canonical_repr_level_expr m vr with
+    | NeList.Tip cu, NeList.Tip cv ->
+      (* Universes equal in all valuations are merged, which [-d loop-checking-merged] checks *)
+      let res = eq_can_expr cu cv in
+      if CDebug.get_flag debug_loop_checking_merged_flag
+         && not (Bool.equal res (without_invariant_checks (fun () -> check_constraint m u UnivConstraint.Eq v)))
+      then begin
+        let pu = Universe.raw_pr u and pv = Universe.raw_pr v in
+        CErrors.anomaly Pp.(str "Loop_checking: check_eq " ++ pu ++ str " " ++ pv ++
+                            str " is " ++ bool res ++ str " but the constraint does not agree.")
+      end;
+      res
+    | cu, cv ->
+      (* A level substituted by [max(a, b)] is equal to [b] once [a <= b] holds, without being merged *)
+      NeList.equal eq_can_expr cu cv || check_constraint m u UnivConstraint.Eq v
+    end
   | _, _ -> check_constraint m u UnivConstraint.Eq v
 
 let enforce_constraint (u, k, v) (m : t) = enforce u k v m
@@ -2251,13 +2427,7 @@ let filter_trivial_clause m (prems, (concl, k as conclk)) =
     | None -> (* We removed the only trivial premise (concl, k') -> concl, k *) None
     | Some prems ->
       (* Filter out `Set` from max(Set, u) -> v constraints *)
-      let canset = Index.find Level.set m.table in
-      let prems =
-        match NeList.filter (fun (prem, k) -> not (Index.equal prem canset && Int.equal k 0)) prems with
-        | Some prems -> prems (* There were at least two premises in the rule *)
-        | None -> prems
-      in
-      Some (prems, conclk)
+      Some (remove_dominated_set Fun.id (Index.find Level.set m.table) prems, conclk)
 
 let enforce_clause (prems, concl) model =
   enforce_leq_premises (NeList.Tip concl) prems model
@@ -2290,7 +2460,7 @@ let remove_clause_copies can model =
         Premises.fold (fun (q, kq) model ->
           if Index.equal q canon then model else
           let cq = repr model q in
-          let fwd = ForwardClauses.remove ~kprem:kq concl (kconcl, remove_premise q kq prems) cq.clauses_fwd in
+          let fwd = ForwardClauses.remove ~kprem:kq concl (kconcl, remove_premise q prems) cq.clauses_fwd in
           if fwd == cq.clauses_fwd then model else change_node model { cq with clauses_fwd = fwd })
           prems model)
         prems model)
@@ -2300,7 +2470,7 @@ let remove_clause_copies can model =
     Premises.fold (fun (p, kp) model ->
       if Index.equal p canon then model else
       let cp = repr model p in
-      let fwd = ForwardClauses.remove ~kprem:kp canon (k, remove_premise p kp prems) cp.clauses_fwd in
+      let fwd = ForwardClauses.remove ~kprem:kp canon (k, remove_premise p prems) cp.clauses_fwd in
       if fwd == cp.clauses_fwd then model else change_node model { cp with clauses_fwd = fwd })
       prems model)
     can.clauses_bwd model
