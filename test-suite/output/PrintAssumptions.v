@@ -142,3 +142,16 @@ Print Assumptions M7192.D.f.
 (* A regression introduced in the original fix to #7192 was missing implementations *)
 Require Import module_bug8416.
 Print Assumptions M8416.f.
+
+(* A traversal while a module is open must not cache away the public
+   signature installed when it is sealed. No unsafe cast is needed here. *)
+Axiom cache_ax : nat.
+Definition cache_ty := (fun _ : nat => nat) cache_ax.
+Module Type CacheSignature.
+  Parameter value : cache_ty.
+End CacheSignature.
+Module Cache : CacheSignature.
+  Definition value := 0.
+  Print Assumptions value.
+End Cache.
+Print Assumptions Cache.value.

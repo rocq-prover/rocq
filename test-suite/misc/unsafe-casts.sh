@@ -29,8 +29,7 @@ fi
 grep -q 'Unsafe cast .* is not registered' checker.out
 
 # Regressions for review findings #1-3. Collect failures so that one bug does
-# not hide the other reproductions. The references describe fixed behavior;
-# these checks intentionally fail until the implementation is repaired.
+# not hide the other regressions. Cover both checking and assumption reporting.
 regression_failures=0
 
 check_unregistered_library () {
@@ -86,7 +85,7 @@ check_sealed_interfaces () {
     return 1
   fi
   if ! diff -u --strip-trailing-cr sealed-interfaces.out.reference "$library.out"; then
-    echo "FAIL #3: $library lost exposed-interface assumptions"
+    echo "FAIL #3: $library lost interface/implementation assumptions"
     return 1
   fi
 }

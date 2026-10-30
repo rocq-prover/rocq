@@ -12,3 +12,45 @@ Axioms:
 AxiomType.ax : nat
 Axioms:
 Flagged.value relies on an unsafe hierarchy.
+Axioms:
+BothTypes.value relies on unsafe cast "test.vm-lhs".
+BothTypes.value relies on unsafe cast "test.accept".
+Axioms:
+BothTypes.value relies on unsafe cast "test.vm-lhs".
+BothTypes.value relies on unsafe cast "test.accept".
+Axioms:
+Manifest.value relies on unsafe cast "test.vm-lhs".
+Manifest.value relies on unsafe cast "test.accept".
+Axioms:
+Manifest.value relies on unsafe cast "test.vm-lhs".
+Manifest.value relies on unsafe cast "test.accept".
+Axioms:
+Applied.value relies on unsafe cast "test.vm-lhs".
+Applied.value relies on unsafe cast "test.accept".
+Axioms:
+Applied.value relies on unsafe cast "test.vm-lhs".
+Alias.value relies on unsafe cast "test.vm-lhs".
+Applied.value relies on unsafe cast "test.accept".
+Alias.value relies on unsafe cast "test.accept".
+Axioms:
+UnsafeCasts.SealedInterfaces.OpaqueImplementation.hidden : True
+Axioms:
+UnsafeCasts.SealedInterfaces.OpaqueImplementation.hidden : True
+Opaque constants:
+OpaqueImplementation.value :
+True
+Axioms:
+Abstract.value relies on unsafe cast "test.vm-lhs".
+Abstract.value : nat <:["test.vm-lhs"] Set
+Axioms:
+SplitFlags.value relies on an unsafe hierarchy.
+SplitFlags.value is assumed to be guarded.
+Axioms:
+Flagged.value relies on an unsafe hierarchy.
+Theory:
+Type hierarchy is collapsed (logic is inconsistent)
+Axioms:
+SplitFlags.value relies on an unsafe hierarchy.
+SplitFlags.value is assumed to be guarded.
+Theory:
+Type hierarchy is collapsed (logic is inconsistent)

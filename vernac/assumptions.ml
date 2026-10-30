@@ -25,8 +25,9 @@ module NamedDecl = Context.Named.Declaration
 
 (** For a constant c in a module sealed by an interface (M:T and
     not M<:T), [Global.lookup_constant] may return a [constant_body]
-    without body. We fix this by looking in the implementation
-    of the module *)
+    without body, or with a different manifest definition. Recover the
+    implementation without discarding the exposed declaration: either view
+    can contribute assumptions. *)
 
 let modcache = ref (ModPath.Map.empty : structure_body ModPath.Map.t)
 
@@ -127,16 +128,23 @@ and fields_of_expression subs mp args mty me =
 
 let lookup_constant_in_impl cst fallback =
   try
-    let mp,lab = KerName.repr (Constant.canonical cst) in
-    let fields = memoize_fields_of_mp mp in
-    (* A module found this way is necessarily closed, in particular
-       our constant cannot be in an opened section : *)
-    search_cst_label lab fields
+    let lookup kn =
+      let mp, lab = KerName.repr kn in
+      let fields = memoize_fields_of_mp mp in
+      (* A module found this way is necessarily closed, in particular
+         our constant cannot be in an opened section. *)
+      search_cst_label lab fields
+    in
+    (* An included field may implement an alias to its canonical constant.
+       Recover that alias, not a second copy of the canonical axiom. *)
+    match lookup (Constant.user cst) with
+    | cb -> cb
+    | exception Not_found -> lookup (Constant.canonical cst)
   with Not_found ->
     (* Either:
        - The module part of the constant isn't registered yet :
          we're still in it, so the [constant_body] found earlier
-         (if any) was a true axiom.
+         (if any) is the current declaration to use.
        - The label has not been found in the structure. This is an error *)
     match fallback with
       | Some cb -> cb
@@ -145,14 +153,33 @@ let lookup_constant_in_impl cst fallback =
           Pp.(str "Print Assumption: unknown constant "
             ++ Constant.print cst ++ str ".")
 
-let lookup_constant cst =
-  let env = Global.env() in
-  if not (Environ.mem_constant cst env)
-  then lookup_constant_in_impl cst None
-  else
-    let cb = Environ.lookup_constant cst env in
-    if Declareops.constant_has_body cb then cb
-    else lookup_constant_in_impl cst (Some cb)
+type constant_views = {
+  implementation : constant_body;
+  exposed : constant_body;
+  (* The signature proof may be unavailable even for a transparent implementation. *)
+  mutable exposed_body_unreachable : bool;
+}
+
+let constcache = ref Cmap.empty
+
+let lookup_constant_views cst =
+  match Cmap.find_opt cst !constcache with
+  | Some views -> views
+  | None ->
+    let exposed = Environ.lookup_constant_opt cst (Global.env ()) in
+    let implementation = match exposed, Constant.modpath cst with
+      (* File-level declarations and functor parameters have no separate
+         implementation. Nested module fields may differ even when the
+         exposed declaration has a body. *)
+      | Some cb, (MPfile _ | MPbound _) -> cb
+      | _ -> lookup_constant_in_impl cst exposed
+    in
+    let exposed = Option.default implementation exposed in
+    let views = { implementation; exposed; exposed_body_unreachable = false } in
+    constcache := Cmap.add cst views !constcache;
+    views
+
+let lookup_constant cst = (lookup_constant_views cst).implementation
 
 let lookup_mind_in_impl mind =
   try
@@ -211,8 +238,7 @@ let warn_unreachable_opaque_body =
    constant whose body could not be read, for instance a delayed proof
    missing in vok mode. The two are told apart by [Declareops.is_opaque] in
    [assumptions] below. *)
-let get_constant_body access kn =
-  let cb = lookup_constant kn in
+let get_constant_body access kn cb =
   match cb.const_body with
   | Undef _ | Primitive _ | Symbol _ -> None
   | Def c -> Some c
@@ -229,7 +255,7 @@ let rec traverse access (current:GlobRef.t) ctx accu t =
   let body () = id |> Global.lookup_named |> NamedDecl.get_value in
   traverse_object access accu body (VarRef id)
 | Const (kn, _) ->
-  let body () = get_constant_body access kn in
+  let body () = get_constant_body access kn (lookup_constant kn) in
   traverse_object access accu body (ConstRef kn)
 | Ind ((mind, _) as ind, _) ->
   traverse_inductive access accu mind (IndRef ind)
@@ -281,7 +307,21 @@ and traverse_object access (curr, data, ax2ty, casts) body obj =
          conversion or decomposition could otherwise hide an unsafe cast. *)
       let contents, data, ax2ty, casts = match obj with
         | GlobRef.ConstRef kn ->
-          traverse access obj Context.Rel.empty accu (lookup_constant kn).const_type
+          let views = lookup_constant_views kn in
+          let { implementation; exposed; _ } = views in
+          let accu = traverse access obj Context.Rel.empty accu implementation.const_type in
+          let accu =
+            if exposed.const_body == implementation.const_body then accu
+            else match get_constant_body access kn exposed with
+              | None ->
+                if Declareops.is_opaque exposed then views.exposed_body_unreachable <- true;
+                accu
+              | Some body -> traverse access obj Context.Rel.empty accu body
+          in
+          (* Only physical identity can skip this traversal: ordinary term
+             equality ignores the cast annotations we are auditing. *)
+          if exposed.const_type == implementation.const_type then accu
+          else traverse access obj Context.Rel.empty accu exposed.const_type
         | GlobRef.VarRef id ->
           traverse access obj Context.Rel.empty accu
             (NamedDecl.get_type (Global.lookup_named id))
@@ -351,6 +391,7 @@ and traverse_context access current ctx accu ctxt =
 
 let traverse_with_unsafe_casts access grs =
   let () = modcache := ModPath.Map.empty in
+  let () = constcache := Cmap.empty in
   let env = Global.env () in
   List.fold_left (fun accu gr ->
     let t, _ = UnivGen.fresh_global_instance env gr in
@@ -394,30 +435,35 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
       ContextObjectMap.add (Variable id) t accu
     else accu
   | ConstRef kn ->
-      let cb = lookup_constant kn in
+    let views = lookup_constant_views kn in
+    let { implementation = cb; exposed; _ } = views in
+    let accu =
+      if views.exposed_body_unreachable then
+        ContextObjectMap.add (UnreachableOpaque kn) exposed.const_type accu
+      else accu
+    in
+    let collect_flags cb accu =
       collect_theory_flags cb.const_typing_flags;
       begin match cb.const_body with
         | Symbol _ -> has_rewrite_rules := true
         | _ -> ()
       end;
+      let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
       let accu =
         if cb.const_typing_flags.check_guarded then accu
-        else
-          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
-          ContextObjectMap.add (Axiom (Guarded obj, l)) Constr.mkProp accu
+        else ContextObjectMap.add (Axiom (Guarded obj, l)) Constr.mkProp accu
       in
       let accu =
         if cb.const_typing_flags.check_universes then accu
-        else
-          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
-          ContextObjectMap.add (Axiom (TypeInType obj, l)) Constr.mkProp accu
+        else ContextObjectMap.add (Axiom (TypeInType obj, l)) Constr.mkProp accu
       in
-      let accu =
-        if not cb.const_typing_flags.impredicative_set then accu
-        else
-          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
-          ContextObjectMap.add (Axiom (ImpredicativeSet obj, l)) Constr.mkProp accu
-      in
+      if not cb.const_typing_flags.impredicative_set then accu
+      else ContextObjectMap.add (Axiom (ImpredicativeSet obj, l)) Constr.mkProp accu
+    in
+    let accu = collect_flags cb accu in
+    let accu = if cb == exposed then accu else collect_flags exposed accu in
+    (* The interface can be abstract even though the implementation is not.
+       Use only the latter to classify axioms and opaque definitions. *)
     if not (Option.has_some contents) then
       let t = type_of_constant cb in
       (* An opaque constant reaches this point only when its body could not

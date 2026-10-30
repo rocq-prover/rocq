@@ -450,6 +450,9 @@ Requests to the environment
    as well as uses of disabled typing flags such as
    :flag:`Guard Checking`, :flag:`Positivity Checking`,
    :flag:`Universe Checking`, and :flag:`Definitional UIP`.
+   For sealed module fields, it includes dependencies from both the exposed
+   signature and the hidden implementation, including their types, available
+   bodies, named unsafe casts, and unsafe typing flags.
 
    The message "Closed under the global context" indicates that all the theorems and
    definitions have no dependencies.
