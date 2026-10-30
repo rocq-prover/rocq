@@ -37,6 +37,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [cofixpoint guard checker passes wrong rectree for nested mutual cofixpoints](#cofixpoint-guard-checker-passes-wrong-rectree-for-nested-mutual-cofixpoints)
       - [cofixpoint guard checker computes rectree in the wrong environment](#cofixpoint-guard-checker-computes-rectree-in-the-wrong-environment)
       - [guard checker counts local definitions as formal arguments in uniformity analysis](#guard-checker-counts-local-definitions-as-formal-arguments-in-uniformity-analysis)
+      - [guard checker computes uniform parameters of nested fixpoints in the wrong environment](#guard-checker-computes-uniform-parameters-of-nested-fixpoints-in-the-wrong-environment)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -427,6 +428,17 @@ and lack of checking of relevance marks on constants in coqchk
 - fixed in: V9.2.1, V9.3 ([#22384](https://github.com/rocq-prover/rocq/pull/22384))
 - found by: Daniel Selsam
 - exploit / GH issue: [#22382](https://github.com/rocq-prover/rocq/issues/22382)
+- risk: ?
+
+#### guard checker computes uniform parameters of nested fixpoints in the wrong environment
+- component: guard checking
+- introduced: V9.3.0 ([#22384](https://github.com/rocq-prover/rocq/pull/22384))
+- impacted released versions: V9.3.0
+- impacted coqchk versions: Same
+- fixed in: V9.2.1, V9.3.1, V9.4 ([#22645](https://github.com/rocq-prover/rocq/pull/22645))
+- found by: Sami Jawhar
+- exploit: test-suite/bugs/bug_22645.v
+- GH issue number: none
 - risk: ?
 
 
