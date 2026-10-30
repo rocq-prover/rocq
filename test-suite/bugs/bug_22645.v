@@ -1,6 +1,3 @@
-(* -*- coq-prog-args: ("-native-compiler" "no"); -*- *)
-(* Native compilation of [ok] below fails because of #16599. *)
-
 Definition ap_real (g1 g2 cont : nat -> Type) (a : nat) : nat -> Type :=
   fun m => match m with O => cont a | S k => g2 k end.
 Definition ap_fake (g1 g2 cont : nat -> Type) (a : nat) : nat -> Type :=
