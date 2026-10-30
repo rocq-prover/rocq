@@ -238,10 +238,26 @@ When the proof is completed, you can exit proof mode with commands such as
    typechecked. Subproofs declared by :tacn:`abstract` are still typechecked
    when the tactic runs.
 
+   The kernel checks the guard condition of fixpoints and cofixpoints while it
+   typechecks a term, so with this flag on it does not check the guard
+   condition of the proof term either: the kernel accepts an ill-typed or
+   unguarded proof term at :cmd:`Qed`, and ``rocqchk`` rejects it. Guard checks
+   made outside the kernel still run, for instance when a tactic such as
+   :tacn:`exact` elaborates a fixpoint written in full in a term, on the
+   recursive calls of a :cmd:`Fixpoint` proved interactively, and when the
+   proof of a Program obligation ends. Elsewhere, a fixpoint or cofixpoint
+   built by :tacn:`fix` or :tacn:`cofix`, or by :tacn:`refine` with a hole in
+   its body, is not checked at :cmd:`Qed`; use :cmd:`Guarded` to check it
+   before ``rocqchk`` does. :cmd:`Qed` still fails, for instance, on an
+   incomplete proof or on a section variable that the proof uses but does not
+   declare with :cmd:`Proof using`, and the kernel still typechecks the
+   statement.
+
    .. warning:: A library compiled with this flag on can contain an ill-typed
-      proof, for instance one built with ``exact_no_check``, until ``rocqchk``
-      has checked it. ``rocqchk -o`` does not list such proofs in the libraries
-      it admits (with ``-admit``, or the dependencies of a ``-norec`` target).
+      or unguarded proof, for instance one built with :tacn:`exact_no_check`
+      or :tacn:`fix`, until ``rocqchk`` has checked it. ``rocqchk -o`` does not
+      list such proofs in the libraries it admits (with ``-admit``, or the
+      dependencies of a ``-norec`` target).
 
 .. cmd:: Save @ident
 
