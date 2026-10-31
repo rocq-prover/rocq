@@ -12,6 +12,9 @@ open Declarations
 open Cooking
 open Constr
 
+(** Built with {!Cooking.abstract_as_body_shared}, so that expanding the
+    section's context in the proof keeps the sharing of the stored term
+    where the memo holds it. *)
 val cook_opaque_proofterm : cooking_info list ->
   Opaqueproof.opaque_proofterm -> Opaqueproof.opaque_proofterm
 
