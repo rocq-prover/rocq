@@ -1312,6 +1312,117 @@ can be recognized as strict subterms of the caller's structural argument.
         | S p => S (rid ((fun x => x) p))
         end.
 
+.. _guard-checking-reduction:
+
+Checking Fixpoints up to Reduction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When writing a recursive function, it can be useful to give it a local name,
+pass it as an argument to another function, or partially apply it within its
+own body. These uses do not immediately expose a recursive call on a strict
+subterm. To support them, the guard checker reduces the enclosing expressions
+and checks the recursive calls exposed by reduction.
+
+This mechanism supports beta reduction, unfolding local and global
+definitions, and reducing matches, primitive projections, fixpoints, and
+cofixpoints when their reduction rules apply.
+
+It is distinct from the weak-head reduction used by subterm analysis to
+recognize recursive arguments, as in the :g:`rid` example above.
+The recursive argument is itself checked for guarded recursive calls before
+being reduced to determine whether it is a strict subterm.
+
+.. example:: Instantiating a recursive argument by beta reduction
+
+   In the body of the local function :g:`fun q => beta q`, the variable :g:`q`
+   is not known to be a strict subterm of :g:`n`. Applying this function to
+   :g:`p` and reducing the beta redex produces :g:`beta p`, whose recursive
+   argument is a strict subterm exposed by the match.
+
+   .. rocqtop:: in
+
+      Fixpoint beta (n : nat) : nat :=
+        match n with
+        | 0 => 0
+        | S p => (fun q => beta q) p
+        end.
+
+.. example:: Giving a recursive function a local name
+
+   The binding :g:`let g := alias` gives the recursive function a local name.
+   Unfolding this binding replaces :g:`g p` with :g:`alias p`, so the guard
+   checker can verify that the recursive call uses the strict subterm :g:`p`.
+
+   .. rocqtop:: in
+
+      Fixpoint alias (n : nat) : nat :=
+        let g := alias in
+        match n with
+        | 0 => 0
+        | S p => g p
+        end.
+
+.. example:: Rejecting a recursive call exposed by reduction
+
+   As in :g:`beta`, the call on the locally bound variable :g:`q` requires
+   reduction to be checked further. Here, however, the local function is
+   applied to :g:`n`. Beta reduction exposes :g:`beta_same n`, whose recursive
+   argument is the unchanged structural argument rather than a strict subterm.
+   The definition is therefore rejected.
+
+   .. rocqtop:: in
+
+      Fail Fixpoint beta_same (n : nat) : nat :=
+        match n with
+        | 0 => 0
+        | S _ => (fun q => beta_same q) n
+        end.
+
+A recursive call on an argument already known not to be a strict subterm is
+rejected before reduction, even if the call would be erased by reducing an
+enclosing expression. This avoids accepting calls that would cause
+nontermination under call-by-value evaluation.
+
+.. example:: Rejecting an invalid recursive call before it can be erased
+
+   The recursive argument :g:`S n` is not a strict subterm of :g:`n`, so the
+   following definition is rejected. Reducing the :g:`let` expression would
+   erase the call and return :g:`0`, but call-by-value evaluation would first
+   evaluate :g:`invalid (S n)`, causing an infinite sequence of recursive calls.
+
+   .. rocqtop:: in
+
+      Fail Fixpoint invalid (n : nat) : nat :=
+        let _ := invalid (S n) in 0.
+
+The guard checker checks the subterms of an expression. If it detects a
+partially applied recursive call or a recursive call on a locally bound variable,
+the guard checker attempts to reduce the redex. If reduction is possible,
+it checks the reduct.
+Otherwise, the need for reduction is propagated to an outer expression, whose
+reduction may instantiate or erase the delayed recursive call, allowing the
+fixpoint to be accepted. The definition is rejected if this requirement remains
+unresolved after checking the whole body.
+
+.. example:: Erasing a blocked inner redex by reducing an outer one
+
+   In the following definition, the match cannot reduce because :g:`b` is a
+   variable. Its :g:`false` branch contains the partially applied recursive
+   function :g:`blocked b`, which requires reduction to be checked further.
+   This requirement is propagated to the enclosing :g:`let` expression.
+   The bound value is unused, so reducing the :g:`let` erases the match and
+   leaves :g:`0`. The definition is therefore accepted.
+
+   .. rocqtop:: in
+
+      Fixpoint blocked (b : bool) (n : nat) : nat :=
+        let _ :=
+          match b with
+          | true => fun _ : nat => 0
+          | false => blocked b
+          end
+        in 0.
+
 .. _traversing-subterm-analysis:
 
 Traversing Subterm Analysis
