@@ -27,9 +27,8 @@ let loc_of_bool b = if b then `LOCAL else `GLOBAL
 (* Errors *)
 
 type coercion_error_kind =
-  | AlreadyExists
-  | NotAFunction
-  | NoSource of cl_typ option
+  | NotAFunction of GlobRef.t
+  | NoSource of GlobRef.t * cl_typ option
   | ForbiddenSourceClass of cl_typ
   | NoTarget
   | WrongTarget of cl_typ * cl_typ
@@ -37,15 +36,13 @@ type coercion_error_kind =
 
 exception CoercionError of coercion_error_kind
 
-let explain_coercion_error g = function
-  | AlreadyExists ->
-      (Printer.pr_global g ++ str" is already a coercion")
-  | NotAFunction ->
+let explain_coercion_error = function
+  | NotAFunction g ->
       (Printer.pr_global g ++ str" is not a function")
-  | NoSource (Some cl) ->
+  | NoSource (g, Some cl) ->
       (str "Cannot recognize " ++ pr_class cl ++ str " as a source class of "
        ++ Printer.pr_global g)
-  | NoSource None ->
+  | NoSource (g,None) ->
       (str ": cannot find the source class of " ++ Printer.pr_global g)
   | ForbiddenSourceClass cl ->
       pr_class cl ++ str " cannot be a source class"
@@ -57,6 +54,10 @@ let explain_coercion_error g = function
   | NotAClass ref ->
       (str "Type of " ++ Printer.pr_global ref ++
          str " does not end with a sort")
+
+let () = CErrors.register_handler @@ function
+  | CoercionError e -> Some (explain_coercion_error e)
+  | _ -> None
 
 (* Verifications pour l'ajout d'une classe *)
 
@@ -153,6 +154,7 @@ let strength_of_global = function
   | _ -> `GLOBAL
 
 let get_strength stre ref cls clt =
+  let stre = loc_of_bool stre in
   let stres = strength_of_cl cls in
   let stret = strength_of_cl clt in
   let stref = strength_of_global ref in
@@ -295,19 +297,22 @@ let warn_uniform_inheritance =
           Printer.pr_global g ++
             strbrk" does not respect the uniform inheritance condition.")
 
-let add_new_coercion_core coef stre ~reversible source target isid : unit =
+let warn_already_exists = CWarnings.create ~name:"coercion-already-exists" ~category:CWarnings.CoreCategories.coercions ~default:AsError
+    Pp.(fun g -> Printer.pr_global g ++ str" is already a coercion.")
+
+let add_new_coercion_core coef ~local ~reversible source target isid : unit =
   check_source source;
+  if coercion_exists coef then warn_already_exists coef else
   let env = Global.env () in
   let t, _ = Typeops.type_of_global_in_context env coef in
-  if coercion_exists coef then raise (CoercionError AlreadyExists);
   let lp,tg = decompose_prod_decls t in
   let llp = List.length lp in
-  if Int.equal llp 0 then raise (CoercionError NotAFunction);
+  if Int.equal llp 0 then raise (CoercionError (NotAFunction coef));
   let (cls,ctx,lvs,ind) =
     try
       get_source env lp source
     with Not_found ->
-      raise (CoercionError (NoSource source))
+      raise (CoercionError (NoSource (coef,source)))
   in
   check_source (Some cls);
   if not (uniform_cond Evd.empty (* FIXME - for when possibly called with unresolved evars in the future *)
@@ -322,37 +327,31 @@ let add_new_coercion_core coef stre ~reversible source target isid : unit =
   check_target clt target;
   check_arity env cls;
   check_arity env clt;
-  let local = match get_strength stre coef cls clt with
+  let local = match get_strength local coef cls clt with
   | `LOCAL -> true
   | `GLOBAL -> false
   in
   let params = List.length (Context.Rel.instance_list EConstr.mkRel 0 ctx) in
   declare_coercion coef ~local ~reversible ~isid ~src:cls ~target:clt ~params ()
 
-let try_add_new_coercion_core ref ~local c ~reversible d e =
-  try add_new_coercion_core ref (loc_of_bool local) c ~reversible d e
-  with CoercionError e ->
-      user_err
-        (explain_coercion_error ref e ++ str ".")
+let add_new_coercion ref ~local ~reversible =
+  add_new_coercion_core ref ~local ~reversible None None false
 
-let try_add_new_coercion ref ~local ~reversible =
-  try_add_new_coercion_core ref ~local ~reversible None None false
-
-let try_add_new_coercion_subclass ?loc cl ~local ~poly ~reversible =
+let add_new_coercion_subclass ?loc cl ~local ~poly ~reversible =
   let coe_ref = build_id_coercion ?loc None cl poly in
-  try_add_new_coercion_core coe_ref ~local ~reversible (Some cl) None true
+  add_new_coercion_core coe_ref ~local ~reversible (Some cl) None true
 
-let try_add_new_coercion_with_target ref ~local ~reversible ~source ~target =
-  try_add_new_coercion_core ref ~local ~reversible
+let add_new_coercion_with_target ref ~local ~reversible ~source ~target =
+  add_new_coercion_core ref ~local ~reversible
     (Some source) (Some target) false
 
-let try_add_new_identity_coercion {CAst.v=id; loc} ~local ~poly ~source ~target =
+let add_new_identity_coercion {CAst.v=id; loc} ~local ~poly ~source ~target =
   let ref = build_id_coercion ?loc (Some id) source poly in
-  try_add_new_coercion_core ref ~local ~reversible:true
+  add_new_coercion_core ref ~local ~reversible:true
     (Some source) (Some target) true
 
-let try_add_new_coercion_with_source ref ~local ~reversible ~source =
-  try_add_new_coercion_core ref ~local ~reversible (Some source) None false
+let add_new_coercion_with_source ref ~local ~reversible ~source =
+  add_new_coercion_core ref ~local ~reversible (Some source) None false
 
 let coercion_hook ~reversible = Declare.Hook.make @@ fun { scope; dref; _ } ->
   let open Locality in
@@ -361,7 +360,7 @@ let coercion_hook ~reversible = Declare.Hook.make @@ fun { scope; dref; _ } ->
   | Global ImportNeedQualified -> true
   | Global ImportDefaultBehavior -> false
   in
-  let () = try_add_new_coercion dref ~local ~reversible in
+  let () = add_new_coercion dref ~local ~reversible in
   let msg = Nametab.pr_global_env Id.Set.empty dref ++ str " is now a coercion" in
   Flags.if_verbose Feedback.msg_info msg
 
@@ -374,7 +373,7 @@ let subclass_hook ~poly ~reversible = Declare.Hook.make @@ fun { scope; dref; _ 
   in
   let cl = class_of_global dref in
   let loc = Nametab.cci_src_loc (TrueGlobal dref) in
-  try_add_new_coercion_subclass ?loc cl ~local:stre ~poly ~reversible
+  add_new_coercion_subclass ?loc cl ~local:stre ~poly ~reversible
 
 let warn_reverse_no_change =
   CWarnings.create ~name:"reversible-no-change" ~category:CWarnings.CoreCategories.coercions
