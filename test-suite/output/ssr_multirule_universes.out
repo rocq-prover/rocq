@@ -1,0 +1,21 @@
+UNIVERSES:
+ {ssr_multirule_universes.42 i} |
+   i <= eq_ind_r.u0
+   ssr_multirule_universes.42 = i
+ALGEBRAIC UNIVERSES:
+ {}
+FLEXIBLE UNIVERSES:
+ ssr_multirule_universes.42 := i
+ ssr_multirule_universes.35 := i
+ ssr_multirule_universes.34 := i
+ ssr_multirule_universes.33 := i
+SORTS:
+  |= Prop -> SProp
+     Type -> Prop
+          -> SProp
+     
+WEAK CONSTRAINTS:
+ 
+
+Normalized constraints:
+ {i} | i <= eq_ind_r.u0
