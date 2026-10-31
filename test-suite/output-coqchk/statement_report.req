@@ -1,0 +1,8 @@
+# <statement-name> <model-constant> [<trusted-constant>|-]
+ok statement_report.model statement_report.trusted
+wrong statement_report.model statement_report.trusted_other
+
+closure_only statement_report.via_ax -
+bare statement_report.ax
+missing statement_report.nope -
+nottrusted statement_report.model statement_report.nope

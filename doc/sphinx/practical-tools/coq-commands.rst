@@ -767,6 +767,44 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
 :-o: At exit, print a summary about the context. List the names of all
   assumptions and variables (constants without a :term:`body`).
 :-silent: Do not write progress information to the standard output.
+:-statement-report *file*: After checking, print a report on named
+  constants, before the summary of ``-o``. Each line of *file* is a request
+  ``name model trusted``, separated by single spaces: *name* is a label
+  printed back as given, and *model* and *trusted* are fully qualified
+  constant names. *trusted* may be ``-`` or left out. Blank lines and lines
+  starting with ``#`` are skipped; any other malformed line is an error,
+  reported before any library is loaded.
+
+  For each request the report lists the axioms and relaxed typing conditions
+  that *model*'s proof reaches, and gives a verdict on its type:
+
+  - ``match``: a module sealed by a signature declaring *trusted*'s type
+    accepts ``Definition f := model``.
+  - ``mismatch``: the types are not convertible.
+  - ``universes-differ``: the check would need universe constraints the
+    environment or *trusted* refuses, the universe contexts differ, or
+    *model* is polymorphic with sort variables or constraints in its
+    universe context. The check never replays elaboration, so it answers
+    this rather than a ``match`` elaboration might not give.
+  - ``not-requested``: no *trusted* was given.
+  - ``model-missing``, ``trusted-missing``: the name is not in the environment.
+
+  The verdict is about the constants as the kernel stores them, so
+  elaboration data such as implicit arguments does not affect it.
+
+  The report is printed between the lines ``STATEMENT REPORT`` and
+  ``END STATEMENT REPORT``, one line per statement, axiom and condition:
+
+  .. code-block:: text
+
+     STATEMENT REPORT
+     statement <name> <model> <trusted|-> <verdict> <axiom-count> <condition-count>
+     axiom <name> <constant>
+     flag <name> <condition> <object>
+     END STATEMENT REPORT
+
+  The option does not change the exit status. A report that could not be
+  completed has no ``END STATEMENT REPORT`` line, and the checker warns.
 
 Environment variable ``$ROCQLIB`` can be set to override the location of
 the standard library.

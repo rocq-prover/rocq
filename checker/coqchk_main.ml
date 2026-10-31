@@ -157,6 +157,8 @@ let enable_vm = ref false
 
 let output_context = ref false
 
+let statement_report = ref None
+
 let warn_no_bytecode =
   CWarnings.create ~name:"bytecode-compiler-disabled" ~category:CWarnings.CoreCategories.bytecode_compiler
     Pp.(fun () ->
@@ -232,6 +234,9 @@ let print_usage_channel co command =
 \n  -o, --output-context        print the list of assumptions\
 \n  -m, --memory                print the maximum heap size\
 \n  -silent                     disable trace of constants being checked\
+\n  -statement-report f         print, for each statement named in f, whether its model\
+\n                              constant has its trusted constant's type and the axioms its\
+\n                              closure uses\
 \n\
 \n  -impredicative-set          set sort Set impredicative\
 \n  -indices-matter             levels of indices (and nonuniform parameters)\
@@ -441,6 +446,12 @@ let parse_args argv =
     | "-silent" :: rem ->
         Flags.quiet := true; parse rem
 
+    | "-statement-report" :: f :: rem ->
+        (* Read now, so that a malformed file stops the run before any
+           library is loaded. *)
+        statement_report := Some (Check_closure.read_requests f); parse rem
+    | "-statement-report" :: [] -> usage 1
+
     | s :: _ when s<>"" && s.[0]='-' ->
         fatal_error (str "Unknown option " ++ str s) 1
     | s :: rem ->  add_compile s; parse rem
@@ -493,13 +504,24 @@ let run senv =
     if CDebug.(get_flag misc) then Printexc.print_backtrace stderr;
     fatal_error (explain_exn e) (CErrors.exit_code e)
 
+(* The report is evidence beside the verdict, never the verdict: a report
+   that cannot be completed is left without its end marker, which a reader
+   takes as no report, and the exit status is unchanged. It comes before the
+   context summary. *)
+let print_statement_report env requests =
+  try Check_closure.print env CheckLibrary.indirect_accessor requests
+  with e when (match e with Sys.Break | Out_of_memory -> false | _ -> true) ->
+    Feedback.msg_warning (str "Statement report stopped: " ++ explain_exn e)
+
 let main () =
   let senv = init() in
   let senv, axioms = run senv in
+  let env = Safe_typing.env_of_safe_env senv in
+  Option.iter (print_statement_report env) !statement_report;
   let axioms =
     if !output_context then
       Some (Mod_checking.constants_of_axioms axioms)
     else None
   in
-  Check_stat.stats (Safe_typing.env_of_safe_env senv) axioms;
+  Check_stat.stats env axioms;
   exit 0
