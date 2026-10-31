@@ -237,7 +237,7 @@ let warn_bytecode_compiler_failed =
   let open Pp in
   CWarnings.create ~name:"bytecode-compiler-failed" ~category:CWarnings.CoreCategories.bytecode_compiler
          (fun () -> strbrk "Bytecode compiler failed, " ++
-                      strbrk "falling back to standard conversion")
+                      strbrk "falling back to standard conversion.")
 
 let vm_conv_gen (type err) cv_pb sigma env univs t1 t2 =
   if not (typing_flags env).Declarations.enable_VM then

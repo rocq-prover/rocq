@@ -439,18 +439,22 @@ hints are tried as follows:
      Extern uses syntactic unification: see test-suite/success/hint_extern_syntactic_unify.v
      Extern with no pattern:  see test-suite/output/extern_no_pattern.v
 
-.. comment not sure: Note: currently, proof search tactics won't unfold the head constant even if it is transparent.
+  .. comment not sure: Note: currently, proof search tactics won't unfold the head constant even if it is transparent.
 
-   .. warn:: @ident already exists and is {? not } discriminated
-      :name: mismatched-hint-db
+.. warn:: @ident already exists and is {? not } discriminated
+   :name: mismatched-hint-db
 
-      `Create HintDb` will not change whether a pre-existing database
-      is discriminated.
+   `Create HintDb` will not change whether a pre-existing database is
+   discriminated.
 
 .. cmd:: Create Rewrite HintDb @ident
 
    Like above, but creates a database for :cmd:`Hint Rewrite` declarations
    instead.
+
+   .. warn:: Rewrite hint database @ident already exists.
+      :name: already-declared-rewrite-hint-db
+      :undocumented:
 
 Hint databases defined in the Rocq standard library
 ```````````````````````````````````````````````````
@@ -504,8 +508,23 @@ Creating Hints
    The various `Hint` commands share these elements:
 
    :n:`{? : {+ @ident } }` specifies the hint database(s) to add to.
-   *(Deprecated since version 8.10:* If no :token:`ident`\s
-   are given, the hint is added to the `core` database.)
+
+   .. warn:: Adding and removing hints in the core database implicitly is deprecated.
+      :name: implicit-core-hint-db
+
+      .. deprecated:: 8.10
+
+      If no :token:`ident`\s are given, the hint is added to the `core` database.
+
+   .. warn:: Implicitly declaring hint databases is deprecated.
+      :name: implicit-create-hint-db
+
+      If a :n:`@ident` is not a known hint database, it is automatically created.
+
+      .. deprecated:: 9.2
+
+      Use :cmd:`Create HintDb` before adding hints to a database.
+
 
    Hints in hint databases are ordered, which is the order in which they're
    tried, as shown by the :cmd:`Print HintDb` command.
@@ -964,6 +983,13 @@ Creating Hints
    equalities) to the rewriting bases :n:`{*  @ident }`.
    Note that the rewriting bases are distinct from the :tacn:`auto`
    hint bases and that :tacn:`auto` does not take them into account.
+
+   .. warn:: Implicitly declaring Rewrite hint databases is deprecated.
+      :name: implicit-create-rewrite-hint-db
+
+      .. deprecated:: 9.2
+
+      Use :cmd:`Create Rewrite HintDb` first.
 
    .. cmd:: Print Rewrite HintDb @ident
 

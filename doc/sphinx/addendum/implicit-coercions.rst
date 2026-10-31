@@ -168,6 +168,10 @@ Coercion Classes
      :term:`reversible coercion`. By default coercions are not reversible except for
      :cmd:`Record` fields specified using :g:`:>`.
 
+     .. warn:: The reversible attribute is unchanged.
+        :name: reversible-no-change
+        :undocumented:
+
   .. exn:: @qualid not declared.
 
      :token:`qualid` is not defined globally.

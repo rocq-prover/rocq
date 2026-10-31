@@ -61,6 +61,11 @@ in :ref:`canonicalstructures`; here only a simple example is given.
    * Literal, (possibly dependent) function types: `… -> …` and `forall …, …`.
    * Variables bound in :token:`qualid`.
 
+   .. warn:: Projection value has no head constant ... in canonical \
+             instance @qualid of @qualid, ignoring it.
+      :name: projection-no-head-constant
+      :undocumented:
+
    Only the head symbol of an existing instance's field :n:`c__i`
    is considered when searching for a canonical extension.
    We call this head symbol the *key* and we say ":token:`qualid` *keys* the field :n:`x__i` to :n:`k`" when :n:`c__i`'s
@@ -128,7 +133,9 @@ in :ref:`canonicalstructures`; here only a simple example is given.
 
          Lemma is_law_S : is_law S.
 
-   .. note::
+   .. warn:: Ignoring canonical projection to @qualid by @qualid: redundant with @qualid.
+      :name: redundant-canonical-projection
+
       If a same field occurs in several canonical structures, then
       only the structure declared first as canonical is considered.
 

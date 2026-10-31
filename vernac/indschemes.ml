@@ -311,7 +311,7 @@ let declare_rewriting_schemes ?loc ind =
 let warn_cannot_build_congruence =
   CWarnings.create ~name:"cannot-build-congruence" ~category:CWarnings.CoreCategories.automation
          (fun () ->
-          strbrk "Cannot build congruence scheme because eq is not found")
+          strbrk "Cannot build congruence scheme because eq is not found.")
 
 let declare_congr_scheme ?loc ind =
   let env = Global.env () in

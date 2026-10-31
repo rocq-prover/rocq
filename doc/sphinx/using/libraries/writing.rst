@@ -36,6 +36,10 @@ deprecated compatibility alias using :cmd:`Abbreviation`
 
    It can trigger the following warnings:
 
+   .. warn:: Reference @qualid is deprecated since @string__since. @string__note. Use @qualid__use instead.
+      :undocumented:
+      :name: deprecated-reference
+
    .. warn:: Library File @qualid is deprecated since @string__since. @string__note. Use @qualid__use instead.
       :undocumented:
       :name: deprecated-library-file
@@ -86,6 +90,16 @@ deprecated compatibility alias using :cmd:`Abbreviation`
       ``Library File (transitively required)`` deprecation warning
       if the :opt:`Warnings` option "deprecated-transitive-library-file"
       is set (it is "-deprecated-transitive-library-file" by default, silencing the warning).
+
+Commands and options may also be deprecated in the OCaml implementation:
+
+.. warn:: Deprecated vernacular command: ...
+   :name: deprecated-command
+   :undocumented:
+
+.. warn:: Option ... is deprecated since @string__since.
+   :name: deprecated-option
+   :undocumented:
 
 .. note::
 

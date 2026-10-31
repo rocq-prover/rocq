@@ -1992,7 +1992,7 @@ let make_specific_printing_rules etyps symbols level pp_rule format =
 let warn_unused_interpretation =
   CWarnings.create ~name:"unused-notation" ~category:CWarnings.CoreCategories.parsing
          (fun b ->
-          strbrk "interpretation is used neither for printing nor for parsing, " ++
+          strbrk "Interpretation is used neither for printing nor for parsing, " ++
           (if b then strbrk "the declaration could be replaced by \"Reserved Notation\"."
           else strbrk "the declaration could be removed."))
 

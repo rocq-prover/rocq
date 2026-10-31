@@ -1206,6 +1206,20 @@ Pattern matching on terms: match
 
       This happens when :n:`@ltac_expr__term` does not denote a term.
 
+   .. warn:: Cast types are ignored in patterns.
+      :name: cast-in-pattern
+      :undocumented:
+
+   .. not sure when this warning can occur
+   .. warn:: Collision between bound variable @ident and a metavariable of same name.
+      :name: meta-collision
+      :undocumented:
+
+   .. not sure when this warning can occur
+   .. warn:: Collision between bound variables of name @name
+      :name: variable-collision
+      :undocumented:
+
 .. _match_vs_lazymatch_ex:
 
    .. example:: Comparison of lazymatch and match
@@ -1967,6 +1981,10 @@ Defining |Ltac| symbols
 
       .. exn:: There is no Ltac named @qualid
          :undocumented:
+
+   .. warn:: The Ltac name @ident may be unusable because of a conflict with a notation.
+      :name: unusable-identifier
+      :undocumented:
 
    :n:`{* with @tacdef_body }`
       Permits definition of mutually recursive tactics.
