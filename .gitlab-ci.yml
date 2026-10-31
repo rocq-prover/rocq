@@ -41,7 +41,7 @@ variables:
   # echo $(md5sum dev/ci/docker/old_ubuntu_lts/Dockerfile | head -c 10)
   # echo $(md5sum dev/ci/docker/edge_ubuntu/Dockerfile | head -c 10)
   BASE_CACHEKEY: "old_ubuntu_lts-V2026-07-06-00242ff07f"
-  EDGE_CACHEKEY: "edge_ubuntu-V2026-09-25-b378859887"
+  EDGE_CACHEKEY: "edge_ubuntu-V2026-10-30-0a682b19d5"
   BASE_IMAGE: "$CI_REGISTRY_IMAGE:$BASE_CACHEKEY"
   EDGE_IMAGE: "$CI_REGISTRY_IMAGE:$EDGE_CACHEKEY"
 
@@ -1162,6 +1162,12 @@ plugin:ci-mtac2:
     CI_TARGETS: "unicoq mtac2"
 
 plugin:ci-paramcoq:
+  extends: .ci-template-flambda
+  needs:
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
+
+plugin:ci-proofgeneral:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
