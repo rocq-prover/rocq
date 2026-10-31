@@ -766,6 +766,16 @@ relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
   unless explicitly required.
 :-o: At exit, print a summary about the context. List the names of all
   assumptions and variables (constants without a :term:`body`).
+:-axiom-free: Return a nonzero exit code for axioms (including admitted proofs),
+  disabled safety checks, definitional UIP, or enabled rewrite rules. Axiom discovery
+  uses the same analysis as ``-o`` without enabling its output. Kernel primitives
+  and impredicative ``Set`` are accepted; ``-admit`` and ``-norec`` retain their trust
+  assumptions. The default exit-status policy is unchanged.
+:-allow-axiom *name*: With ``-axiom-free``, allow this fully qualified axiom
+  name. Repeat to allow more names. Names match the ``Axioms`` entries printed
+  by ``-o`` exactly, including axioms unused by any theorem. Allowed axioms
+  remain in that report; other axioms and unsafe features still cause failure.
+  Using this option without ``-axiom-free`` is an error.
 :-silent: Do not write progress information to the standard output.
 
 Environment variable ``$ROCQLIB`` can be set to override the location of

@@ -10,6 +10,16 @@
 
 open Declarations
 
+let axiom_free = ref false
+
+let flags_are_safe flags =
+  flags.check_guarded && flags.check_positive && flags.check_universes &&
+  flags.check_eliminations && not flags.allow_uip
+
+let check_axiom_free flags =
+  if !axiom_free && not (flags_are_safe flags) then
+    CErrors.user_err Pp.(str "Axioms or unsafe features found (-axiom-free).")
+
 let set_local_flags flags env =
   (* Explicitly ignored flags are set to not change *)
   let envflags = Environ.typing_flags env in
@@ -38,3 +48,7 @@ let set_local_flags flags env =
    this rather than the environment's flag when deciding whether to recompile
    the VM bytecode of a library. *)
 let enable_vm = ref false
+
+let is_axiom_free env axioms =
+  let primitive c = Environ.is_primitive_type env (Names.Constant.make1 c) in
+  List.for_all primitive axioms && not (Environ.rewrite_rules_allowed env)
