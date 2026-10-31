@@ -124,8 +124,42 @@ where
 ?T :
   [x : list ?T  x1 : list ?T  x0 := x1 : list ?T |- Type] (x, x1,
   x0 cannot be used)
-s
-     : s
+Univ@{α94 ; Notations.142}
+     : Type@{Notations.142+1}
+(* {α94}; {Notations.142} | 
+Collapsed sorts:
+ α94 := Type
+Normalized constraints:
+ {Notations.142} |  *)
+Type@{u}
+     : Type@{u+1}
+Type@{u}
+     : Type@{u+1}
+Prop
+     : Type@{Set+1}
+(* {Notations.143} | 
+Normalized constraints:
+ {Notations.143} |  *)
+Prop
+     : Type@{Set+1}
+Type@{Notations.144}
+     : Type@{Notations.144+1}
+(* {Notations.144} | 
+Normalized constraints:
+ {Notations.144} |  *)
+File "./output/Notations.v", line 238, characters 11-13:
+The command has indeed failed with message:
+Cannot change sort quality of abbreviation s'
+Type@{u}
+     : Type@{u+1}
+s''
+     : Type@{u+1}
+File "./output/Notations.v", line 244, characters 11-14:
+The command has indeed failed with message:
+Cannot change sort quality of abbreviation s''
+File "./output/Notations.v", line 245, characters 11-14:
+The command has indeed failed with message:
+Cannot change universe level of abbreviation s''
 10
      : nat
 fun _ : nat => 9
