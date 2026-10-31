@@ -2397,9 +2397,18 @@ let vernac_print =
     (* Prints all the axioms and section variables used by a term *)
     let st = Conv_oracle.get_transp_state (Environ.oracle env) in
     let grs = List.map smart_global rs in
-    let (theory, nassums) =
-      Assumptions.assumptions opaque_access st ~add_opaque:o ~add_transparent:t grs in
-    Printer.pr_assumptionset env sigma theory nassums
+    if List.length grs > 1 then
+      let pp_one (refs, (theory, nassums)) =
+        let pp_refs = prlist_with_sep pr_comma (Nametab.pr_global_env Id.Set.empty) refs in
+        hov 0 (pp_refs ++ str ":") ++ fnl () ++
+        Printer.pr_assumptionset env sigma theory nassums
+      in
+      prlist_with_sep (fun () -> fnl () ++ fnl ()) pp_one
+        (Assumptions.assumptions_per_reference opaque_access st ~add_opaque:o ~add_transparent:t grs)
+    else
+      let (theory, nassums) =
+        Assumptions.assumptions opaque_access st ~add_opaque:o ~add_transparent:t grs in
+      Printer.pr_assumptionset env sigma theory nassums
   | PrintStrategy r -> no_state @@ fun () -> print_strategy r
   | PrintHeight r -> no_state @@ fun () -> print_height r
   | PrintRegistered -> no_state print_registered
