@@ -547,8 +547,7 @@ OCaml code with C code, the linker needs to know
 
    Prints the map of callbacks
    declared by the command :cmd:`Extract Callback`,
-   showing the :token:`qualid` and callback alias
-   :token:`string` (if specified) for each callback.
+   showing the :token:`qualid` and callback alias for each callback.
 
 .. cmd:: Reset Extraction Callback
 

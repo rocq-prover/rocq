@@ -1,0 +1,7 @@
+(** val f : nat -> nat **)
+
+let f n =
+  S n
+
+let () = Stdlib.Callback.register "A.f" f
+Extracted code successfully compiled

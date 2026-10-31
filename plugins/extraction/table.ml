@@ -736,7 +736,7 @@ let to_foreign r =
 
 (* Extension for supporting callback registration extraction. *)
 
-(* A map from qualid to string opt (alias) *)
+(* A map from qualid to callback alias. *)
 let empty_callback_map = Refmap'.empty
 
 let callback_map = Summary.ref empty_callback_map ~name:"ExtrCallback"
@@ -759,10 +759,10 @@ let add_foreign_entries l =
   let open Summary.Ref in
   foreign_set := List.fold_right (Refset'.add) l !foreign_set
 
-(* Adds the qualid_ref and alias opt to the callback_map. *)
-let add_callback_entry alias_opt qualid_ref =
+(* Adds the qualid_ref and alias to the callback_map. *)
+let add_callback_entry alias qualid_ref =
   let open Summary.Ref in
-  callback_map := Refmap'.add qualid_ref alias_opt !callback_map
+  callback_map := Refmap'.add qualid_ref alias !callback_map
 
 (* Registration of operations for rollback. *)
 
@@ -780,7 +780,7 @@ let foreign_extraction : global list -> obj =
     ~subst:(Some (fun (s,l) -> (List.map (fun x -> subst_global s x) l)))
     ~discharge:(fun x -> Some x)
 
-let callback_extraction : string option * global -> obj =
+let callback_extraction : string * global -> obj =
   declare_object @@ superglobal_object "Extraction Callback"
     ~cache:(fun (alias, x) -> add_callback_entry alias x)
     ~subst:(Some (fun (s,(alias, x)) -> (alias, subst_global s x)))
@@ -1020,10 +1020,7 @@ let print_extraction_foreign () =
 let print_extraction_callback () =
   let open Summary.Ref in
   let keys = Refmap'.domain !callback_map in
-  print_constref_extractions keys (fun r ->
-    match find_callback r with
-     | None   -> "no custom alias"
-     | Some s -> s) "Extraction Callbacks for Constants:"
+  print_constref_extractions keys find_callback "Extraction Callbacks for Constants:"
 
 (* Registration of operations for rollback. *)
 
@@ -1043,11 +1040,16 @@ let extract_callback optstr x =
   if lang () != Ocaml then
       CErrors.user_err (Pp.str "Extract Callback is supported only for OCaml extraction.");
 
+  (* The extracted OCaml name may omit the qualification in [x]. *)
+  let alias = match optstr with
+    | Some s -> s
+    | None -> Libnames.string_of_qualid x
+  in
   let refs = mono_global_with_alias x in
   List.iter begin fun qualid_ref ->
   match qualid_ref.glob with
       (* Add the alias and qualid_ref to callback extraction.*)
-    | GlobRef.ConstRef _ -> Lib.add_leaf (callback_extraction (optstr, qualid_ref))
+    | GlobRef.ConstRef _ -> Lib.add_leaf (callback_extraction (alias, qualid_ref))
     | _                  -> error_constant ?loc:x.CAst.loc qualid_ref
   end refs
 
