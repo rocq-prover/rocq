@@ -265,7 +265,7 @@ let infer_opaque ~sec_univs env entry =
     const_def_height = None
   }, context
 
-let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_output) =
+let check_delayed (type a) ~admit (handle : a effect_handler) tyenv (body : a proof_output) =
   let TyCtx (env, tyj, declared, univs) = tyenv in
   let ((body, uctx), side_eff) = body in
   let (body, uctx', valid_signatures) = handle env body side_eff in
@@ -280,6 +280,7 @@ let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_out
   let hbody = HConstr.of_constr env body in
   (* Note: non-trivial trusted side-effects only in monomorphic case *)
   let () =
+    if not admit then
     let eff_body, eff_env = skip_trusted_seff valid_signatures hbody env in
     let j = Typeops.infer_hconstr eff_env eff_body in
     let () = assert (HConstr.self eff_body == j.uj_val) in
