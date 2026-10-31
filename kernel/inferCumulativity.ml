@@ -306,9 +306,18 @@ let infer_arity_constructor is_arity env variances arcn =
     match typ with
     | Context.Rel.Declaration.LocalAssum (_, typ') ->
       (Environ.push_rel typ env, infer_term CUMUL env variances typ')
-    | Context.Rel.Declaration.LocalDef _ -> assert false
+    | Context.Rel.Declaration.LocalDef (_, bdy, typ') ->
+      (* [infer_constructor_instance_eq] passes over the instance of a fully
+         applied constructor because two such constructors are convertible at
+         a common supertype. Here the body is read back as it stands by a
+         match, so the type is what gives it that common type: inferring the
+         type as a CUMUL position, as for an assumption, makes the type of the
+         smaller instance a subtype of the type of the larger one. *)
+      let variances = infer_term CUMUL env variances typ' in
+      let variances = infer_term CONV env variances bdy in
+      (Environ.push_rel typ env, variances)
   in
-  let typs, codom = Reduction.whd_decompose_prod env arcn in
+  let typs, codom = Reduction.whd_decompose_prod_decls env arcn in
   let env, variances = Context.Rel.fold_outside infer_typ typs ~init:(env, variances) in
   (* If we have Inductive foo@{i j} : ... -> Type@{i} := C : ... -> foo Type@{j}
      i is irrelevant, j is invariant. *)
