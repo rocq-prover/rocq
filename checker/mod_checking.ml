@@ -353,6 +353,7 @@ and collect_signature_axioms axioms sign mp =
   | NoFunctor struc ->
     let fold axioms (lab, field) = match field with
     | SFBconst cb ->
+      CheckFlags.check_axiom_free cb.const_typing_flags;
       let kn = KerName.make mp lab in
       let axioms =
         match cb.const_body with
@@ -365,7 +366,9 @@ and collect_signature_axioms axioms sign mp =
       let axioms = collect_module_axioms axioms mp mb in
       axioms
     | SFBmodtype _ -> axioms
-    | SFBmind _ -> axioms
+    | SFBmind mib ->
+      CheckFlags.check_axiom_free mib.mind_typing_flags;
+      axioms
     | SFBrules _ -> axioms
     in
     List.fold_left fold axioms struc
