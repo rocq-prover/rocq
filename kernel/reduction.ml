@@ -131,8 +131,8 @@ let whd_decompose_prod_decls ?evars env =
         prodec_rec (push_rel d env) (Context.Rel.add d l) c
     | _               ->
         let rty' = whd_all ?evars env rty in
-        if Constr.equal rty' rty then l, rty
-        else prodec_rec env l rty'
+        if isProd rty' || isLetIn rty' then prodec_rec env l rty'
+        else l, rty
   in
   prodec_rec env Context.Rel.empty
 
@@ -148,8 +148,8 @@ let whd_decompose_lambda_decls ?evars env =
         lamec_rec (push_rel d env) (Context.Rel.add d l) c
     | _               ->
         let rty' = whd_all ?evars env rty in
-        if Constr.equal rty' rty then l, rty
-        else lamec_rec env l rty'
+        if isLambda rty' || isLetIn rty' then lamec_rec env l rty'
+        else l, rty
   in
   lamec_rec env Context.Rel.empty
 
@@ -167,7 +167,8 @@ let whd_decompose_lambda_n_assum ?evars env n =
         lamec_rec (push_rel d env) n (Context.Rel.add d l) c
     | _               ->
         let c' = whd_all ?evars env c in
-        if Constr.equal c' c then anomaly (Pp.str "whd_decompose_lambda_n_assum: not enough abstractions")
+        if not (isLambda c' || isLetIn c') then
+          anomaly (Pp.str "whd_decompose_lambda_n_assum: not enough abstractions")
         else lamec_rec env n l c'
   in
   lamec_rec env n Context.Rel.empty
