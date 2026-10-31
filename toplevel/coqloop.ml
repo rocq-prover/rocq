@@ -12,8 +12,8 @@ open Pp
 
 let print_emacs = ref false
 
-let top_stderr x =
-  Format.fprintf !Topfmt.err_ft "@[%a@]%!" pp_with x
+let top_stdout x =
+  Format.fprintf !Topfmt.std_ft "@[%a@]%!" pp_with x
 
 (* A buffer for the character read from a channel. We store the command
  * entered to be able to report errors without pretty-printing. *)
@@ -73,7 +73,7 @@ let prompt_char doc ic ibuf () =
     | ll::_ -> Int.equal ibuf.len ll
     | [] -> Int.equal ibuf.len 0
   in
-  if bol && not !print_emacs then top_stderr (str (ibuf.prompt doc));
+  if bol && not !print_emacs then top_stdout (str (ibuf.prompt doc));
   try
     let c = input_char ic in
     if c == '\n' then ibuf.bols <- (ibuf.len+1) :: ibuf.bols;
@@ -349,13 +349,11 @@ let coqloop_feed (fb : Feedback.feedback) = let open Feedback in
     exit the loop are Drop and Quit. Any other exception there indicates
     an issue with [print_toplevel_error] above. *)
 
-(* Flush in a compatible order with 8.5 *)
-(* This mimics the semantics of the old Pp.flush_all *)
 let loop_flush_all () =
   flush stderr;
+  Format.pp_print_flush !Topfmt.err_ft ();
   flush stdout;
-  Format.pp_print_flush !Topfmt.std_ft ();
-  Format.pp_print_flush !Topfmt.err_ft ()
+  Format.pp_print_flush !Topfmt.std_ft ()
 
 (* Goal equality heuristic. *)
 let pequal cmp1 cmp2 (a1,a2) (b1,b2) = cmp1 a1 b1 && cmp2 a2 b2
@@ -518,7 +516,7 @@ let read_and_execute ~state =
       process_toplevel_command ~state stm
     (* End of file *)
     | None ->
-      top_stderr (fnl ());
+      top_stdout (fnl ());
       false, state
   with
   (* Exception printing should be done by the feedback listener,
@@ -549,9 +547,9 @@ let loop ~state =
     (* The main loop, as a tail-recursive function *)
     let rec aux state =
       loop_flush_all ();
-      top_stderr (fnl());
+      top_stdout (fnl());
       let open Vernac.State in
-      if !print_emacs then top_stderr (str (top_buffer.prompt state.doc));
+      if !print_emacs then top_stdout (str (top_buffer.prompt state.doc));
       let new_running, new_state = read_and_execute ~state:state in
       if new_running then
         (aux [@ocaml.tailcall]) new_state
