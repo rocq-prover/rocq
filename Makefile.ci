@@ -64,7 +64,7 @@ ci-bignums: ci-stdlib
 
 ci-category_theory: ci-equations
 
-ci-coinduction: ci-stdlib
+ci-coinduction: ci-stdlib ci-elpi
 
 ci-color: ci-bignums
 
