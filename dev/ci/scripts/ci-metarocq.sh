@@ -9,11 +9,17 @@ git_download metarocq
 
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
-export COQEXTRAFLAGS='-native-compiler no -w -rewrite-rw'
 ( cd "${CI_BUILD_DIR}/metarocq"
-  [ -e pcuic/metarocq-config ] || ./configure.sh local
-  make template-rocq TIMED=pretty-timed
-  make all TIMED=pretty-timed
-  make test-suite TIMED=pretty-timed
-  make install
+  if [ -e dune-project ]; then
+    # @runtest builds the test-suite and the examples
+    dune build --root . @install @runtest
+    dune install --root . --prefix="$CI_INSTALL_DIR"
+  else
+    export COQEXTRAFLAGS='-native-compiler no -w -rewrite-rw'
+    [ -e pcuic/metarocq-config ] || ./configure.sh local
+    make template-rocq TIMED=pretty-timed
+    make all TIMED=pretty-timed
+    make test-suite TIMED=pretty-timed
+    make install
+  fi
 )
