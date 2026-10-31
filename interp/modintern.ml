@@ -145,8 +145,9 @@ let interp_with_decl env base kind = function
         let c = EConstr.Vars.subst_univs_level_constr (UVars.make_instance_subst inst) c in
         let c = EConstr.to_constr sigma c in
         WithDef (fqid,(c, Some ctx)), Univ.ContextSet.empty
-      | UState.Monomorphic_entry ctx ->
+      | UState.Monomorphic_entry (ctx, subst) ->
         let c = EConstr.to_constr sigma c in
+        let c = Vars.subst_univs_level_constr (Sorts.QVar.Map.empty, subst) c in
         WithDef (fqid,(c, None)), ctx
     end
 

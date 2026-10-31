@@ -150,13 +150,17 @@ let declare_univ_binders gr (univs, pl) =
   let l = label_of gr in
   match univs with
   | UState.Polymorphic_entry _ -> ()
-  | UState.Monomorphic_entry (levels, _) ->
+  | UState.Monomorphic_entry ((levels, _), _) ->
     let qs, pl = pl in
     assert (Id.Map.is_empty qs);
     (* First the explicitly named universes *)
     let named, univs = Id.Map.fold (fun id univ (named,univs) ->
         let univs = match Level.name univ with
-          | None -> assert false (* having Prop/Set/Var as binders is nonsense *)
+          | None ->
+            (* having Prop/Set/Var as binders is nonsense, unification
+               levels are the ones that were not part of the entry *)
+            let () = assert (Level.is_unif univ) in
+            univs
           | Some univ -> (id,univ)::univs
         in
         let named = Level.Set.add univ named in

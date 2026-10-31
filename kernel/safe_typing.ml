@@ -612,9 +612,19 @@ let get_section = function
   | None -> CErrors.user_err Pp.(str "No open section.")
   | Some s -> s
 
+(* Unification levels are elaboration-time objects, the upper layers must
+   globalize or abstract them before declaring anything. *)
+let check_no_unif_levels levels =
+  if Univ.Level.Set.exists Univ.Level.is_unif levels then
+    CErrors.anomaly Pp.(str "Unification universe levels cannot be declared in the kernel:" ++
+      spc () ++ Univ.Level.Set.pr Univ.Level.raw_pr (Univ.Level.Set.filter Univ.Level.is_unif levels) ++ str ".")
+
 let push_context_set ~strict cst senv =
   if Univ.ContextSet.is_empty cst then senv
   else
+    let () = check_no_unif_levels
+        (Univ.UnivConstraints.levels ~init:(Univ.ContextSet.levels cst) (Univ.ContextSet.constraints cst))
+    in
     let sections = Option.map (Section.push_level_constraints cst) senv.sections
     in
     { senv with
@@ -777,6 +787,7 @@ let push_section_context uctx senv =
   in
   if not @@ Sorts.QVar.Set.for_all check_quality (fst qctx) then
     CErrors.user_err Pp.(str "Implicit section-wide sort variables are not allowed.");
+  let () = check_no_unif_levels (fst ctx) in
   let check_fresh u = match UGraph.check_declared_universes (Environ.universes senv.env) (Univ.Level.Set.singleton u) with
   | Result.Ok _ -> assert false
   | Result.Error _ -> ()

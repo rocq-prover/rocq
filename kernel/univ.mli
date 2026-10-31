@@ -50,6 +50,15 @@ sig
 
   val make : UGlobal.t -> t
 
+  val make_unif : string -> int -> t
+  (** [make_unif s n] is a unification (flexible) level, printed [ℓn]. Such
+      levels are only meant to be used during elaboration: the safe
+      environment never declares them. *)
+
+  val is_unif : t -> bool
+
+  val unif_repr : t -> (string * int) option
+
   val raw_pr : t -> Pp.t
   (** Pretty-printing.
       When possible you should use name-aware printing. *)
@@ -187,6 +196,9 @@ end
 
 module UnivConstraints : sig
   include CSet.ExtS with type elt = UnivConstraint.t
+
+  val levels : ?init:Level.Set.t -> t -> Level.Set.t
+  (** The levels appearing in the constraints, added to [init]. *)
 
   val pr : (Level.t -> Pp.t) -> t -> Pp.t
 

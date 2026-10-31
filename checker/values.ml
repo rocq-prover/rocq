@@ -179,6 +179,7 @@ let v_cons = v_tuple "constructor" [|v_ind;v_int|]
 
 (** kernel/univ *)
 let v_level_global = v_tuple "Level.Global.t" [|v_dp;v_string;v_int|]
+(* The Unif constructor of unification levels is forbidden in vo files *)
 let v_raw_level = v_sum "raw_level" 1 (* Set *)
   [|(*Level*)[|v_level_global|]; (*Var*)[|v_int|]|]
 let v_level = v_tuple "level" [|v_int;v_raw_level|]
@@ -187,8 +188,8 @@ let v_univ = v_list v_expr
 
 let v_qglobal = v_tuple "qglobal" [|v_dp; v_int|]
 
-(* perhaps the "Unif" constructor should be forbidden in vo files *)
-let v_qvar = v_sum "qvar" 0 [|[|v_int|];[|v_int|];[|v_string;v_int|]|]
+(* The Unif constructor of unification sort variables is forbidden in vo files *)
+let v_qvar = v_sum "qvar" 0 [|(*Var*)[|v_int|];(*Secvar*)[|v_int|]|]
 
 let v_constant_quality = v_enum "constant_quality" 3
 

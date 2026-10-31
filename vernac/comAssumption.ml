@@ -101,19 +101,28 @@ let interp_assumption ~program_mode ~poly env sigma impl_env bl c =
   sigma, ty, impls1@impls2
 
 let empty_poly_univ_entry = UState.Polymorphic_entry UVars.UContext.empty, UnivNames.empty_binders
-let empty_mono_univ_entry = UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders
-let empty_univ_entry poly = if poly then empty_poly_univ_entry else empty_mono_univ_entry
-
 let clear_univs scope univ =
   match scope, univ with
   | Locality.Global _, (UState.Polymorphic_entry _, _ as univs) -> univs
-  | _, (UState.Monomorphic_entry _, _) -> empty_univ_entry false
-  | Locality.Discharge, (UState.Polymorphic_entry _, _) -> empty_univ_entry true
+  | _, (UState.Monomorphic_entry (_, subst), _) ->
+    (* the universes are declared with the first assumption *)
+    UState.Monomorphic_entry (Univ.ContextSet.empty, subst), UnivNames.empty_binders
+  | Locality.Discharge, (UState.Polymorphic_entry _, _) -> empty_poly_univ_entry
 
 let context_subst subst (id,b,t,infos) =
   id, Option.map (Vars.replace_vars subst) b, Vars.replace_vars subst t, infos
 
 let declare_context ~try_global_assum_as_instance ~scope ~univs ?user_warns ~inline ctx =
+  (* Section universes are declared with the first variable, the other ones
+     need to share the same global levels *)
+  let univs, ctx = match scope, univs with
+    | Locality.Discharge, (UState.Polymorphic_entry uctx, binders) ->
+      let uctx, usubst = UnivGen.globalize_section_context uctx in
+      let glob = Vars.subst_univs_level_constr (Sorts.QVar.Map.empty, usubst) in
+      let ctx = List.map (fun (id, b, t, infos) -> (id, Option.map glob b, glob t, infos)) ctx in
+      (UState.Polymorphic_entry uctx, binders), ctx
+    | _ -> univs, ctx
+  in
   let fn i subst d =
     let (name,b,t,(impl,kind,coe,impargs)) = context_subst subst d in
     let univs = if i = 0 then univs else clear_univs scope univs in

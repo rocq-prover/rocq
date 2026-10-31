@@ -177,9 +177,11 @@ let decl_constant name univs c =
   let open Constr in
   let vars = CVars.universes_of_constr c in
   let univs = UState.restrict_universe_context univs vars in
+  let univs, subst = UnivGen.globalize_context_set univs in
   let () = Global.push_context_set univs in
+  let c = CVars.subst_univs_level_constr (Sorts.QVar.Map.empty, subst) c in
   let types = (Typeops.infer (Global.env ()) c).uj_type in
-  let univs = UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders in
+  let univs = UState.Monomorphic_entry (Univ.ContextSet.empty, Univ.Level.Map.empty), UnivNames.empty_binders in
   (* UnsafeMonomorphic: we always do poly:false *)
   UnsafeMonomorphic.mkConst
     (declare_constant ~name

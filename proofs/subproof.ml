@@ -159,8 +159,8 @@ let build_by_tactic_opt env ~uctx ~poly ~typ tac =
   with OpenProof -> None
 
 let extract_monomorphic = function
-  | UState.Monomorphic_entry ctx ->
-    UVars.empty_sort_subst, Entries.Monomorphic_entry, ctx
+  | UState.Monomorphic_entry (ctx, subst) ->
+    (Sorts.QVar.Map.empty, subst), Entries.Monomorphic_entry, ctx
   | UState.Polymorphic_entry uctx ->
     let uinst, auctx = UVars.abstract_universes uctx in
     let usubst = UVars.make_instance_subst uinst in
@@ -216,7 +216,7 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
         },
         ctx
     in
-    Evd.push_side_effects ~ts name de ctx effs
+    Evd.push_side_effects ~ts ~univ_subst:(UState.entry_subst univs) name de ctx effs
   in
   let sigma = Evd.emit_side_effects effs sigma in
   let inst = match univs with

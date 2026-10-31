@@ -17,7 +17,9 @@ open Univ
 open Sorts
 
 type universes_entry =
-| Monomorphic_entry of Univ.ContextSet.t
+| Monomorphic_entry of Univ.ContextSet.t * UVars.universe_level_subst
+  (** The context only mentions global levels, the substitution maps the
+      unification levels it replaces to them. *)
 | Polymorphic_entry of UVars.UContext.t
 
 exception UniversesDiffer
@@ -86,8 +88,20 @@ val context : t -> UVars.UContext.t
 
 type named_universes_entry = universes_entry * UnivNames.universe_binders
 
-val univ_entry : poly:PolyFlags.t -> t -> named_universes_entry
-(** Pick from {!context} or {!context_set} based on [poly]. *)
+val univ_entry : ?subst:UVars.universe_level_subst -> poly:PolyFlags.t -> t -> named_universes_entry
+(** Pick from {!context} or {!context_set} based on [poly]. A monomorphic
+    entry replaces the unification levels by global levels, extending
+    [subst] (see {!monomorphic_entry}). *)
+
+val monomorphic_entry : ?subst:UVars.universe_level_subst -> Univ.ContextSet.t ->
+  UnivNames.universe_binders -> named_universes_entry
+(** Replace the unification levels of the context by fresh global levels,
+    except the ones already mapped by [subst], see
+    {!UnivGen.globalize_context_set}. Entries whose terms share unification
+    levels must be built extending the same substitution. *)
+
+val entry_subst : named_universes_entry -> UVars.universe_level_subst
+(** The substitution of a monomorphic entry, empty for a polymorphic one. *)
 
 val universe_binders : t -> UnivNames.universe_binders
 (** Return local names of universes. *)
@@ -227,6 +241,10 @@ val new_univ_level_variable : ?loc:Loc.t -> rigid -> Id.t option -> t -> t * Uni
 val add_forgotten_univ : t -> Univ.Level.t -> t
 (** Don't use this, it only exists for funind *)
 
+val with_supply : t -> (UnivGen.Supply.t -> UnivGen.Supply.t * 'a) -> t * 'a
+(** Generate unification levels or sort variables using the supply of the
+    state, so that they do not clash with the ones it already contains. *)
+
 val make_nonalgebraic_variable : t -> Univ.Level.t -> t
 (** cf UnivFlex *)
 
@@ -270,7 +288,7 @@ val default_univ_decl : universe_decl
    When polymorphic, the universes corresponding to
    [decl.univdecl_instance] come first in the order defined by that
    list. *)
-val check_univ_decl : poly:PolyFlags.t -> t -> universe_decl -> named_universes_entry
+val check_univ_decl : ?subst:UVars.universe_level_subst -> poly:PolyFlags.t -> t -> universe_decl -> named_universes_entry
 val check_univ_decl_rev : t -> universe_decl -> t * UVars.UContext.t
 val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 
@@ -313,7 +331,7 @@ val pr_sort_opt_subst : t -> Pp.t
 module Internal :
 sig
 
-val reboot : Environ.env -> t -> t
+val reboot : subst:UVars.universe_level_subst -> Environ.env -> t -> t
 (** Madness-inducing hack dedicated to the handling of universes of Program.
     DO NOT USE OUTSIDE OF DEDICATED AREA. *)
 

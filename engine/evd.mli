@@ -415,9 +415,11 @@ val eval_side_effects : evar_map -> side_effects
 (** Return the effects contained in the evar map. *)
 
 val push_side_effects :
-  ?role:side_effect_role -> ?ts:Conv_oracle.oracle ->
+  ?role:side_effect_role -> ?ts:Conv_oracle.oracle -> ?univ_subst:UVars.universe_level_subst ->
   Id.t -> Safe_typing.side_effect_declaration -> Univ.ContextSet.t ->
   side_effects -> Constant.t * side_effects
+(** [univ_subst] maps the unification levels of the constant to the global
+    levels of [ctx], see {!UState.monomorphic_entry}. *)
 
 val avoid_side_effect_label : Id.t -> evar_map -> evar_map
 
@@ -625,9 +627,9 @@ val universes : evar_map -> UGraph.t
     constraints of [evm] and orders the universes *)
 val to_universe_context : evar_map -> UVars.UContext.t
 
-val univ_entry : poly:PolyFlags.t -> evar_map -> UState.named_universes_entry
+val univ_entry : ?subst:UVars.universe_level_subst -> poly:PolyFlags.t -> evar_map -> UState.named_universes_entry
 
-val check_univ_decl : poly:PolyFlags.t -> evar_map -> UState.universe_decl -> UState.named_universes_entry
+val check_univ_decl : ?subst:UVars.universe_level_subst -> poly:PolyFlags.t -> evar_map -> UState.universe_decl -> UState.named_universes_entry
 
 (** An early check of compatibility of the universe declaration before
     starting to build a declaration interactively *)
@@ -650,6 +652,9 @@ val merge_universe_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map
 
 val merge_sort_context_set : ?loc:Loc.t -> ?sort_rigid:bool -> ?sideff:bool ->
   ?src:UState.constraint_source -> rigid -> evar_map -> UnivGen.sort_context_set -> evar_map
+
+val with_supply : evar_map -> (UnivGen.Supply.t -> UnivGen.Supply.t * 'a) -> evar_map * 'a
+(** See {!UState.with_supply}. *)
 
 val with_sort_context_set : ?loc:Loc.t -> ?sort_rigid:bool -> ?src:UState.constraint_source ->
   rigid -> evar_map -> 'a UnivGen.in_sort_context_set -> evar_map * 'a
