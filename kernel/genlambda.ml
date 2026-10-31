@@ -214,20 +214,6 @@ let decompose_Llam lam =
   | Llam(ids,body) -> ids, body
   | _ -> [||], lam
 
-let rec decompose_Llam_Llet lam =
-  match lam.node with
-  | Llam(ids,body) ->
-      let vars, body = decompose_Llam_Llet body in
-      Array.fold_right (fun x l -> (x, None) :: l) ids vars, body
-  | Llet(id,def,body) ->
-      let vars, body = decompose_Llam_Llet body in
-      (id,Some def) :: vars, body
-  | _ -> [], lam
-
-let decompose_Llam_Llet lam =
-  let vars, body = decompose_Llam_Llet lam in
-  Array.of_list vars, body
-
 (* A generic map function *)
 
 let map_lam_with_binders g f n lam =

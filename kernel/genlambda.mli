@@ -62,7 +62,6 @@ val node : 'v lambda -> 'v node
 val unsafe_mkPArray : 'v lambda array -> 'v lambda -> 'v lambda
 val unsafe_mkPArray_val : 'v -> 'v lambda -> 'v lambda
 val decompose_Llam : 'v lambda -> Name.t binder_annot array * 'v lambda
-val decompose_Llam_Llet : 'v lambda -> (Name.t binder_annot * 'v lambda option) array * 'v lambda
 
 val free_rels : 'v lambda -> Int.Set.t
 
