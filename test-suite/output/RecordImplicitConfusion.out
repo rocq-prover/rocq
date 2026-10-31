@@ -1,0 +1,6 @@
+File "./output/RecordImplicitConfusion.v", line 1, characters 15-36:
+Error: Inductive body starting with ":= name {" is interpreted as a record,
+use ":= | name {" for a constructor whose first argument is implicit.
+
+
+coqc exited with code 1
