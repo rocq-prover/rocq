@@ -746,33 +746,44 @@ let decr = Option.map ((+) (-1))
 
 let is_done = Option.equal Int.equal (Some 0)
 
-let print_leaves env sigma ~with_values mp n leaves =
-  let rec prec n = function
-    | [] -> n, []
+let print_leaves env sigma ~with_values mp n acc leaves =
+  let rec prec n acc = function
+    | [] -> n, acc
     | o :: rest ->
-      if is_done n then n, []
+      if is_done n then n, acc
       else begin match print_library_leaf env sigma ~with_values mp o with
         | Some pp ->
-          let n, prest = prec (decr n) rest in
-          n, pp :: prest
-        | None -> prec n rest
+          prec (decr n) (pp::acc) rest
+        | None -> prec n acc rest
       end
   in
-  let n, l = prec n leaves in
-  n, v 0 (pr_sequence (fun x -> x) (List.rev l))
+  prec n acc leaves
 
-let print_context env sigma ~with_values =
-  let rec prec n = function
-    | [] -> mt()
+let print_context env sigma ~with_values n ctx =
+  let rec prec n acc ctx =
+    if is_done n then acc else match ctx with
+    | [] -> acc
+    | [node, leaves] ->
+      let mp = (Lib.node_prefix node).obj_mp in
+      let _, acc = print_leaves env sigma ~with_values mp n acc leaves in
+      acc
     | (node, leaves) :: rest ->
-      if is_done n then mt()
-      else
-        let mp = (Lib.node_prefix node).obj_mp in
-        let n, pleaves = print_leaves env sigma ~with_values mp n leaves in
-        if is_done n then pleaves
-        else prec n rest ++ pleaves
+      let mp = (Lib.node_prefix node).obj_mp in
+      let n, acc = print_leaves env sigma ~with_values mp n acc leaves in
+      let ppnode = match node with
+        | CompilingLibrary _ -> mt()
+        | OpenedModule (istype, _, {obj_path}, _) ->
+          (if istype then str "Module Type" else str "Module") ++ spc() ++
+          pr_path obj_path
+        | OpenedSection ({obj_path}, _) -> str "Section" ++ spc() ++ pr_path obj_path
+      in
+      let acc = hov 2 ppnode :: acc in
+      let n = decr n in
+      if is_done n then acc
+      else prec n acc rest
   in
-  prec
+  let res = prec n [] ctx in
+  v 0 @@ pr_sequence Fun.id res
 
 let print_full_context access env sigma =
   print_context env sigma ~with_values:(Some access) None (Lib.contents ())
@@ -856,25 +867,36 @@ let print_full_pure_context access env sigma =
    follows the definition of the inductive type *)
 
 (* This is designed to print the contents of an opened section *)
+let read_dir_context dir =
+  let open Nametab.GlobDirRef in
+  let rec get_cxt in_cxt cxt = match dir, cxt with
+    | _, [] -> []
+    | DirOpenSection dir,
+      (Lib.OpenedSection ({obj_path;_},_), _ as hd) :: rest ->
+      if eq_full_path dir obj_path then (hd::in_cxt) else get_cxt (hd::in_cxt) rest
+    | (DirOpenModule mp | DirOpenModtype mp),
+      (Lib.OpenedModule (_, _, {obj_mp}, _), _ as hd) :: rest ->
+      if ModPath.equal mp obj_mp then hd::in_cxt else get_cxt (hd::in_cxt) rest
+    | _, hd::rest -> get_cxt (hd::in_cxt) rest
+  in
+  let cxt = Lib.contents () in
+  List.rev (get_cxt [] cxt)
+
 let read_sec_context qid =
   let dir =
     try Nametab.locate_section qid
     with Not_found ->
       user_err ?loc:qid.loc (str "Unknown section.") in
-  let rec get_cxt in_cxt = function
-    | (Lib.OpenedSection ({obj_path;_},_), _ as hd)::rest ->
-        if eq_full_path dir obj_path then (hd::in_cxt) else get_cxt (hd::in_cxt) rest
-    | [] -> []
-    | hd::rest -> get_cxt (hd::in_cxt) rest
-  in
-  let cxt = Lib.contents () in
-  List.rev (get_cxt [] cxt)
+  read_dir_context (DirOpenSection dir)
 
 let print_sec_context access env sigma sec =
   print_context env sigma ~with_values:(Some access) None (read_sec_context sec)
 
 let print_sec_context_typ env sigma sec =
   print_context env sigma ~with_values:None None (read_sec_context sec)
+
+let print_dir_context_typ env sigma dir =
+  print_context env sigma ~with_values:None None (read_dir_context dir)
 
 (** Command [Print] *)
 
@@ -982,7 +1004,9 @@ let print_any_name access env sigma na udecl =
   | Term gref -> print_global_reference access env sigma gref udecl
   | Abbreviation kn -> print_abbreviation access env sigma kn
   | Module mp -> print_module mp
-  | Dir dir -> pr_dir dir
+  | Dir d ->
+    v 0 (hov 0 (pr_dir d) ++ spc () ++
+         print_dir_context_typ env sigma d)
   | ModuleType mp -> print_modtype mp
   | Other (obj, info) -> info.print obj
 
