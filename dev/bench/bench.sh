@@ -484,6 +484,11 @@ skipped_packages=
 export TIMING=1
 export PROFILING=1
 export ROCQ_PROFILE_COMPONENTS=command,parse_command,partac.perform
+# Generate per line timing info in devs that use dune: rocq compile
+# writes file.v.timing when ROCQ_TIME_FILE is set. Disable the dune
+# cache so that every file is actually compiled (and timed).
+export ROCQ_TIME_FILE=1
+export DUNE_CACHE=disabled
 
 # packages tied to the coq commit need to be pinned accordingly
 core_packages='rocq-runtime coq-core rocq-core rocqide-server'

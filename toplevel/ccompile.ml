@@ -21,6 +21,19 @@ let source ldir file = Loc.InFile {
     file = file;
   }
 
+(* When the command line does not request timing, [$ROCQ_TIME_FILE]
+   (if set and non-empty) requests per-command timing to be output to
+   [file.v.timing], the same file used by [rocq makefile] with
+   [TIMING=1]. This allows getting timing files from build systems
+   which do not let us pass per-file arguments, e.g. dune. *)
+let time_config opts ~long_f_dot_in =
+  match opts.config.time with
+  | Some _ as time -> time
+  | None ->
+    match Sys.getenv_opt "ROCQ_TIME_FILE" with
+    | None | Some "" -> None
+    | Some _ -> Some (ToFile (long_f_dot_in ^ ".timing"))
+
 (* Compile a vernac file *)
 let compile opts stm_options injections copts ~f_in ~f_out =
   let open Vernac.State in
@@ -36,6 +49,8 @@ let compile opts stm_options injections copts ~f_in ~f_out =
   in
   let long_f_dot_in, long_f_dot_out =
     ensure_exists_with_prefix ~src:f_in ~tgt:f_out ~src_ext:ext_in ~tgt_ext:ext_out in
+  let time =
+    Option.map Vernac.make_time_output (time_config opts ~long_f_dot_in) in
   let beautify = copts.beautify in
   let () = if beautify then CLexer.record_comments := true in
   match mode with
@@ -43,7 +58,7 @@ let compile opts stm_options injections copts ~f_in ~f_out =
       let doc, sid = Topfmt.(in_phase ~phase:LoadingPrelude)
           Stm.new_doc
           Stm.{ doc_type = VoDoc long_f_dot_out; injections; } in
-      let state = { doc; sid; proof = None; time = Option.map Vernac.make_time_output opts.config.time } in
+      let state = { doc; sid; proof = None; time } in
       let state = Load.load_init_vernaculars opts ~state in
       let ldir = Stm.get_ldir ~doc:state.doc in
       Aux_file.(start_aux_file
@@ -82,7 +97,7 @@ let compile opts stm_options injections copts ~f_in ~f_out =
           Stm.{ doc_type = VosDoc long_f_dot_out; injections;
               } in
 
-      let state = { doc; sid; proof = None; time = Option.map Vernac.make_time_output opts.config.time } in
+      let state = { doc; sid; proof = None; time } in
       let state = Load.load_init_vernaculars opts ~state in
       let ldir = Stm.get_ldir ~doc:state.doc in
       let source = source ldir long_f_dot_in in
