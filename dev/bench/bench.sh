@@ -485,9 +485,11 @@ export TIMING=1
 export PROFILING=1
 export ROCQ_PROFILE_COMPONENTS=command,parse_command,partac.perform
 # Generate per line timing info in devs that use dune: rocq compile
-# writes file.v.timing when ROCQ_TIME_FILE is set. Disable the dune
-# cache so that every file is actually compiled (and timed).
+# writes file.v.timing when ROCQ_TIME_FILE is set and file.vo.prof.json
+# when ROCQ_PROFILE_FILE is set. Disable the dune cache so that every
+# file is actually compiled (and timed).
 export ROCQ_TIME_FILE=1
+export ROCQ_PROFILE_FILE=1
 export DUNE_CACHE=disabled
 
 # packages tied to the coq commit need to be pinned accordingly
@@ -691,11 +693,15 @@ $skipped_packages"
         new_data=
         if [ -e "$old_base_path/$vo.prof.json.gz" ]; then
           old_data="$old_base_path/$vo.prof.json.gz"
+        elif [ -e "$old_base_path/$vo.prof.json" ]; then
+          old_data="$old_base_path/$vo.prof.json"
         elif [ -e "$old_base_path/${vo%%o}.timing" ]; then
           old_data="$old_base_path/${vo%%o}.timing"
         fi
         if [ -e "$new_base_path/$vo.prof.json.gz" ]; then
           new_data="$new_base_path/$vo.prof.json.gz"
+        elif [ -e "$new_base_path/$vo.prof.json" ]; then
+          new_data="$new_base_path/$vo.prof.json"
         elif [ -e "$new_base_path/${vo%%o}.timing" ]; then
           new_data="$new_base_path/${vo%%o}.timing"
         fi

@@ -51,6 +51,9 @@ val init_runtime : usage:Boot.Usage.specific_usage -> Coqargs.t -> unit
 
 val init_document : Coqargs.t -> unit
 
+(** Activate profiling (as with [-profile]), outputting to [file]. *)
+val init_profile : file:string -> unit
+
 (** 4 Start a library (sets options and loads objects like the prelude)
 
     Given the logical name [top] of the current library and the set of initial

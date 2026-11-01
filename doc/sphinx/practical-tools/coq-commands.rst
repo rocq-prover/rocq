@@ -276,6 +276,14 @@ information for each command of :n:`file.v` to :n:`file.v.timing`, as
 information from build systems which do not allow passing per-file
 options, such as Dune.
 
+.. _ROCQ_PROFILE_FILE:
+
+Similarly, if ``$ROCQ_PROFILE_FILE`` is set to a non-empty value and
+the ``-profile`` option is not passed, ``rocq compile`` outputs
+:ref:`profiling` information to :n:`file.vo.prof.json` (where
+:n:`file.vo` is the output file), as ``rocq makefile`` does with
+``PROFILING=1`` (except that the file is not compressed).
+
 .. _OCAMLRUNPARAM:
 
 ``$OCAMLRUNPARAM``, described

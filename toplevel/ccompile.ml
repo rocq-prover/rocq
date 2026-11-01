@@ -34,6 +34,18 @@ let time_config opts ~long_f_dot_in =
     | None | Some "" -> None
     | Some _ -> Some (ToFile (long_f_dot_in ^ ".timing"))
 
+(* Similarly, when the command line does not request profiling,
+   [$ROCQ_PROFILE_FILE] (if set and non-empty) requests profiling
+   output to [file.vo.prof.json], as [rocq makefile] does with
+   [PROFILING=1]. *)
+let init_profile opts ~long_f_dot_out =
+  match opts.config.profile with
+  | Some _ -> ()
+  | None ->
+    match Sys.getenv_opt "ROCQ_PROFILE_FILE" with
+    | None | Some "" -> ()
+    | Some _ -> Coqinit.init_profile ~file:(long_f_dot_out ^ ".prof.json")
+
 (* Compile a vernac file *)
 let compile opts stm_options injections copts ~f_in ~f_out =
   let open Vernac.State in
@@ -51,6 +63,7 @@ let compile opts stm_options injections copts ~f_in ~f_out =
     ensure_exists_with_prefix ~src:f_in ~tgt:f_out ~src_ext:ext_in ~tgt_ext:ext_out in
   let time =
     Option.map Vernac.make_time_output (time_config opts ~long_f_dot_in) in
+  let () = init_profile opts ~long_f_dot_out in
   let beautify = copts.beautify in
   let () = if beautify then CLexer.record_comments := true in
   match mode with
