@@ -21,6 +21,7 @@ type universe_level_subst_fn = Level.t -> Universe.t
 
 type quality_subst = Quality.t QVar.Map.t
 type quality_subst_fn = QVar.t -> Quality.t
+type quality_subst_opt_fn = QVar.t -> Quality.t option
 
 let level_subst_of f =
   fun l ->
@@ -84,7 +85,7 @@ let subst_univs_constraints subst csts =
     csts UnivConstraints.empty
 
 let subst_univs_fn_puniverses f (c, u as cu) =
-  let u' = Instance.subst_fn f u in
+  let u' = Instance.subst_opt_fn f u in
     if u' == u then cu else (c, u')
 
 let map_universes_opt_subst_aux_rec next aux frel k ((nas, tys, bds) as rc) =
@@ -102,8 +103,8 @@ let map_universes_opt_subst_aux_ctx next aux frel k ((nas, c) as p) =
   if nas' == nas && c' == c then p
   else (nas', c')
 
-let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
-  let flevel = fqual, level_subst_of funiv in
+let map_sorts_opt_subst_with_binders next aux frel fqual funiv k c =
+  let flevel = fqual, funiv in
   match kind c with
   | Const pu ->
     let pu' = subst_univs_fn_puniverses flevel pu in
@@ -115,10 +116,10 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
     let pu' = subst_univs_fn_puniverses flevel pu in
     if pu' == pu then c else mkConstructU pu'
   | Sort s ->
-    let s' = Sorts.subst_fn (fqual, subst_univs_level funiv) s in
+    let s' = Sorts.subst_opt_fn (fqual, funiv) s in
     if s' == s then c else mkSort s'
   | Case (ci,u,pms,(p,rel),iv,t,br) ->
-    let u' = Instance.subst_fn flevel u in
+    let u' = Instance.subst_opt_fn flevel u in
     let rel' = frel rel in
     let pms' = Array.Fun1.Smart.map aux k pms in
     let aux_ctx = map_universes_opt_subst_aux_ctx next aux frel k in
@@ -129,7 +130,7 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
     if rel' == rel && u' == u && pms' == pms && p' == p && iv' == iv && t' == t && br' == br then c
     else mkCase (ci, u', pms', (p',rel'), iv', t', br')
   | Array (u,elems,def,ty) ->
-    let u' = Instance.subst_fn flevel u in
+    let u' = Instance.subst_opt_fn flevel u in
     let elems' = CArray.Fun1.Smart.map aux k elems in
     let def' = aux k def in
     let ty' = aux k ty in
@@ -165,9 +166,16 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
   | Proj (p, r, v) ->
     let r' = frel r in
     let v' = aux k v in
-    if r' == r && v' == v then  c
+    if r' == r && v' == v then c
     else mkProj (p, r', v')
   | _ -> Constr.map_with_binders next aux k c
+
+let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
+  let fqual q = match fqual q with
+    | Quality.QVar q' when QVar.equal q q' -> None
+    | q' -> Some q'
+  in
+  map_sorts_opt_subst_with_binders next aux frel fqual funiv k c
 
 let nf_evars_and_universes_opt_subst fevar frel fqual funiv c =
   let rec self () c = match Constr.kind c with

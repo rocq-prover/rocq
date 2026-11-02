@@ -106,6 +106,9 @@ val compute_instance_binders : t -> UVars.LevelInstance.t -> UVars.bound_names
 val nf_qvar : t -> QVar.t -> Quality.t
 (** Returns the normal form of the sort variable. *)
 
+val nf_qvar_opt : t -> QVar.t -> Quality.t option
+(** As [nf_qvar], or [None] when the sort variable is already in normal form. *)
+
 val nf_quality : t -> Quality.t -> Quality.t
 
 val nf_instance : t -> UVars.Instance.t -> UVars.Instance.t
