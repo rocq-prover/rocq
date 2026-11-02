@@ -11,3 +11,13 @@ Fixpoint fixdef (n : nat) : unit := match n with
 end.
 
 Axiom axmdef : satisfy _ = tt.
+
+Program Definition progdef := satisfy _.
+
+Program Fixpoint progfix (n : nat) : unit :=
+  match n with 0 => tt | S n => progfix (wrap _ n) end.
+
+Require Program.Wf.
+
+Program Fixpoint wfprogfix (n:nat) {measure n} := satisfy _.
+Next Obligation. Admitted.
