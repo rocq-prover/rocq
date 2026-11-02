@@ -603,7 +603,7 @@ module Cmap_env = Cmap
 (** A map whose keys are constants (values of the {!Constant.t} type).
     Keys are ordered wrt. "user form" of the constant. *)
 
-module Cpred = Predicate.Make(Constant.CanOrd)
+module Cpred = Predicate.Make(Constant.UserOrd)
 module Cset = Cmap.Set
 module Cset_env = Cset
 
@@ -954,7 +954,7 @@ end
 
 module PRmap = HMap.Make(Projection.Repr.UserOrd)
 module PRset = PRmap.Set
-module PRpred = Predicate.Make(Projection.Repr.CanOrd)
+module PRpred = Predicate.Make(Projection.Repr.UserOrd)
 
 module PRmap_env = PRmap
 module PRset_env = PRset
