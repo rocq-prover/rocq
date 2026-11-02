@@ -164,6 +164,14 @@ let display (view : #GText.view_skel) goals hints =
       (* All the goals have been resolved but those on the shelf. *)
       view#buffer#insert "All the remaining goals are on the shelf:\n\n";
       let iter goal =
+        let () =
+          let na = match goal.Interface.goal_name with
+            | None -> ""
+            | Some na -> Printf.sprintf "(?%s)" na
+          in
+          view#buffer#insert
+            (Printf.sprintf "______________________________________%s\n" na)
+        in
         insert_xml view#buffer (Richpp.richpp_of_pp ~width goal.Interface.goal_ccl);
         view#buffer#insert "\n"
       in
