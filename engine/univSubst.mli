@@ -19,12 +19,23 @@ type universe_level_subst_fn = Level.t -> Universe.t
 
 type quality_subst = Quality.t QVar.Map.t
 type quality_subst_fn = QVar.t -> Quality.t
+type quality_subst_opt_fn = QVar.t -> Quality.t option
 
 val level_subst_of : universe_subst_fn -> universe_level_subst_fn
 
 val subst_univs_constraints : universe_subst_fn -> UnivConstraints.t -> UnivConstraints.t
 
 (** Full universes substitutions into terms *)
+
+val map_sorts_opt_subst_with_binders
+  : ('a -> 'a)
+  -> ('a -> constr -> constr)
+  -> (Sorts.relevance -> Sorts.relevance)
+  -> quality_subst_opt_fn
+  -> universe_subst_fn
+  -> 'a -> constr -> constr
+(** Substitutes the sort variables and universe levels mapped to [Some _], keeping the
+    sharing of the subterms with nothing to substitute. *)
 
 val map_universes_opt_subst_with_binders
   : ('a -> 'a)
@@ -33,6 +44,7 @@ val map_universes_opt_subst_with_binders
   -> quality_subst_fn
   -> universe_subst_fn
   -> 'a -> constr -> constr
+(** As [map_sorts_opt_subst_with_binders] with a total substitution of sort variables *)
 
 val nf_evars_and_universes_opt_subst
   : (existential -> constr option)

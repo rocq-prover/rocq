@@ -249,6 +249,15 @@ module Quality = struct
       | QVar qv' as q' ->
         if qv == qv' then q else q'
 
+  let subst_opt f = function
+    | QConstant _ | QGlobal _ as q -> q
+    | QVar qv as q ->
+      match f qv with
+      | None -> q
+      | Some (QConstant _ | QGlobal _ as q') -> q'
+      | Some (QVar qv' as q') ->
+        if qv == qv' then q else q'
+
   let subst_fn m v =
     match QVar.Map.find_opt v m with
     | Some v -> v
@@ -480,6 +489,28 @@ let subst_fn (fq,fu) = function
     | QConstant QSProp -> sprop
     | QConstant QProp -> prop
     | q' -> make q' (Universe.subst_fn fu v)
+
+let subst_opt_fn (fq,fu) = function
+  | SProp | Prop | Set as s -> s
+  | Type v as s ->
+    let v' = Universe.subst_opt_fn fu v in
+    if v' == v then s else sort_of_univ v'
+  | GSort (q, v) as s ->
+    let v' = Universe.subst_opt_fn fu v in
+    if v' == v then s else gsort q v'
+  | VSort (q, v) as s ->
+    let open Quality in
+    match fq q with
+    | None ->
+      let v' = Universe.subst_opt_fn fu v in
+      if v' == v then s else vsort q v'
+    | Some (QVar q') ->
+      let v' = Universe.subst_opt_fn fu v in
+      if q' == q && v' == v then s
+      else vsort q' v'
+    | Some (QConstant QSProp) -> sprop
+    | Some (QConstant QProp) -> prop
+    | Some q' -> make q' (Universe.subst_opt_fn fu v)
 
 let quality = let open Quality in function
 | Set | Type _ -> qtype
