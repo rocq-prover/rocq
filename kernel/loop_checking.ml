@@ -1920,6 +1920,17 @@ let find_to_merge model prems (canv, kv) =
 let zone_classes model prems (canv, kv) =
   (* [Set] is below every universe *)
   let setcan = repr model (Index.find Level.set model.table) in
+  (* If [Set] is no premise and [canv] only a premise of clauses concluding [Set] (as [Set <= canv]),
+     [canv] and [Set] are the only universes below them. The premises are not among them, nor the
+     universes above the premises, which are premises of clauses not concluding [Set]: the zone is
+     empty *)
+  if ForwardClauses.is_empty setcan.clauses_fwd &&
+     not (ForwardClauses.exists (fun ~kprem:_ ~concl ~prems:_ ->
+         not (Index.equal concl setcan.canon)) canv.clauses_fwd)
+  then [] else
+  (* A single premise concluding no clause is below no universe: the zone has at most this premise *)
+  if (match prems with NeList.Tip (p, _) -> ClausesOf.is_empty p.clauses_bwd | NeList.Cons _ -> false)
+  then [] else
   let below = reach_all model fold_below (fun _ -> true) [(canv, kv); (setcan, 0)] in
   let zone = reach_all model fold_above (fun (y, _) -> PMap.mem y.canon below) (NeList.to_list prems) in
   let zone = PMap.filter (fun idx _ -> PMap.mem idx below) zone in
