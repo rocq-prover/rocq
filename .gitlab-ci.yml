@@ -1070,6 +1070,7 @@ plugin:ci-coinduction:
   needs:
   - build:edge+flambda
   - library:ci-stdlib+flambda
+  - plugin:ci-elpi_hb
 
 plugin:ci-coq_dpdgraph:
   extends: .ci-template-flambda
