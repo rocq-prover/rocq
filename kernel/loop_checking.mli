@@ -50,6 +50,11 @@ val enforce_leq : Universe.t -> Universe.t -> t -> (t * level_equivalences) opti
 val enforce_lt : Universe.t -> Universe.t -> t -> (t * level_equivalences) option
 val enforce_constraint : UnivConstraint.t -> t -> (t * level_equivalences) option
 
+val enforce_constraints : UnivConstraint.t list -> t -> (t * level_equivalences) option
+(** Enforces the constraints all at once: their clauses are added to the model, then a model is
+  inferred, and only then are the equalities they create merged. This is more efficient than
+  enforcing them one at a time. *)
+
 (** Normalize a level to its canonical representative.
   This uses the internally maintained substitution from levels to universes.
   @return A canonical universe: each level in the universe is canonical w.r.t. the given model. *)

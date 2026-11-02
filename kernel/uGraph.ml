@@ -99,9 +99,13 @@ let enforce_constraint cst g = match enforce_constraint0 cst g with
 | Some g -> g
 
 let merge_constraints csts g =
-  UnivConstraints.fold (fun cst (g, equivs) ->
-    let g, equivs' = enforce_constraint cst g in
-    g, equivs' @ equivs) csts (g, [])
+  match G.enforce_constraints (UnivConstraints.elements csts) g.graph with
+  | Some (graph, equivs) -> (if graph == g.graph then g else { g with graph }), equivs
+  | None ->
+    (* Find the inconsistent constraint, or skip them with type in type *)
+    UnivConstraints.fold (fun cst (g, equivs) ->
+      let g, equivs' = enforce_constraint cst g in
+      g, equivs' @ equivs) csts (g, [])
 
 let check_constraint { graph = g; type_in_type; _ } (u,d,v) =
   type_in_type
