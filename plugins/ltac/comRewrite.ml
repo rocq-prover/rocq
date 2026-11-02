@@ -58,6 +58,21 @@ module PropGlobal = struct
 
 end
 
+let deprecated_add_relation =
+  CWarnings.create ~name:"deprecated-add-relation" ~category:Deprecation.Version.v9_4 (fun l ->
+    Pp.(str "The command Add (Parametric) Relation is deprecated. Declare \
+    instead instances for the following classes: " ++ pr_sequence str l ++ str "."))
+
+let deprecated_add_setoid =
+  CWarnings.create ~name:"deprecated-add-setoid" ~category:Deprecation.Version.v9_4 (fun () ->
+    Pp.(str "The command Add (Parametric) Setoid is deprecated. Declare \
+    instead instances for the following classes: Reflexive Symmetric Transitive Equivalence."))
+
+let deprecated_add_morphism =
+  CWarnings.create ~name:"deprecated-add-morphism" ~category:Deprecation.Version.v9_4 (fun () ->
+    Pp.(str "The command Add (Parametric) Morphism is deprecated. Declare \
+    instead instances for the class Proper."))
+
 (* By default the strategy for "rewrite_db" is top-down *)
 
 let mkappc s l = CAst.make @@ CAppExpl ((qualid_of_ident (Id.of_string s),None),l)
@@ -97,39 +112,47 @@ let declare_relation atts ?(binders=[]) a aeq n refl symm trans =
   let instance = declare_instance a aeq (add_suffix n "_relation") "Corelib.Classes.RelationClasses.RewriteRelation" in
   let () = anew_instance atts binders instance [] in
   match (refl,symm,trans) with
-    (None, None, None) -> ()
+  | (None, None, None) ->
+    deprecated_add_relation ["RewriteRelation"]
   | (Some lemma1, None, None) ->
-    declare_instance_refl atts binders a aeq n lemma1
+    let () = declare_instance_refl atts binders a aeq n lemma1 in
+    deprecated_add_relation ["RewriteRelation"; "Reflexive"]
   | (None, Some lemma2, None) ->
-    declare_instance_sym atts binders a aeq n lemma2
+    let () = declare_instance_sym atts binders a aeq n lemma2 in
+    deprecated_add_relation ["RewriteRelation"; "Symmetric"]
   | (None, None, Some lemma3) ->
-    declare_instance_trans atts binders a aeq n lemma3
+    let () = declare_instance_trans atts binders a aeq n lemma3 in
+    deprecated_add_relation ["RewriteRelation"; "Transitive"]
   | (Some lemma1, Some lemma2, None) ->
     let () = declare_instance_refl atts binders a aeq n lemma1 in
-    declare_instance_sym atts binders a aeq n lemma2
+    let () = declare_instance_sym atts binders a aeq n lemma2 in
+    deprecated_add_relation ["RewriteRelation"; "Reflexive"; "Symmetric"]
   | (Some lemma1, None, Some lemma3) ->
     let () = declare_instance_refl atts binders a aeq n lemma1 in
     let () = declare_instance_trans atts binders a aeq n lemma3 in
     let instance = declare_instance a aeq n "Corelib.Classes.RelationClasses.PreOrder" in
-    anew_instance atts binders instance
+    let () = anew_instance atts binders instance
       [(qualid_of_ident (Id.of_string "PreOrder_Reflexive"), lemma1);
-       (qualid_of_ident (Id.of_string "PreOrder_Transitive"),lemma3)]
+       (qualid_of_ident (Id.of_string "PreOrder_Transitive"),lemma3)] in
+    deprecated_add_relation ["RewriteRelation"; "Reflexive"; "Transitive"; "PreOrder"]
   | (None, Some lemma2, Some lemma3) ->
     let () = declare_instance_sym atts binders a aeq n lemma2 in
     let () = declare_instance_trans atts binders a aeq n lemma3 in
     let instance = declare_instance a aeq n "Corelib.Classes.RelationClasses.PER" in
-    anew_instance atts binders instance
+    let () = anew_instance atts binders instance
       [(qualid_of_ident (Id.of_string "PER_Symmetric"), lemma2);
-       (qualid_of_ident (Id.of_string "PER_Transitive"),lemma3)]
+       (qualid_of_ident (Id.of_string "PER_Transitive"),lemma3)] in
+    deprecated_add_relation ["RewriteRelation"; "Symmetric"; "Transitive"; "PER"]
   | (Some lemma1, Some lemma2, Some lemma3) ->
     let () = declare_instance_refl atts binders a aeq n lemma1 in
     let () = declare_instance_sym atts binders a aeq n lemma2 in
     let () = declare_instance_trans atts binders a aeq n lemma3 in
     let instance = declare_instance a aeq n "Corelib.Classes.RelationClasses.Equivalence" in
-    anew_instance atts binders instance
+    let () = anew_instance atts binders instance
       [(qualid_of_ident (Id.of_string "Equivalence_Reflexive"), lemma1);
        (qualid_of_ident (Id.of_string "Equivalence_Symmetric"), lemma2);
-       (qualid_of_ident (Id.of_string "Equivalence_Transitive"), lemma3)]
+       (qualid_of_ident (Id.of_string "Equivalence_Transitive"), lemma3)] in
+    deprecated_add_relation ["RewriteRelation"; "Reflexive"; "Symmetric"; "Transitive"; "Equivalence"]
 
 let cHole = CAst.make @@ CHole (None)
 
@@ -188,10 +211,11 @@ let add_setoid atts binders a aeq t n =
   let () = declare_instance_trans atts binders a aeq n (mkappc "Seq_trans" [a;aeq;t]) in
   let instance = declare_instance a aeq n "Corelib.Classes.RelationClasses.Equivalence"
   in
-  anew_instance atts binders instance
+  let () = anew_instance atts binders instance
     [(qualid_of_ident (Id.of_string "Equivalence_Reflexive"), mkappc "Seq_refl" [a;aeq;t]);
      (qualid_of_ident (Id.of_string "Equivalence_Symmetric"), mkappc "Seq_sym" [a;aeq;t]);
-     (qualid_of_ident (Id.of_string "Equivalence_Transitive"), mkappc "Seq_trans" [a;aeq;t])]
+     (qualid_of_ident (Id.of_string "Equivalence_Transitive"), mkappc "Seq_trans" [a;aeq;t])] in
+  deprecated_add_setoid ()
 
 let add_morphism_as_parameter atts m n : unit =
   init_setoid ();
@@ -204,9 +228,10 @@ let add_morphism_as_parameter atts m n : unit =
   let evd, pe = Declare.prepare_parameter ~poly:atts.poly ~udecl ~types evd in
   let cst = Declare.declare_constant ?loc:instance_id.loc ~name:instance_id.v ~kind (Declare.ParameterEntry pe) in
   let cst = GlobRef.ConstRef cst in
-  Classes.Internal.add_instance
-    (PropGlobal.proper_class ()) Hints.empty_hint_info atts.locality cst;
-  declare_projection n instance_id cst
+  let () = Classes.Internal.add_instance
+    (PropGlobal.proper_class ()) Hints.empty_hint_info atts.locality cst in
+  let () = declare_projection n instance_id cst in
+  deprecated_add_morphism ()
 
 let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
   init_setoid ();
@@ -223,12 +248,15 @@ let add_morphism_interactive atts ~tactic m n : Declare.Proof.t =
     | _ -> assert false
   in
   let hook = Declare.Hook.make hook in
-  Flags.silently
+  let proof = Flags.silently
     (fun () ->
        let cinfo = Declare.CInfo.make ?loc:instance_id.loc ~name:instance_id.v ~typ:morph () in
        let info = Declare.Info.make ~poly:atts.poly ~hook ~kind () in
        let lemma = Declare.Proof.start ~cinfo ~info evd in
        fst (Declare.Proof.by (Global.env ()) tactic lemma)) ()
+  in
+  let () = deprecated_add_morphism () in
+  proof
 
 let add_morphism atts ~tactic binders m s n =
   init_setoid ();
@@ -245,4 +273,5 @@ let add_morphism atts ~tactic binders m s n =
       ~tac:tactic ~hook:(declare_projection n instance_id)
       Hints.empty_hint_info None
   in
+  let () = deprecated_add_morphism () in
   lemma (* no instance body -> always open proof *)
