@@ -397,10 +397,11 @@ let map_cmdline f l = CList.map_filter (function
     | {source=ProjectFile} -> None) l
 
 let coqtop_args_from_project
-  { ml_includes; r_includes; q_includes; extra_args }
+  { packages; ml_includes; r_includes; q_includes; extra_args }
 =
   let map = map_sourced_list  in
   let args =
+    List.map (fun p -> ["-package"; p]) packages @
     map (fun { canonical_path = i } -> ["-I"; i]) ml_includes @
     map (fun ({ canonical_path = i }, l) -> ["-Q"; i; l]) q_includes @
     map (fun ({ canonical_path = p }, l) -> ["-R"; p; l]) r_includes @
