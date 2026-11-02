@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Univ
-open UnivSubst
 open InferCumulativity
 
 let _debug_minim, debug = CDebug.create_full ~name:"univMinim" ()
@@ -255,7 +254,7 @@ let _pr_substitution prl m =
 
 let new_minimize_weak ctx flex weak (g, variances) =
   UPairSet.fold (fun (u,v) (ctx, flex, variances, g as acc) ->
-    let norm = Universe.subst_fn (level_subst_of (UGraph.normalize g)) in
+    let norm = Universe.subst_opt_fn (UGraph.normalize g) in
     let u = norm u and v = norm v in
     if (Universe.is_type0 u || Universe.is_type0 v) then acc
     else

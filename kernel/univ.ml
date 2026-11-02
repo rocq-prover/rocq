@@ -492,6 +492,20 @@ struct
     if not !modified then u
     else unrepr u'
 
+  let subst_opt_fn fn u =
+    (* Allocates nothing when no level is substituted *)
+    let rec aux = function
+      | [] -> None
+      | (l, k as x) :: rest ->
+        match fn l, aux rest with
+        | None, None -> None
+        | None, Some rest' -> Some (x :: rest')
+        | Some v, rest' -> Some (addn v k @ Option.default rest rest')
+    in
+    match aux u with
+    | None -> u
+    | Some u' -> unrepr u'
+
 end
 
 module LevelExpr = Universe.Expr
