@@ -201,6 +201,10 @@ sig
 
   val subst_fn : (Level.t -> t) -> t -> t
 
+  val subst_opt_fn : (Level.t -> t option) -> t -> t
+  (** [subst_opt_fn fn u] substitutes the levels [l] of [u] such that [fn l = Some v] by [v];
+      it returns [u] itself when there is none. *)
+
   module Set : CSet.ExtS with type elt  = t
   module Map : CMap.ExtS with type key = t and module Set := Set
 

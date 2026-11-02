@@ -1790,7 +1790,7 @@ module MiniEConstr = struct
     let saw_evar = ref false in
     let univ_value l = UState.subst_fn sigma.universes l in
     let relevance_value r = UState.nf_relevance sigma.universes r in
-    let qvar_value q = UState.nf_qvar sigma.universes q in
+    let qvar_value q = UState.nf_qvar_opt sigma.universes q in
     let next s = { s with evc_lift = s.evc_lift + 1 } in
     let find clos id = match Id.Map.find_opt id clos.evc_map with
     | None -> None
@@ -1862,7 +1862,7 @@ module MiniEConstr = struct
         self nclos c
       end
     | _ ->
-      UnivSubst.map_universes_opt_subst_with_binders next self relevance_value qvar_value univ_value clos c
+      UnivSubst.map_sorts_opt_subst_with_binders next self relevance_value qvar_value univ_value clos c
     in
     let clos = {
       evc_lift = 0;

@@ -278,6 +278,12 @@ sig
     : (Sorts.QVar.t -> Quality.t) * (Level.t -> Universe.t)
     -> t -> t
 
+  val subst_opt_fn
+    : (Sorts.QVar.t -> Quality.t option) * (Level.t -> Universe.t option)
+    -> t -> t
+  (** As [subst_fn], substituting only the variables and levels mapped to [Some _]:
+      allocates nothing on instances with no substituted variable or level. *)
+
   (** Pattern matching, as used by the rewrite rules mechanism *)
   type ('q, 'u) mask = 'q Quality.pattern array * 'u array
 

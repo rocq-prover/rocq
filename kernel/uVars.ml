@@ -633,6 +633,7 @@ module Instance : sig
   val hash : t -> int
 
   val subst_fn : (Sorts.QVar.t -> Quality.t) * (Level.t -> Universe.t) -> t -> t
+  val subst_opt_fn : (Sorts.QVar.t -> Quality.t option) * (Level.t -> Universe.t option) -> t -> t
 
   val pr : Sorts.printer -> ?variances:Variances.t -> t -> Pp.t
   val levels : t -> Quality.Set.t * Level.Set.t
@@ -713,6 +714,11 @@ let subst_fn (fq, fn) (q,u as orig) : t =
   let u' = CArray.Smart.map (Universe.subst_fn fn) u in
   if q' == q && u' == u then orig else q', u'
 
+let subst_opt_fn (fq, fn) (q,u as orig) : t =
+  let q' = CArray.Smart.map (Quality.subst_opt fq) q in
+  let u' = CArray.Smart.map (Universe.subst_opt_fn fn) u in
+  if q' == q && u' == u then orig else q', u'
+
 let levels (xq,xu) =
   let q = Array.fold_left (fun acc x -> Quality.Set.add x acc) Quality.Set.empty xq in
   let u = Array.fold_left (fun acc x -> Level.Set.union (Universe.levels x) acc) Level.Set.empty xu in
@@ -774,15 +780,20 @@ let enforce_leq_variance_instances ~nargs variances x y (qcs,ucs as orig) =
   let ucs' = Variances.leq_constraints ~nargs variances xu yu ucs in
   if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
 
-let subst_instance_level s l =
+let subst_instance_level_opt s l =
   match Level.var_index l with
-  | Some n -> (snd (Instance.to_array s)).(n)
-  | None -> Universe.make l
+  | Some n -> Some (snd (Instance.to_array s)).(n)
+  | None -> None
 
 let subst_instance_qvar s v =
   match Sorts.QVar.var_index v with
   | Some n -> (fst (Instance.to_array s)).(n)
   | None -> Quality.QVar v
+
+let subst_instance_qvar_opt s v =
+  match Sorts.QVar.var_index v with
+  | Some n -> Some (fst (Instance.to_array s)).(n)
+  | None -> None
 
 let subst_instance_quality s l =
   match l with
@@ -793,21 +804,10 @@ let subst_instance_quality s l =
   | Quality.QConstant _ | Quality.QGlobal _ -> l
 
 let subst_instance_universe subst u =
-  let ur = Universe.repr u in
-  let modified = ref false in
-  let rec aux u' = function
-    | [] -> u'
-    | (l, k) :: u ->
-      let univ = subst_instance_level subst l in
-      modified := true;
-      aux (List.append (Universe.repr (Universe.addn univ k)) u') u
-  in
-  let u' = aux [] ur in
-  if not !modified then u
-  else Universe.unrepr u'
+  Universe.subst_opt_fn (subst_instance_level_opt subst) u
 
 let subst_instance_sort u s =
-  Sorts.subst_fn ((subst_instance_qvar u), (subst_instance_level u)) s
+  Sorts.subst_opt_fn ((subst_instance_qvar_opt u), (subst_instance_level_opt u)) s
 
 let subst_instance_relevance u r =
   Sorts.relevance_subst_fn (subst_instance_qvar u) r
