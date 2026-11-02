@@ -429,7 +429,7 @@ type univ_extension = {
 let nf_evars_univs sigma c =
   let uctx = Evd.ustate sigma in
   let univ = UState.subst_fn uctx in
-  let qual q = UState.nf_qvar uctx q in
+  let qual q = UState.nf_qvar_opt uctx q in
   let rel r = UState.nf_relevance uctx r in
   let rec self () c = match Constr.kind c with
     | Constr.Evar (evk, args) ->
@@ -438,7 +438,7 @@ let nf_evars_univs sigma c =
       | None -> if args == args' then c else Constr.mkEvar (evk, args')
       | Some v -> self () v
       end
-    | _ -> UnivSubst.map_universes_opt_subst_with_binders ignore self rel qual univ () c
+    | _ -> UnivSubst.map_sorts_opt_subst_with_binders ignore self rel qual univ () c
   in
   EConstr.of_constr (self () (EConstr.Unsafe.to_constr c))
 

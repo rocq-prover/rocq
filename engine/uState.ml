@@ -81,6 +81,7 @@ module QState : sig
   val union : fail:(t -> Quality.t -> Quality.t -> t) -> t -> t -> t
   val add : check_fresh:bool -> rigid:bool -> elt -> t -> t
   val repr : elt -> t -> Quality.t
+  val repr_opt : elt -> t -> Quality.t option
   val is_rigid : t -> QVar.t -> bool
   val is_above_prop : t -> QVar.t -> bool
   val unify_quality : fail:(unit -> t) -> Conversion.conv_pb -> Quality.t -> Quality.t -> t -> t
@@ -125,6 +126,12 @@ let rec repr q m = match QMap.find q m.qmap with
 | Equiv (QVar q) -> repr q m
 | Equiv (QConstant _ | QGlobal _ as q) -> q
 | exception Not_found -> QVar q
+
+let repr_opt q m = match QMap.find q m.qmap with
+| Canonical _ -> None
+| Equiv (QVar q) -> Some (repr q m)
+| Equiv (QConstant _ | QGlobal _ as q) -> Some q
+| exception Not_found -> None
 
 type repr =
 | ReprConstant of Quality.constant
@@ -853,6 +860,8 @@ let universe_binders uctx =
 
 let nf_qvar uctx q = QState.repr q uctx.sort_variables
 
+let nf_qvar_opt uctx q = QState.repr_opt q uctx.sort_variables
+
 exception UniversesDiffer
 
 let { Goptions.get = weak_constraints } =
@@ -871,22 +880,20 @@ let nf_universe uctx u =
 let nf_level uctx u =
   UnivSubst.(level_subst_of (UGraph.normalize uctx.universes)) u
 
-let nf_instance uctx u = Instance.subst_fn (nf_qvar uctx, nf_level uctx) u
+let nf_instance uctx u = Instance.subst_opt_fn (nf_qvar_opt uctx, UGraph.normalize uctx.universes) u
 
-let nf_quality uctx q = Quality.subst (nf_qvar uctx) q
+let nf_quality uctx q = Quality.subst_opt (nf_qvar_opt uctx) q
 
-let nf_sort uctx s =
-  let normalize u = nf_level uctx u in
-  let qnormalize q = QState.repr q uctx.sort_variables in
-  Sorts.subst_fn (qnormalize, normalize) s
+let nf_sort uctx s = Sorts.subst_opt_fn (nf_qvar_opt uctx, UGraph.normalize uctx.universes) s
 
 let nf_relevance uctx r = match r with
 | Relevant | Irrelevant -> r
 | RelevanceVar q ->
-  match nf_qvar uctx q with
-  | QConstant QSProp -> Sorts.Irrelevant
-  | QConstant QProp | QConstant QType | QGlobal _ -> Sorts.Relevant
-  | QVar q' ->
+  match nf_qvar_opt uctx q with
+  | None -> if QState.is_above_prop uctx.sort_variables q then Relevant else r
+  | Some (QConstant QSProp) -> Sorts.Irrelevant
+  | Some (QConstant QProp | QConstant QType | QGlobal _) -> Sorts.Relevant
+  | Some (QVar q') ->
     (* XXX currently not used in nf_evars_and_universes_opt_subst
        does it matter? *)
     if QState.is_above_prop uctx.sort_variables q' then Relevant
@@ -899,7 +906,7 @@ let nf_universes uctx c =
   | Evar (evk, args) ->
     let args' = SList.Smart.map (self ()) args in
     if args == args' then c else Constr.mkEvar (evk, args')
-  | _ -> UnivSubst.map_universes_opt_subst_with_binders ignore self (nf_relevance uctx) (nf_qvar uctx) nf_univ () c
+  | _ -> UnivSubst.map_sorts_opt_subst_with_binders ignore self (nf_relevance uctx) (nf_qvar_opt uctx) nf_univ () c
   in
   self ()  c
 
@@ -1021,15 +1028,13 @@ let process_constraints ?src uctx cstrs =
   let open UnivProblem in
   (* let quals = elim_graph uctx in *)
   let normalize local u = UGraph.normalize local.universes u in
-  let qnormalize local q = QState.repr q local.sort_variables in
+  let qnormalize local q = QState.repr_opt q local.sort_variables in
   let normalize_univ local u = normalize_universe local.universes u in
-  let normalize_sort local s =
-    Sorts.subst_fn ((qnormalize local), UnivSubst.subst_univs_level (normalize local)) s
-  in
+  let normalize_sort local s = Sorts.subst_opt_fn (qnormalize local, normalize local) s in
   let nf_constraint local = function
-    | QElimTo (a, b) -> QElimTo (Quality.subst (qnormalize local) a, Quality.subst (qnormalize local) b)
-    | QLeq (a, b) -> QLeq (Quality.subst (qnormalize local) a, Quality.subst (qnormalize local) b)
-    | QEq (a, b) -> QEq (Quality.subst (qnormalize local) a, Quality.subst (qnormalize local) b)
+    | QElimTo (a, b) -> QElimTo (Quality.subst_opt (qnormalize local) a, Quality.subst_opt (qnormalize local) b)
+    | QLeq (a, b) -> QLeq (Quality.subst_opt (qnormalize local) a, Quality.subst_opt (qnormalize local) b)
+    | QEq (a, b) -> QEq (Quality.subst_opt (qnormalize local) a, Quality.subst_opt (qnormalize local) b)
     | ULub (c, u, v) -> ULub (c, normalize_univ local u, normalize_univ local v)
     | UWeak (u, v) -> UWeak (normalize_univ local u, normalize_univ local v)
     | UEq (u, v) -> UEq (normalize_sort local u, normalize_sort local v)
