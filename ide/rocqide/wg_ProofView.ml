@@ -171,8 +171,11 @@ let display (view : #GText.view_skel) goals hints =
     | _, _, _ ->
       (* No foreground proofs, but still unfocused ones *)
       let total = List.length bg in
-      let goal_str index id =
+      let goal_str index id name =
         let annot =
+          match name with
+          | Some na -> Printf.sprintf "(?%s)" na
+          | None ->
           if Option.has_some (int_of_string_opt id) (* some uid *) then Printf.sprintf "(%d/%d)" index total
           else Printf.sprintf "(?%s)" id in
         Printf.sprintf
@@ -180,7 +183,7 @@ let display (view : #GText.view_skel) goals hints =
       in
       view#buffer#insert "This subproof is complete, but there are some unfocused goals:\n\n";
       let iter i goal =
-        let () = view#buffer#insert (goal_str (succ i) goal.Interface.goal_id) in
+        let () = view#buffer#insert (goal_str (succ i) goal.Interface.goal_id goal.goal_name) in
         insert_xml view#buffer (Richpp.richpp_of_pp ~width goal.Interface.goal_ccl);
         view#buffer#insert "\n"
       in
