@@ -412,8 +412,6 @@ struct
 
   let to_list = NeList.to_list
 
-  let map = NeList.map
-
   let pr pr_index_point prem =
     let open Pp in
     prlist_with_sep (fun () -> str ",") pr_index_point (to_list prem)
@@ -1659,6 +1657,8 @@ let refresh_can_expr_can m (can, k) =
   | NeList.Tip cank -> cank
   | NeList.Cons _ -> assert false (* We are only equating level expressions here. *)
 
+let refresh_can_premises m prems = NeList.map (refresh_can_expr_can m) prems
+
 let enforce_eq_can m can can' equivs =
   debug_loop_checking Pp.(fun () -> str"Merging " ++ pr_can_expr m can ++ str " and " ++ pr_can_expr m can');
   let can = refresh_can_expr_can m can in
@@ -1684,9 +1684,6 @@ let make_equiv m equiv =
 (* let _simplify_premises m prems concl conclk : Premises.t option =
   let prems' = canonical_premises m prems in
   shrink_premises prems' concl conclk *)
-
-let refresh_can_premises model prems =
-  Premises.map (refresh_can_expr model) prems
 
 type equivalences = (Index.t * (Index.t * int)) list
 
@@ -1971,30 +1968,10 @@ let simplify_clauses_between model u prems : t * equivalences =
   in
   (* [make_equiv] may have merged [u] or the premises: their nodes are no longer canonical *)
   let u = refresh_can_expr_can model u in
-  let prems = NeList.map (refresh_can_expr_can model) prems in
+  let prems = refresh_can_premises model prems in
   List.fold_left (fun (model, equivs) cls ->
       let model, equivs' = make_equiv model cls in model, equivs' @ equivs)
     (model, equivs) (zone_classes model prems u)
-
-(** Enforce u <= v and check if v <= u already held, in that case, enforce u = v *)
-let enforce_leq_can_internal (v, u) m =
-  if (match v with NeList.Tip v -> eq_can_expr u v | _ -> false) then Some (m, [])
-  else
-  match infer_clause_extension (v, u) m with
-  | None -> None
-  | Some m' ->
-    if m' != m then
-      (* Looking for inverse clause and merging *)
-      let u = refresh_can_expr m' u in
-      let v = refresh_can_premises m' v in
-      Some (simplify_clauses_between m' u v)
-    else Some (m, [])
-
-let enforce_leq_can u v m =
-  match simplify_can_clause m (v, u) with
-  | Trivial -> Some (m, [])
-  | Contradictory -> None
-  | Canonical cl -> enforce_leq_can_internal cl m
 
 let canonical_repr_level_expr m (u, k) : can_premises =
   try canonical_repr m (Index.find u m.table, k)
@@ -2010,20 +1987,6 @@ let level_expr_premises m (u, k) : Premises.t =
       Pp.(str"Universe " ++ Level.raw_pr u ++ str" undefined" ++
       (if Index.mem u m.table then str" (index found)" else str " (index not found in " ++ Level.Set.pr Level.raw_pr (Index.dom m.table) ++ str")") ++ str".")
 
-let rec enforce_leq_premises (u : Premises.t) (v : Premises.t) m =
-  NeList.fold (fun (u, k) res ->
-    match res with
-    | None -> None
-    | Some (m, equivs) ->
-      let canu = canonical_repr m (u, k) in
-      let canv = canonical_premises_repr m v in
-      match canu with
-      | NeList.Tip canu ->
-        (match enforce_leq_can canu canv m with
-        | None -> None
-        | Some (m, equivs') -> Some (m, equivs @ equivs'))
-      | _ -> enforce_leq_premises (canonical_can_premises canu) v m) u (Some (m, []))
-
 let unrepr_equivalences model (idxs : equivalences) =
   List.map (fun (idx, (idx', k)) -> (Index.repr idx model.table, (Index.repr idx' model.table, k))) idxs
 
@@ -2037,17 +2000,70 @@ let decompose_eq_constraints u k v =
   | UnivConstraint.Le -> [(u, v)]
   | UnivConstraint.Eq -> [(u, v); (v, u)]
 
-let enforce_constraint u k v (m : t) =
+(** [enforce_clauses cls m] enforces the clauses [concl + k <= max(prems)] of [cls], given as
+  pairs [(prems, (concl, k))] of universes which need not be canonical, all at once: the clauses
+  are added to the model and the values of their conclusions raised, then a model is inferred
+  from the raised universes, and only then are the equalities created by each clause found and
+  merged, as in [simplify_clauses_between].
+  @return [None] if the clauses are inconsistent with [m] *)
+let enforce_clauses cls m =
+  (* Adding a clause or raising a value changes nodes: they are looked up again for each clause,
+     given by the canonical universes, which do not change until the merges *)
+  let add_can_clause (prems, concl) acc =
+    match acc with
+    | None -> None
+    | Some (m, added, raised) ->
+      match simplify_can_clause m (canonical_premises_repr m prems, repr_expr m concl) with
+      | Trivial -> acc
+      | Contradictory -> None
+      | Canonical cl ->
+        match add_can_clause_model m cl with
+        | None -> acc (* The clause was already present in the model *)
+        | Some ((prems, (can, k)) as cl, m) ->
+          (* The value of the conclusion is raised, but not propagated yet *)
+          match update_can_premises (m, CanSet.empty) prems with
+          | exception VacuouslyTrue -> assert false (* The declared universes have values *)
+          | (_, k0) ->
+            let m' = update_model_value m can (Some (k + k0)) in
+            Some (m', cl :: added, if m' == m then raised else PSet.add can.canon raised)
+  in
+  (* A conclusion substituted by [max(a, b)] gives a clause for each of [a] and [b] *)
+  let add_clause acc (prems, concl) =
+    match acc with
+    | None -> None
+    | Some (m, _, _) ->
+      let concls = canonical_can_premises (canonical_repr m concl) in
+      NeList.fold (fun concl acc -> add_can_clause (prems, concl) acc) concls acc
+  in
+  match List.fold_left add_clause (Some (m, [], PSet.empty)) cls with
+  | None -> None
+  | Some (m, added, raised) ->
+    let m =
+      if PSet.is_empty raised then Some m else
+      match check_clauses_with_premises (add_fwd_clause m raised CanSet.empty) m with
+      | None -> Some m
+      | Some (modified, m) -> infer_clauses_extension modified m
+    in
+    let merge (m, equivs) (prems, concl) =
+      let concl = refresh_can_expr_can m concl in
+      let prems = refresh_can_premises m prems in
+      match simplify_can_clause m (prems, concl) with
+      | Trivial -> (m, equivs)
+      | Contradictory -> assert false (* The clause holds in [m] *)
+      | Canonical (prems, concl) ->
+        let m, equivs' = simplify_clauses_between m concl prems in
+        (m, equivs' @ equivs)
+    in
+    (* From the last clause, as when they are enforced one at a time: the universes made equal by
+       the last clause of a cycle are merged into its conclusion *)
+    Option.map (fun m -> List.fold_left merge (m, []) added) m
+
+(** The clauses [l + k <= max(prems v)] for each [l + k] of [u], and the converse ones for [Eq] *)
+let clauses_of_constraint m (u, k, v) =
   let pu = premises_of_universe m u in
   let pv = premises_of_universe m v in
-  let cls = decompose_eq_constraints pu k pv in
-  List.fold_left (fun m (u, v) ->
-    match m with
-    | None -> None
-    | Some (m, equivs) ->
-      match enforce_leq_premises u v m with
-      | None -> None
-      | Some (m, equivs') -> Some (m, equivs @ equivs')) (Some (m, [])) cls
+  List.concat_map (fun (u, v) -> List.map (fun u -> (v, u)) (NeList.to_list u))
+    (decompose_eq_constraints pu k pv)
 
 (* The queries of the checks of [-d loop-checking-merged] would check the invariants of the whole
    model each time *)
@@ -2092,11 +2108,15 @@ let check_merged model u v =
         near)
     near
 
-let enforce u k v m =
-  let res = enforce_constraint u k v m in
+(** [enforce_constraints csts m] enforces the constraints [csts] all at once, see [enforce_clauses] *)
+let enforce_constraints csts m =
+  let res = enforce_clauses (List.concat_map (clauses_of_constraint m) csts) m in
   if CDebug.get_flag debug_loop_checking_merged_flag then
-    without_invariant_checks (fun () -> Option.iter (fun (m, _) -> check_merged m u v) res);
+    without_invariant_checks (fun () ->
+        Option.iter (fun (m, _) -> List.iter (fun (u, _, v) -> check_merged m u v) csts) res);
   Option.map (fun (m, equivs) -> m, unrepr_equivalences m equivs) res
+
+let enforce u k v m = enforce_constraints [(u, k, v)] m
 
 let enforce_eq u v m = enforce u UnivConstraint.Eq v m
 let enforce_leq u v m = enforce u UnivConstraint.Le v m
@@ -2312,9 +2332,7 @@ let explain_can_clause model ((prems, (concl, k)) : can_clause) =
   if k > 0 then (univ (k - 1), ULt, prems) else (univ k, ULe, prems)
 
 let enforce_all model cls m =
-  List.fold_left (fun m cl ->
-      Option.bind m (fun m -> Option.map fst (enforce_constraint (constraint_of_can_clause model cl) m)))
-    m cls
+  Option.bind m (fun m -> Option.map fst (enforce_constraints (List.map (constraint_of_can_clause model) cls) m))
 
 (** [quickxplain model ~added base cls] is a minimal subset of the clauses [cls] of [model]
   inconsistent with [base] (a model, or [None] if inconsistent), assuming that [cls] is. [added]
@@ -2429,9 +2447,6 @@ let filter_trivial_clause m (prems, (concl, k as conclk)) =
       (* Filter out `Set` from max(Set, u) -> v constraints *)
       Some (remove_dominated_set Fun.id (Index.find Level.set m.table) prems, conclk)
 
-let enforce_clause (prems, concl) model =
-  enforce_leq_premises (NeList.Tip concl) prems model
-
 exception InconsistentEquality
 
 (** [set idx u model] substitutes universe [u] for all occurrences of [idx] in model, resulting
@@ -2507,11 +2522,9 @@ let set_can (can,k) u model =
   debug_loop_checking_set_can Pp.(fun () ->str "newfwd: " ++ pr_clauses model fwdcls ++
     str"bwdcls: " ++ pr_clauses model (List.map snd bwdcls));
   let newcls = List.filter_map (filter_trivial_clause model) newcls in
-  let enforce_clause (model, equivs) cl =
-    match enforce_clause cl model with
-    | Some (model, equivs') -> (model, equivs' @ equivs)
-    | None -> raise InconsistentEquality
-  in List.fold_left enforce_clause (model, []) newcls
+  match enforce_clauses newcls model with
+  | Some res -> res
+  | None -> raise InconsistentEquality
 
 exception OccurCheck
 exception NotCanonical
