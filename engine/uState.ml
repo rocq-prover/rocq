@@ -1559,6 +1559,11 @@ let from_env env =
     sort_variables = QState.of_elims (Environ.qualities env);
   }
 
+let warn_unsat_constraints = CWarnings.create ~name:"print-unsatisfiable-ref"
+    Pp.(fun (ustate,e) ->
+        str "This reference relies on unsatisfiable constraints:" ++ spc() ++
+        hov 2 (UGraph.explain_universe_inconsistency (sort_printer ustate) e))
+
 let from_auctx ?(of_template=false) env auctx =
   let ustate = from_env env in
   let names = AbstractContext.names auctx in
@@ -1572,7 +1577,11 @@ let from_auctx ?(of_template=false) env auctx =
   in
   let ustate = Array.fold_left_i add_qvar ustate names.quals in
   let ustate = Array.fold_left_i (fun i ustate name -> add_universe (name_to_option name) false ustate (Level.var i)) ustate names.univs in
-  let ustate = add_trusted_poly_constraints ustate (AbstractContext.constraints auctx) in
+  let ustate = try add_trusted_poly_constraints ustate (AbstractContext.constraints auctx)
+    with UGraph.UniverseInconsistency e ->
+      warn_unsat_constraints (ustate,e);
+      ustate
+  in
   ustate
 
 let make_nonalgebraic_variable uctx u =

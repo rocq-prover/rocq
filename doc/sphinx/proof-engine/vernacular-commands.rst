@@ -87,6 +87,17 @@ described elsewhere
 
    See :cmd:`Strategy` for details on opacity.
 
+   .. warn:: This reference relies on unsatisfiable constraints
+      :name: print-unsatisfiable-ref
+
+      A :ref:`universe polymorphic <polymorphicuniverses>` reference
+      may require unsatisfiable universe constraints, either because
+      it was declared with :flag:`Universe Checking` disabled or
+      because monomorphic constraints which contradict its bound
+      constraints were added to the global environment after the reference was declared.
+
+      This warning is raised when such a reference is printed by `About` or a similar command.
+
 .. cmd:: Check @term
 
    Displays the type of :n:`@term`. When called in proof mode, the term is
