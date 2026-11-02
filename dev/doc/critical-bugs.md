@@ -38,6 +38,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [cofixpoint guard checker computes rectree in the wrong environment](#cofixpoint-guard-checker-computes-rectree-in-the-wrong-environment)
       - [guard checker counts local definitions as formal arguments in uniformity analysis](#guard-checker-counts-local-definitions-as-formal-arguments-in-uniformity-analysis)
       - [guard checker computes uniform parameters of nested fixpoints in the wrong environment](#guard-checker-computes-uniform-parameters-of-nested-fixpoints-in-the-wrong-environment)
+      - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -440,6 +441,21 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit: test-suite/bugs/bug_22645.v
 - GH issue number: none
 - risk: ?
+
+#### incorrect variance inference for a constructor applied in a letin of a constructor type
+- component: inductive declarations, universe polymorphism
+- introduced: V9.3.0 ([#22385](https://github.com/rocq-prover/rocq/pull/22385))
+- impacted released versions: V9.3.0
+- impacted coqchk versions: Same
+- fixed in: V9.2.1, V9.3.1, V9.4 ([#22681](https://github.com/rocq-prover/rocq/pull/22681))
+- found by: Sami Jawhar
+- exploit: test-suite/bugs/bug_22675.v
+- GH issue number: [#22675](https://github.com/rocq-prover/rocq/issues/22675)
+- risk: needs a cumulative inductive one of whose constructors has a letin whose
+  body contains a fully applied constructor of another cumulative inductive
+  which has a letin of its own. V9.2.0 accepts the issue's file through
+  [#22383](https://github.com/rocq-prover/rocq/issues/22383): it does not infer
+  letin bodies at all.
 
 
 ### Module system
