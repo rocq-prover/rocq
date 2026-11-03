@@ -74,7 +74,7 @@ type state = (int * int Evar.Map.t) * (int * int Int.Map.t) * (int * int Int.Map
 let rec is_rel_inst k = function
   | SList.Nil -> true
   | SList.Default _ -> false
-  | SList.Cons (t, l) -> kind t = Rel k && is_rel_inst (succ k) l
+  | SList.Cons (t, l) -> isRelN k t && is_rel_inst (succ k) l
 
 let update_invtbl ~loc env evd evk (curvar, tbl) =
   curvar, (succ curvar, tbl |> Evar.Map.update evk @@ function
