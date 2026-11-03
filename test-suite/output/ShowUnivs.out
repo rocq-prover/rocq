@@ -15,9 +15,9 @@ SORTS:
      
 
 VARIANCES:
- ShowUnivs:20
- ShowUnivs:19
- ShowUnivs:18
+ ShowUnivs:23
+ ShowUnivs:22
+ ShowUnivs:21
 WEAK CONSTRAINTS:
  
 
@@ -25,20 +25,20 @@ Normalized constraints:
  {w v u} | u ≤ v
            v ≤ w
 UNIVERSE VARIABLES:
- {?ShowUnivs:25 ?ShowUnivs:24 ?ShowUnivs:23 ShowUnivs:22 ?ShowUnivs:21}
+ {?ShowUnivs:28 ?ShowUnivs:27 ?ShowUnivs:26 ShowUnivs:25 ?ShowUnivs:24}
 DEFINED LOCAL VARIABLES:
  
 UNIVERSES:
- 0 ≤ ShowUnivs:21
- 0 ≤ ShowUnivs:22
- 0 ≤ ShowUnivs:23
  0 ≤ ShowUnivs:24
  0 ≤ ShowUnivs:25
- ShowUnivs:23 ≤ ShowUnivs:21
- ShowUnivs:24 ≤ ShowUnivs:21
- ShowUnivs:25 ≤ ShowUnivs:24
- ShowUnivs:22 < ShowUnivs:25
- ShowUnivs:25 < ShowUnivs:23
+ 0 ≤ ShowUnivs:26
+ 0 ≤ ShowUnivs:27
+ 0 ≤ ShowUnivs:28
+ ShowUnivs:26 ≤ ShowUnivs:24
+ ShowUnivs:27 ≤ ShowUnivs:24
+ ShowUnivs:28 ≤ ShowUnivs:27
+ ShowUnivs:25 < ShowUnivs:28
+ ShowUnivs:28 < ShowUnivs:26
 SORTS:
  α1 := Type
  α2 := Type
@@ -52,13 +52,13 @@ SORTS:
    
 
 VARIANCES:
+ ShowUnivs:28: infer: = in term,  predicative
+ ShowUnivs:27
+ ShowUnivs:26
  ShowUnivs:25: infer: = in term,  predicative
  ShowUnivs:24
- ShowUnivs:23
- ShowUnivs:22: infer: = in term,  predicative
- ShowUnivs:21
 WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {ShowUnivs:25 ShowUnivs:22} | ShowUnivs:22 < ShowUnivs:25
+ {ShowUnivs:28 ShowUnivs:25} | ShowUnivs:25 < ShowUnivs:28
