@@ -483,6 +483,11 @@ module ClausesOf = struct
       if global' == cls.global && local' == cls.local then cls
       else { local = local'; global = global' }
 
+  (* Moves [cl] from the global to the local clauses, if it is global *)
+  let localize cl cls =
+    if SWC.mem cl cls.global then Some { local = SWC.add cl cls.local; global = SWC.remove cl cls.global }
+    else None
+
   let pr pr_index_point local concl cls =
     let open Pp in
     v 0 (prlist_with_sep spc (ClauseInfo.pr pr_index_point local concl) (SWC.elements cls))
@@ -2281,6 +2286,21 @@ let enforce_constraints csts m =
   Option.map (fun (m, equivs) -> m, unrepr_equivalences m equivs) res
 
 let enforce u k v m = enforce_constraints [(u, k, v)] m
+
+let localize csts m =
+  let localize_clause m (prems, concl) =
+    let concls = canonical_can_premises (canonical_repr m concl) in
+    NeList.fold (fun concl m ->
+        match simplify_can_clause m (canonical_premises_repr m prems, repr_expr m concl) with
+        | Trivial | Contradictory -> m
+        | Canonical (prems, (can, k)) ->
+          let clof = (k, NeList.map (fun (p, kp) -> (p.canon, kp)) prems) in
+          match ClausesOf.localize clof can.clauses_bwd with
+          | None -> m
+          | Some clauses_bwd -> change_node m { can with clauses_bwd })
+      concls m
+  in
+  List.fold_left localize_clause m (List.concat_map (clauses_of_constraint m) csts)
 
 let enforce_eq u v m = enforce u UnivConstraint.Eq v m
 let enforce_leq u v m = enforce u UnivConstraint.Le v m
