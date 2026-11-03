@@ -131,30 +131,64 @@ let new_univ_global () =
   let s = if Flags.async_proofs_is_worker() then !Flags.async_proofs_worker_id else "" in
   Univ.UGlobal.make (Global.current_dirpath ()) s (new_univ_id ())
 
-let fresh_level () =
-  Univ.Level.make (new_univ_global ())
+module Supply =
+struct
+  (* Next indices of the unification levels and sort variables *)
+  type t = { level : int; sort : int }
 
-let new_unif_sort_id =
-  let cnt = ref 0 in
-  fun () -> incr cnt; !cnt
+  let empty = { level = 1; sort = 1 }
 
-let fresh_sort_quality () =
-  let s = if Flags.async_proofs_is_worker() then !Flags.async_proofs_worker_id else "" in
-  Sorts.QVar.make_unif s (new_unif_sort_id ())
+  let process () =
+    if Flags.async_proofs_is_worker() then !Flags.async_proofs_worker_id else ""
 
-let fresh_instance auctx : _ in_sort_context_set =
-  let qlen, ulen = AbstractContext.size auctx in
-  let qinst = Array.init qlen (fun _ -> Sorts.Quality.QVar (fresh_sort_quality ())) in
-  let uinst = Array.init ulen (fun _ -> fresh_level()) in
-  let qctx = Array.fold_left (fun qctx q -> match q with
-      | Sorts.Quality.QVar q -> Sorts.QVar.Set.add q qctx
-      | _ -> assert false)
-      Sorts.QVar.Set.empty
-      qinst
+  let fresh_level s = { s with level = s.level + 1 }, Level.make_unif (process ()) s.level
+
+  let fresh_qvar s = { s with sort = s.sort + 1 }, QVar.make_unif (process ()) s.sort
+
+  let union s s' =
+    { level = max s.level s'.level; sort = max s.sort s'.sort }
+
+  let add_level l s = match Level.unif_repr l with
+    | Some (_, n) when n >= s.level -> { s with level = n + 1 }
+    | Some _ | None -> s
+
+  let add_qvar q s = match QVar.repr q with
+    | Unif (_, n) when n >= s.sort -> { s with sort = n + 1 }
+    | Unif _ | Var _ | Secvar _ -> s
+
+  let add_levels ls s = Level.Set.fold add_level ls s
+
+  let add_qvars qs s = QVar.Set.fold add_qvar qs s
+end
+
+let globalize_context_set ?(subst = Level.Map.empty) (ls, csts) =
+  let add l subst =
+    if Level.is_unif l && not (Level.Map.mem l subst) then
+      Level.Map.add l (Level.make (new_univ_global ())) subst
+    else subst
   in
+  let subst = Level.Set.fold add (UnivConstraints.levels ~init:ls csts) subst in
+  let ls = Level.Set.fold (fun l acc -> Level.Set.add (subst_univs_level_level subst l) acc)
+      ls Level.Set.empty
+  in
+  (ls, subst_univs_constraints subst csts), subst
+
+let globalize_section_context ?(subst = Level.Map.empty) uctx =
+  let qs, us = Instance.to_array (UContext.instance uctx) in
+  let qcst, ucst = UContext.constraints uctx in
+  let levels = Array.fold_right Level.Set.add us Level.Set.empty in
+  let (_, ucst), subst = globalize_context_set ~subst (levels, ucst) in
+  let us = Array.map (subst_univs_level_level subst) us in
+  UContext.make (UContext.names uctx) (Instance.of_array (qs, us), (qcst, ucst)), subst
+
+let fresh_instance supply auctx : _ * _ in_sort_context_set =
+  let qlen, ulen = AbstractContext.size auctx in
+  let supply, qinst = Array.fold_left_map (fun s () -> Supply.fresh_qvar s) supply (Array.make qlen ()) in
+  let supply, uinst = Array.fold_left_map (fun s () -> Supply.fresh_level s) supply (Array.make ulen ()) in
+  let qctx = Array.fold_right QVar.Set.add qinst QVar.Set.empty in
   let uctx = Array.fold_right Level.Set.add uinst Level.Set.empty in
-  let inst = Instance.of_array (qinst,uinst) in
-  inst, ((qctx,uctx), AbstractContext.instantiate inst auctx)
+  let inst = Instance.of_array (Array.map (fun q -> Sorts.Quality.QVar q) qinst, uinst) in
+  supply, (inst, ((qctx,uctx), AbstractContext.instantiate inst auctx))
 
 let existing_instance ?loc ~gref auctx inst =
   let () =
@@ -166,69 +200,67 @@ let existing_instance ?loc ~gref auctx inst =
   in
   inst, ((Sorts.QVar.Set.empty,Level.Set.empty), AbstractContext.instantiate inst auctx)
 
-let fresh_instance_from ?loc ctx = function
-  | Some (gref,inst) -> existing_instance ?loc ~gref ctx inst
-  | None -> fresh_instance ctx
+let fresh_instance_from ?loc supply ctx = function
+  | Some (gref,inst) -> supply, existing_instance ?loc ~gref ctx inst
+  | None -> fresh_instance supply ctx
 
 (** Fresh universe polymorphic construction *)
 
-let fresh_global_instance ?loc ?names env gr =
+let fresh_global_instance ?loc ?names supply env gr =
   let auctx = Environ.universes_of_global env gr in
   let names = Option.map (fun x -> gr, x) names in
-  let u, ctx = fresh_instance_from ?loc auctx names in
-  u, ctx
+  fresh_instance_from ?loc supply auctx names
 
-let fresh_constant_instance env c =
-  let u, ctx = fresh_global_instance env (GlobRef.ConstRef c) in
-  (c, u), ctx
+let fresh_constant_instance supply env c =
+  let supply, (u, ctx) = fresh_global_instance supply env (GlobRef.ConstRef c) in
+  supply, ((c, u), ctx)
 
-let fresh_inductive_instance env ind =
-  let u, ctx = fresh_global_instance env (GlobRef.IndRef ind) in
-  (ind, u), ctx
+let fresh_inductive_instance supply env ind =
+  let supply, (u, ctx) = fresh_global_instance supply env (GlobRef.IndRef ind) in
+  supply, ((ind, u), ctx)
 
-let fresh_constructor_instance env c =
-  let u, ctx = fresh_global_instance env (GlobRef.ConstructRef c) in
-  (c, u), ctx
+let fresh_constructor_instance supply env c =
+  let supply, (u, ctx) = fresh_global_instance supply env (GlobRef.ConstructRef c) in
+  supply, ((c, u), ctx)
 
-let fresh_array_instance env =
+let fresh_array_instance supply env =
   let auctx = CPrimitives.typ_univs CPrimitives.PT_array in
-  let u, ctx = fresh_instance_from auctx None in
-  u, ctx
+  fresh_instance_from supply auctx None
 
-let fresh_global_instance ?loc ?names env gr =
-  let u, ctx = fresh_global_instance ?loc ?names env gr in
-  mkRef (gr, u), ctx
+let fresh_global_instance ?loc ?names supply env gr =
+  let supply, (u, ctx) = fresh_global_instance ?loc ?names supply env gr in
+  supply, (mkRef (gr, u), ctx)
 
 let constr_of_monomorphic_global env gr =
   if not (Environ.is_polymorphic env gr) then
-    fst (fresh_global_instance env gr)
+    fst (snd (fresh_global_instance Supply.empty env gr))
   else CErrors.user_err
       Pp.(str "globalization of polymorphic reference " ++ Nametab.pr_global_env Id.Set.empty gr ++
           str " would forget universes.")
 
-let fresh_sort_in_quality =
+let fresh_sort_in_quality supply =
   let open QualityOrSet in
   function
-  | Qual (QConstant QSProp) -> Sorts.sprop, empty_sort_context
-  | Qual (QConstant QProp) -> Sorts.prop, empty_sort_context
-  | Set -> Sorts.set, empty_sort_context
+  | Qual (QConstant QSProp) -> supply, (Sorts.sprop, empty_sort_context)
+  | Qual (QConstant QProp) -> supply, (Sorts.prop, empty_sort_context)
+  | Set -> supply, (Sorts.set, empty_sort_context)
   | Qual (QGlobal _ as q) ->
-    let u = fresh_level () in
-    Sorts.make q (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty)
+    let supply, u = Supply.fresh_level supply in
+    supply, (Sorts.make q (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty))
   | Qual (QConstant QType | QVar _ (* Treat as Type *)) ->
-     let u = fresh_level () in
-     sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty)
+    let supply, u = Supply.fresh_level supply in
+    supply, (sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty))
 
-let fresh_sort_context_instance ((qs, us), csts) =
-  let ufold u (us, usubst) =
-    let u' = fresh_level () in
-    (Level.Set.add u' us, Level.Map.add u u' usubst)
+let fresh_sort_context_instance supply ((qs, us), csts) =
+  let ufold u (supply, us, usubst) =
+    let supply, u' = Supply.fresh_level supply in
+    (supply, Level.Set.add u' us, Level.Map.add u u' usubst)
   in
-  let qfold q (qs, qsubst) =
-    let q' = fresh_sort_quality () in
-    QVar.Set.add q' qs, QVar.Map.add q (Sorts.Quality.QVar q') qsubst
+  let qfold q (supply, qs, qsubst) =
+    let supply, q' = Supply.fresh_qvar supply in
+    supply, QVar.Set.add q' qs, QVar.Map.add q (Sorts.Quality.QVar q') qsubst
   in
-  let us, usubst = Level.Set.fold ufold us (Level.Set.empty, Level.Map.empty) in
-  let qs, qsubst = QVar.Set.fold qfold qs (QVar.Set.empty, QVar.Map.empty) in
+  let supply, us, usubst = Level.Set.fold ufold us (supply, Level.Set.empty, Level.Map.empty) in
+  let supply, qs, qsubst = QVar.Set.fold qfold qs (supply, QVar.Set.empty, QVar.Map.empty) in
   let csts = subst_poly_constraints (qsubst, usubst) csts in
-  (qsubst, usubst), ((qs, us), csts)
+  supply, ((qsubst, usubst), ((qs, us), csts))

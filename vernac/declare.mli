@@ -60,6 +60,10 @@ module Hook : sig
       (** [scope]: Locality of the original declaration *)
       ; dref : GlobRef.t
       (** [dref]: identifier of the original declaration *)
+      ; univ_subst : UVars.universe_level_subst
+      (** [univ_subst]: global levels replacing the unification levels of
+          [uctx] in a monomorphic declaration, to be extended by further
+          declarations using [uctx] *)
       }
   end
 
@@ -139,6 +143,8 @@ val declare_mutual_definitions
   -> opaque:bool
   -> eff:Evd.side_effects
   -> uctx:UState.t
+  -> ?univ_subst:UVars.universe_level_subst
+  (** global levels already replacing unification levels of [uctx] *)
   -> bodies:Constr.t list
   -> possible_guard:Pretyping.possible_guard * Sorts.relevance list
   -> ?using:Vernacexpr.section_subset_expr

@@ -8,7 +8,7 @@ let evil name name_f =
   let u = Level.var 0 in
   let tu = mkType (Universe.make u) in
   let te = Declare.definition_entry
-      ~univs:(UState.Monomorphic_entry (Univ.ContextSet.singleton u), UnivNames.empty_binders) tu
+      ~univs:(UState.Monomorphic_entry (Univ.ContextSet.singleton u, Level.Map.empty), UnivNames.empty_binders) tu
   in
   let tc = Declare.declare_constant ~name ~kind (Declare.DefinitionEntry te) in
   let tc = mkConst tc in

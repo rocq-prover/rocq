@@ -668,8 +668,8 @@ let build_beq_scheme env handle kn =
 
   (* Setting universes *)
   let auctx = Declareops.universes_context mib.mind_universes in
-  let u, ctx = UnivGen.fresh_instance_from auctx None in
-  let uctx = UState.from_env env in
+  let uctx, (u, ctx) = UState.with_supply (UState.from_env env)
+      (fun s -> UnivGen.fresh_instance_from s auctx None) in
   let uctx = UState.merge_sort_context_set ~sideff:false UState.univ_rigid ~src:UState.Internal uctx ctx in
 
   (* number of inductives in the mutual *)
@@ -1189,8 +1189,9 @@ let make_bl_scheme env handle mind =
 
   (* Setting universes *)
   let auctx = Declareops.universes_context mib.mind_universes in
-  let u, uctx = UnivGen.fresh_instance_from auctx None in
-  let uctx = UState.merge_sort_context_set ~sideff:false UState.univ_rigid ~src:UState.Internal (UState.from_env env) uctx in
+  let uctx, (u, ctx) = UState.with_supply (UState.from_env env)
+      (fun s -> UnivGen.fresh_instance_from s auctx None) in
+  let uctx = UState.merge_sort_context_set ~sideff:false UState.univ_rigid ~src:UState.Internal uctx ctx in
 
   let ind = (mind,0) in
   let nparrec = mib.mind_nparams_rec in
@@ -1324,8 +1325,9 @@ let make_lb_scheme env handle mind =
 
   (* Setting universes *)
   let auctx = Declareops.universes_context mib.mind_universes in
-  let u, uctx = UnivGen.fresh_instance_from auctx None in
-  let uctx = UState.merge_sort_context_set ~sideff:false UState.univ_rigid ~src:UState.Internal (UState.from_env env) uctx in
+  let uctx, (u, ctx) = UState.with_supply (UState.from_env env)
+      (fun s -> UnivGen.fresh_instance_from s auctx None) in
+  let uctx = UState.merge_sort_context_set ~sideff:false UState.univ_rigid ~src:UState.Internal uctx ctx in
 
   let nparrec = mib.mind_nparams_rec in
   let lnonparrec,lnamesparrec =
@@ -1520,8 +1522,9 @@ let make_eq_decidability env handle mind =
 
   (* Setting universes *)
   let auctx = Declareops.universes_context mib.mind_universes in
-  let u, uctx = UnivGen.fresh_instance_from auctx None in
-  let uctx = UState.merge_sort_context_set ~sideff:false UState.univ_rigid ~src:UState.Internal (UState.from_env env) uctx in
+  let uctx, (u, ctx) = UState.with_supply (UState.from_env env)
+      (fun s -> UnivGen.fresh_instance_from s auctx None) in
+  let uctx = UState.merge_sort_context_set ~sideff:false UState.univ_rigid ~src:UState.Internal uctx ctx in
 
   let lnonparrec,lnamesparrec =
     Inductive.inductive_nonrec_rec_paramdecls (mib,u) in

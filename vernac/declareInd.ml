@@ -195,9 +195,36 @@ let schemes_attr =
   Attributes.key_value_attribute ~key:"schemes" ?empty:None ~values
   |> Attributes.Notations.map (Option.default Default)
 
+(* Replace the unification levels of a monomorphic (or template) inductive by
+   the global levels of its universe entry. *)
+let globalize_mie subst mie =
+  let open Entries in
+  let subst = (Sorts.QVar.Map.empty, subst) in
+  let glob = Vars.subst_univs_level_constr subst in
+  let mind_entry_universes = match mie.mind_entry_universes with
+    | Monomorphic_ind_entry | Polymorphic_ind_entry _ as e -> e
+    | Template_ind_entry { uctx; default_univs } ->
+      let uctx = UVars.subst_univs_level_abstract_universe_context subst uctx in
+      let default_univs = UVars.subst_sort_level_instance subst default_univs in
+      Template_ind_entry { uctx; default_univs }
+  in
+  { mie with
+    mind_entry_params = Context.Rel.map glob mie.mind_entry_params;
+    mind_entry_inds = List.map (fun ind ->
+        { ind with
+          mind_entry_arity = glob ind.mind_entry_arity;
+          mind_entry_lc = List.map glob ind.mind_entry_lc })
+        mie.mind_entry_inds;
+    mind_entry_universes;
+  }
+
 let rec declare_mutual_inductive_with_eliminations
     ?typing_flags ?(indlocs=[]) ?default_dep_elim ?(schemes=Default)
     ?all_depth mie ubinders impls =
+  let mie = match fst ubinders with
+    | UState.Monomorphic_entry (_, subst) -> globalize_mie subst mie
+    | UState.Polymorphic_entry _ -> mie
+  in
   (* spiwack: raises an error if the structure is supposed to be non-recursive,
         but isn't *)
   begin match mie.mind_entry_finite with
@@ -220,7 +247,7 @@ let rec declare_mutual_inductive_with_eliminations
       warn_non_primitive_record (mind,why_not_prim_record));
   let () = match fst ubinders with
     | UState.Polymorphic_entry _ -> ()
-    | UState.Monomorphic_entry ctx ->
+    | UState.Monomorphic_entry (ctx, _) ->
       DeclareUniv.add_constraint_source (IndRef (mind,0)) ctx
   in
   DeclareUniv.declare_univ_binders (GlobRef.IndRef (mind,0)) ubinders;

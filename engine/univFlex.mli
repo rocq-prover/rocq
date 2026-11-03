@@ -55,6 +55,9 @@ val add_levels : Level.Set.t -> algebraic:bool -> t -> t
 (** Make the levels flexible with no definitions.
     They must not already be flexible.  *)
 
+val map_levels : (Level.t -> Level.t) -> t -> t
+(** Rename the levels, [f] must be injective. *)
+
 val define : Level.t -> Universe.t -> t -> t
 (** Define the level to the given universe. The level must already
     be flexible and must be undefined. *)

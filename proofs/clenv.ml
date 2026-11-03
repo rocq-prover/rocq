@@ -138,7 +138,7 @@ let refresh_template_constraints ~metas env sigma ind c =
 let clenv_refresh env sigma ctx clenv =
   match ctx with
   | Some ctx ->
-    let (subst, ctx) = UnivGen.fresh_sort_context_instance ctx in
+    let sigma, (subst, ctx) = Evd.with_supply sigma (fun s -> UnivGen.fresh_sort_context_instance s ctx) in
     let emap c = Vars.subst_univs_level_constr subst c in
     let sigma = Evd.merge_sort_context_set Evd.univ_flexible ~src:UState.Internal sigma ctx in
     (* Only metas are mentioning the old universes. *)

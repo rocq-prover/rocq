@@ -374,7 +374,7 @@ let one_base where conds tac_main bas forward =
   let try_rewrite h tc =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
-    let subst, ctx' = UnivGen.fresh_sort_context_instance h.rew_ctx in
+    let sigma, (subst, ctx') = Evd.with_supply sigma (fun s -> UnivGen.fresh_sort_context_instance s h.rew_ctx) in
     let c' = Vars.subst_univs_level_constr subst h.rew_lemma in
     let sigma = Evd.merge_sort_context_set Evd.univ_flexible ~src:UState.Internal sigma ctx' in
     Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
@@ -610,14 +610,15 @@ let add_rewrite_hint ~locality ~poly bases ort t lcsr =
   let f ce =
     let c, ctx = Constrintern.interp_constr env sigma ce in
     let c = EConstr.to_constr sigma c in
-    let ctx =
+    let c, ctx =
       let ctx = UState.sort_context_set ctx in
-      if PolyFlags.univ_poly poly then ctx
+      if PolyFlags.univ_poly poly then c, ctx
       else (* This is a global universe context that shouldn't be
               refreshed at every use of the hint, declare it globally. *)
         let ((qs, us), (qcst, ucst)) = ctx in
-        let () = Global.push_context_set (us, ucst) in
-        UnivGen.empty_sort_context
+        let ctx, subst = UnivGen.globalize_context_set (us, ucst) in
+        let () = Global.push_context_set ctx in
+        Vars.subst_univs_level_constr (Sorts.QVar.Map.empty, subst) c, UnivGen.empty_sort_context
     in
     CAst.make ?loc:(Constrexpr_ops.constr_loc ce) ((c, ctx), ort, t) in
   let eqs = List.map f lcsr in

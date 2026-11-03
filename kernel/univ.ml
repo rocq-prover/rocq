@@ -74,6 +74,7 @@ struct
     | Set
     | Level of UGlobal.t
     | Var of int
+    | Unif of string * int
 
   (* Hash-consing *)
 
@@ -83,6 +84,7 @@ struct
       | Set, Set -> true
       | Level l, Level l' -> UGlobal.equal l l'
       | Var n, Var n' -> Int.equal n n'
+      | Unif (s, n), Unif (s', n') -> Int.equal n n' && CString.equal s s'
       | _ -> false
 
   let compare u v =
@@ -94,6 +96,11 @@ struct
     | Level _, _ -> -1
     | _, Level _ -> 1
     | Var n, Var m -> Int.compare n m
+    | Var _, _ -> -1
+    | _, Var _ -> 1
+    | Unif (s1, n1), Unif (s2, n2) ->
+      let c = Int.compare n1 n2 in
+      if c <> 0 then c else CString.compare s1 s2
 
   let hequal x y =
     x == y ||
@@ -102,6 +109,7 @@ struct
       | UGlobal.(Level { library = d; process = s; uid = n }, Level  { library = d'; process = s'; uid = n' }) ->
         n == n' && s==s' && d == d'
       | Var n, Var n' -> n == n'
+      | Unif (s, n), Unif (s', n') -> n == n' && s == s'
       | _ -> false
 
   open Hashset.Combine
@@ -114,11 +122,16 @@ struct
       let x = if s' == s && d' == d then x else Level (UGlobal.make d' s' n) in
       combinesmall 3 (combine3 n hs hd), x
     | Var n as x -> combinesmall 2 n, x
+    | Unif (s, n) as x ->
+      let hs, s' = CString.hcons s in
+      let x = if s' == s then x else Unif (s', n) in
+      combinesmall 4 (combine n hs), x
 
   let hash = function
     | Set -> combinesmall 1 2
     | Var n -> combinesmall 2 n
     | Level l -> combinesmall 3 (UGlobal.hash l)
+    | Unif (s, n) -> combinesmall 4 (combine n (CString.hash s))
 
 end
 
@@ -128,6 +141,7 @@ module Level = struct
   | Set
   | Level of UGlobal.t
   | Var of int
+  | Unif of string * int
 
   (** Embed levels with their hash value *)
   type t = {
@@ -161,8 +175,7 @@ module Level = struct
 
   let is_small x =
     match data x with
-    | Level _ -> false
-    | Var _ -> false
+    | Level _ | Var _ | Unif _ -> false
     | Set -> true
 
   let is_set x =
@@ -179,6 +192,9 @@ module Level = struct
     | Set -> "Set"
     | Level l -> UGlobal.to_string l
     | Var n -> "Var(" ^ string_of_int n ^ ")"
+    | Unif (s, n) ->
+      let s = if CString.is_empty s then "" else s ^ "." in
+      Printf.sprintf "%s\u{2113}%d" s n
 
   let raw_pr u = str (to_string u)
 
@@ -192,6 +208,18 @@ module Level = struct
   let var_index u =
     match data u with
     | Var n -> Some n | _ -> None
+
+  let make_unif s n = make (Unif (s, n))
+
+  let is_unif u =
+    match data u with
+    | Unif _ -> true
+    | Set | Level _ | Var _ -> false
+
+  let unif_repr u =
+    match data u with
+    | Unif (s, n) -> Some (s, n)
+    | Set | Level _ | Var _ -> None
 
   let make qid = make (Level qid)
 
@@ -500,6 +528,9 @@ module UnivConstraints =
 struct
   module S = Set.Make(UnivConstraint)
   include S
+
+  let levels ?(init=Level.Set.empty) c =
+    fold (fun (l, _, r) acc -> Level.Set.add l (Level.Set.add r acc)) c init
 
   let pr prl c =
     v 0 (prlist_with_sep spc (fun (u1,op,u2) ->

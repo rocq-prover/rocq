@@ -666,7 +666,7 @@ let magically_constant_of_fixbody env sigma (reference, params) bd = function
     let cst = Constant.change_label reference id in
     if not (Environ.mem_constant cst env) then bd
     else
-      let (cst, u), ctx = UnivGen.fresh_constant_instance env cst in
+      let _, ((cst, u), ctx) = Evd.with_supply sigma (fun s -> UnivGen.fresh_constant_instance s env cst) in
       match constant_opt_value_in env (cst,u) with
       | None -> bd
       | Some t ->

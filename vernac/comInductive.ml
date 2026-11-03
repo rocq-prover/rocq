@@ -532,7 +532,7 @@ let nontemplate_univ_entry ~poly sigma udecl =
     | UState.Polymorphic_entry uctx ->
       let (uinst, auctx) = UVars.abstract_universes uctx in
       Polymorphic_ind_entry auctx, uinst, Univ.ContextSet.empty
-    | UState.Monomorphic_entry uctx ->
+    | UState.Monomorphic_entry (uctx, _) ->
       Monomorphic_ind_entry, UVars.Instance.empty, uctx
   in
   sigma, uentry, ubinders, uinst, global
@@ -549,7 +549,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let uctx =
     UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
   in
-  let ubinders = UState.Monomorphic_entry uctx, Evd.universe_binders sigma in
+  let ubinders = UState.monomorphic_entry uctx (Evd.universe_binders sigma) in
   let template_univs, global = split_universe_context template_univs uctx in
   let uctx =
     UVars.UContext.of_context_set
@@ -945,6 +945,10 @@ let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
     interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
+  let uctx = match fst univ_binders with
+    | UState.Monomorphic_entry (_, subst) -> fst (UnivGen.globalize_context_set ~subst uctx)
+    | UState.Polymorphic_entry _ -> uctx
+  in
   let () = Global.push_context_set uctx in
   (* Declare the mutual inductive block with its associated schemes *)
   ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
