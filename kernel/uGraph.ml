@@ -114,6 +114,10 @@ let merge_global_constraints csts g =
     (* Find the inconsistent constraint, or skip them with type in type, as [merge_constraints] *)
     merge_constraints csts g
 
+let localize csts g =
+  if UnivConstraints.is_empty csts then g
+  else { g with graph = G.localize (UnivConstraints.elements csts) g.graph }
+
 let check_constraint { graph = g; type_in_type; _ } (u,d,v) =
   type_in_type
   || match d with
