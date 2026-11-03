@@ -1070,7 +1070,7 @@ constructors_or_record: [
 | "|" LIST1 constructor SEP "|"
 | quoted_attributes identref constructor_type "|" LIST1 constructor SEP "|"
 | quoted_attributes identref constructor_type
-| quoted_attributes identref "{" record_fields "}" default_inhabitant_ident
+| quoted_attributes identref "{" record_fields "}" constructor_type default_inhabitant_ident
 | "{" record_fields "}" default_inhabitant_ident
 ]
 
@@ -1155,7 +1155,7 @@ constructor_binders: [
 ]
 
 constructor_type: [
-| constructor_binders [ of_type_inst lconstr | ]
+| constructor_binders OPT [ of_type_inst lconstr ]
 ]
 
 constructor: [

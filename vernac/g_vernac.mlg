@@ -232,6 +232,12 @@ let rec univ_constraints = function
   | UnivCst (l1,k,l2) :: t -> (l1,k,l2) :: univ_constraints t
   | h :: t -> univ_constraints t
 
+let mk_ctor_type attr id {CAst.v=(l,t); loc} =
+  match t with
+  | None -> ((attr,NoCoercion,NoInstance),(id,mkProdCN ?loc l (CAst.make ?loc @@ CHole None)))
+  | Some (coe, c) ->
+    ((attr, fst coe, snd coe),(id,mkProdCN ?loc l c))
+
 }
 
 (* Gallina declarations *)
@@ -487,13 +493,22 @@ GRAMMAR EXTEND Gram
     [ [ "|"; l = LIST1 constructor SEP "|" -> { Constructors l }
       | attr = quoted_attributes ; id = identref ; c = constructor_type;
         "|"; l = LIST1 constructor SEP "|" ->
-          { Constructors ((c attr id)::l) }
+          { Constructors ((mk_ctor_type attr id c)::l) }
       | attr = quoted_attributes ; id = identref ; c = constructor_type ->
-          { Constructors [ c attr id ] }
+          { Constructors [ mk_ctor_type attr id c ] }
       | attr = quoted_attributes ;
-        cstr = identref; "{"; fs = record_fields; "}"; id = default_inhabitant_ident ->
-          { let () = unsupported_attributes attr in
-            RecordDecl (Some cstr,fs,id) }
+        cstr = identref; "{"; fs = record_fields; "}"; cc = constructor_type;
+        id = default_inhabitant_ident -> {
+          let () = match cc.CAst.v with
+            | [], None -> ()
+            | _ ->
+              CErrors.user_err ~loc
+                Pp.(fmt "Inductive body starting with \":= name {\" is interpreted as a record,@ \
+                         use \":= | name {\" for a constructor whose first argument is implicit.")
+          in
+          let () = unsupported_attributes attr in
+          RecordDecl (Some cstr,fs,id)
+        }
       | "{";fs = record_fields; "}"; id = default_inhabitant_ident -> { RecordDecl (None,fs,id) } ] ]
   ;
   default_inhabitant_ident:
@@ -618,17 +633,14 @@ GRAMMAR EXTEND Gram
 
   constructor_type:
     [[ l = constructor_binders;
-       t = [ coe = of_type_inst; c = lconstr ->
-                    { fun l attr id -> ((attr, fst coe, snd coe),(id,mkProdCN ~loc l c)) }
-            |  ->
-                 { fun l attr id -> ((attr,NoCoercion,NoInstance),(id,mkProdCN ~loc l (CAst.make ~loc @@ CHole (None)))) } ]
-         -> { t l }
+       t = OPT [ coe = of_type_inst; c = lconstr -> { coe, c } ]
+         -> { CAst.make ~loc (l, t) }
      ]]
 ;
 
   constructor:
     [ [ attr = quoted_attributes ;
-        id = identref; c=constructor_type -> { c attr id } ] ]
+        id = identref; c=constructor_type -> { mk_ctor_type attr id c } ] ]
   ;
   of_type:
     [ [   ":>" -> { AddCoercion }

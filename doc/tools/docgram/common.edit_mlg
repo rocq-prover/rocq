@@ -1463,7 +1463,7 @@ assumpt: [
 ]
 
 constructor_type: [
-| REPLACE constructor_binders [ of_type_inst lconstr | ]
+| REPLACE constructor_binders OPT [ of_type_inst lconstr ]
 | WITH constructor_binders OPT of_type_inst
 ]
 
