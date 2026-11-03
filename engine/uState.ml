@@ -814,17 +814,6 @@ let merge_constraints uctx cstrs =
   let variances = update_univ_expr_subst universes uctx.variances equivs in
   { uctx with universes; variances }
 
-(** As [merge_constraints], for global constraints, see [UGraph.merge_global_constraints] *)
-let merge_global_constraints uctx cstrs =
-  if UnivConstraints.is_empty cstrs then uctx else
-  let universes, equivs =
-    try UGraph.merge_global_constraints cstrs uctx.universes
-    with UGraph.UniverseInconsistency (_, i) ->
-      raise (UGraph.UniverseInconsistency (Some (sort_printer uctx), i))
-  in
-  let variances = update_univ_expr_subst universes uctx.variances equivs in
-  { uctx with universes; variances }
-
 (** Merge the given context set in the universe context.
   Does not assume the universes from the context are already declared. *)
 let merge_context_universes ~strict uctx (us, csts)  =
@@ -1784,21 +1773,16 @@ let merge_universe_context_set ?loc ~sideff rigid uctx uctx' =
         Some (Level.Set.fold fold levels variances)
     in
     let cstrs' = Univ.ContextSet.constraints uctx' in
-    (* With [sideff], only constraints already present in the initial (global) graph are
-       global, i.e. dropped from the local context. Constraints introduced by the current proof
-       body must still be recorded on the declaration, even if they came from a side-effect
-       context. *)
-    let global_cstrs, cstrs' =
-      if sideff then UnivConstraints.partition (UGraph.check_constraint initial_universes) cstrs'
-      else UnivConstraints.empty, cstrs'
-    in
+    (* With [sideff], the constraints of the context, of the inlined side effects, were demoted
+       with them, i.e. made global (see [demote_global_univs]), even in the initial graph.
+       They are local again, to be declared with the current proof. *)
     let uctx = { uctx with names; universes; variances; initial_universes = initial } in
-    let uctx = merge_global_constraints uctx global_cstrs in
     let uctx = merge_constraints uctx cstrs'
       (* with Loop_checking.Undeclared u ->
         CErrors.user_err Pp.(str"Undeclared universe " ++ Level.raw_pr u ++ str" during UState.merge" ++
           bool (UGraph.is_declared uctx.universes u)) in *)
     in
+    let uctx = if sideff then { uctx with universes = UGraph.localize cstrs' uctx.universes } else uctx in
     let () = debug Pp.(fun () -> str"merge = " ++ pr ~local:true uctx) in
     uctx
 
