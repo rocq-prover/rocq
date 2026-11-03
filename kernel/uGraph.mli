@@ -68,6 +68,9 @@ val merge_global_constraints : UnivConstraints.t -> t -> t * level_equivalences
 (** As [merge_constraints], but the constraints are global even in a local graph (see
     [set_local]), superseding the same local ones. *)
 
+val localize : UnivConstraints.t -> t -> t
+(** See [Loop_checking.localize] *)
+
 val check_constraint  : t -> UnivConstraint.t -> bool
 val check_constraints : UnivConstraints.t -> t -> bool
 
