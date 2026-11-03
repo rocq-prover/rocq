@@ -1342,8 +1342,8 @@ command: [
 | WITH "Show" "Ltac" "Profile" OPT [ "CutOff" integer | string ]
 | DELETE "Show" "Ltac" "Profile" string
 | DELETE "Show" "Proof"  (* combined with Show Proof Diffs in vernac_toplevel *)
-| REPLACE "Show" "Local" "Universes"
-| WITH "Show" OPT "Local" "Universes"
+| REPLACE "Show" "Global" "Universes"
+| WITH "Show" OPT "Global" "Universes"
 | DELETE "Show" "Universes"
 | REPLACE "Solve" "All" "Obligations" withtac
 | WITH "Solve" "All" "Obligations" OPT ( "with" tactic )

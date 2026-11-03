@@ -8,21 +8,6 @@ UNIVERSES:
  0 ≤ w
  u ≤ v
  v ≤ w
- 0 < sig.u0
- 0 < sig2.u0
- 0 < sigT.u0
- 0 < sigT.u1
- 0 < eq.u0
- 0 < option.u0
- 0 < sigT2.u0
- 0 < sigT2.u1
- 0 < sigT2.u2
- 0 < sum.u0
- 0 < sum.u1
- 0 < prod.u0
- 0 < prod.u1
- 0 < list.u0
- 0 < sumor.u0
 SORTS:
   |= Prop -> SProp
      Type -> Prop
@@ -52,21 +37,6 @@ UNIVERSES:
  ShowUnivs:23 ≤ ShowUnivs:21
  ShowUnivs:24 ≤ ShowUnivs:21
  ShowUnivs:25 ≤ ShowUnivs:24
- 0 < sig.u0
- 0 < sig2.u0
- 0 < sigT.u0
- 0 < sigT.u1
- 0 < eq.u0
- 0 < option.u0
- 0 < sigT2.u0
- 0 < sigT2.u1
- 0 < sigT2.u2
- 0 < sum.u0
- 0 < sum.u1
- 0 < prod.u0
- 0 < prod.u1
- 0 < list.u0
- 0 < sumor.u0
  ShowUnivs:22 < ShowUnivs:25
  ShowUnivs:25 < ShowUnivs:23
 SORTS:
