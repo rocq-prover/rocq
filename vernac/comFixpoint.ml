@@ -599,8 +599,8 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
     let bodies = List.map Option.get bodies in
     Evd.check_univ_decl_early ~poly ~with_obls:true sigma udecl (bodies @ fixtypes);
     let sigma = if PolyFlags.univ_poly poly then sigma else Evd.fix_undefined_variables sigma in
+    let () = Declare.Internal.export_side_effects (Evd.eval_side_effects sigma) in
     let uctx = Evd.ustate sigma in
-    (* FIXME? something should probably be done with sigma's side-effects here *)
     (match fixwfs, bodies, cinfo, obls with
     | [Some _], [body], [cinfo], [obls] ->
       (* Program Fixpoint wf/measure *)
