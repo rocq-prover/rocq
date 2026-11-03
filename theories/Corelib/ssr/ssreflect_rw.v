@@ -355,9 +355,8 @@ Ltac ssrdone0 :=
    | match goal with H : ~ _ |- _ => solve [case H; trivial] end ].
 
 (**  To unlock opaque constants.  **)
-
+#[universes(template)]
 Structure unlockable T v := Unlockable {unlocked : T; _ : unlocked = v}.
-
 Lemma unlock T x C : @unlocked T x C = x. Proof. by case: C. Qed.
 
 Notation "[ 'unlockable' 'of' C ]" :=

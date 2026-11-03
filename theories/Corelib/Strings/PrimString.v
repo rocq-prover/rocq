@@ -4,7 +4,6 @@ Definition char63 := int.
 
 Primitive string := #string_type.
 
-Set Debug "backtrace".
 Primitive max_length : int := #string_max_length.
 
 Primitive make : int -> char63 -> string := #string_make.

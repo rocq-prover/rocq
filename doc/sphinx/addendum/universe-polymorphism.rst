@@ -22,11 +22,9 @@ and *monomorphic* definitions is given by the identity function:
 
 .. rocqtop:: in
 
-   Unset Universe Polymorphism.
    Definition identity {A : Type} (a : A) := a.
 
-The prelude sets the :flag:`Universe Polymorphism` flag, which we unset here.
-:term:`Constant <constant>` declarations are then monomorphic, hence the identity
+By default, :term:`constant` declarations are monomorphic, hence the identity
 function declares a global universe (automatically named ``identity.u0``) for its domain.
 Subsequently, if we try to self-apply the identity, we will get an
 error:

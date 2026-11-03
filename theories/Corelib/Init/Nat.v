@@ -22,7 +22,7 @@ Import Number.NumberNotations.
     without importing it, leading to qualified definitions
     (e.g. Nat.pred) *)
 
-Monomorphic Definition t := nat.
+Definition t := nat.
 
 (** ** Constants *)
 

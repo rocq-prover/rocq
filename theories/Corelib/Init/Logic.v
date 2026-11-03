@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-#[global] Set Universe Polymorphism.
 Set Implicit Arguments.
 
 From Corelib Require Export Notations.
@@ -378,7 +377,6 @@ End universal_quantification.
     as it expresses that [x] and [y] are equal iff every property on
     [A] which is true of [x] is also true of [y] *)
 
-#[universes(template)]
 Inductive eq (A:Type) (x:A) : A -> Prop :=
     eq_refl : x = x :>A
 
@@ -456,7 +454,7 @@ Section Logic_lemmas.
     Proof.
       red; intros h1 h2; apply h1; destruct h2; trivial.
     Qed.
-Set Debug "backtrace".
+
   End equality.
 
   Definition eq_sind_r :
