@@ -113,8 +113,38 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | String    of Pstring.t
   | Array     of 'univs * 'constr array * 'constr * 'types
 
+module Wrap =
+struct
+type hash = int
+
+(* It is CRITICAL that the hash is the last field of the inductive type so that
+   the operation {!unwrap} works as intended *)
+type ('constr, 'types, 'sort, 'univs, 'r) t =
+  | Rel       of int * hash
+  | Var       of Id.t * hash
+  | Meta      of metavariable * hash
+  | Evar      of 'constr pexistential * hash
+  | Sort      of 'sort * hash
+  | Cast      of 'constr * cast_kind * 'types * hash
+  | Prod      of (Name.t,'r) pbinder_annot * 'types * 'types * hash
+  | Lambda    of (Name.t,'r) pbinder_annot * 'types * 'constr * hash
+  | LetIn     of (Name.t,'r) pbinder_annot * 'constr * 'types * 'constr * hash
+  | App       of 'constr * 'constr array * hash
+  | Const     of (Constant.t * 'univs) * hash
+  | Ind       of (inductive * 'univs) * hash
+  | Construct of (constructor * 'univs) * hash
+  | Case      of case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * ('constr,'r) pcase_branch array * hash
+  | Fix       of ('constr, 'types, 'r) pfixpoint * hash
+  | CoFix     of ('constr, 'types, 'r) pcofixpoint * hash
+  | Proj      of Projection.t * 'r * 'constr * hash
+  | Int       of Uint63.t * hash
+  | Float     of Float64.t * hash
+  | String    of Pstring.t * hash
+  | Array     of 'univs * 'constr array * 'constr * 'types * hash
+end
+
 (* constr is the fixpoint of the previous type. *)
-type t = T of (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term [@@unboxed]
+type t = T of (t, t, Sorts.t, Instance.t, Sorts.relevance) Wrap.t [@@unboxed]
 type constr = t
 type types = constr
 
@@ -133,11 +163,131 @@ type 'a binder_annot = ('a,Sorts.relevance) Context.pbinder_annot
 (*    kind_of_term = constructions as seen by the user                 *)
 (************************************************************************)
 
+module View :
+sig
+  external unwrap : ('constr, 'types, 'sort, 'univs, 'r) Wrap.t -> ('constr, 'types, 'sort, 'univs, 'r) kind_of_term = "%identity"
+  val wrap : (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term -> (t, t, Sorts.t, Instance.t, Sorts.relevance) Wrap.t
+  val hash : t -> int [@@ocaml.warning "-32"]
+end =
+struct
+
+open Hashset.Combine
+
+(* Unsafe transmutation that should not impact the runtime *)
+external unwrap : ('constr, 'types, 'sort, 'univs, 'r) Wrap.t -> ('constr, 'types, 'sort, 'univs, 'r) kind_of_term = "%identity"
+
+(* Designed so that [Constr.equal t1 t2 = true] implies [hash t1 = hash t2] *)
+let hash (T k) = match k with
+| Wrap.Rel (_, h) -> h
+| Wrap.Var (_, h) -> h
+| Wrap.Meta (_, h) -> h
+| Wrap.Evar (_, h) -> h
+| Wrap.Sort (_, h) -> h
+| Wrap.Cast (_, _, _, h) -> h
+| Wrap.Prod (_, _, _, h) -> h
+| Wrap.Lambda (_, _, _, h) -> h
+| Wrap.LetIn (_, _, _, _, h) -> h
+| Wrap.App (_, _, h) -> h
+| Wrap.Const (_, h) -> h
+| Wrap.Ind (_, h) -> h
+| Wrap.Construct (_, h) -> h
+| Wrap.Case (_, _, _, _, _, _, _, h) -> h
+| Wrap.Fix (_, h) -> h
+| Wrap.CoFix (_, h) -> h
+| Wrap.Proj (_, _, _, h) -> h
+| Wrap.Int (_, h) -> h
+| Wrap.Float (_, h) -> h
+| Wrap.String (_, h) -> h
+| Wrap.Array (_, _, _, _, h) -> h
+
+let hash_slist l =
+  SList.Skip.fold (fun accu c -> combine accu (hash c)) 0 l
+
+let hash_array v =
+  Array.fold_left (fun accu c -> combine accu (hash c)) 0 v
+
+let hash_invert = function
+| NoInvert -> 0
+| CaseInvert { indices } -> combinesmall 1 (hash_array indices)
+
+let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
+| Rel n ->
+  let h = Int.hash n in
+  Wrap.Rel (n, combinesmall 1 h)
+| Var id ->
+  let h = Id.hash id in
+  Wrap.Var (id, combinesmall 2 h)
+| Meta m ->
+  let h = Int.hash m in
+  Wrap.Meta (m, combinesmall 3 h)
+| Evar ((evk, l) as ev) ->
+  let h = combine (Evar.hash evk) (hash_slist l) in
+  Wrap.Evar (ev, combinesmall 4 h)
+| Sort s ->
+  let h = Sorts.hash s in
+  Wrap.Sort (s, combinesmall 5 h)
+| Cast (c, k, t) ->
+  (* Ignore the Cast node to preserve Constr.equal compat *)
+  Wrap.Cast (c, k, t, hash c)
+| Prod (na, t, u) ->
+  let h = combine (hash t) (hash u) in
+  Wrap.Prod (na, t, u, combinesmall 7 h)
+| Lambda (na, t, c) ->
+  let h = combine (hash t) (hash c) in
+  Wrap.Lambda (na, t, c, combinesmall 8 h)
+| LetIn (na, b, t, c) ->
+  let h = combine3 (hash b) (hash t) (hash c) in
+  Wrap.LetIn (na, b, t, c, combinesmall 9 h)
+| App (c, args) ->
+  let h = combine (hash c) (hash_array args) in
+  Wrap.App (c, args, combinesmall 10 h)
+| Const ((cst, u) as pcst) ->
+  let h = combine (Constant.CanOrd.hash cst) (UVars.Instance.hash u) in (* XXX *)
+  Wrap.Const (pcst, combinesmall 11 h)
+| Ind ((ind, u) as pind) ->
+  let h = combine (Ind.CanOrd.hash ind) (UVars.Instance.hash u) in (* XXX *)
+  Wrap.Ind (pind, combinesmall 12 h)
+| Construct ((cstr, u) as pcstr) ->
+  let h = combine (Construct.CanOrd.hash cstr) (UVars.Instance.hash u) in (* XXX *)
+  Wrap.Construct (pcstr, combinesmall 13 h)
+| Case (ci, u, pms, p, iv, c, br) ->
+  let brh = Array.fold_left (fun accu (_, br) -> combine accu (hash br)) 0 br in
+  let h =
+    combine (Ind.CanOrd.hash ci.ci_ind)
+      (combine5 (UVars.Instance.hash u) (hash_array pms)
+        (hash (snd (fst p))) (hash_invert iv) brh)
+  in
+  Wrap.Case (ci, u, pms, p, iv, c, br, combinesmall 14 h)
+| Fix ((ln, i), (_nas, fb, ft) as rdef) ->
+  let lnh = Array.fold_left combine 0 ln in
+  let h = combine4 lnh (Int.hash i) (hash_array fb) (hash_array ft) in
+  Wrap.Fix (rdef, combinesmall 15 h)
+| CoFix (i, (_nas, fb, ft) as rdef) ->
+  let h = combine3 (Int.hash i) (hash_array fb) (hash_array ft) in
+  Wrap.CoFix (rdef, combinesmall 16 h)
+| Proj (p, r, c) ->
+  let h = combine (Projection.CanOrd.hash p) (hash c) in (* XXX *)
+  Wrap.Proj (p, r, c, combinesmall 17 h)
+| Int i ->
+  let h = Uint63.hash i in
+  Wrap.Int (i, combinesmall 18 h)
+| Float f ->
+  let h = Float64.hash f in
+  Wrap.Float (f, combinesmall 19 h)
+| String s ->
+  let h = Pstring.hash s in
+  Wrap.String (s, combinesmall 20 h)
+| Array (u, v, def, t) ->
+  let h = combine4 (UVars.Instance.hash u) (hash_array v) (hash def) (hash t) in
+  Wrap.Array (u, v, def, t, combinesmall 21 h)
+
+end
+
 (* User view of [constr]. For [App], it is ensured there is at
    least one argument and the function is not itself an applicative
    term *)
 
-let kind (T c) = c
+let kind (T c) = View.unwrap c
 
 let rec kind_nocast_gen kind c =
   match kind c with
@@ -330,13 +480,13 @@ let decompose_app c =
 (*********************)
 
 (* Constructs a de Bruijn index with number n *)
-let rels = Array.init 17 (fun i -> T (Rel i))
+let rels = Array.init 17 (fun i -> T (View.wrap (Rel i)))
 
-let mkRel n = if 0<=n && n<=16 then rels.(n) else T (Rel n)
+let mkRel n = if 0<=n && n<=16 then rels.(n) else T (Rel (n, Hashset.Combine.combine 0 @@ Int.hash n))
 
-let mkSProp = T (Sort Sorts.sprop)
-let mkProp  = T (Sort Sorts.prop)
-let mkSet   = T (Sort Sorts.set)
+let mkSProp = T (View.wrap (Sort (Sorts.sprop)))
+let mkProp  = T (View.wrap (Sort (Sorts.prop)))
+let mkSet   = T (View.wrap (Sort (Sorts.set)))
 
 (* Enforces:
    - applicative terms have at least one argument and the
@@ -345,22 +495,22 @@ let mkSet   = T (Sort Sorts.set)
    - small rels are shared
    - small sorts are shared
 *)
-let of_kind = function
+let of_kind k = match k with
 | Rel n when 0 <= n && n < Array.length rels -> rels.(n)
 | App (f, [||]) -> f
 | App (f, a) as k -> begin match kind f with
-    | App (g, cl) -> T (App (g, Array.append cl a))
-    | _ -> T k
+    | App (g, cl) -> T (View.wrap (App (g, Array.append cl a)))
+    | _ -> T (View.wrap k)
   end
 | Cast (c, knd, t) as k -> begin match kind c with
     | Cast (c, knd', _) when (knd == VMcast || knd == NATIVEcast) && knd == knd' ->
-      T (Cast (c, knd, t))
-    | _ -> T k
+      T (View.wrap (Cast (c, knd, t))) (* XXX *)
+    | _ -> T (View.wrap k)
   end
 | Sort Sorts.SProp -> mkSProp
 | Sort Sorts.Prop -> mkProp
 | Sort Sorts.Set -> mkSet
-| k -> T k
+| k -> T (View.wrap k)
 
 (* Construct a type *)
 let mkType u = of_kind @@ Sort (Sorts.sort_of_univ u)
@@ -1304,7 +1454,7 @@ and sh_invert civ iv = match civ, iv with
 
 and sh_rec_main t =
   let (h, y) = hash_term t in
-  (h, HashsetTerm.repr h (T y) term_table)
+  (h, HashsetTerm.repr h (T (View.wrap y)) term_table)
 
 and sh_rec t =
   incr steps;
