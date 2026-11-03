@@ -3094,7 +3094,15 @@ let interp_context_evars_gen ?(program_mode=false) ?(unconstrained_sorts = false
 let interp_named_context_evars ?program_mode ?unconstrained_sorts ?poly ?impl_env ?autoimp_enable env sigma bl =
   let extract_name ?loc = function Name id -> id | Anonymous -> user_err ?loc Pp.(str "Unexpected anonymous variable.") in
   let make_decl ?loc = Context.Named.Declaration.of_rel_decl (extract_name ?loc) in
-  interp_context_evars_gen ?program_mode ?unconstrained_sorts ?poly ?impl_env ?autoimp_enable ~dump:false env sigma make_decl (EConstr.push_named ProofVar) bl
+  let push_decl d env =
+    let () =
+      let id = Context.Named.Declaration.get_id d in
+      if Environ.mem_named id env then
+        CErrors.user_err Pp.(Id.print id ++ str " already exists.")
+    in
+    EConstr.push_named ProofVar d env
+  in
+  interp_context_evars_gen ?program_mode ?unconstrained_sorts ?poly ?impl_env ?autoimp_enable ~dump:false env sigma make_decl push_decl bl
 
 let interp_context_evars ?program_mode ?unconstrained_sorts ?poly ?impl_env env sigma bl =
   interp_context_evars_gen ?program_mode ?unconstrained_sorts ?poly ?impl_env ~autoimp_enable:false ~dump:true env sigma (fun ?loc d -> d) EConstr.push_rel bl
