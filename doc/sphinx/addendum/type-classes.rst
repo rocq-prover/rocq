@@ -370,6 +370,8 @@ Command summary
    :ref:`programs`) and to use the obligation mechanism to manage missing
    fields, and it also supports the lighter :attr:`refine` attribute:
 
+   It also supports :attr:`sealed` and :attr:`defined` to control :term:`opacity <opaque>`.
+
    .. cmd:: Declare Instance @ident_decl {* @binder } : @term {? @hint_info }
 
       In a :cmd:`Module Type`, declares that a corresponding concrete

@@ -19,6 +19,9 @@ val do_mutually_recursive
      (* Obligation mode turns unresolved evars into obligations *)
   -> refine:bool
      (* [refine] means definitions are allowed to have holes *)
+  -> sealed:bool
+     (* [sealed:true] only allowed when we don't open a proof
+        (because a proof has a terminator which decides sealing) *)
   -> program_mode:bool
      (* [program_mode] means here:
         - a special treatment of subsets in pretyping

@@ -164,6 +164,10 @@ Top-level definitions of corecursive functions
    Section :ref:`coinductive-types` for the definition of :g:`Stream`, :g:`hd`
    and :g:`tl`):
 
+   This command accepts the same attributes as :cmd:`Definition`.
+   The :attr:`bypass_check(guard)` attribute disables termination checking for
+   this definition.
+
    .. rocqtop:: all
 
       CoFixpoint from (n:nat) : Stream := Seq n (from (S n)).
