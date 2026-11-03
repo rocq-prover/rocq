@@ -217,11 +217,11 @@ block).
 foo@{i} = Type@{M.i} -> Type@{i}
      : Type@{max(M.i+1,i+1)}
 (* i |  *)
-Type@{u0} -> Type@{UnivBinders:83}
-     : Type@{max(u0+1,UnivBinders:83+1)}
-(* {UnivBinders:83} | 
+Type@{u0} -> Type@{UnivBinders:86}
+     : Type@{max(u0+1,UnivBinders:86+1)}
+(* {UnivBinders:86} | 
 Normalized constraints:
- {UnivBinders:83} |  *)
+ {UnivBinders:86} |  *)
 bind_univs.mono = Type@{bind_univs.mono.u}
      : Type@{bind_univs.mono.u+1}
 bind_univs.poly@{u} = Type@{u}
@@ -288,13 +288,9 @@ Universe u0 already exists.
 File "./output/UnivBinders.v", line 253, characters 6-26:
 The command has indeed failed with message:
 Tactic failure: Not equal (due to universes).
-eq_rect@{UnivBinders:128 UnivBinders:129}
-     : forall (A : Type@{UnivBinders:129}) (x : A)
-         (P : A -> Type@{UnivBinders:128}),
+eq_rect
+     : forall (A : Type@{eq_rect.u1}) (x : A) (P : A -> Type@{eq_rect.u0}),
        P x -> forall y : A, x = y -> P y
-(* {UnivBinders:129 UnivBinders:128} | 
-Normalized constraints:
- {UnivBinders:129 UnivBinders:128} |  *)
 File "./output/UnivBinders.v", line 269, characters 26-36:
 Warning: Support for Type@{s;l} is deprecated. Use "Univ@{s;l}" instead.
 [deprecated-type-sort-poly-syntax,deprecated-since-9.3,deprecated,default]
