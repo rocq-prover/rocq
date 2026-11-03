@@ -108,7 +108,7 @@ type showable =
   | ShowGoal of goal_reference
   | ShowProof
   | ShowExistentials
-  | ShowUniverses of bool
+  | ShowUniverses of bool (** [true]: only the universes of the proof *)
   | ShowProofNames
   | ShowIntros of bool
   | ShowMatch of qualid

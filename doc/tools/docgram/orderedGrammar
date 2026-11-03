@@ -874,7 +874,7 @@ command: [
 | "Unfocused"
 | "Show" OPT [ qualid | natural ]
 | "Show" "Existentials"
-| "Show" OPT "Local" "Universes"
+| "Show" OPT "Global" "Universes"
 | "Show" "Conjectures"
 | "Show" "Proof" OPT ( "Diffs" OPT "removed" )
 | "Show" "Diffs" ident

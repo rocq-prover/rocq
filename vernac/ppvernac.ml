@@ -800,7 +800,7 @@ let pr_synpure_vernac_expr v =
       | ShowGoal n -> keyword "Show" ++ pr_goal_reference n
       | ShowProof -> keyword "Show Proof"
       | ShowExistentials -> keyword "Show Existentials"
-      | ShowUniverses b -> keyword "Show " ++ (if b then keyword "Local" else mt ()) ++ keyword " Universes"
+      | ShowUniverses local -> keyword "Show" ++ (if local then mt () else spc () ++ keyword "Global") ++ spc () ++ keyword "Universes"
       | ShowProofNames -> keyword "Show Conjectures"
       | ShowIntros b -> keyword "Show " ++ (if b then keyword "Intros" else keyword "Intro")
       | ShowMatch id -> keyword "Show Match " ++ pr_qualid id
