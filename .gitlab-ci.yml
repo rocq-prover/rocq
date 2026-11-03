@@ -1148,6 +1148,9 @@ plugin:ci-metarocq:
   - library:ci-ext_lib
   stage: build-2
   timeout: 1h 30min
+  variables:
+    # somehow too big
+    SAVE_BUILD_CI: "0"
 
 plugin:ci-micromega:
   extends: .ci-template-flambda
