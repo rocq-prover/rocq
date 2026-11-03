@@ -55,6 +55,10 @@ val enforce_constraints : UnivConstraint.t list -> t -> (t * level_equivalences)
   inferred, and only then are the equalities they create merged. This is more efficient than
   enforcing them one at a time. *)
 
+val localize : UnivConstraint.t list -> t -> t
+(** [localize csts m] makes the clauses of [csts] that are global clauses of [m] local, e.g. the
+  constraints of side effects that are inlined instead of declared. *)
+
 (** Normalize a level to its canonical representative.
   This uses the internally maintained substitution from levels to universes.
   @return A canonical universe: each level in the universe is canonical w.r.t. the given model. *)
