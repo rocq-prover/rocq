@@ -548,7 +548,7 @@ command: [
 | "Show" natural
 | "Show" qualid
 | "Show" "Existentials"
-| "Show" "Local" "Universes"
+| "Show" "Global" "Universes"
 | "Show" "Universes"
 | "Show" "Conjectures"
 | "Show" "Proof"
