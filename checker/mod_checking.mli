@@ -12,7 +12,7 @@ type axioms
 
 val set_indirect_accessor : (Opaqueproof.opaque -> Opaqueproof.opaque_proofterm) -> unit
 
-val check_module : Environ.env -> axioms -> Retroknowledge.action list -> Names.ModPath.t -> Mod_declarations.module_body -> axioms
+val check_module : Environ.env -> Retroknowledge.action list -> Names.ModPath.t -> Mod_declarations.module_body -> unit
 
 exception BadConstant of Names.Constant.t * Pp.t
 
@@ -20,4 +20,4 @@ val constants_of_axioms : axioms -> Names.KerName.t list
 val empty_axioms : axioms
 
 (** Record assumptions hidden by module signatures without type checking. *)
-val collect_module_axioms : axioms -> Names.ModPath.t -> Mod_declarations.module_body -> axioms
+val collect_library_axioms : axioms -> Safe_typing.compiled_library -> axioms

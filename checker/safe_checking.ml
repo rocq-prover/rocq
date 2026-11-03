@@ -32,7 +32,7 @@ let vm_library_of env clib =
   if !CheckFlags.enable_vm then Safe_typing.recompile_vm_library env clib
   else Safe_typing.empty_vm_library env clib, clib
 
-let import senv opac clib digest =
+let import senv clib digest =
   let senv = Safe_typing.check_flags_for_library clib senv in
   let dp = Safe_typing.dirpath_of_library clib in
   let retro = Safe_typing.retroknowledge_of_library clib in
@@ -40,16 +40,17 @@ let import senv opac clib digest =
   let vmtab, clib = vm_library_of env clib in
   let env = Environ.set_vm_library vmtab env in
   let mb = Safe_typing.module_of_library clib in
-  let opac = Mod_checking.check_module env opac retro (Names.ModPath.MPfile dp) mb in
+  let () = Mod_checking.check_module env retro (Names.ModPath.MPfile dp) mb in
   let vmtab = Vmlibrary.inject (Vmlibrary.export vmtab) in
-  let (_,senv) = Safe_typing.import clib vmtab digest senv in senv, opac
+  let (_,senv) = Safe_typing.import clib vmtab digest senv in
+  senv
 
-let import senv opac clib digest : _ * _ =
+let import senv clib digest =
   NewProfile.profile "import"
     ~args:(fun () ->
         let dp = Safe_typing.dirpath_of_library clib in
         [("name", `String (Names.DirPath.to_string dp))])
-    (fun () ->import senv opac clib digest)
+    (fun () ->import senv clib digest)
     ()
 
 let unsafe_import senv clib digest =

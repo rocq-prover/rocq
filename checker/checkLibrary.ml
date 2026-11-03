@@ -114,7 +114,7 @@ let indirect_accessor o =
 
 let () = Mod_checking.set_indirect_accessor indirect_accessor
 
-let check_one_lib ~output_context admit senv (dir,m) =
+let check_one_lib ~output_context admit (senv,axioms) (dir,m) =
   let md = m.library_compiled in
   let dig = m.library_digest in
   (* Look up if the library is to be admitted correct. We could
@@ -124,20 +124,18 @@ let check_one_lib ~output_context admit senv (dir,m) =
     if LibrarySet.mem dir admit then
       (Flags.if_verbose Feedback.msg_notice
          (str "Admitting library: " ++ pr_dirpath dir);
-       let imported = Safe_checking.unsafe_import (fst senv) md dig in
-       let axioms =
-         if not output_context then snd senv
-         else
-           Mod_checking.collect_module_axioms (snd senv)
-             (ModPath.MPfile dir) (Safe_typing.module_of_library md)
-       in
-       imported, axioms)
+       Safe_checking.unsafe_import senv md dig)
     else
       (Flags.if_verbose Feedback.msg_notice
          (str "Checking library: " ++ pr_dirpath dir);
-       Safe_checking.import (fst senv) (snd senv) md dig)
+       Safe_checking.import senv md dig)
   in
-    register_loaded_library m; senv
+  let axioms = if output_context then
+      Mod_checking.collect_library_axioms axioms md
+    else axioms
+  in
+  register_loaded_library m;
+  senv, axioms
 
 (*************************************************************************)
 (*s Load path. Mapping from physical to logical paths etc.*)
