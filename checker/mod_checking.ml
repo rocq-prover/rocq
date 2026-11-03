@@ -374,6 +374,11 @@ and collect_signature_axioms axioms sign mp =
     in
     List.fold_left fold axioms struc
 
+let collect_library_axioms axioms lib =
+  collect_module_axioms axioms
+    (MPfile (Safe_typing.dirpath_of_library lib))
+    (Safe_typing.module_of_library lib)
+
 let eq_prim_ind (type a b) (p : a CPrimitives.prim_ind) (q : b CPrimitives.prim_ind) =
   String.equal (CPrimitives.prim_ind_to_string p) (CPrimitives.prim_ind_to_string q)
 
@@ -405,7 +410,7 @@ let get_retroknowlege env retro =
   let (imap, cmap, _) = List.fold_left fold (Mindmap.empty, Cmap.empty, Mindmap.empty) retro in
   (imap, cmap)
 
-let check_module env axioms retro mp mb =
+let check_module env retro mp mb =
   let retro = get_retroknowlege env retro in
   let st = { st_retro = retro } in
   let { st_retro = (imap, cmap) } = check_module env st mp mb in
@@ -416,10 +421,10 @@ let check_module env axioms retro mp mb =
   | None, Some (cst, _) ->
     CErrors.user_err Pp.(str "Retroknowledge registration for unknown constant " ++ Constant.print cst ++ str ".")
   in
-  collect_module_axioms axioms mp mb
+  ()
 
-let check_module env axioms retro mp mb =
+let check_module env retro mp mb =
   NewProfile.profile "check_module"
     ~args:(fun () -> [("name", `String (ModPath.to_string mp))])
-    (fun () -> check_module env axioms retro mp mb)
+    (fun () -> check_module env retro mp mb)
     ()
