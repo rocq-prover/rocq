@@ -500,6 +500,8 @@ module ClausesOf = struct
 
   let fold_local f cls acc = SWC.fold f cls.local acc
 
+  let has_local cls = not (SWC.is_empty cls.local)
+
   let filter f cls = { local = SWC.filter f cls.local; global = SWC.filter f cls.global }
 
   let filter_map f cls =
@@ -720,6 +722,9 @@ type model = {
   subst_deps : Index.Set.t PMap.t; (* For each canonical node, the levels whose substitution mentions it *)
   values : int PMap.t option; (* values, superseding the ones attached to canonical nodes if present *)
   canonical : int; (* Number of canonical nodes *)
+  locals : Index.Set.t; (* Contains the canonical nodes which are local or have local clauses, and maybe
+    other indices: they are checked again when used *)
+  local_eqs : Index.Set.t; (* Contains the substituted levels whose substitution is local *)
   table : Index.table }
 
 let set_local m = { m with locality = Local }
@@ -731,6 +736,8 @@ let empty_model = {
   subst_deps = PMap.empty;
   values = None;
   canonical = 0;
+  locals = Index.Set.empty;
+  local_eqs = Index.Set.empty;
   table = Index.empty
 }
 
@@ -796,10 +803,16 @@ let enter_equiv m u local v =
     subst_deps = add_subst_deps u v subst_deps;
     canonical = m.canonical - 1;
     values = Option.map (PMap.remove u) m.values;
+    locals = m.locals;
+    local_eqs = (match m.locality with Local -> Index.Set.add u m.local_eqs | Global -> m.local_eqs);
     table = m.table }
 
 let change_node m n =
-  { m with entries = PMap.set n.canon n m.entries }
+  let locals =
+    if n.local == Local || ClausesOf.has_local n.clauses_bwd then Index.Set.add n.canon m.locals
+    else m.locals
+  in
+  { m with entries = PMap.set n.canon n m.entries; locals }
 
 exception Undeclared of Level.t
 
@@ -1009,6 +1022,8 @@ let check_invariants ~(required_canonical:Level.t -> bool) model =
   PMap.iter (fun idx can ->
     assert (Index.equal idx can.canon);
     assert (Index.mem (Index.repr idx model.table) model.table);
+    if (can.local == Local || ClausesOf.has_local can.clauses_bwd) && not (Index.Set.mem idx model.locals) then
+      CErrors.user_err Pp.(pr_raw_index_point model idx ++ str" is local or has local clauses but is not in the local nodes");
     (* assert (PMap.mem idx model.values); *)
     ForwardClauses.fold (fun ~kprem ~concl ~prems () ->
       PartialClausesOf.iter (fun (kconcl, others) ->
@@ -1059,7 +1074,9 @@ let check_invariants ~(required_canonical:Level.t -> bool) model =
               prems = PartialClausesOf.singleton (k, NeList.filter (fun x -> not (eq_expr kprem x)) prems) }) ++ str" is not registered as a forward clauses for "
             ++ pr_index_point model kprem ++ fnl () ++ str" prems = " ++ pr_clause_idx model (prems, (can.canon, k)))) prems) cls;
       incr n_canon) model.entries;
-  PMap.iter (fun idx (u, _local, _local_eq) ->
+  PMap.iter (fun idx (u, _local, local_eq) ->
+    if local_eq == Local && not (Index.Set.mem idx model.local_eqs) then
+      CErrors.user_err Pp.(pr_raw_index_point model idx ++ str" has a local substitution but is not in the local ones");
     if not (sorted_premises u) then
       CErrors.user_err Pp.(str"The substitution of " ++ pr_raw_index_point model idx ++ str" by " ++
         pr_raw_premises model u ++ str" has unsorted premises, or premises mentioning the same universe several times");
@@ -2303,7 +2320,7 @@ let enforce_constraint (u, k, v) (m : t) = enforce u k v m
 
 exception AlreadyDeclared
 
-let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; values; canonical } =
+let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; values; canonical; locals; local_eqs } =
   let idx, table =
     if Index.mem u table then
       let idx = Index.find u table in
@@ -2314,7 +2331,8 @@ let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; va
   let can = { canon = idx; value = 0; local = locality; rigid;
     clauses_fwd = ForwardClauses.empty; clauses_bwd = ClausesOf.empty } in
   let entries = PMap.add idx can entries in
-  idx, { locality; entries; subst; subst_deps; table; values; canonical = canonical + 1; }
+  let locals = match locality with Local -> Index.Set.add idx locals | Global -> locals in
+  idx, { locality; entries; subst; subst_deps; table; values; canonical = canonical + 1; locals; local_eqs }
 
 let add ?rigid u model =
   let _idx, model = add_model ?rigid u model in
@@ -2861,14 +2879,28 @@ let constraints_of model ?(only_local = false) fold acc =
     in
     locals, cstrs
   in
-  let locals, cstrs = PMap.fold constraints_of model.entries (Level.Set.empty, Constraints.empty) in
+  let init = (Level.Set.empty, Constraints.empty) in
+  let locals, cstrs =
+    if only_local then
+      (* Only the nodes which can be local or have local clauses *)
+      Index.Set.fold (fun idx acc -> match PMap.find_opt idx model.entries with
+          | Some can -> constraints_of idx can acc
+          | None -> acc) model.locals init
+    else PMap.fold constraints_of model.entries init
+  in
   let equivs_of u (v, local, local_eq) equiv =
     if only_local && local_eq == Global then equiv else
     let u = Index.repr u model.table in
     let v = univ_of_premises model v in
     Level.Map.add u (local, v) equiv
   in
-  let equiv = PMap.fold equivs_of model.subst Level.Map.empty in
+  let equiv =
+    if only_local then
+      Index.Set.fold (fun u equiv -> match PMap.find_opt u model.subst with
+          | Some e -> equivs_of u e equiv
+          | None -> equiv) model.local_eqs Level.Map.empty
+    else PMap.fold equivs_of model.subst Level.Map.empty
+  in
   locals, Constraints.fold fold cstrs acc, equiv
 
 type 'a constraint_fold = univ_constraint -> 'a -> 'a
