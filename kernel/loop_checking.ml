@@ -320,21 +320,6 @@ struct
   let fold f m = M.fold f m.map
   let cardinal m = m.cardinal
 
-  let union f m m' =
-    let cardinal = ref 0 in
-    let merge_fn k x x' =
-      match x, x' with
-      | None, None -> None
-      | Some x, None -> cardinal := !cardinal + T.cardinal x; Some x
-      | None, Some x -> cardinal := !cardinal + T.cardinal x; Some x
-      | Some x, Some y ->
-        let xy = f k x y in
-        cardinal := !cardinal + T.cardinal xy;
-        Some xy
-    in
-    let u = M.merge merge_fn m.map m'.map in
-    { map = u; cardinal = !cardinal }
-
   let update x f {map;cardinal} =
     let cardinal = ref cardinal in
     let fn x =
@@ -531,6 +516,21 @@ module ClausesOf = struct
     if local == cls.local && global == cls.global then cls
     else { local; global }
 
+  (* [replace cl f cls] replaces the clause [cl] of [cls], if present, by [f cl] in the same set, or
+     removes it if [f cl] is [None], as [filter_map] would. The clause can be both local and global. *)
+  let replace cl f cls =
+    let replace s =
+      if not (SWC.mem cl s) then s else
+      let s' = SWC.remove cl s in
+      match f cl with
+      | None -> s'
+      | Some cl' -> if cl' == cl then s else SWC.add cl' s'
+    in
+    let local = replace cls.local in
+    let global = replace cls.global in
+    if local == cls.local && global == cls.global then cls
+    else { local; global }
+
   let union cls cls' =
     { local = SWC.union cls.local cls'.local; global = SWC.union cls.global cls'.global }
 
@@ -626,18 +626,6 @@ struct
           Some (PMap.add cl.concl cl.prems cls))
       clauses
 
-
-  (* let union (clauses : t) (clauses' : t) : t = *)
-    (* PMap.fold (fun idx cls acc -> add (idx, cls) acc) clauses clauses' *)
-
-  let union (clauses : t) (clauses' : t) : t =
-    let merge_pclauses clauses clauses' =
-      let merge _idx cls cls' = PartialClausesOf.union cls cls' in
-      PMap.union merge clauses clauses'
-    in
-    let merge_by_kprem _kprem cls cls' = merge_pclauses cls cls' in
-    IntMap.union merge_by_kprem clauses clauses'
-
   let filter_map (f : int -> Index.t -> PartialClausesOf.t -> PartialClausesOf.t option) clauses =
     IntMap.fold (fun k fwd acc ->
       let fwd = PMap.filter_map (f k) fwd in
@@ -672,6 +660,21 @@ struct
     IntMap.exists (fun kprem cls ->
       PMap.exists (fun concl prems -> f ~kprem ~concl ~prems) cls)
       cls
+
+  (** [mem ~kprem concl cl cls] is [true] iff the partial clause [cl] of conclusion [concl]
+    is in the forward clauses [cls] of premise increment [kprem] *)
+  let mem ~kprem concl cl (cls : t) =
+    match IntMap.find_opt kprem cls with
+    | None -> false
+    | Some pcls ->
+      match PMap.find_opt concl pcls with
+      | None -> false
+      | Some cls -> PartialClausesOf.mem cl cls
+
+  (** [add_all cls cls'] adds the clauses [cls] to [cls'], in time logarithmic in the size of [cls']
+    for each clause of [cls] (unlike [union]) *)
+  let add_all (cls : t) (cls' : t) : t =
+    fold (fun ~kprem ~concl ~prems acc -> add { kprem; concl; prems } acc) cls cls'
 
   let pr_clauses pr prem (cls : PMap.t) =
     let open Pp in
@@ -1490,59 +1493,53 @@ let subst_fwd_clauses setidx prem idx (idx', k' as u) fwd =
   The clauses are simplified (see [simplify_clause]).
   @param bwd A set of backward clauses of shape [prems -> concl + k]
   @return A set of backward clauses of shape [prems[idx/u] -> concl + k] *)
+let subst_bwd_clause setidx concl idx u (kconcl, prems as cli) =
+  let prems' = Premises.subst idx (NeList.Tip u) prems in
+  match simplify_clause setidx (prems', (concl, kconcl)) with
+  | Trivial -> None
+  | Contradictory -> assert false (* The substituted equality holds in the model *)
+  | Canonical (prems', _) -> if prems' == prems then Some cli else Some (kconcl, prems')
+
 let subst_bwd_clauses setidx concl idx u bwd  =
-  ClausesOf.filter_map (fun _local (kconcl, prems as cli) ->
-    let prems' = Premises.subst idx (NeList.Tip u) prems in
-    match simplify_clause setidx (prems', (concl, kconcl)) with
-    | Trivial -> None
-    | Contradictory -> assert false (* The substituted equality holds in the model *)
-    | Canonical (prems', _) -> if prems' == prems then Some cli else Some (kconcl, prems')) bwd
+  ClausesOf.filter_map (fun _local -> subst_bwd_clause setidx concl idx u) bwd
 
-(** [subst_fwd_of_prem setidx idx u prem model] For a given premise [prem] substitute [idx] by [u]
-  in the forward clauses of its canonical representative. Nothing is done if [prem] is [idx].
-  @return An updated model. *)
-let subst_fwd_of_prem setidx idx u prem model =
-  if Index.equal prem idx then model else
-  let can = repr model prem in
-  let fwd = subst_fwd_clauses setidx can.canon idx u can.clauses_fwd in
-  if fwd == can.clauses_fwd then model
-  else change_node model { can with clauses_fwd = fwd }
+(** [subst_bwd_clause_of setidx concl idx u cl bwd] substitutes [idx] by [u] in the backward
+  clause [cl] of [concl], if it is in [bwd], as [subst_bwd_clauses] does *)
+let subst_bwd_clause_of setidx concl idx u cl bwd =
+  ClausesOf.replace cl (subst_bwd_clause setidx concl idx u) bwd
 
+(** [subst_fwd_clause_of setidx prem idx u (kprem, concl, cl) fwd] substitutes [idx] by [u] in the
+  forward clause [prem + kprem, cl -> concl] of [prem], if it is in [fwd], as [subst_fwd_clauses] does *)
+let subst_fwd_clause_of setidx prem idx u (kprem, concl, cl) fwd =
+  if not (ForwardClauses.mem ~kprem concl cl fwd) then fwd else
+  let fwdcl = ForwardClauses.singleton { kprem; concl; prems = PartialClausesOf.singleton cl } in
+  let fwdcl' = subst_fwd_clauses setidx prem idx u fwdcl in
+  if fwdcl' == fwdcl then fwd
+  else ForwardClauses.add_all fwdcl' (ForwardClauses.remove ~kprem concl cl fwd)
 
-(** [subst_fwd_of_bwd setidx idx u bwd model] For a set of backward clauses [prems -> _ + kconcl] substitute
-  [idx] by [u] in the forward clauses of [prems], except [idx] itself.
-  @return An updated model. *)
-let subst_fwd_of_bwd setidx idx u bwd model =
-  ClausesOf.fold (fun _local (_kconcl, prems) model ->
-    let f (prem, _) model = subst_fwd_of_prem setidx idx u prem model in
-    Premises.fold f prems model) bwd model
-
-(** [subst_partial_clauses_of setidx idx u cls model] For partial clauses [cls] of shape [(_, prems -> _)]
-  substitute [idx] by [u] in the forward clauses of [prems], except [idx] itself.
-  @return An updated model *)
-let subst_partial_clauses_of setidx idx u cls model =
-  PartialClausesOf.fold (fun (_, prems) model ->
-    Option.fold_left (fun model prems ->
-      Premises.fold (fun (prem, _) -> subst_fwd_of_prem setidx idx u prem) prems model) model prems)
-    cls model
-
-(** [subst_bwd_of_fwd_and_duplicates setidx idx u fwd model] For forward clauses
-  [_, prems -> concl + k], this substitutes [idx] by [u] in the backward clauses
-  from [concl] and the forward clauses from [prems] in the model, except
-  for [idx] itself.
-  @return An updated model *)
-let subst_bwd_of_fwd_and_duplicates setidx idx u fwd model =
-  let f ~kprem:_ ~concl ~prems model =
-    let model = subst_partial_clauses_of setidx idx u prems model in
-    if Index.equal concl idx then model else
-    let can = repr model concl in
-    let bwd' = subst_bwd_clauses setidx can.canon idx u can.clauses_bwd in
-    if bwd' == can.clauses_bwd then model
-    else
-      let can = { can with clauses_bwd = bwd' } in
-      change_node model can
+(** [clauses_mentioning other] are the clauses of the nodes other than [other] which mention [other],
+  read off the clauses of [other], where they are all registered:
+  - the backward clauses [(concl, (kconcl, prems))] of a clause [other + k, others -> concl + kconcl]
+  - the forward clauses [(prem, (kprem, concl, (kconcl, others)))] of each premise [prem + kprem] of a
+    clause [prems -> other + kconcl] or [other + k, others -> concl + kconcl] *)
+let clauses_mentioning other =
+  let idx = other.canon in
+  let fwd_of prems concl kconcl acc =
+    Premises.fold (fun (prem, kprem) acc ->
+        if Index.equal prem idx then acc
+        else (prem, (kprem, concl, (kconcl, remove_premise prem prems))) :: acc)
+      prems acc
   in
-  ForwardClauses.fold f fwd model
+  let fwds = ClausesOf.fold (fun _local (kconcl, prems) acc -> fwd_of prems idx kconcl acc)
+      other.clauses_bwd []
+  in
+  ForwardClauses.fold (fun ~kprem ~concl ~prems (bwds, fwds) ->
+      PartialClausesOf.fold (fun (kconcl, others) (bwds, fwds) ->
+          let prems = fwd_premises idx kprem others in
+          let bwds = if Index.equal concl idx then bwds else (concl, (kconcl, prems)) :: bwds in
+          (bwds, fwd_of prems concl kconcl fwds))
+        prems (bwds, fwds))
+    other.clauses_fwd ([], fwds)
 
 module UnivSubst =
 struct
@@ -1623,22 +1620,36 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
     let cank = (can.canon, diff) in
     let model, bwd, fwd =
       let setidx = Index.find Level.set model.table in
-      let newbwd = ClausesOf.union (subst_bwd_clauses setidx can.canon other.canon cank can.clauses_bwd)
-        (subst_bwd_clauses setidx can.canon other.canon cank (ClausesOf.shift diff other.clauses_bwd))
+      let idx = other.canon in
+      (* The clauses of the other nodes mentioning other, including can, are all registered in the
+        clauses of other: we substitute in them one at a time, before substitution, as substitution
+        can remove trivial clauses. Merging other then costs in the size of its clauses, not of the
+        ones of can or of the other nodes, e.g. when merging many universes into a large class.
+        - prems -> other + k clauses are reindexed to become prems -> can + k clauses,
+          but the forward clauses for each premise in prems still mentions the now equivalent universe.
+        - other, prems -> u + k clauses are reindexed to become can, prems -> u + k clauses,
+          but the backward clauses for each u still mention other. *)
+      let bwds, fwds = clauses_mentioning other in
+      let canbwd, model = List.fold_left (fun (canbwd, model) (concl, cl) ->
+          if Index.equal concl can.canon then (subst_bwd_clause_of setidx concl idx cank cl canbwd, model)
+          else
+            let n = repr model concl in
+            let bwd = subst_bwd_clause_of setidx concl idx cank cl n.clauses_bwd in
+            (canbwd, if bwd == n.clauses_bwd then model else change_node model { n with clauses_bwd = bwd }))
+          (can.clauses_bwd, model) bwds
       in
-      (* prems -> other + k clauses are reindexed to become prems -> can + k clauses,
-        but the forward clauses for each premise in prems still mentions the now equivalent universe *)
-      let newfwd = ForwardClauses.union
-        (subst_fwd_clauses setidx can.canon other.canon cank can.clauses_fwd)
-        (subst_fwd_clauses setidx other.canon other.canon cank other.clauses_fwd)
+      let canfwd, model = List.fold_left (fun (canfwd, model) (prem, cl) ->
+          if Index.equal prem can.canon then (subst_fwd_clause_of setidx prem idx cank cl canfwd, model)
+          else
+            let n = repr model prem in
+            let fwd = subst_fwd_clause_of setidx prem idx cank cl n.clauses_fwd in
+            (canfwd, if fwd == n.clauses_fwd then model else change_node model { n with clauses_fwd = fwd }))
+          (can.clauses_fwd, model) fwds
       in
-      (* other, prems -> u + k clauses are reindexed to become can, prems -> u + k clauses,
-        but the backward clauses for each u still mention other.
-        We substitute to make all clauses canonical again. The clauses of the other nodes
-        mentioning other are all registered in the clauses of other, so we only iterate on
-        these, before substitution, as substitution can remove trivial clauses. *)
-      let model = subst_fwd_of_bwd setidx other.canon cank other.clauses_bwd model in
-      let model = subst_bwd_of_fwd_and_duplicates setidx other.canon cank other.clauses_fwd model in
+      let newbwd = ClausesOf.union canbwd
+        (subst_bwd_clauses setidx can.canon idx cank (ClausesOf.shift diff other.clauses_bwd))
+      in
+      let newfwd = ForwardClauses.add_all (subst_fwd_clauses setidx idx idx cank other.clauses_fwd) canfwd in
       model, newbwd, newfwd
     in
     debug_loop_checking_set_can Pp.(fun () ->
