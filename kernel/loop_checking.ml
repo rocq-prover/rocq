@@ -513,6 +513,8 @@ module ClausesOf = struct
 
   let fold f cls acc = SWC.fold (f Local) cls.local (SWC.fold (f Global) cls.global acc)
 
+  let fold_local f cls acc = SWC.fold f cls.local acc
+
   let filter f cls = { local = SWC.filter f cls.local; global = SWC.filter f cls.global }
 
   let filter_map f cls =
@@ -2714,31 +2716,33 @@ let subst ~local model =
     else acc)
   model.subst Level.Map.empty
 
-let constraints_of_clauses ?(only_local = false) m clauses =
-  PMap.fold (fun concl bwd cstrs ->
-    ClausesOf.fold (fun local (k, prems) cstrs ->
-      if only_local && local == Global then cstrs
-      else
-      let prems = NeList.to_list prems in
-      let prems =
-        List.map (fun (v, k) ->
-          let vcan = repr m v in
-          let vp = Index.repr vcan.canon m.table in
-          (vp, k)) prems
-      in
-      let prem = Universe.unrepr prems in
-      Constraints.add (Universe.of_list [(Index.repr concl m.table, k)], UnivConstraint.Le, prem) cstrs)
-      bwd cstrs)
-    clauses Constraints.empty
+let constraint_of_clause m concl (k, prems) =
+  let prems = NeList.to_list prems in
+  let prems =
+    List.map (fun (v, k) ->
+      let vcan = repr m v in
+      let vp = Index.repr vcan.canon m.table in
+      (vp, k)) prems
+  in
+  let prem = Universe.unrepr prems in
+  (Universe.of_list [(Index.repr concl m.table, k)], UnivConstraint.Le, prem)
 
 let constraints_of model ?(only_local = false) fold acc =
-  let bwd = ref PMap.empty in
-  let locals = ref Level.Set.empty in
-  let constraints_of _u can =
-    if only_local && can.local == Local then locals := Level.Set.add (Index.repr can.canon model.table) !locals;
-    bwd := PMap.add can.canon can.clauses_bwd !bwd
+  (* With [only_local], most nodes of a graph extending the global one have no local clauses:
+     only their local clauses are visited *)
+  let constraints_of _u can (locals, cstrs) =
+    let locals =
+      if only_local && can.local == Local then Level.Set.add (Index.repr can.canon model.table) locals
+      else locals
+    in
+    let add cl cstrs = Constraints.add (constraint_of_clause model can.canon cl) cstrs in
+    let cstrs =
+      if only_local then ClausesOf.fold_local add can.clauses_bwd cstrs
+      else ClausesOf.fold (fun _local -> add) can.clauses_bwd cstrs
+    in
+    locals, cstrs
   in
-  let () = PMap.iter constraints_of model.entries in
+  let locals, cstrs = PMap.fold constraints_of model.entries (Level.Set.empty, Constraints.empty) in
   let equivs_of u (v, local, local_eq) equiv =
     if only_local && local_eq == Global then equiv else
     let u = Index.repr u model.table in
@@ -2746,8 +2750,7 @@ let constraints_of model ?(only_local = false) fold acc =
     Level.Map.add u (local, v) equiv
   in
   let equiv = PMap.fold equivs_of model.subst Level.Map.empty in
-  let cstrs = constraints_of_clauses model ~only_local !bwd in
-  !locals, Constraints.fold fold cstrs acc, equiv
+  locals, Constraints.fold fold cstrs acc, equiv
 
 type 'a constraint_fold = univ_constraint -> 'a -> 'a
 
