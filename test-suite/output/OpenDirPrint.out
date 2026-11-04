@@ -1,0 +1,38 @@
+Open Section OpenDirPrint.MySection
+Open Section OpenDirPrint.MySection
+*** [T : Type]
+*** [p : T]
+*** [ ax : p = p ]
+def : p = p
+lem : def = ax
+Section OpenDirPrint.MySection.SubSec
+*** [subv : nat]
+Open Section OpenDirPrint.MySection.SubSec
+*** [subv : nat]
+Open Module OpenDirPrint.M1
+a0 : nat
+a1 : bool
+Module Type OpenDirPrint.M1.T1
+*** [ b0 : bool ]
+*** [ b1 : nat ]
+Module OpenDirPrint.M1.T1.M2
+bb0 : b0 = b0
+bb1 : b1 = b1
+Open Module Type OpenDirPrint.M1.T1
+*** [ b0 : bool ]
+*** [ b1 : nat ]
+Module OpenDirPrint.M1.T1.M2
+bb0 : b0 = b0
+bb1 : b1 = b1
+Open Module OpenDirPrint.M1.T1.M2
+bb0 : b0 = b0
+bb1 : b1 = b1
+Open Module Type OpenDirPrint.M1.T1
+*** [ b0 : bool ]
+*** [ b1 : nat ]
+Module M2
+Module M2 := Struct Definition bb0 : b0 = b0. Definition bb1 : b1 = b1. End
+Open Module OpenDirPrint.M1
+a0 : nat
+a1 : bool
+Module Type T1 = Sig Parameter b0 : bool. Parameter b1 : nat. Module M2 End
