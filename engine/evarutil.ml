@@ -796,16 +796,16 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
   (* spiwack: mild code duplication with {!Evd.eq_constr_univs}. *)
   let t = EConstr.Unsafe.to_constr t
   and u = EConstr.Unsafe.to_constr u in
-  let eq_universes _ u1 u2 =
+  let eq_universes () _ u1 u2 =
     EConstr.EInstance.(equal extended_evd (make u1) (make u2))
   in
-  let eq_sorts s1 s2 = EConstr.ESorts.(equal extended_evd (make s1) (make s2)) in
-  let kind1 = kind_of_term_upto evd in
-  let kind2 = kind_of_term_upto extended_evd in
-  let rec eq_constr' nargs m n =
-    Constr.compare_head_gen_leq_with cmp nargs m n
-  and eq_evar e1 e2 =
-    let eq c1 c2 = eq_constr' 0 (EConstr.Unsafe.to_constr c1) (EConstr.Unsafe.to_constr c2) in
+  let eq_sorts () s1 s2 = EConstr.ESorts.(equal extended_evd (make s1) (make s2)) in
+  let kind1 () = kind_of_term_upto evd in
+  let kind2 () = kind_of_term_upto extended_evd in
+  let rec eq_constr' () nargs m n =
+    Constr.compare_head_gen_leq_with cmp () nargs m n
+  and eq_evar () e1 e2 =
+    let eq c1 c2 = eq_constr' () 0 (EConstr.Unsafe.to_constr c1) (EConstr.Unsafe.to_constr c2) in
     EConstr.eq_existential evd eq (EConstr.of_existential e1) (EConstr.of_existential e2)
   and cmp = {
     Constr.cmp_kind1 = kind1;
@@ -816,4 +816,4 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
     cmp_conv = eq_constr';
     cmp_cumul = eq_constr';
   } in
-  compare_head_gen_leq_with cmp 0 t u
+  compare_head_gen_leq_with cmp () 0 t u

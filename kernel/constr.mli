@@ -553,18 +553,18 @@ type 'constr constr_compare_fn = int -> 'constr -> 'constr -> bool
 type 'univs instance_compare_fn = (GlobRef.t * int) option ->
   'univs -> 'univs -> bool
 
-type ('v, 'sort, 'univs, 'r) comparison = {
-  cmp_kind1 : 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
-  cmp_kind2 : 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
-  cmp_inst : 'univs instance_compare_fn;
-  cmp_sort : ('sort -> 'sort -> bool);
-  cmp_evar : ('v pexistential -> 'v pexistential -> bool);
-  cmp_conv : 'v constr_compare_fn;
-  cmp_cumul : 'v constr_compare_fn;
+type ('s, 'v, 'sort, 'univs, 'r) comparison = {
+  cmp_kind1 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
+  cmp_kind2 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
+  cmp_inst : 's -> 'univs instance_compare_fn;
+  cmp_sort : 's -> 'sort -> 'sort -> bool;
+  cmp_evar : 's -> 'v pexistential -> 'v pexistential -> bool;
+  cmp_conv : 's -> 'v constr_compare_fn;
+  cmp_cumul : 's -> 'v constr_compare_fn;
 }
 
 val compare_head_gen_leq_with :
-  ('v, 'sort, 'univs, 'r) comparison -> 'v constr_compare_fn
+  ('s, 'v, 'sort, 'univs, 'r) comparison -> 's -> 'v constr_compare_fn
 
 val eq_invert : ('a -> 'a -> bool)
   -> 'a pcase_invert -> 'a pcase_invert -> bool
