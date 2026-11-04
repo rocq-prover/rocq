@@ -207,7 +207,7 @@ class RocqObject(ObjectDescription):
             raise ValueError()
         return self.env.domaindata['rocq']['objects'][self.subdomain]
 
-    def _render_annotation(self, signode):
+    def _render_annotation(self, signature, signode):
         if self.annotation:
             annot_node = nodes.inline(self.annotation, self.annotation, classes=['sigannot'])
             signode += addnodes.desc_annotation(self.annotation, '', annot_node)
@@ -219,7 +219,7 @@ class RocqObject(ObjectDescription):
 
         :returns: the names given to the resulting node.
         """
-        self._render_annotation(signode)
+        self._render_annotation(signature, signode)
         self._render_signature(signature, signode)
         names = self._sig_names.get(signature)
         if names is None:
@@ -557,10 +557,15 @@ class WarningObject(NotationObject):
     index_suffix = "(warning)"
     annotation = "Warning"
 
-    # Generate names automatically
-    def _name_from_signature(self, signature, signode):
-        loc = get_node_location(signode)
-        raise ExtensionError("{}: Missing name for warning '{}'".format(loc, signature))
+    def _render_annotation(self, signature, signode):
+        names = self._sig_names.get(signature)
+        if names is None:
+            loc = get_node_location(signode)
+            raise ExtensionError("{}: Missing name for warning '{}'".format(loc, signature))
+        annot = self.annotation + " [" + ",".join(names) + "]"
+        annot_node = nodes.inline(annot, annot, classes=['sigannot'])
+        signode += addnodes.desc_annotation(self.annotation, '', annot_node)
+        signode += nodes.Text(' ')
 
 def NotationRole(role, rawtext, text, lineno, inliner, options={}, content=[]):
     #pylint: disable=unused-argument, dangerous-default-value
