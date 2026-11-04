@@ -554,8 +554,8 @@ type 'univs instance_compare_fn = (GlobRef.t * int) option ->
   'univs -> 'univs -> bool
 
 type ('s, 'v, 'sort, 'univs, 'r) comparison = {
-  cmp_kind1 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
-  cmp_kind2 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
+  cmp_kind_nocast1 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
+  cmp_kind_nocast2 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
   cmp_inst : 's -> 'univs instance_compare_fn;
   cmp_sort : 's -> 'sort -> 'sort -> bool;
   cmp_evar : 's -> 'v pexistential -> 'v pexistential -> bool;

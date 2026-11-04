@@ -220,6 +220,15 @@ let mkRef (gr,u) = let open GlobRef in match gr with
 
 let mkLEvar = Evd.MiniEConstr.mkLEvar
 
+let rec kind_nocast sigma c =
+  match kind sigma c with
+  | Cast (c, _, _) -> kind_nocast sigma c
+  | App (h, outer) as k ->
+    (match kind_nocast sigma h with
+     | App (h, inner) -> App (h, Array.append inner outer)
+     | _ -> k)
+  | k -> k
+
 let type1 = mkSort ESorts.type1
 
 let applist (f, arg) = mkApp (f, Array.of_list arg)
@@ -773,8 +782,8 @@ let eq_constr sigma c1 c2 =
   and eq_evar sigma e1 e2 =
     eq_existential sigma (fun c1 c2 -> eq_constr sigma 0 c1 c2) e1 e2
   and cmp = {
-    Constr.cmp_kind1 = kind;
-    cmp_kind2 = kind;
+    Constr.cmp_kind_nocast1 = kind_nocast;
+    cmp_kind_nocast2 = kind_nocast;
     cmp_inst = eq_inst;
     cmp_sort = eq_sorts;
     cmp_evar = eq_evar;
@@ -789,8 +798,8 @@ let eq_constr_nounivs sigma c1 c2 =
   and eq_evar sigma e1 e2 =
     eq_existential sigma (fun c1 c2 -> eq_constr sigma 0 c1 c2) e1 e2
   and cmp = {
-    Constr.cmp_kind1 = kind;
-    cmp_kind2 = kind;
+    Constr.cmp_kind_nocast1 = kind_nocast;
+    cmp_kind_nocast2 = kind_nocast;
     cmp_inst = (fun _ _ _ _ -> true);
     cmp_sort = (fun _ _ _ -> true);
     cmp_evar = eq_evar;
@@ -805,8 +814,8 @@ let compare_constr sigma cmp c1 c2 =
   let eq_evar sigma e1 e2 = eq_existential sigma cmp e1 e2 in
   let cmp _sigma _nargs c1 c2 = cmp c1 c2 in
   let sub = {
-    Constr.cmp_kind1 = kind;
-    cmp_kind2 = kind;
+    Constr.cmp_kind_nocast1 = kind_nocast;
+    cmp_kind_nocast2 = kind_nocast;
     cmp_inst = eq_inst;
     cmp_sort = eq_sorts;
     cmp_evar = eq_evar;
@@ -892,8 +901,8 @@ let test_constr_universes env sigma leq ?(nargs=0) m n =
     and eq_evar sigma e1 e2 =
       eq_existential sigma (eq_constr' sigma) e1 e2
     and cmp = {
-      Constr.cmp_kind1 = kind;
-      cmp_kind2 = kind;
+      Constr.cmp_kind_nocast1 = kind_nocast;
+      cmp_kind_nocast2 = kind_nocast;
       cmp_inst = eq_universes;
       cmp_sort = eq_sorts;
       cmp_evar = eq_evar;
@@ -908,8 +917,8 @@ let test_constr_universes env sigma leq ?(nargs=0) m n =
         and eq_evar sigma e1 e2 =
           eq_existential sigma (eq_constr' sigma) e1 e2
         and cmp = {
-          Constr.cmp_kind1 = kind;
-          cmp_kind2 = kind;
+          Constr.cmp_kind_nocast1 = kind_nocast;
+          cmp_kind_nocast2 = kind_nocast;
           cmp_inst = leq_universes;
           cmp_sort = leq_sorts;
           cmp_evar = eq_evar;
@@ -920,8 +929,8 @@ let test_constr_universes env sigma leq ?(nargs=0) m n =
         compare_leq sigma nargs m n
       else
         let cmp = {
-          Constr.cmp_kind1 = kind;
-          Constr.cmp_kind2 = kind;
+          Constr.cmp_kind_nocast1 = kind_nocast;
+          Constr.cmp_kind_nocast2 = kind_nocast;
           cmp_inst = eq_universes;
           cmp_sort = eq_sorts;
           cmp_evar = eq_evar;
@@ -971,8 +980,8 @@ let eq_constr_universes_proj env sigma m n =
     and eq_evar sigma e1 e2 =
       eq_existential sigma (fun c1 c2 -> eq_constr' sigma 0 c1 c2) e1 e2
     and cmp = {
-      Constr.cmp_kind1 = kind;
-      cmp_kind2 = kind;
+      Constr.cmp_kind_nocast1 = kind_nocast;
+      cmp_kind_nocast2 = kind_nocast;
       cmp_inst = eq_universes;
       cmp_sort = eq_sorts;
       cmp_evar = eq_evar;

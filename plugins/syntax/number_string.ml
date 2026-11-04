@@ -306,8 +306,8 @@ and eq_evars (evk1, args1) (evk2, args2) =
 and eq_constr_nounivs0 () _ m n = eq_constr_nounivs m n
 
 and eq_constr_cmp = {
-  Constr.cmp_kind1 = (fun () -> Constr.kind);
-  cmp_kind2 = (fun () -> Constr.kind);
+  Constr.cmp_kind_nocast1 = (fun () -> Constr.kind_nocast);
+  cmp_kind_nocast2 = (fun () -> Constr.kind_nocast);
   cmp_inst = (fun () _ _ _ -> true);
   cmp_sort = (fun () _ _ -> true);
   cmp_evar = (fun () -> eq_evars);

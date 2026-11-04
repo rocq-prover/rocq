@@ -899,8 +899,8 @@ let eq_under_context eq (_nas1, p1) (_nas2, p2) =
   eq p1 p2
 
 type ('s, 'v, 'sort, 'univs, 'r) comparison = {
-  cmp_kind1 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
-  cmp_kind2 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
+  cmp_kind_nocast1 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
+  cmp_kind_nocast2 : 's -> 'v -> ('v, 'v, 'sort, 'univs, 'r) kind_of_term;
   cmp_inst : 's -> 'univs instance_compare_fn;
   cmp_sort : 's -> 'sort -> 'sort -> bool;
   cmp_evar : 's -> 'v pexistential -> 'v pexistential -> bool;
@@ -909,7 +909,7 @@ type ('s, 'v, 'sort, 'univs, 'r) comparison = {
 }
 
 let compare_head_gen_leq_with self st nargs t1 t2 =
-  match kind_nocast_gen (self.cmp_kind1 st) t1, kind_nocast_gen (self.cmp_kind2 st) t2 with
+  match self.cmp_kind_nocast1 st t1, self.cmp_kind_nocast2 st t2 with
   | Cast _, _ | _, Cast _ -> assert false (* kind_nocast *)
   | Rel n1, Rel n2 -> Int.equal n1 n2
   | Meta m1, Meta m2 -> Int.equal m1 m2
@@ -970,8 +970,8 @@ and eq_evar ev1 ev2 =
   eq_existential (fun m n -> eq_constr 0 m n) ev1 ev2
 
 and eq_constr_cmp = {
-  cmp_kind1 = (fun () -> kind);
-  cmp_kind2 = (fun () -> kind);
+  cmp_kind_nocast1 = (fun () -> kind_nocast);
+  cmp_kind_nocast2 = (fun () -> kind_nocast);
   cmp_inst = (fun () _ -> Instance.equal);
   cmp_sort = (fun () -> Sorts.equal);
   cmp_evar = (fun () -> eq_evar);
@@ -991,8 +991,8 @@ let eq_constr_univs univs m n =
     and eq_existential' univs ev1 ev2 =
       eq_existential (fun m n -> eq_constr' univs 0 m n) ev1 ev2
     and eq_constr'_cmp = {
-      cmp_kind1 = (fun _ -> kind);
-      cmp_kind2 = (fun _ -> kind);
+      cmp_kind_nocast1 = (fun _ -> kind_nocast);
+      cmp_kind_nocast2 = (fun _ -> kind_nocast);
       cmp_inst = eq_universes;
       cmp_sort = eq_sorts;
       cmp_evar = eq_existential';
@@ -1015,8 +1015,8 @@ let leq_constr_univs univs m n =
     and eq_existential' univs ev1 ev2 =
       eq_existential (fun m n -> eq_constr' univs 0 m n) ev1 ev2
     and eq_constr'_cmp = {
-      cmp_kind1 = (fun _ -> kind);
-      cmp_kind2 = (fun _ -> kind);
+      cmp_kind_nocast1 = (fun _ -> kind_nocast);
+      cmp_kind_nocast2 = (fun _ -> kind_nocast);
       cmp_inst = eq_universes;
       cmp_sort = eq_sorts;
       cmp_evar = eq_existential';
@@ -1030,8 +1030,8 @@ let leq_constr_univs univs m n =
     and eq_existential' univs ev1 ev2 =
       eq_existential (fun m n -> eq_constr' univs 0 m n) ev1 ev2
     and compare_leq_cmp = {
-      cmp_kind1 = (fun _ -> kind);
-      cmp_kind2 = (fun _ -> kind);
+      cmp_kind_nocast1 = (fun _ -> kind_nocast);
+      cmp_kind_nocast2 = (fun _ -> kind_nocast);
       cmp_inst = eq_universes;
       cmp_sort = leq_sorts;
       cmp_evar = eq_existential';
