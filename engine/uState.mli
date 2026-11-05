@@ -203,9 +203,9 @@ val merge_universe_context_set : ?loc:Loc.t -> sideff:bool -> rigid -> t -> Univ
 val demote_global_univs : Univ.ContextSet.t -> t -> t
 (** After declaring global universes, call this if you want to keep using the UState.
 
-    Removes from the uctx_local part of the UState the universes
-    that are present in the input constraint set (supposedly the global ones),
-    and adds any new universes and constraints to the UGraph part of the UState.
+    Makes the universes of the context set global in the graphs of the UState, declaring them
+    if needed, and adds its constraints as global constraints: they are no longer part of the
+    local context.
 *)
 
 val demote_global_univ_entry : universes_entry -> t -> t
@@ -302,7 +302,9 @@ val check_mono_sort_constraints : t -> Univ.ContextSet.t
 
 (** {5 TODO: Document me} *)
 
-val update_sigma_univs : t -> UGraph.t -> t
+val update_sigma_univs : ?demoted:Univ.ContextSet.t -> t -> UGraph.t -> t
+(** [update_sigma_univs ~demoted uctx g] rebases [uctx] on the global graph [g]. The [demoted]
+    universes of the side effects (see [demote_global_univs]), which are not in [g], stay demoted. *)
 
 (** {5 Pretty-printing} *)
 
