@@ -713,12 +713,18 @@ type canonical_node =
     clauses_bwd : ClausesOf.t; (* premises -> canon + k *)
     clauses_fwd : ForwardClauses.t (* canon + k, ... ->  concl + k' *) }
 
+(* The substitution of a level [u], which is no longer a canonical node *)
+type alias = {
+  alias_prems : Premises.t; (* The universe [u] is equal to, always canonical *)
+  alias_local : locality; (* The locality of [u] *)
+  alias_local_eq : locality; (* The locality of the equation *)
+  alias_rigid : bool; (* Whether [u] was rigid: only non-rigid aliases are substituted in terms *)
+}
+
 type model = {
   locality : locality;
   entries : canonical_node PMap.t; (* The canonical nodes *)
-  subst : (Premises.t * locality * locality) PMap.t; (* The substitution from levels to universes:
-    localities of the substituted universe and the constraints are recorded.
-    The premises of the substitution are always canonical. *)
+  subst : alias PMap.t; (* The substitution from levels to universes *)
   subst_deps : Index.Set.t PMap.t; (* For each canonical node, the levels whose substitution mentions it *)
   values : int PMap.t option; (* values, superseding the ones attached to canonical nodes if present *)
   canonical : int; (* Number of canonical nodes *)
@@ -751,7 +757,7 @@ let add_subst_deps w prems deps =
     prems deps
 
 let subst_deps_of subst =
-  PMap.fold (fun w (prems, _, _) deps -> add_subst_deps w prems deps) subst PMap.empty
+  PMap.fold (fun w { alias_prems = prems; _ } deps -> add_subst_deps w prems deps) subst PMap.empty
 
 let remove_subst_deps w prems deps =
   NeList.fold (fun (idx, _) deps ->
@@ -785,6 +791,7 @@ let remove_dominated_set index setidx prems =
    of equations. *)
 let enter_equiv m u local v =
   let setidx = Index.find Level.set m.table in
+  let rigid = (PMap.find u m.entries).rigid in
   let v = remove_dominated_set Fun.id setidx v in
   let deps = PMap.find_opt u m.subst_deps in
   let subst_deps = PMap.remove u m.subst_deps in
@@ -792,14 +799,14 @@ let enter_equiv m u local v =
     | None -> m.subst, subst_deps
     | Some ws ->
       Index.Set.fold (fun w (subst, subst_deps) ->
-          let (prems, local, local_eq) = PMap.find w subst in
-          let prems = remove_dominated_set Fun.id setidx (Premises.subst u v prems) in
-          PMap.add w (prems, local, local_eq) subst, add_subst_deps w v subst_deps)
+          let alias = PMap.find w subst in
+          let prems = remove_dominated_set Fun.id setidx (Premises.subst u v alias.alias_prems) in
+          PMap.add w { alias with alias_prems = prems } subst, add_subst_deps w v subst_deps)
         ws (m.subst, subst_deps)
   in
   { locality = m.locality;
     entries = PMap.remove u m.entries;
-    subst = PMap.add u (v, local, m.locality) subst;
+    subst = PMap.add u { alias_prems = v; alias_local = local; alias_local_eq = m.locality; alias_rigid = rigid } subst;
     subst_deps = add_subst_deps u v subst_deps;
     canonical = m.canonical - 1;
     values = Option.map (PMap.remove u) m.values;
@@ -832,7 +839,7 @@ let rec canonical_repr m (u, k) =
   | can -> NeList.Tip (can, k)
   | exception Not_found ->
     match PMap.find u m.subst with
-    | (p, _local, _local_eq) -> canonical_premises_repr m (Premises.shift k p)
+    | { alias_prems = p; _ } -> canonical_premises_repr m (Premises.shift k p)
     | exception Not_found -> raise (Undeclared (Index.repr u m.table))
 and canonical_premises_repr m p =
   NeList.concat_map (canonical_repr m) p
@@ -854,8 +861,28 @@ let normalize m l =
     | _can -> None (* Already in canonical form *)
     | exception Not_found ->
       match PMap.find idx m.subst with
-      | (p, _local, _localeq) -> Some (univ_of_premises m p) (* [p] is canonical *)
+      | { alias_prems = p; _ } -> Some (univ_of_premises m p) (* [p] is canonical *)
       | exception Not_found -> None
+
+let normalize_flexible m l =
+  match Index.find l m.table with
+  | exception Not_found -> None
+  | idx ->
+    match PMap.find idx m.entries with
+    | _can -> None (* Already in canonical form *)
+    | exception Not_found ->
+      match PMap.find idx m.subst with
+      | { alias_prems = p; alias_rigid = false; _ } -> Some (univ_of_premises m p) (* [p] is canonical *)
+      | { alias_rigid = true; _ } -> None
+      | exception Not_found -> None
+
+let alias_rigidity m l =
+  match Index.find l m.table with
+  | exception Not_found -> None
+  | idx ->
+    match PMap.find_opt idx m.subst with
+    | Some alias -> Some alias.alias_rigid
+    | None -> None
 
 let refresh_can_expr m (u, k) = repr_expr m (u.canon, k)
 
@@ -1074,7 +1101,7 @@ let check_invariants ~(required_canonical:Level.t -> bool) model =
               prems = PartialClausesOf.singleton (k, NeList.filter (fun x -> not (eq_expr kprem x)) prems) }) ++ str" is not registered as a forward clauses for "
             ++ pr_index_point model kprem ++ fnl () ++ str" prems = " ++ pr_clause_idx model (prems, (can.canon, k)))) prems) cls;
       incr n_canon) model.entries;
-  PMap.iter (fun idx (u, _local, local_eq) ->
+  PMap.iter (fun idx { alias_prems = u; alias_local_eq = local_eq; _ } ->
     if local_eq == Local && not (Index.Set.mem idx model.local_eqs) then
       CErrors.user_err Pp.(pr_raw_index_point model idx ++ str" has a local substitution but is not in the local ones");
     if not (sorted_premises u) then
@@ -1128,13 +1155,13 @@ let without_bound (m : model) : int =
 let length_path_from m idx =
   let rec aux = function
     | None -> 0
-    | Some (u, _local, _local_eq) ->
+    | Some { alias_prems = u; _ } ->
       succ (Premises.fold (fun (idx, _) acc ->
         max (aux (PMap.find_opt idx m.subst)) acc) u 0)
   in aux (PMap.find_opt idx m.subst)
 
 let rec maximal_path m =
-  PMap.fold (fun _ (u, _local, _local_eq) acc ->
+  PMap.fold (fun _ { alias_prems = u; _ } acc ->
     max (succ (maximal_premises_path m u)) acc) m.subst 0
 and maximal_premises_path m p =
   Premises.fold (fun (idx, _) acc ->
@@ -1165,7 +1192,7 @@ let pr_clauses_all ?(local=false) m =
   let open Pp in
   PMap.fold (fun _p can acc -> pr_can_clauses ~local m can ++ acc)
     m.entries (Pp.mt ()) ++
-  PMap.fold (fun p (u, is_local, is_local_eq) acc ->
+  PMap.fold (fun p { alias_prems = u; alias_local = is_local; alias_local_eq = is_local_eq; _ } acc ->
     if not local || (local && is_local_eq == Local) then
       pr_raw_index_point m p ++ str " = " ++ pr_raw_premises m u ++ pr_local is_local ++ spc () ++ acc
     else acc)
@@ -1616,7 +1643,12 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
     else if Level.is_set (Index.repr canv.canon model.table) then
       (assert (ku <= kv); false)
     else if Int.equal ku kv then
-      if canu.rigid then true
+      (* A global universe stays canonical: it is rigid, and the terms keep it (see
+         [normalize_flexible]), while the local ones can be removed, e.g. when restricting a
+         universe context, which would drop the equalities between their aliases. *)
+      if canu.local == Global && canv.local == Local then true
+      else if canv.local == Global && canu.local == Local then false
+      else if canu.rigid then true
       else if canv.rigid then false
       (* This heuristic choice seems to have real performance impact in e.g. math_classes/dyadics.v *)
       else if ForwardClauses.cardinal canu.clauses_fwd <= ForwardClauses.cardinal canv.clauses_fwd then
@@ -2845,7 +2877,7 @@ struct
 end
 
 let subst ~local model =
-  PMap.fold (fun idx (v, locality, locality_eq) acc ->
+  PMap.fold (fun idx { alias_prems = v; alias_local = locality; alias_local_eq = locality_eq; _ } acc ->
     if not local || (local && locality_eq == Local) then
       let conclp = Index.repr idx model.table in
       let node = univ_of_premises model v in
@@ -2888,7 +2920,7 @@ let constraints_of model ?(only_local = false) fold acc =
           | None -> acc) model.locals init
     else PMap.fold constraints_of model.entries init
   in
-  let equivs_of u (v, local, local_eq) equiv =
+  let equivs_of u { alias_prems = v; alias_local = local; alias_local_eq = local_eq; _ } equiv =
     if only_local && local_eq == Global then equiv else
     let u = Index.repr u model.table in
     let v = univ_of_premises model v in
@@ -3078,7 +3110,7 @@ let variables ~local ~with_subst model =
     Index.Map.fold add entries Level.Set.empty
   in
   if with_subst then
-    let add idx (_, locality, _) acc =
+    let add idx { alias_local = locality; _ } acc =
       if not local || locality == Local then
         Level.Set.add (Index.repr idx model.table) acc
       else acc
@@ -3102,7 +3134,7 @@ let local_status l model =
     | Some can -> if can.local == Local then LocalNode else NotLocal
     | None ->
       match PMap.find_opt idx model.subst with
-      | Some (_, _, locality_eq) -> if locality_eq == Local then LocalAlias else NotLocal
+      | Some { alias_local_eq = locality_eq; _ } -> if locality_eq == Local then LocalAlias else NotLocal
       | None -> NotLocal
 
 let is_local l model =
@@ -3110,7 +3142,7 @@ let is_local l model =
   try let can = repr model idx in
     can.local == Local
   with Not_found ->
-    let (_, local, _) = PMap.find idx model.subst in
+    let { alias_local = local; _ } = PMap.find idx model.subst in
     local == Local
 
 
@@ -3147,7 +3179,7 @@ let model_repr ~local model =
       else Level.Map.add conclp (Node cls) acc)
     model.entries Level.Map.empty
   in
-  PMap.fold (fun idx (v, _, locality_eq) acc ->
+  PMap.fold (fun idx { alias_prems = v; alias_local_eq = locality_eq; _ } acc ->
     if not local || (local && locality_eq == Local) then
       let conclp = Index.repr idx model.table in
       let node = Alias (univ_of_premises model v) in
@@ -3168,7 +3200,7 @@ let pmap_to_point_map table pmap =
 let valuation_of_model (m : model) =
   let setv = Option.get (canonical_value m (PMap.find (Index.find Level.set m.table) m.entries)) in
   let valm = PMap.map (fun e -> setv - Option.get (canonical_value m e)) m.entries in
-  let equivsm = PMap.map (fun (v, _, _) ->
+  let equivsm = PMap.map (fun { alias_prems = v; _ } ->
     let expr_valuation (e, k) = setv - Option.get (canonical_value m e) + k in
     Premises.fold_ne (fun e acc -> max (expr_valuation e) acc) expr_valuation (repr_premises m v)) m.subst
   in
@@ -3242,7 +3274,7 @@ let remove_from_model idxs model =
     let subst, subst_deps = Index.Set.fold (fun w (subst, subst_deps as acc) ->
         match PMap.find_opt w subst with
         | None -> acc
-        | Some (u, _, _) -> PMap.remove w subst, remove_subst_deps w u subst_deps)
+        | Some { alias_prems = u; _ } -> PMap.remove w subst, remove_subst_deps w u subst_deps)
         ws (subst, subst_deps)
     in
     subst, PMap.remove idx subst_deps
@@ -3260,7 +3292,7 @@ let remove_eliminating removed model =
     let remove_from_subst idx (removed, subst, subst_deps as acc) =
       match PMap.find_opt idx subst with
       | None -> acc
-      | Some (u, _, _) -> (PSet.remove idx removed, PMap.remove idx subst, remove_subst_deps idx u subst_deps)
+      | Some { alias_prems = u; _ } -> (PSet.remove idx removed, PMap.remove idx subst, remove_subst_deps idx u subst_deps)
     in
     PSet.fold remove_from_subst removed (removed, model.subst, model.subst_deps)
   in
@@ -3293,17 +3325,78 @@ let remove_restricting removed model =
   in
   let entries = PSet.fold add_kept kept PMap.empty in
   (* The removed aliases and the aliases of removed universes are dropped *)
-  let subst = PMap.filter (fun idx (u, _local, _local_eq) ->
+  let subst = PMap.filter (fun idx { alias_prems = u; _ } ->
       not (is_removed idx) && not (occurs_in_premises removed_can u))
       model.subst
   in
   { model with entries; subst; subst_deps = subst_deps_of subst; canonical = PSet.cardinal kept }
 
-let remove removed model =
+let remove_core removed model =
   (* Each removed universe costs more to [remove_eliminating] than each canonical node
      of the model to [remove_restricting] *)
   if 2 * Level.Set.cardinal removed > model.canonical then remove_restricting removed model
   else remove_eliminating removed model
+
+(** The universes adjacent to the canonical node [can] in the clauses *)
+let neighbors_of can acc =
+  let add_prems prems acc = NeList.fold (fun (idx', _) acc -> Index.Set.add idx' acc) prems acc in
+  let acc = ForwardClauses.fold (fun ~kprem:_ ~concl ~prems acc ->
+      PartialClausesOf.fold (fun (_, others) acc -> Option.fold_right add_prems others acc)
+        prems (Index.Set.add concl acc))
+      can.clauses_fwd acc
+  in
+  ClausesOf.fold (fun _local (_, prems) acc -> add_prems prems acc) can.clauses_bwd acc
+
+(** [remove removed model] also keeps the kept aliases [w = c + k] of a removed canonical node
+  [c] (the orphans): removing [c] drops them, and with them their equalities and the
+  constraints of [c]. E.g. with [a = l + 1] and [b = l + 1], removing [l] loses [a = b] and
+  [1 <= a]. The [c]s with orphans are removed after the other universes, so that their clauses
+  then mention kept universes only. Their constraints are translated to the orphans by
+  [constraints_for], which represents [c] by the orphan of least shift, and are enforced again
+  on the orphans once [c] is removed. Only the rigid aliases are kept this way: the flexible ones
+  are substituted in the terms (see [normalize_flexible]), so they are no longer universes of
+  the context. The aliases by an algebraic universe mentioning a removed one are still dropped. *)
+let remove removed model =
+  let removed_idx =
+    Level.Set.fold (fun u acc -> Index.Set.add (Index.find u model.table) acc) removed Index.Set.empty
+  in
+  let orphans_of idx =
+    match PMap.find_opt idx model.subst_deps with
+    | None -> Index.Set.empty
+    | Some ws ->
+      Index.Set.filter (fun w ->
+          not (Index.Set.mem w removed_idx) &&
+          match PMap.find_opt w model.subst with
+          | Some { alias_prems = NeList.Tip (c, _); alias_rigid = true; _ } -> Index.equal c idx
+          | Some _ | None -> false)
+        ws
+  in
+  let held, orphans = Index.Set.fold (fun idx (held, orphans as acc) ->
+      if not (PMap.mem idx model.entries) then acc
+      else
+        let ws = orphans_of idx in
+        if Index.Set.is_empty ws then acc
+        else (Index.Set.add idx held, Index.Set.union ws orphans))
+      removed_idx (Index.Set.empty, Index.Set.empty)
+  in
+  if Index.Set.is_empty orphans then remove_core removed model
+  else
+    let levels_of idxs = Index.Set.fold (fun idx acc -> Level.Set.add (Index.repr idx model.table) acc) idxs Level.Set.empty in
+    let held_levels = levels_of held in
+    let aliases = Index.Set.fold (fun w acc -> PMap.add w (PMap.find w model.subst) acc) orphans PMap.empty in
+    let model = remove_core (Level.Set.diff removed held_levels) model in
+    let neighbors = Index.Set.fold (fun idx acc -> neighbors_of (repr model idx) acc) held Index.Set.empty in
+    let kept = levels_of (Index.Set.union orphans (Index.Set.diff neighbors held)) in
+    let cstrs = constraints_for ~kept model (fun cst acc -> cst :: acc) [] in
+    let model = remove_core held_levels model in
+    let model = PMap.fold (fun w alias model ->
+        let _, model = add_model ~rigid:alias.alias_rigid (Index.repr w model.table) model in
+        change_node model { (repr model w) with local = alias.alias_local })
+        aliases model
+    in
+    match enforce_constraints cstrs model with
+    | Some (model, _equivs) -> model
+    | None -> CErrors.anomaly Pp.(str "Loop_checking.remove: the constraints of the kept aliases are inconsistent.")
 
 module Internal =
 struct
