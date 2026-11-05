@@ -2616,51 +2616,54 @@ let w_unify_to_subterm ~metas env evd ?where ?(flags=default_unify_flags ()) (op
     | _ -> c
     in
     let cl = strip_outer_cast cl in
-    let ans =
-      let is_closed = AConstr.closed0 cl in
-      let atyp = AConstr.atyp cl in
-      let cl0 = cl in
-      let cl = AConstr.proj cl in
-      if is_closed && not (isEvar evd cl) && keyed_unify env evd kop cl && fast_head_check evd knd cl && fast_atyp_check knd atyp && not (Table.mem cache cl0) then
-        let () = Table.add cache cl0 () in
-        try
-          if is_keyed_unification () then
-            let f1, l1 = decompose_app evd op in
-            let f2, l2 = decompose_app evd cl in
-            Some (w_typed_unify_array ~metas env evd flags f1 l1 f2 l2, cl)
-          else
-            Some (w_typed_unify ~metas env evd CONV flags (op, opgnd) (cl, Unknown), cl)
-        with ex when precatchable_exception ex ->
-          let () = if Pretype_errors.unsatisfiable_exception ex then bestexn := Some ex in
+    if Table.mem cache cl then
+      (* No need to traverse subterms *)
+      None
+    else
+      let () = Table.add cache cl () in
+      let ans =
+        let is_closed = AConstr.closed0 cl in
+        let atyp = AConstr.atyp cl in
+        let cl = AConstr.proj cl in
+        if is_closed && not (isEvar evd cl) && keyed_unify env evd kop cl && fast_head_check evd knd cl && fast_atyp_check knd atyp then
+          try
+            if is_keyed_unification () then
+              let f1, l1 = decompose_app evd op in
+              let f2, l2 = decompose_app evd cl in
+              Some (w_typed_unify_array ~metas env evd flags f1 l1 f2 l2, cl)
+            else
+              Some (w_typed_unify ~metas env evd CONV flags (op, opgnd) (cl, Unknown), cl)
+          with ex when precatchable_exception ex ->
+            let () = if Pretype_errors.unsatisfiable_exception ex then bestexn := Some ex in
+            None
+        else
           None
-      else
-        None
-    in
-    match ans with
-    | Some _ as ans -> ans
-    | None ->
-      match AConstr.kind cl with
-      | ACast _ -> assert false (* just got stripped *)
-      | AApp (f, args) ->
-        begin match knd with
-        | HeadInd | HeadSort ->
-          (* If an application matches, then assuming well-typedness no longer application could match *)
-          begin match matchrec f with
-          | Some _ as ans -> ans
-          | None -> matchrec_array 0 args
+      in
+      match ans with
+      | Some _ as ans -> ans
+      | None ->
+        match AConstr.kind cl with
+        | ACast _ -> assert false (* just got stripped *)
+        | AApp (f, args) ->
+          begin match knd with
+          | HeadInd | HeadSort ->
+            (* If an application matches, then assuming well-typedness no longer application could match *)
+            begin match matchrec f with
+            | Some _ as ans -> ans
+            | None -> matchrec_array 0 args
+            end
+          | HeadProd | HeadOther ->
+            let n = Array.length args in
+            let () = assert (n > 0) in
+            (* [c1] has necessarily a product type here because it is applied to [c2] *)
+            let c1 = AConstr.mkApp table ATyProd (f,Array.sub args 0 (n-1)) in
+            let c2 = args.(n-1) in
+            begin match matchrec c1 with
+            | Some _ as ans -> ans
+            | None -> matchrec c2
+            end
           end
-        | HeadProd | HeadOther ->
-          let n = Array.length args in
-          let () = assert (n > 0) in
-          (* [c1] has necessarily a product type here because it is applied to [c2] *)
-          let c1 = AConstr.mkApp table ATyProd (f,Array.sub args 0 (n-1)) in
-          let c2 = args.(n-1) in
-          begin match matchrec c1 with
-          | Some _ as ans -> ans
-          | None -> matchrec c2
-          end
-        end
-      | AOther a -> matchrec_array 0 a
+        | AOther a -> matchrec_array 0 a
   and matchrec_array i args =
     if Array.length args <= i then None
     else match matchrec args.(i) with
