@@ -1,0 +1,53 @@
+foo =
+(fun foo_subproof : Type@{T.u0} => foo_subproof : T)
+  (Type@{foo.u0} -> Type@{foo.u1})
+     : T
+0 < T.u0
+  < foo.u0
+  < foo.u1
+foo.u0 < T.u0
+       (because foo.u0 <(from foo) T.u0)
+foo.u1 < T.u0
+       (because foo.u1 <(from foo) T.u0)
+
+foo2 =
+(fun foo2_subproof : Type@{foo2.u0} =>
+ (foo2_subproof, let X := Type@{foo2.u0} in X : Type@{foo2.u3}))
+  Type@{foo2.u2}
+     : Type@{foo2.u0} * Type@{foo2.u1}
+0 < foo2.u0
+  < foo2.u1
+  < foo2.u2
+  < foo2.u3
+foo2.u0 < foo2.u3
+        (because foo2.u0 <(from foo2) foo2.u3)
+foo2.u2 < foo2.u0
+        (because foo2.u2 <(from foo2) foo2.u0)
+foo2.u3 <= foo2.u1
+        (because foo2.u3 <=(from foo2) foo2.u1)
+
+baz = ltac_gen_subproof
+     : Type@{baz.u0}
+0 < baz.u0 1 < baz.u0
+
+foo3 =
+(fun foo3_subproof : Type@{foo3.u0} => (foo3_subproof, Type@{foo3.u3}))
+  Type@{foo3.u2}
+     : Type@{foo3.u0} * Type@{foo3.u1}
+bar = Type@{bar.u0}
+     : Type@{bar.u0+1}
+0 < foo3.u0
+  < foo3.u1
+  < foo3.u2
+  < bar.u0
+  < foo3.u3
+foo3.u2 < foo3.u0
+        (because foo3.u2 <(from foo3) foo3.u0)
+foo3.u3 < foo3.u1
+        (because foo3.u3 <(from foo3) foo3.u1)
+
+foo4 =
+(fun foo4_subproof : Type@{foo4.u0} => foo4_subproof) Type@{foo4.u1}
+     : Type@{foo4.u0}
+nested = Type@{nested.u1}
+     : Type@{nested.u0}

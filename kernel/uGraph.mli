@@ -64,6 +64,10 @@ val enforce_constraint : UnivConstraint.t -> t -> t * level_equivalences
 
 val merge_constraints : UnivConstraints.t -> t -> t * level_equivalences
 
+val merge_global_constraints : UnivConstraints.t -> t -> t * level_equivalences
+(** As [merge_constraints], but the constraints are global even in a local graph (see
+    [set_local]), superseding the same local ones. *)
+
 val check_constraint  : t -> UnivConstraint.t -> bool
 val check_constraints : UnivConstraints.t -> t -> bool
 
@@ -82,6 +86,26 @@ val normalize_flexible : t -> Level.t -> Universe.t option
 
 (** [Some rigid] for a substituted level, [None] for a canonical or undeclared one. *)
 val alias_rigidity : t -> Level.t -> bool option
+
+(** The flexible universes: the local canonical universes which are not rigid, i.e. the
+    unification variables of the elaborator. *)
+val is_flexible : t -> Level.t -> bool
+val flexible_local_levels : t -> Level.Set.t
+
+(** Make a universe rigid or flexible. A substituted universe is substituted in terms (see
+    [normalize_flexible]) only if it is not rigid. *)
+val set_rigid : bool -> Level.t -> t -> t
+
+(** The universes of the context of the elaborator: the local canonical universes, and the
+    local rigid substituted ones, which stay in the terms. *)
+val is_context_level : t -> Level.t -> bool
+val local_levels : t -> Level.Set.t
+
+(** The rigid universes of the context, i.e. [local_levels] but the flexible universes *)
+val rigid_local_levels : t -> Level.Set.t
+
+(** Make a universe, canonical or substituted, local or global. *)
+val set_locality : locality -> Level.t -> t -> t
 
 exception InconsistentEquality
 exception OccurCheck
@@ -159,11 +183,11 @@ val subst : ?local:bool -> t -> (locality * Universe.t) Level.Map.t
    N.B.: slighty expensive to compute, better use [normalize] below. *)
 
 val switch_locality : Level.t -> t -> t
-
-(** [local_status l g] tells if [l] is a local universe of [g], or a local alias, as
-  considered by [constraints_of_universes ~only_local:true] *)
-val local_status : Level.t -> t -> Loop_checking.local_status
 (** Turn a local universe into a non-local one and conversely. *)
+
+(** [local_status g l] tells if [l] is a local universe of [g], or a local alias, as
+  considered by [constraints_of_universes ~only_local:true] *)
+val local_status : t -> Level.t -> Loop_checking.local_status
 
 (** {6 Dumping} *)
 

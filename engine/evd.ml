@@ -1263,8 +1263,11 @@ let universe_binders evd = UState.universe_binders evd.universes
 
 let universes evd = UState.ugraph evd.universes
 
-let update_sigma_univs ugraph evd =
-  { evd with universes = UState.update_sigma_univs evd.universes ugraph }
+let update_sigma_univs ?(demoted = Univ.ContextSet.empty) ugraph evd =
+  (* The universes of the side effects are demoted in [evd] (see [emit_side_effects]), but they
+     may not be in [ugraph] *)
+  let demoted = Univ.ContextSet.union demoted (Safe_typing.universes_of_private evd.effects.seff_private) in
+  { evd with universes = UState.update_sigma_univs ~demoted evd.universes ugraph }
 
 exception UniversesDiffer = UState.UniversesDiffer
 

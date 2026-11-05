@@ -476,9 +476,12 @@ module ClausesOf = struct
         let local' = SWC.add cl cls.local in
         if local' == cls.local then cls
         else { cls with local = local' }
-    | Global -> let global' = SWC.add cl cls.global in
-      if global' == cls.global then cls
-      else { cls with global = global' }
+    | Global ->
+      (* A global clause supersedes the same local one, e.g. when local universes are demoted *)
+      let local' = SWC.remove cl cls.local in
+      let global' = SWC.add cl cls.global in
+      if global' == cls.global && local' == cls.local then cls
+      else { local = local'; global = global' }
 
   let pr pr_index_point local concl cls =
     let open Pp in
@@ -863,26 +866,6 @@ let normalize m l =
       match PMap.find idx m.subst with
       | { alias_prems = p; _ } -> Some (univ_of_premises m p) (* [p] is canonical *)
       | exception Not_found -> None
-
-let normalize_flexible m l =
-  match Index.find l m.table with
-  | exception Not_found -> None
-  | idx ->
-    match PMap.find idx m.entries with
-    | _can -> None (* Already in canonical form *)
-    | exception Not_found ->
-      match PMap.find idx m.subst with
-      | { alias_prems = p; alias_rigid = false; _ } -> Some (univ_of_premises m p) (* [p] is canonical *)
-      | { alias_rigid = true; _ } -> None
-      | exception Not_found -> None
-
-let alias_rigidity m l =
-  match Index.find l m.table with
-  | exception Not_found -> None
-  | idx ->
-    match PMap.find_opt idx m.subst with
-    | Some alias -> Some alias.alias_rigid
-    | None -> None
 
 let refresh_can_expr m (u, k) = repr_expr m (u.canon, k)
 
@@ -3118,34 +3101,6 @@ let variables ~local ~with_subst model =
     PMap.fold add model.subst canon
   else canon
 
-let flip_locality = function Global -> Local | Local -> Global
-
-let switch_locality l model =
-  let can = repr model (Index.find l model.table) in
-  change_node model { can with local = flip_locality can.local }
-
-type local_status = NotLocal | LocalNode | LocalAlias
-
-let local_status l model =
-  match Index.find l model.table with
-  | exception Not_found -> NotLocal
-  | idx ->
-    match PMap.find_opt idx model.entries with
-    | Some can -> if can.local == Local then LocalNode else NotLocal
-    | None ->
-      match PMap.find_opt idx model.subst with
-      | Some { alias_local_eq = locality_eq; _ } -> if locality_eq == Local then LocalAlias else NotLocal
-      | None -> NotLocal
-
-let is_local l model =
-  let idx = Index.find l model.table in
-  try let can = repr model idx in
-    can.local == Local
-  with Not_found ->
-    let { alias_local = local; _ } = PMap.find idx model.subst in
-    local == Local
-
-
 type node =
 | Alias of Universe.t
 | Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
@@ -3397,6 +3352,155 @@ let remove removed model =
     match enforce_constraints cstrs model with
     | Some (model, _equivs) -> model
     | None -> CErrors.anomaly Pp.(str "Loop_checking.remove: the constraints of the kept aliases are inconsistent.")
+
+(** {2 Local / global and flexible / rigid universes}
+
+  A graph extending a global one (see [set_local]) distinguishes the universes, clauses and
+  equations added since, which are local, from the global ones. The universe state of the
+  elaborator is such a graph: its universe variables are its local universes, and the universes
+  declared globally by side effects are made global (see [set_locality]).
+
+  A universe is also rigid or flexible (see [add]): the flexible universes are the local
+  canonical universes which are not rigid, the unification variables of the elaborator. When a
+  universe is made equal to another one, the rigid one is preferably kept canonical, and only
+  the non-rigid aliases are substituted in terms (see [normalize_flexible]). *)
+
+let set_locality local l m =
+  match Index.find l m.table with
+  | exception Not_found -> m
+  | idx ->
+    match PMap.find_opt idx m.entries with
+    | Some can -> if can.local == local then m else change_node m { can with local }
+    | None ->
+      match PMap.find_opt idx m.subst with
+      | None -> m
+      | Some alias ->
+        match local with
+        | Global ->
+          if alias.alias_local == Global then m
+          else { m with subst = PMap.add idx { alias with alias_local = Global } m.subst }
+        | Local ->
+          (* The equation of a local universe is local too *)
+          if alias.alias_local == Local && alias.alias_local_eq == Local then m
+          else { m with subst = PMap.add idx { alias with alias_local = Local; alias_local_eq = Local } m.subst;
+                        local_eqs = Index.Set.add idx m.local_eqs }
+
+let with_locality local f m =
+  Option.map (fun (m', x) -> { m' with locality = m.locality }, x) (f { m with locality = local })
+
+let enforce_global_constraints csts m = with_locality Global (enforce_constraints csts) m
+
+let flip_locality = function Global -> Local | Local -> Global
+
+let switch_locality l model =
+  let can = repr model (Index.find l model.table) in
+  change_node model { can with local = flip_locality can.local }
+
+type local_status = NotLocal | LocalNode | LocalAlias
+
+let local_status model l =
+  match Index.find l model.table with
+  | exception Not_found -> NotLocal
+  | idx ->
+    match PMap.find_opt idx model.entries with
+    | Some can -> if can.local == Local then LocalNode else NotLocal
+    | None ->
+      match PMap.find_opt idx model.subst with
+      | Some { alias_local_eq = locality_eq; _ } -> if locality_eq == Local then LocalAlias else NotLocal
+      | None -> NotLocal
+
+let is_local model l =
+  let idx = Index.find l model.table in
+  try let can = repr model idx in
+    can.local == Local
+  with Not_found ->
+    let { alias_local = local; _ } = PMap.find idx model.subst in
+    local == Local
+
+let normalize_flexible m l =
+  match Index.find l m.table with
+  | exception Not_found -> None
+  | idx ->
+    match PMap.find idx m.entries with
+    | _can -> None (* Already in canonical form *)
+    | exception Not_found ->
+      match PMap.find idx m.subst with
+      | { alias_prems = p; alias_rigid = false; _ } -> Some (univ_of_premises m p) (* [p] is canonical *)
+      | { alias_rigid = true; _ } -> None
+      | exception Not_found -> None
+
+let alias_rigidity m l =
+  match Index.find l m.table with
+  | exception Not_found -> None
+  | idx ->
+    match PMap.find_opt idx m.subst with
+    | Some alias -> Some alias.alias_rigid
+    | None -> None
+
+(* The flexible universes are the local canonical nodes which are not rigid: the unification
+   variables of the elaborator. A substituted universe is no longer flexible. *)
+let is_flexible_node can = can.local == Local && not can.rigid
+
+let is_flexible m l =
+  match Index.find l m.table with
+  | exception Not_found -> false
+  | idx ->
+    match PMap.find_opt idx m.entries with
+    | Some can -> is_flexible_node can
+    | None -> false
+
+let flexible_local_levels m =
+  Index.Set.fold (fun idx acc ->
+      match PMap.find_opt idx m.entries with
+      | Some can when is_flexible_node can -> Level.Set.add (Index.repr idx m.table) acc
+      | Some _ | None -> acc)
+    m.locals Level.Set.empty
+
+let set_rigid rigid l m =
+  match Index.find l m.table with
+  | exception Not_found -> m
+  | idx ->
+    match PMap.find_opt idx m.entries with
+    | Some can -> if can.rigid == rigid then m else change_node m { can with rigid }
+    | None ->
+      match PMap.find_opt idx m.subst with
+      | Some alias when alias.alias_rigid != rigid ->
+        { m with subst = PMap.add idx { alias with alias_rigid = rigid } m.subst }
+      | Some _ | None -> m
+
+(* The universes of the context of the elaborator: the local canonical nodes, and the local
+   rigid aliases, which stay in the terms. The local non-rigid aliases are substituted. *)
+let is_context_alias alias = alias.alias_local == Local && alias.alias_rigid
+
+let is_context_level m l =
+  match Index.find l m.table with
+  | exception Not_found -> false
+  | idx ->
+    match PMap.find_opt idx m.entries with
+    | Some can -> can.local == Local
+    | None ->
+      match PMap.find_opt idx m.subst with
+      | Some alias -> is_context_alias alias
+      | None -> false
+
+let local_levels_gen ~only_rigid m =
+  let add_level idx acc = Level.Set.add (Index.repr idx m.table) acc in
+  let canon = Index.Set.fold (fun idx acc ->
+      match PMap.find_opt idx m.entries with
+      | Some can when can.local == Local && (can.rigid || not only_rigid) -> add_level idx acc
+      | Some _ | None -> acc)
+      m.locals Level.Set.empty
+  in
+  (* The context aliases are rigid *)
+  Index.Set.fold (fun idx acc ->
+      match PMap.find_opt idx m.subst with
+      | Some alias when is_context_alias alias -> add_level idx acc
+      | Some _ | None -> acc)
+    m.local_eqs canon
+
+let local_levels m = local_levels_gen ~only_rigid:false m
+
+let rigid_local_levels m = local_levels_gen ~only_rigid:true m
 
 module Internal =
 struct
