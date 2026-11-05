@@ -1,11 +1,5 @@
 UNIVERSE VARIABLES:
- {ssr_multirule_universes:41 i}
-RIGID UNIVERSE VARIABLES:
- {}
-DEMOTED (GLOBAL) UNIVERSE VARIABLES:
- 
-FLEXIBLE UNIVERSE VARIABLES:
- {ssr_multirule_universes:41}
+ {?ssr_multirule_universes:41 i}
 DEFINED LOCAL VARIABLES:
  ssr_multirule_universes:39 = i(local) 
  ssr_multirule_universes:32 = i(local) 

@@ -107,6 +107,13 @@ let merge_constraints csts g =
       let g, equivs' = enforce_constraint cst g in
       g, equivs' @ equivs) csts (g, [])
 
+let merge_global_constraints csts g =
+  match G.enforce_global_constraints (UnivConstraints.elements csts) g.graph with
+  | Some (graph, equivs) -> (if graph == g.graph then g else { g with graph }), equivs
+  | None ->
+    (* Find the inconsistent constraint, or skip them with type in type, as [merge_constraints] *)
+    merge_constraints csts g
+
 let check_constraint { graph = g; type_in_type; _ } (u,d,v) =
   type_in_type
   || match d with
@@ -153,6 +160,13 @@ let check_leq_sort qeq univs s1 s2 =
 let normalize { graph = g; _ } l = G.normalize g l
 let normalize_flexible { graph = g; _ } l = G.normalize_flexible g l
 let alias_rigidity { graph = g; _ } l = G.alias_rigidity g l
+let is_flexible { graph = g; _ } l = G.is_flexible g l
+let flexible_local_levels { graph = g; _ } = G.flexible_local_levels g
+let set_rigid rigid l g = { g with graph = G.set_rigid rigid l g.graph }
+let is_context_level { graph = g; _ } l = G.is_context_level g l
+let local_levels { graph = g; _ } = G.local_levels g
+let rigid_local_levels { graph = g; _ } = G.rigid_local_levels g
+let set_locality local l g = { g with graph = G.set_locality local l g.graph }
 
 exception InconsistentEquality = G.InconsistentEquality
 exception OccurCheck = G.OccurCheck
@@ -171,7 +185,7 @@ let add_universe u ~strict ~rigid g =
 
 let switch_locality u g = { g with graph = G.switch_locality u g.graph }
 
-let local_status u g = G.local_status u g.graph
+let local_status g u = G.local_status g.graph u
 
 let check_declared_universes g l =
   G.check_declared g.graph l

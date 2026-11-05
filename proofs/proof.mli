@@ -74,7 +74,7 @@ val partial_proof : t -> EConstr.constr list
 val compact : t -> t
 
 (** [update_sigma_univs] lifts [UState.update_sigma_univs] to the proof *)
-val update_sigma_univs : UGraph.t -> t -> t
+val update_sigma_univs : ?demoted:Univ.ContextSet.t -> UGraph.t -> t -> t
 
 (*** Focusing actions ***)
 

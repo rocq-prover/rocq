@@ -2297,7 +2297,11 @@ let close_future_proof ~feedback_id proof (fpl : closed_proof_output Future.comp
   }
 
 let update_sigma_univs ugraph p =
-  map ~f:(Proof.update_sigma_univs ugraph) p
+  (* The side effects registered in [p] (see [register_side_effects]) are no longer in the
+     evar map of the proof, and their universes may not be in [ugraph], e.g. for the environment
+     of a nested command: their universes stay demoted *)
+  let demoted = Safe_typing.universes_of_private (SideEff.get p.sideff) in
+  map ~f:(Proof.update_sigma_univs ~demoted ugraph) p
 
 let by env tac pf =
   let pf, safe = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
