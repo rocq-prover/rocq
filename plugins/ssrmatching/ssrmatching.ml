@@ -334,13 +334,17 @@ let nf_open_term sigma0 ise c =
       s' := Evd.add !s' k (Evarutil.nf_evar_info ise (Evd.find_undefined ise k));
     mkEvar (k, a')
   | _ -> map ise nf c' in
-  let copy_def k _ () =
+  let copy_def k evi0 () =
   let EvarInfo evi = Evd.find ise k in
   match Evd.evar_body evi with
   | Evar_defined c' ->
     let c' = nf c' in
     s' := Evd.define k c' !s'
-  | _ -> () in
+  | Evar_empty ->
+    let concl = Evd.evar_concl evi in
+    if concl != Evd.evar_concl evi0 then
+      s' := Evd.downcast k (nf concl) !s'
+  in
   let c' = nf c in
   let _ = Evd.fold_undefined copy_def sigma0 () in
   let changed = sigma0 != !s' in
