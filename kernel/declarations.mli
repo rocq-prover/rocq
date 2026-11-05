@@ -86,6 +86,10 @@ type typing_flags = {
   share_reduction : bool;
   (** Use by-need reduction algorithm *)
 
+  cache_conversion : bool;
+  (** If [true], the kernel stores successful and failed conversions
+      per session in checked mode. *)
+
   unfold_dep_heuristic : bool;
   (** If [true], use dependency heuristic when unfolding constants during conversion *)
 

@@ -699,6 +699,7 @@ let same_flags {
      conv_oracle;
      indices_matter;
      share_reduction;
+     cache_conversion;
      unfold_dep_heuristic;
      unfold_height_heuristic;
      enable_VM;
@@ -714,6 +715,7 @@ let same_flags {
   conv_oracle == alt.conv_oracle &&
   indices_matter == alt.indices_matter &&
   share_reduction == alt.share_reduction &&
+  cache_conversion == alt.cache_conversion &&
   unfold_dep_heuristic == alt.unfold_dep_heuristic &&
   unfold_height_heuristic == alt.unfold_height_heuristic &&
   enable_VM == alt.enable_VM &&
@@ -764,6 +766,8 @@ let allow_rewrite_rules env =
   { env with rewrite_rules_allowed = true }
 
 let rewrite_rules_allowed env = env.rewrite_rules_allowed
+
+let cache_conversion env = env.env_typing_flags.cache_conversion
 
 (* Global constants *)
 
