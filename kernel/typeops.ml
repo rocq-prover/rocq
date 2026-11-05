@@ -791,6 +791,9 @@ and execute_aux tbl env cstr =
       let def_ty = execute tbl env def in
       check_cast env (self def) def_ty DEFAULTcast ty;
       let ta = type_of_array env u in
+      let () = if Uint63.(lt Parray.max_length (of_int (Array.length t))) then
+          error_too_large_array_literal env (Array.length t)
+      in
       let () = Array.iter (fun x ->
           let xt = execute tbl env x in
           check_cast env (self x) xt DEFAULTcast ty)

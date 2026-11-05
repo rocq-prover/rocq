@@ -1615,6 +1615,9 @@ let pretype_type self c ?loc ~flags valcon (env : GlobEnv.t) sigma = match DAst.
   | Some c -> c
   | None -> CErrors.user_err Pp.(str"The type array must be registered before this construction can be typechecked.")
     in
+    let () = if Uint63.(lt Parray.max_length (of_int (Array.length t))) then
+        raise_type_error ?loc (!!env, sigma, TooLargeArrayLiteral (Array.length t))
+    in
     let sigma, u = match u with
       | None -> sigma, None
       | Some ([],[u]) ->

@@ -350,6 +350,7 @@ let explain_exn = function
       | UndeclaredUsedVariables _ -> str "UndeclaredUsedVariables"
       | IllFormedConstant _ -> str "IllFormedConstant"
       | IllFormedInductive _ -> str "IllFormedInductive"
+      | TooLargeArrayLiteral _ -> str "TooLargeArrayLiteral"
       ))
 
   | InductiveError (env,e) ->
