@@ -1148,8 +1148,8 @@ module Unsafe = struct
   let mark_as_unresolvables p evs =
     { p with solution = mark_in_evm ~goal:false p.solution evs }
 
-  let update_sigma_univs ugraph pv =
-    { pv with solution = Evd.update_sigma_univs ugraph pv.solution }
+  let update_sigma_univs ?demoted ugraph pv =
+    { pv with solution = Evd.update_sigma_univs ?demoted ugraph pv.solution }
 
   let purge_side_effects pv =
     let effs = Evd.eval_side_effects pv.solution in

@@ -681,8 +681,9 @@ val minimize_universes :
      In partial mode, minimization should only perform simplifications, not losing any solution. *)
   evar_map -> evar_map
 
-(** Lift [UState.update_sigma_univs] *)
-val update_sigma_univs : UGraph.t -> evar_map -> evar_map
+(** Lift [UState.update_sigma_univs], with the universes of the side effects of the evar map
+    and the [demoted] ones *)
+val update_sigma_univs : ?demoted:Univ.ContextSet.t -> UGraph.t -> evar_map -> evar_map
 
 (** Polymorphic universes *)
 
