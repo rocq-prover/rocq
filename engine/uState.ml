@@ -459,7 +459,16 @@ type t =
 
 let subst uctx = UGraph.subst ~local:true uctx.universes
 
-let subst_fn uctx = UGraph.normalize uctx.universes
+(* Only the flexible universes are substituted in terms: the rigid ones, e.g. those named by the
+   user or of sections, stay as they are even when they are equal to other universes. *)
+let subst_fn uctx = UGraph.normalize_flexible uctx.universes
+
+(* Whether [u] is rigid: substituted flexible levels are no longer in [flexible_variables], the
+   graph records whether they were rigid. *)
+let is_rigid_level uctx u =
+  match UGraph.alias_rigidity uctx.universes u with
+  | Some rigid -> rigid
+  | None -> not (Level.Set.mem u uctx.flexible_variables)
 
 let ugraph uctx = uctx.universes
 
@@ -680,12 +689,20 @@ let names_union ((qbind,ubind),(qrev,urev)) ((qbind',ubind'),(qrev',urev')) =
   and urev = Level.Map.lunion urev urev' in
   ((qbind,ubind),(qrev,urev))
 
-let update_univ_subst_gen f vars flex variances subst =
-  let flex, vars = List.fold_left (fun (flex, vars) (l, u) ->
-    if Level.Set.mem l flex then (Level.Set.remove l flex, Level.Set.remove l vars)
-    else flex, vars (* A rigid universe was unified with u *)) (flex, vars) subst in
+(* [subst] are the new aliases of [graph]. The non-rigid ones are substituted in the terms (see
+   [subst_fn]): they are no longer variables. The rigid ones stay in the terms: they stay
+   variables, with their variances, and their equations are part of the context. *)
+let update_univ_subst_gen f graph vars flex variances subst =
+  let substituted l = match UGraph.alias_rigidity graph l with
+    | Some rigid -> not rigid
+    | None -> Level.Set.mem l flex
+  in
   let variances = Option.map (fun variances -> List.fold_right (fun (l, u) variances ->
-    Level.Map.remove l (UnivMinim.update_variances variances l (Univ.Universe.levels (f u)))) subst variances) variances in
+    let variances = UnivMinim.update_variances variances l (Univ.Universe.levels (f u)) in
+    if substituted l then Level.Map.remove l variances else variances) subst variances) variances in
+  let flex, vars = List.fold_left (fun (flex, vars) (l, u) ->
+    let vars = if substituted l then Level.Set.remove l vars else vars in
+    (Level.Set.remove l flex, vars)) (flex, vars) subst in
   vars, flex, variances
 
 let update_univ_subst = update_univ_subst_gen identity
@@ -725,7 +742,7 @@ let union uctx uctx' =
       Level.Set.fold (fun u g ->
         if UGraph.is_declared g u then g
         else UGraph.add_universe u ~strict:false
-        ~rigid:(not (Level.Set.mem u uctx'.flexible_variables)) g) levels g
+        ~rigid:(is_rigid_level uctx' u) g) levels g
     in
     let local_variables = Level.Set.union uctx.local_variables uctx'.local_variables in
     let flexible_variables = Level.Set.union uctx.flexible_variables uctx'.flexible_variables in
@@ -738,12 +755,12 @@ let union uctx uctx' =
     let universes = declarenew levelsr uctx.universes in
     let universes, equivs = push_subst eqs universes in
     let local_variables, flexible_variables, variances =
-      update_univ_subst local_variables flexible_variables variances equivs
+      update_univ_subst universes local_variables flexible_variables variances equivs
     in
     debug Pp.(fun () -> str"Union of substitutions = " ++ UGraph.pr ~local:true Level.raw_pr universes);
     let universes, equivs = merge_univ_constraints uctx cstrsr universes in
     let local_variables, flexible_variables, variances =
-      update_univ_expr_subst local_variables flexible_variables variances equivs
+      update_univ_expr_subst universes local_variables flexible_variables variances equivs
     in
     let uctx = { names;
         local;
@@ -810,7 +827,7 @@ let univ_entry ~poly ?variances uctx =
 let merge_constraints uctx cstrs =
   let universes, equivs = merge_univ_constraints uctx cstrs uctx.universes in
   let local_variables, flexible_variables, variances =
-    update_univ_expr_subst uctx.local_variables uctx.flexible_variables uctx.variances equivs
+    update_univ_expr_subst universes uctx.local_variables uctx.flexible_variables uctx.variances equivs
   in
     { uctx with
       local_variables;
@@ -875,16 +892,16 @@ let level_inconsistency cst l r =
   raise (UGraph.UniverseInconsistency (None, (cst, mk l, mk r, None)))
 
 let nf_universe uctx u =
-  UnivSubst.(subst_univs_universe (UGraph.normalize uctx.universes)) u
+  UnivSubst.(subst_univs_universe (subst_fn uctx)) u
 
 let nf_level uctx u =
-  UnivSubst.(level_subst_of (UGraph.normalize uctx.universes)) u
+  UnivSubst.(level_subst_of (subst_fn uctx)) u
 
-let nf_instance uctx u = Instance.subst_opt_fn (nf_qvar_opt uctx, UGraph.normalize uctx.universes) u
+let nf_instance uctx u = Instance.subst_opt_fn (nf_qvar_opt uctx, subst_fn uctx) u
 
 let nf_quality uctx q = Quality.subst_opt (nf_qvar_opt uctx) q
 
-let nf_sort uctx s = Sorts.subst_opt_fn (nf_qvar_opt uctx, UGraph.normalize uctx.universes) s
+let nf_sort uctx s = Sorts.subst_opt_fn (nf_qvar_opt uctx, subst_fn uctx) s
 
 let nf_relevance uctx r = match r with
 | Relevant | Irrelevant -> r
@@ -901,7 +918,7 @@ let nf_relevance uctx r = match r with
     else Sorts.RelevanceVar q'
 
 let nf_universes uctx c =
-  let nf_univ u = UGraph.normalize uctx.universes u in
+  let nf_univ u = subst_fn uctx u in
   let rec self () c = match Constr.kind c with
   | Evar (evk, args) ->
     let args' = SList.Smart.map (self ()) args in
@@ -921,22 +938,21 @@ let classify u =
   | None -> UAlgebraic u
   | Some l -> ULevel (l, u)
 
-let update_local_expr_equivalences local equivs =
+let update_local_expr_equivalences universes local equivs =
   let local_variables, flexible_variables, variances =
-    update_univ_expr_subst local.local_variables local.flexible_variables local.variances equivs
+    update_univ_expr_subst universes local.local_variables local.flexible_variables local.variances equivs
   in
-  { local with local_variables; flexible_variables; variances }
+  { local with universes; local_variables; flexible_variables; variances }
 
-let update_local_equivalences local equivs =
+let update_local_equivalences universes local equivs =
   let local_variables, flexible_variables, variances =
-    update_univ_subst local.local_variables local.flexible_variables local.variances equivs
+    update_univ_subst universes local.local_variables local.flexible_variables local.variances equivs
   in
-  { local with local_variables; flexible_variables; variances }
+  { local with universes; local_variables; flexible_variables; variances }
 
 let add_local_univ cstr local =
   let universes, equivs = UGraph.enforce_constraint cstr local.universes in
-  let local = update_local_expr_equivalences local equivs in
-  { local with universes }
+  update_local_expr_equivalences universes local equivs
 
 (* Constraint with algebraic on the left and a single level on the right *)
 let enforce_leq_up u v local =
@@ -966,7 +982,7 @@ let instantiate_variable l (b : Universe.t) local =
   let equivs = (l, b) :: List.map (fun (l, u) -> l, Universe.of_expr u) equivs in
   debug Pp.(fun () -> str"Equivalences from set: " ++ pr_level_equiv equivs);
   debug_model Pp.(fun () -> str"Model after set: " ++ pr_graph universes);
-  let local = update_local_equivalences { local with universes } equivs in
+  let local = update_local_equivalences universes local equivs in
   debug Pp.(fun () -> str"Substitution after set: " ++ Level.Set.pr Level.raw_pr local.flexible_variables);
   local
 
@@ -1892,7 +1908,7 @@ let emit_side_effects eff u =
 let merge_subst uctx subst =
   let universes, equivs = push_subst subst uctx.universes in
   let local_variables, flexible_variables, variances =
-    update_univ_subst uctx.local_variables uctx.flexible_variables uctx.variances equivs
+    update_univ_subst universes uctx.local_variables uctx.flexible_variables uctx.variances equivs
   in
   { uctx with universes; local_variables; flexible_variables; variances }
 
@@ -1905,7 +1921,7 @@ let merge_seff (uctx : t) (uctx' : t) =
   let levels = Level.Set.union levels (Level.Map.domain subst) in
   let declare g =
     Level.Set.fold (fun u g ->
-        try UGraph.add_universe ~strict:false ~rigid:(not (Level.Set.mem u uctx'.flexible_variables)) u g
+        try UGraph.add_universe ~strict:false ~rigid:(is_rigid_level uctx' u) u g
         with UGraph.AlreadyDeclared -> g)
       levels g
   in

@@ -77,6 +77,12 @@ val check_leq_sort : (Sorts.Quality.t -> Sorts.Quality.t -> bool) -> t -> Sorts.
 
 val normalize : t -> Level.t -> Universe.t option
 
+(** As [normalize], but leaves the rigid levels as they are. *)
+val normalize_flexible : t -> Level.t -> Universe.t option
+
+(** [Some rigid] for a substituted level, [None] for a canonical or undeclared one. *)
+val alias_rigidity : t -> Level.t -> bool option
+
 exception InconsistentEquality
 exception OccurCheck
 (** Sets a universe level equal to a universe in the graph.
@@ -120,8 +126,16 @@ val constraints_of_universes : ?only_local:bool -> t ->
 val constraints_for : kept:Level.Set.t -> t -> UnivConstraints.t
 
 (** [remove l g] returns the graph [g] where the [l] universes have been removed,
-   keeping the existing constraints between kept universes.
-   e.g. if [g] is [a <= b <= c] then [remove {b} g] is [a <= c]. *)
+   keeping the constraints between kept universes that they entail.
+   e.g. if [g] is [a <= b <= c] then [remove {b} g] is [a <= c].
+   The rigid aliases of a removed universe are kept, with its constraints:
+   e.g. if [g] is [a = l + 1, b = l + 1] then [remove {l} g] is [a = b, 1 <= a].
+   Its flexible aliases, which the terms no longer mention, are dropped, as are
+   the aliases by an algebraic universe mentioning a removed one.
+
+   It is not very efficient, so avoid using it: its use is to restrict
+   universe contexts in [UState.restrict].
+   *)
 val remove : Level.Set.t -> t -> t
 
 val minimize : Level.t -> t -> t Loop_checking.simplification_result
