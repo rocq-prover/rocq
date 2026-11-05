@@ -1974,6 +1974,101 @@ let zone_classes model prems (canv, kv) =
       match cls with [] -> classes | _ -> ((r, 0) :: cls) :: classes)
     up []
 
+(** [sccs nodes succ] The strongly connected components with several elements of the graph on
+  the indices of [nodes], whose edges from [v] are given by [succ v f], calling [f] on each
+  successor in [nodes] (Tarjan's algorithm) *)
+let sccs nodes succ =
+  let index = ref PMap.empty and low = ref PMap.empty and onstack = ref Index.Set.empty in
+  let stack = ref [] and counter = ref 0 and result = ref [] in
+  let lower v k = if k < PMap.find v !low then low := PMap.add v k !low in
+  let rec visit v =
+    index := PMap.add v !counter !index;
+    low := PMap.add v !counter !low;
+    incr counter;
+    stack := v :: !stack;
+    onstack := Index.Set.add v !onstack;
+    succ v (fun w ->
+        if not (PMap.mem w !index) then (visit w; lower v (PMap.find w !low))
+        else if Index.Set.mem w !onstack then lower v (PMap.find w !index));
+    if Int.equal (PMap.find v !low) (PMap.find v !index) then
+      let rec pop acc = match !stack with
+        | [] -> assert false
+        | w :: rest ->
+          stack := rest;
+          onstack := Index.Set.remove w !onstack;
+          if Index.equal w v then w :: acc else pop (w :: acc)
+      in
+      match pop [] with [_] -> () | scc -> result := scc :: !result
+  in
+  PMap.iter (fun v _ -> if not (PMap.mem v !index) then visit v) nodes;
+  !result
+
+(** [batch_classes model cls] For clauses [cls] of [model], computes the classes of equal
+  universes that they can create, all at once, as [find_to_merge] and [zone_classes] do for a
+  single clause. The universes made equal are in the zone of the universes below a conclusion
+  of [cls] or [Set], and above one of their premises, in the graph of clauses following all
+  their premises: two universes of the zone are candidates if they are in the same strongly
+  connected component, through the clauses and the implicit clauses [Set <= x]. The universes
+  in a cycle of tight clauses with a single premise are equal, as in [find_to_merge]; the other
+  candidates are checked to be equal in all valuations, as in [zone_classes]. *)
+let batch_classes model cls =
+  let setcan = repr model (Index.find Level.set model.table) in
+  let setidx = setcan.canon in
+  let concls = List.map (fun (_, concl) -> refresh_can_expr_can model concl) cls in
+  let prems = List.concat_map (fun (prems, _) -> NeList.to_list (refresh_can_premises model prems)) cls in
+  let below = reach_all model fold_below (fun _ -> true) ((setcan, 0) :: concls) in
+  let zone = reach_all model fold_above (fun (y, _) -> PMap.mem y.canon below) prems in
+  let zone = PMap.filter (fun idx _ -> PMap.mem idx below) zone in
+  if PMap.cardinal zone <= 1 then [] else
+  let value idx = get_canonical_value model (repr model idx) in
+  let succ_all v f =
+    if Index.equal v setidx then PMap.iter (fun w _ -> f w) zone
+    else fold_above model (repr model v, 0)
+        (fun ~single:_ (q, _) () -> if PMap.mem q.canon zone then f q.canon) ()
+  in
+  (* The tight clauses [x <= q + kq] with a single premise, and [Set <= x] *)
+  let succ_tight v f =
+    let x = repr model v in
+    let vx = get_canonical_value model x in
+    fold_above model (x, 0) (fun ~single (q, _ as qk) () ->
+        if single && PMap.mem q.canon zone && Int.equal (defined_expr_value model qk) vx
+        then f q.canon) ();
+    if Index.equal v setidx then PMap.iter (fun w _ -> if Int.equal (value w) vx then f w) zone
+  in
+  (* Each universe of a cycle of tight clauses is mapped to the first one of its cycle *)
+  let unit_of = List.fold_left (fun m scc ->
+      let r = List.hd scc in List.fold_left (fun m x -> PMap.add x r m) m scc)
+      PMap.empty (sccs zone succ_tight)
+  in
+  let unit x = Option.default x (PMap.find_opt x unit_of) in
+  let candidates = sccs zone succ_all in
+  List.fold_left (fun classes scc ->
+      (* The members of each cycle of tight clauses, in the order of [scc] *)
+      let order, members = List.fold_left (fun (order, members) x ->
+          let u = unit x in
+          match PMap.find_opt u members with
+          | Some xs -> (order, PMap.add u (x :: xs) members)
+          | None -> (u :: order, PMap.add u [x] members)) ([], PMap.empty) scc
+      in
+      let units = List.rev_map (fun u -> (u, PMap.find u members)) order in
+      let rec group units classes = match units with
+        | [] -> classes
+        | (r, rs) :: units ->
+          let vr = value r in
+          let rcan = repr model r in
+          let eq, units = List.partition (fun (y, _) ->
+              let ky = value y - vr in
+              let ycan = repr model y in
+              entails model (NeList.tip (rcan, 0)) (ycan, ky) && entails model (NeList.tip (ycan, ky)) (rcan, 0))
+              units
+          in
+          let members = rs @ List.concat_map snd eq in
+          let cls = List.map (fun x -> (repr model x, value x - vr)) members in
+          group units (match cls with [] | [_] -> classes | _ -> cls :: classes)
+      in
+      group units classes)
+    [] candidates
+
 (** [simplify_clauses_between model u v] Checks if [v <= u] holds, in which case it
   merges the equivalence classes of universes between [u] and [v]. If [v] is the lub
   of [v1..vn], they might not be merged while other universes between [u] and [v] are merged.
@@ -2030,6 +2125,9 @@ let decompose_eq_constraints u k v =
   from the raised universes, and only then are the equalities created by each clause found and
   merged, as in [simplify_clauses_between].
   @return [None] if the clauses are inconsistent with [m] *)
+(** Batches of at most this many clauses are merged one clause at a time *)
+let batch_threshold = 16
+
 let enforce_clauses cls m =
   (* Adding a clause or raising a value changes nodes: they are looked up again for each clause,
      given by the canonical universes, which do not change until the merges *)
@@ -2078,9 +2176,19 @@ let enforce_clauses cls m =
         let m, equivs' = simplify_clauses_between m concl prems in
         (m, equivs' @ equivs)
     in
-    (* From the last clause, as when they are enforced one at a time: the universes made equal by
-       the last clause of a cycle are merged into its conclusion *)
-    Option.map (fun m -> List.fold_left merge (m, []) added) m
+    (* For a few clauses, the equalities are searched from each one, as when they are enforced
+       one at a time: the universes made equal by the last clause of a cycle are merged into its
+       conclusion. [find_to_merge] and [zone_classes] mostly stop early, while the zone of the whole
+       batch is computed. *)
+    if List.length added <= batch_threshold then
+      Option.map (fun m -> List.fold_left merge (m, []) added) m
+    else
+      (* Searching the equalities created by each clause would explore the universes around
+         them once per clause, e.g. for the many clauses of a library: they are found all at once *)
+      Option.map (fun m ->
+          List.fold_left (fun (m, equivs) cls ->
+              let m, equivs' = make_equiv m cls in m, equivs' @ equivs)
+            (m, []) (batch_classes m added)) m
 
 (** The clauses [l + k <= max(prems v)] for each [l + k] of [u], and the converse ones for [Eq] *)
 let clauses_of_constraint m (u, k, v) =
