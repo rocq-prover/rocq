@@ -29,6 +29,8 @@ if ! [ "${COQ_CI_COLOR+1}" ]; then
   fi
 fi
 
+rm -f _build_ci/dune-trace.json
+
 # we don't want to block commands on user interaction
 export GIT_PAGER=
 if [ "$COQ_CI_COLOR" = 1 ] && command -v script > /dev/null; then
@@ -56,7 +58,10 @@ printf "\n%s exit code: %s\n" "$CI_NAME" "$code" >> "$log_file"
 if [ "$CI_NAME" != stdlib_test ]; then
   echo 'Aggregating timing log...'
   echo
-  tools/make-one-time-file.py --real "$log_file"
+  if [ -e _build_ci/dune-trace.json ]; then
+    tools/make-one-time-file.py --real --json "_build_ci/dune-trace.json"
+  else tools/make-one-time-file.py --real "$log_file"
+  fi
 fi
 
 # don't print error summary for coq_tools as it gets spammy, and hides jason_msg
