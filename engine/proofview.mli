@@ -524,7 +524,7 @@ module Unsafe : sig
     Proofview_monad.goal_with_state list
 
   (** [update_sigma_univs] lifts [UState.update_sigma_univs] to the proofview *)
-  val update_sigma_univs : UGraph.t -> proofview -> proofview
+  val update_sigma_univs : ?demoted:Univ.ContextSet.t -> UGraph.t -> proofview -> proofview
 
   val purge_side_effects : proofview -> proofview * Evd.side_effects
 

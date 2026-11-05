@@ -1,11 +1,5 @@
 UNIVERSE VARIABLES:
  {w v u}
-RIGID UNIVERSE VARIABLES:
- {}
-DEMOTED (GLOBAL) UNIVERSE VARIABLES:
- 
-FLEXIBLE UNIVERSE VARIABLES:
- {}
 DEFINED LOCAL VARIABLES:
  
 UNIVERSES:
@@ -46,13 +40,7 @@ Normalized constraints:
  {w v u} | u <= v
            v <= w
 UNIVERSE VARIABLES:
- {ShowUnivs:25 ShowUnivs:24 ShowUnivs:23 ShowUnivs:22 ShowUnivs:21}
-RIGID UNIVERSE VARIABLES:
- {}
-DEMOTED (GLOBAL) UNIVERSE VARIABLES:
- 
-FLEXIBLE UNIVERSE VARIABLES:
- {ShowUnivs:25 ShowUnivs:24 ShowUnivs:23 ShowUnivs:21}
+ {?ShowUnivs:25 ?ShowUnivs:24 ?ShowUnivs:23 ShowUnivs:22 ?ShowUnivs:21}
 DEFINED LOCAL VARIABLES:
  
 UNIVERSES:

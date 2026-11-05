@@ -60,14 +60,6 @@ val enforce_constraints : UnivConstraint.t list -> t -> (t * level_equivalences)
   @return A canonical universe: each level in the universe is canonical w.r.t. the given model. *)
 val normalize : t -> Level.t -> Universe.t option
 
-(** As [normalize], but only for the non-rigid levels (see [add]): a rigid level stays as it
-  is, even when it is equal to another universe. *)
-val normalize_flexible : t -> Level.t -> Universe.t option
-
-(** [alias_rigidity m l] is [Some rigid] when [l] is substituted, [rigid] telling whether [l]
-  was rigid, and [None] when [l] is canonical or undeclared. *)
-val alias_rigidity : t -> Level.t -> bool option
-
 exception InconsistentEquality
 exception OccurCheck
 exception NotCanonical
@@ -125,16 +117,6 @@ val subst : local:bool -> t -> (locality * Universe.t) Level.Map.t
 (** Substitution from (local) levels to universes.
    N.B.: slighty expensive to compute, better use [normalize] below. *)
 
-val switch_locality : Level.t -> t -> t
-
-val is_local : Level.t -> t -> bool
-
-type local_status = NotLocal | LocalNode | LocalAlias
-
-(** [local_status l m] tells if [l] is a local canonical universe, or an alias whose
-  equation is local, as considered by [constraints_of ~only_local:true]. *)
-val local_status : Level.t -> t -> local_status
-
 (* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
 
 type 'a simplification_result =
@@ -160,6 +142,59 @@ val model_repr : local:bool -> t -> model_repr
 val pr_model : ?local:bool -> t -> Pp.t
 
 val valuation : t -> int Level.Map.t
+
+(** {5 Local / global and flexible / rigid universes}
+
+  A graph extending a global one (see [set_local]) distinguishes the universes, clauses and
+  equations added since, which are local, from the global ones. A universe is also rigid or
+  flexible (see [add]): only the non-rigid aliases are substituted in terms. *)
+
+(** [set_locality local l m] makes the universe [l], canonical or substituted, local or
+  global. The equation of a substituted universe made local is local too. *)
+val set_locality : locality -> Level.t -> t -> t
+
+val enforce_global_constraints : UnivConstraint.t list -> t -> (t * level_equivalences) option
+(** As [enforce_constraints], but the constraints are global even in a local graph (see
+  [set_local]): they supersede the same local ones. *)
+
+val switch_locality : Level.t -> t -> t
+(** Flips the locality of a canonical universe. *)
+
+val is_local : t -> Level.t -> bool
+(** Whether a universe, canonical or substituted, is local. *)
+
+type local_status = NotLocal | LocalNode | LocalAlias
+
+(** [local_status m l] tells if [l] is a local canonical universe, or an alias whose
+  equation is local, as considered by [constraints_of ~only_local:true]. *)
+val local_status : t -> Level.t -> local_status
+
+(** As [normalize], but only for the non-rigid levels (see [add]): a rigid level stays as it
+  is, even when it is equal to another universe. *)
+val normalize_flexible : t -> Level.t -> Universe.t option
+
+(** [alias_rigidity m l] is [Some rigid] when [l] is substituted, [rigid] telling whether [l]
+  was rigid, and [None] when [l] is canonical or undeclared. *)
+val alias_rigidity : t -> Level.t -> bool option
+
+(** The flexible universes are the local canonical universes which are not rigid (see [add]):
+  the unification variables of the elaborator. A substituted universe is not flexible. *)
+val is_flexible : t -> Level.t -> bool
+val flexible_local_levels : t -> Level.Set.t
+
+(** [set_rigid rigid l m] makes the universe [l] rigid or flexible. For a substituted universe,
+  this tells whether it is substituted in terms (see [normalize_flexible]). *)
+val set_rigid : bool -> Level.t -> t -> t
+
+(** The universes of the context of the elaborator: the local canonical universes and the local
+  rigid substituted ones, which stay in the terms. The local non-rigid substituted universes are
+  substituted in terms, so they are not part of it. *)
+val is_context_level : t -> Level.t -> bool
+val local_levels : t -> Level.Set.t
+
+(** The rigid universes of the context: [local_levels] but the flexible universes (see
+  [is_flexible]) *)
+val rigid_local_levels : t -> Level.Set.t
 
 (** {5 Internal functions, used by [UGraph]} *)
 
