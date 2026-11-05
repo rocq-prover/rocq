@@ -935,7 +935,7 @@ let warn_incompatible_level =
       if no_parsing_rule then
         strbrk "It adds no parsing rule, so only printing with it is affected."
       else
-        strbrk "The level recorded for printing is unchanged.")
+        strbrk "The printing level may differ.")
 
 let warn_incompatible_format =
   CWarnings.create ~name:"notation-incompatible-format" ~category:CWarnings.CoreCategories.parsing
@@ -1942,8 +1942,21 @@ let make_generic_printing_rules reserved main_data ntn sd =
     let rules = (Ppextend.find_generic_notation_printing_rule ntn) in
     match main_data.format with
     | None when not (has_implicit_format (snd sd.pp_syntax_data)) ->
-      (* No intent to define a format, we reuse the existing generic rules *)
-      Some rules
+      (* A printing-only reservation may have supplied the default rule at
+         a different level, including through an explicit format. Keep
+         layouts that differ from the default. *)
+      if main_data.onlyprinting then Some rules
+      else
+        let variables, symbols = sd.pp_syntax_data in
+        let previous_rules = rules.notation_printing_rules in
+        let previous_entries = Notgram_ops.non_terminals_of_notation ntn in
+        let previous_variables = List.combine (List.map fst variables) previous_entries in
+        let previous_default = make_pp_rule previous_rules.notation_printing_level (previous_variables, symbols) None in
+        (* Compiled formats carry argument levels as well as layout. *)
+        if List.for_all2eq unparsing_eq previous_rules.notation_printing_unparsing previous_default then
+          let default_rules = make_rule (make_pp_rule level sd.pp_syntax_data None) in
+          Some { default_rules with notation_printing_reserved = rules.notation_printing_reserved }
+        else Some rules
     | _ ->
       if not reserved && main_data.onlyprinting then
         (* No intent to define a generic format *)
