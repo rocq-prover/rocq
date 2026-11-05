@@ -151,6 +151,8 @@ let check_leq_sort qeq univs s1 s2 =
     | ((SProp | Prop | Set | Type _ | GSort _ | VSort _), _) -> false
 
 let normalize { graph = g; _ } l = G.normalize g l
+let normalize_flexible { graph = g; _ } l = G.normalize_flexible g l
+let alias_rigidity { graph = g; _ } l = G.alias_rigidity g l
 
 exception InconsistentEquality = G.InconsistentEquality
 exception OccurCheck = G.OccurCheck
