@@ -60,6 +60,14 @@ val enforce_constraints : UnivConstraint.t list -> t -> (t * level_equivalences)
   @return A canonical universe: each level in the universe is canonical w.r.t. the given model. *)
 val normalize : t -> Level.t -> Universe.t option
 
+(** As [normalize], but only for the non-rigid levels (see [add]): a rigid level stays as it
+  is, even when it is equal to another universe. *)
+val normalize_flexible : t -> Level.t -> Universe.t option
+
+(** [alias_rigidity m l] is [Some rigid] when [l] is substituted, [rigid] telling whether [l]
+  was rigid, and [None] when [l] is canonical or undeclared. *)
+val alias_rigidity : t -> Level.t -> bool option
+
 exception InconsistentEquality
 exception OccurCheck
 exception NotCanonical
@@ -160,7 +168,10 @@ sig
   val check_invariants : required_canonical:(Level.t -> bool) -> t -> unit
 
   val remove : Level.Set.t -> t -> t
-  (** [remove l m] Remove the [l] nodes and constraints mentionning [l] from [m] *)
+  (** [remove l m] removes the [l] universes from [m], keeping the constraints between the
+    other universes that they entail, see [UGraph.remove].
+    This is not very efficient, so avoid using it if possible.
+  *)
 
   (* Hack for template-polymorphism. [remove_set_clauses u m] removes all [u -> Set+0] clauses from the model  *)
   val remove_set_clauses : Level.t -> t -> t
