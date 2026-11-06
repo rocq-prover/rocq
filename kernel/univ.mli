@@ -228,6 +228,9 @@ module UnivConstraint : sig
   type t = Universe.t * kind * Universe.t
 
   val levels : t -> Level.Set.t
+
+  val pr : (Level.t -> Pp.t) -> t -> Pp.t
+  (** Prints [l + k ≤ v] with [k > 0] as [l + (k - 1) < v] *)
 end
 
 module UnivConstraints : sig

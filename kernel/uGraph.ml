@@ -55,7 +55,7 @@ let check_leq g u v =
 let check_leq g u u' =
   let res = check_leq g u u' in
   debug Pp.(fun () -> str"check_leq: " ++ Universe.pr Level.raw_pr u ++
-    str" <= " ++ Universe.pr Level.raw_pr u' ++ str" = " ++ bool res);
+    str" ≤ " ++ Universe.pr Level.raw_pr u' ++ str" = " ++ bool res);
   res
 
 let check_eq g u v =
@@ -256,7 +256,7 @@ let pr_arc prl = let open Pp in
         let k, is_lt = if i >= 1 then pred i, true else 0, false in
         let u = (u, k) in
         LevelExpr.pr prl u ++ str " " ++ v 0
-        (prlist_with_sep spc (fun v -> str (if is_lt then "< " else "<= ") ++ Universe.pr prl v) l)
+        (prlist_with_sep spc (fun v -> str (if is_lt then "< " else "≤ ") ++ Universe.pr prl v) l)
       in
       prlist_with_sep fnl pr_cstrs l ++ fnl ()
   | u, G.Alias u' ->

@@ -527,7 +527,7 @@ module UnivConstraint = struct
 
   let pr_kind op =
     let op_str = match op with
-      | Le -> " <= "
+      | Le -> " ≤ "
       | Eq -> " = "
     in str op_str
 
@@ -566,6 +566,13 @@ module UnivConstraint = struct
     let rs = Universe.levels r in
     Level.Set.union ls rs
 
+  (* [l + k ≤ v] with [k > 0] is printed [l + (k - 1) < v], e.g. [1 ≤ v] as [0 < v] *)
+  let pr prl (u, op, v) =
+    match op, Universe.repr u with
+    | Le, [(l, k)] when k > 0 ->
+      hov 0 (Universe.pr prl (Universe.maken l (k - 1)) ++ str " < " ++ Universe.pr prl v)
+    | _ -> hov 0 (Universe.pr prl u ++ pr_kind op ++ Universe.pr prl v)
+
 end
 
 module UnivConstraints =
@@ -574,9 +581,7 @@ struct
   include S
 
   let pr prl c =
-    v 0 (prlist_with_sep spc (fun (u1,op,u2) ->
-      hov 0 (Universe.pr prl u1 ++ UnivConstraint.pr_kind op ++ Universe.pr prl u2))
-        (elements c))
+    v 0 (prlist_with_sep spc (UnivConstraint.pr prl) (elements c))
 
   module Hconstraints = CSet.Hashcons(UnivConstraint)(struct
       type t = UnivConstraint.t
