@@ -30,6 +30,7 @@ let safe_flags oracle = {
   check_universes = true;
   conv_oracle = oracle;
   share_reduction = true;
+  cache_conversion = true;
   unfold_dep_heuristic = false;
   unfold_height_heuristic = false;
   enable_VM = Coq_config.bytecode_compiler;

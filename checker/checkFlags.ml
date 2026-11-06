@@ -31,6 +31,7 @@ let set_local_flags flags env =
     check_eliminations = flags.check_eliminations;
     conv_oracle = flags.conv_oracle;
     share_reduction = flags.share_reduction;
+    cache_conversion = flags.cache_conversion;
     unfold_dep_heuristic = flags.unfold_dep_heuristic;
     unfold_height_heuristic = flags.unfold_height_heuristic;
     allow_uip = flags.allow_uip;

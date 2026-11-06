@@ -58,6 +58,18 @@ type fterm =
   | FIrrelevant
   | FLOCKED
 
+(* Cache for Checked Conversion *)
+
+module ConvCache : sig
+  type t
+  type cache_res = CSuccess | CFailure | CAbsent
+  type conv_pb = Conv | Cumul
+
+  val make : ?size:int -> ?max_size:int -> unit -> t
+  val find : t -> fconstr -> lift -> fconstr -> lift -> conv_pb -> cache_res
+  val insert : t -> fconstr -> lift -> fconstr -> lift -> conv_pb -> cache_res -> unit
+end
+
 (***********************************************************************
   s A [stack] is a context of arguments, arguments are pushed by
    [append_stack] one array at a time *)

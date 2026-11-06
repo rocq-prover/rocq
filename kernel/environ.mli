@@ -431,6 +431,7 @@ val set_allow_sprop : bool -> env -> env
 val sprop_allowed : env -> bool
 val allow_rewrite_rules : env -> env
 val rewrite_rules_allowed : env -> bool
+val cache_conversion : env -> bool
 
 val same_flags : typing_flags -> typing_flags -> bool
 

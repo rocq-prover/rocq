@@ -192,6 +192,8 @@ val set_strategy : Conv_oracle.evaluable -> Conv_oracle.level -> unit
 
 val set_share_reduction : bool -> unit
 
+val set_cache_conversion : bool -> unit
+
 val set_unfold_dep_heuristic : bool -> unit
 
 val set_unfold_height_heuristic : bool -> unit

@@ -344,6 +344,10 @@ let set_share_reduction b senv =
   let flags = Environ.typing_flags senv.env in
   set_typing_flags { flags with share_reduction = b } senv
 
+let set_cache_conversion b senv =
+  let flags = Environ.typing_flags senv.env in
+  set_typing_flags { flags with cache_conversion = b} senv
+
 let set_unfold_dep_heuristic b senv =
   let flags = Environ.typing_flags senv.env in
   set_typing_flags { flags with unfold_dep_heuristic = b } senv
@@ -390,6 +394,7 @@ let stricter_flags f1 f2 =
     (* The flags below do not change the theory *)
     conv_oracle = _;
     share_reduction = _;
+    cache_conversion = _;
     unfold_dep_heuristic = _;
     unfold_height_heuristic = _;
     enable_VM = _;
@@ -408,6 +413,7 @@ let stricter_flags f1 f2 =
     (* The flags below do not change the theory *)
     conv_oracle = _;
     share_reduction = _;
+    cache_conversion = _;
     unfold_dep_heuristic = _;
     unfold_height_heuristic = _;
     enable_VM = _;
