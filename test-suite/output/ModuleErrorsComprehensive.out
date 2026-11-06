@@ -79,13 +79,13 @@ expected foo and bar but found baz and qux.
 File "./output/ModuleErrorsComprehensive.v", line 178, characters 0-67:
 The command has indeed failed with message:
 Signature components for field f do not match:
-incompatible polymorphic binders: got u v | u <= v but expected 
+incompatible polymorphic binders: got u v | u ≤ v but expected 
 u.
 File "./output/ModuleErrorsComprehensive.v", line 187, characters 0-55:
 The command has indeed failed with message:
 Signature components for field f do not match:
-incompatible polymorphic binders: got u v | v+1 <= u but expected
-u v | u+1 <= v
+incompatible polymorphic binders: got u v | v < u but expected
+u v | u < v
 (incompatible constraints).
 File "./output/ModuleErrorsComprehensive.v", line 199, characters 0-55:
 The command has indeed failed with message:
