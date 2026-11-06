@@ -221,7 +221,8 @@ let () =
       optkey   = ["Suggest";"Proof";"Using"];
       optread  = suggest_on;
       optwrite = (fun b ->
-          if b then CWarnings.set_flags "proof-using" else CWarnings.set_flags "-proof-using");
+          let flag = if b then "proof-using" else "-proof-using" in
+          CWarnings.set_flags (CWarnings.get_flags () ^ "," ^ flag));
     })
 
 let suggest_constant ~proofloc env kn =
