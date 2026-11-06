@@ -196,7 +196,8 @@ When the proof is completed, you can exit proof mode with commands such as
    to check that the proof term is :term:`well-typed` and
    to verify that its type matches the theorem statement.  If it's verified, the
    proof term is added to the global environment as an :term:`opaque` constant
-   using the declared name from the original goal.
+   using the declared name from the original goal. The
+   :flag:`Skip Qed Typecheck` flag turns off this check.
 
    It's very rare for a proof term to fail verification.  Generally this
    indicates a bug in a tactic you used or that you misused some
@@ -220,6 +221,43 @@ When the proof is completed, you can exit proof mode with commands such as
       proof term is completely rechecked at this point, one may have to wait
       a while when the proof is large. In some exceptional cases one may
       even incur a memory overflow.
+
+.. flag:: Skip Qed Typecheck
+
+   When this :term:`flag` is on (it is off by default), the kernel does not
+   typecheck the proof of an opaque constant, for instance one closed with
+   :cmd:`Qed`, when it is declared. The proof term, its universe constraints
+   and its section variables are computed and stored exactly as when the flag
+   is off, so libraries that depend on this one see the same library; only the
+   table of opaque proofs records which proofs were not typechecked. This is
+   meant for builds whose :file:`.vo` files are all checked afterwards by
+   ``rocqchk``, which typechecks every opaque proof of the libraries it checks,
+   regardless of this flag.
+   To turn it on for a whole file, use ``rocq compile -set "Skip Qed Typecheck"``.
+   :cmd:`Print Assumptions` reports each constant whose proof was not
+   typechecked. Subproofs declared by :tacn:`abstract` are still typechecked
+   when the tactic runs.
+
+   The kernel checks the guard condition of fixpoints and cofixpoints while it
+   typechecks a term, so with this flag on it does not check the guard
+   condition of the proof term either: the kernel accepts an ill-typed or
+   unguarded proof term at :cmd:`Qed`, and ``rocqchk`` rejects it. Guard checks
+   made outside the kernel still run, for instance when a tactic such as
+   :tacn:`exact` elaborates a fixpoint written in full in a term, on the
+   recursive calls of a :cmd:`Fixpoint` proved interactively, and when the
+   proof of a Program obligation ends. Elsewhere, a fixpoint or cofixpoint
+   built by :tacn:`fix` or :tacn:`cofix`, or by :tacn:`refine` with a hole in
+   its body, is not checked at :cmd:`Qed`; use :cmd:`Guarded` to check it
+   before ``rocqchk`` does. :cmd:`Qed` still fails, for instance, on an
+   incomplete proof or on a section variable that the proof uses but does not
+   declare with :cmd:`Proof using`, and the kernel still typechecks the
+   statement.
+
+   .. warning:: A library compiled with this flag on can contain an ill-typed
+      or unguarded proof, for instance one built with :tacn:`exact_no_check`
+      or :tacn:`fix`, until ``rocqchk`` has checked it. ``rocqchk -o`` does not
+      list such proofs in the libraries it admits (with ``-admit``, or the
+      dependencies of a ``-norec`` target).
 
 .. cmd:: Save @ident
 

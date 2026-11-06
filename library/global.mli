@@ -140,6 +140,10 @@ val mind_of_delta_kn : KerName.t -> MutInd.t
 
 type indirect_accessor = {
   access_proof : Opaqueproof.opaque -> Opaqueproof.opaque_proofterm option;
+  access_unchecked : Opaqueproof.opaque -> bool;
+  (** Whether the kernel did not type this opaque proof when it was declared,
+      because of the [Skip Qed Typecheck] flag; [false] if the proof cannot be
+      read. *)
 }
 
 val force_proof : indirect_accessor -> Opaqueproof.opaque -> Opaqueproof.opaque_proofterm

@@ -1099,7 +1099,7 @@ let infer_direct_opaque ~sec_univs env ce =
   let cb, ctx = Constant_typing.infer_opaque ~sec_univs env ce in
   let body = ce.Entries.opaque_entry_body, Univ.ContextSet.empty in
   let handle _env c () = (c, Univ.ContextSet.empty, 0) in
-  let (hbody, c, u) = Constant_typing.check_delayed handle ctx (body, ()) in
+  let (hbody, c, u) = Constant_typing.check_delayed ~admit:false handle ctx (body, ()) in
   (* No constraints can be generated, we set it empty everywhere *)
   let () = assert (is_empty_private u) in
   hbody, { cb with const_body = OpaqueDef c }
@@ -1223,9 +1223,10 @@ type opaque_certificate = {
   opq_univs : Univ.ContextSet.t Opaqueproof.delayed_universes;
   opq_handle : Opaqueproof.opaque_handle;
   opq_nonce : Nonce.t;
+  opq_admitted : bool;
 }
 
-let check_opaque senv (i : Opaqueproof.opaque_handle) pf =
+let check_opaque ~admit senv (i : Opaqueproof.opaque_handle) pf =
   let ty_ctx, trust, nonce =
     try HandleMap.find i senv.future_cst
     with Not_found ->
@@ -1240,7 +1241,7 @@ let check_opaque senv (i : Opaqueproof.opaque_handle) pf =
     in
     body, uctx, trusted
   in
-  let (hbody, c, ctx) = Constant_typing.check_delayed handle ty_ctx pf in
+  let (hbody, c, ctx) = Constant_typing.check_delayed ~admit handle ty_ctx pf in
   let _, c = match hbody with
     | Some hbody -> assert (c == HConstr.self hbody); HConstr.hcons hbody
     | None -> Constr.hcons c
@@ -1251,7 +1252,7 @@ let check_opaque senv (i : Opaqueproof.opaque_handle) pf =
   | Opaqueproof.PrivatePolymorphic u ->
     Opaqueproof.PrivatePolymorphic (snd @@ Univ.ContextSet.hcons u)
   in
-  { opq_body = c; opq_univs = ctx; opq_handle = i; opq_nonce = nonce }
+  { opq_body = c; opq_univs = ctx; opq_handle = i; opq_nonce = nonce; opq_admitted = admit }
 
 let fill_opaque { opq_univs = ctx; opq_handle = i; opq_nonce = n; _ } senv =
   let () = if not @@ HandleMap.mem i senv.future_cst then
@@ -1268,15 +1269,15 @@ let fill_opaque { opq_univs = ctx; opq_handle = i; opq_nonce = n; _ } senv =
   | Opaqueproof.PrivateMonomorphic ctx -> push_context_set ~strict:true ctx senv
   | Opaqueproof.PrivatePolymorphic _ -> senv
   in
-  (* Mark the constant as having been checked *)
+  (* Mark the hole as filled *)
   { senv with future_cst = HandleMap.remove i senv.future_cst }
 
 let is_filled_opaque i senv =
   let () = assert (Opaqueproof.mem_handle i senv.opaquetab) in
   not (HandleMap.mem i senv.future_cst)
 
-let repr_certificate { opq_body = body; opq_univs = ctx; _ } =
-  body, ctx
+let repr_certificate { opq_body = body; opq_univs = ctx; opq_admitted; _ } =
+  body, ctx, opq_admitted
 
 let check_constraints uctx = function
 | Entries.Polymorphic_entry _ -> Univ.ContextSet.is_empty uctx

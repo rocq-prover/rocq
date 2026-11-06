@@ -647,6 +647,7 @@ type axiom =
   | UIP of MutInd.t
   | IndicesNotMattering of MutInd.t
   | ImpredicativeSet of GlobRef.t
+  | UncheckedOpaque of Constant.t
 
 type context_object =
   | Variable of Id.t (* A section variable or a Let definition *)
@@ -662,7 +663,8 @@ struct
 
   let compare_axiom x y =
     match x,y with
-    | Constant k1 , Constant k2 ->
+    | Constant k1 , Constant k2
+    | UncheckedOpaque k1, UncheckedOpaque k2 ->
       Constant.UserOrd.compare k1 k2
     | Positive m1 , Positive m2
     | UIP m1, UIP m2
@@ -673,6 +675,8 @@ struct
     | UncheckedEliminations k1, UncheckedEliminations k2
     | ImpredicativeSet k1, ImpredicativeSet k2 ->
       GlobRef.UserOrd.compare k1 k2
+    | UncheckedOpaque _, _ -> -1
+    | _, UncheckedOpaque _ -> 1
     | Constant _, _ -> -1
     | _, Constant _ -> 1
     | Positive _, _ -> -1
@@ -783,6 +787,8 @@ let pr_assumptionset ?(flags=current_combined()) env sigma theory_info s =
           hov 2 (safe_pr_inductive env mind ++ spc () ++ strbrk"relies on indices not mattering.")
       | ImpredicativeSet gr ->
           hov 2 (safe_pr_global env gr ++ spc () ++ strbrk"was typed with Set being impredicative.")
+      | UncheckedOpaque kn ->
+          hov 2 (safe_pr_constant env kn ++ spc () ++ strbrk"has an opaque proof not checked by the kernel.")
     in
     let fold t typ accu =
       let (v, a, o, u, tr) = accu in
