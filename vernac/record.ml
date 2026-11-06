@@ -557,7 +557,7 @@ let declare_proj_coercion_instance ~flags ref from =
     | None -> ()
     | Some { coe_local=local; coe_reversible=reversible } ->
       let cl = ComCoercion.class_of_global from in
-      ComCoercion.try_add_new_coercion_with_source ref ~local ~reversible ~source:cl
+      ComCoercion.add_new_coercion_with_source ref ~local ~reversible ~source:cl
   in
   let () = match flags.Data.pf_instance with
     | None -> ()
@@ -932,7 +932,7 @@ let declare_structure (decl:Record_decl.t) ~schemes =
     let build = GlobRef.ConstructRef cstr in
     let () = match is_coercion with
       | NoCoercion -> ()
-      | AddCoercion -> ComCoercion.try_add_new_coercion build ~local:false ~reversible:false
+      | AddCoercion -> ComCoercion.add_new_coercion build ~local:false ~reversible:false
     in
     let struc = Structure.make (Global.env ()) rsp projections in
     let () = declare_structure_entry struc in

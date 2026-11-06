@@ -42,7 +42,7 @@ let declare_local ~coe ~try_assum_as_instance ~kind ~univs ~impargs ~impl ~name 
       Classes.declare_instance env sigma None Hints.Local r in
   let () =
     if coe = Vernacexpr.AddCoercion then
-      ComCoercion.try_add_new_coercion
+      ComCoercion.add_new_coercion
         r ~local:true ~reversible:false in
   (r, UVars.Instance.empty)
 
@@ -85,7 +85,7 @@ let declare_global ~coe ~try_assum_as_instance ~local ~kind ?user_warns ~univs ~
       Classes.declare_instance env sigma None Hints.SuperGlobal gr in
   let () =
     if coe = Vernacexpr.AddCoercion then
-      ComCoercion.try_add_new_coercion
+      ComCoercion.add_new_coercion
         gr ~local ~reversible:false in
   let inst = instance_of_univ_entry uentry in
   (gr,inst)
