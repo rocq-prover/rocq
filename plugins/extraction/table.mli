@@ -182,7 +182,7 @@ val type_scheme_nb_args_hook : (Environ.env -> Constr.t -> int) Hook.t
 val is_custom : global -> bool
 val is_inline_custom : global -> bool
 val is_foreign_custom : global -> bool
-val find_callback : global -> string option
+val find_callback : global -> string
 val find_custom : global -> string
 val find_type_custom : global -> string list * string
 
