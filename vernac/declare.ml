@@ -948,10 +948,10 @@ let process_proof ~info:Info.({ udecl; poly }) ?(is_telescope=false) = function
     let exported_effects = if List.exists not opaques then eff else SideEff.empty in
     exported_effects,
     snd (List.fold_left2_map (fun used_univs (body, typ) opaque ->
-        (* FIXME variances already computed in declare_definition for example *)
-        let sigma = UnivVariances.register_universe_variances_of_constr (Global.env ()) (Evd.from_ustate uctx) ?typ body in
+        (* The variances of [uctx] were inferred before its minimization (prepare_proof,
+           declare_definition, ComFixpoint, Program), which keeps them up to date *)
         let uctx, univs, used_univs, body =
-          make_univs_immediate poly ?keep_body_ucst_separate ~opaque ~uctx:(Evd.ustate sigma) ~udecl ~eff ~used_univs body typ in
+          make_univs_immediate poly ?keep_body_ucst_separate ~opaque ~uctx ~udecl ~eff ~used_univs body typ in
         (used_univs, (definition_entry_core ~using ~univs ?types:typ body, uctx))) Univ.Level.Set.empty entries opaques)
   | DeferredOpaqueProof { deferred_proof = bodies; using; initial_proof_data; feedback_id; initial_euctx } ->
     let { Proof.poly; entry; sigma } = initial_proof_data in
