@@ -489,7 +489,6 @@ let ssrelim ?(is_case=false) deps what ?elim eqid elim_intro_tac =
     generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n_elim_args c_is_head_p clr sigma
   in
   let sigma, pty = Typing.type_of env sigma elim_pred in
-  let sigma = List.fold_left (fun sigma (_, arg, argty) -> Typing.check env sigma arg argty) sigma elim_args in
   debug_ssr (fun () -> Pp.(str"elim_pred=" ++ pr_econstr_env env sigma elim_pred));
   debug_ssr (fun () -> Pp.(str"elim_pred_ty=" ++ pr_econstr_env env sigma pty));
   let sigma = unify_HO env sigma pred elim_pred in
