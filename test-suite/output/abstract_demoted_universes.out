@@ -23,8 +23,8 @@ foo2.u0 < foo2.u3
         (because foo2.u0 <(from foo2) foo2.u3)
 foo2.u2 < foo2.u0
         (because foo2.u2 <(from foo2) foo2.u0)
-foo2.u3 <= foo2.u1
-        (because foo2.u3 <=(from foo2) foo2.u1)
+foo2.u3 ≤ foo2.u1
+        (because foo2.u3 ≤(from foo2) foo2.u1)
 
 baz = ltac_gen_subproof
      : Type@{baz.u0}

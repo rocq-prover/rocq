@@ -17,40 +17,40 @@ Declared in library sort_poly_elab, line 14, characters 13-19
 @eq Type@{sort_poly_elab:23} q1 tU@{Type ; }
      : @eq Type@{sort_poly_elab:23} q1 tU@{Type ; }
 (* {sort_poly_elab:24 sort_poly_elab:23 sort_poly_elab:22} |
-     U+1 <= sort_poly_elab:23
-     sort_poly_elab:23+1 <= sort_poly_elab:22
-     sort_poly_elab:23+1 <= sort_poly_elab:24
+     U < sort_poly_elab:23
+     sort_poly_elab:23 < sort_poly_elab:22
+     sort_poly_elab:23 < sort_poly_elab:24
 Minimized universes:
  sort_poly_elab:24 := sort_poly_elab:23+1
  sort_poly_elab:22 := sort_poly_elab:23+1
 Normalized constraints:
- {sort_poly_elab:23} | U+1 <= sort_poly_elab:23 *)
+ {sort_poly_elab:23} | U < sort_poly_elab:23 *)
 @eq_refl Type@{sort_poly_elab:26} q2
 :
 @eq Type@{sort_poly_elab:26} q2 tU@{Type ; }
      : @eq Type@{sort_poly_elab:26} q2 tU@{Type ; }
 (* {sort_poly_elab:27 sort_poly_elab:26 sort_poly_elab:25} |
-     U+1 <= sort_poly_elab:26
-     sort_poly_elab:26+1 <= sort_poly_elab:25
-     sort_poly_elab:26+1 <= sort_poly_elab:27
+     U < sort_poly_elab:26
+     sort_poly_elab:26 < sort_poly_elab:25
+     sort_poly_elab:26 < sort_poly_elab:27
 Minimized universes:
  sort_poly_elab:27 := sort_poly_elab:26+1
  sort_poly_elab:25 := sort_poly_elab:26+1
 Normalized constraints:
- {sort_poly_elab:26} | U+1 <= sort_poly_elab:26 *)
+ {sort_poly_elab:26} | U < sort_poly_elab:26 *)
 @eq_refl Type@{sort_poly_elab:29} q3
 :
 @eq Type@{sort_poly_elab:29} q3 tU@{Type ; }
      : @eq Type@{sort_poly_elab:29} q3 tU@{Type ; }
 (* {sort_poly_elab:30 sort_poly_elab:29 sort_poly_elab:28} |
-     U+1 <= sort_poly_elab:29
-     sort_poly_elab:29+1 <= sort_poly_elab:28
-     sort_poly_elab:29+1 <= sort_poly_elab:30
+     U < sort_poly_elab:29
+     sort_poly_elab:29 < sort_poly_elab:28
+     sort_poly_elab:29 < sort_poly_elab:30
 Minimized universes:
  sort_poly_elab:30 := sort_poly_elab:29+1
  sort_poly_elab:28 := sort_poly_elab:29+1
 Normalized constraints:
- {sort_poly_elab:29} | U+1 <= sort_poly_elab:29 *)
+ {sort_poly_elab:29} | U < sort_poly_elab:29 *)
 exfalso@{α ; u} :
 forall (A : Univ@{α ; u}) (_ : False), A
 (* α ; u(= in 1st binder) |  *)
@@ -161,8 +161,8 @@ fun A : SProp =>
          (t2@{SProp α34 ; sort_poly_elab:60} A)
 (* {α34}; {sort_poly_elab:61 sort_poly_elab:60 sort_poly_elab:59
            sort_poly_elab:58} |
-     sort_poly_elab:59 <= sort_poly_elab:58
-     sort_poly_elab:59 <= sort_poly_elab:61
+     sort_poly_elab:59 ≤ sort_poly_elab:58
+     sort_poly_elab:59 ≤ sort_poly_elab:61
 Collapsed sorts:
  α34 := Type
 Minimized universes:
@@ -190,8 +190,8 @@ fun A : SProp =>
             (t2'@{SProp ; sort_poly_elab:66} A))
 (* {α38}; {sort_poly_elab:67 sort_poly_elab:66 sort_poly_elab:65
            sort_poly_elab:64 sort_poly_elab:63 sort_poly_elab:62} |
-     sort_poly_elab:63 <= sort_poly_elab:62
-     sort_poly_elab:63 <= sort_poly_elab:67
+     sort_poly_elab:63 ≤ sort_poly_elab:62
+     sort_poly_elab:63 ≤ sort_poly_elab:67
 Collapsed sorts:
  α38 := Type
 Minimized universes:
@@ -259,9 +259,9 @@ x : P (v@{SProp ; sort_poly_elab:89} A false)
        P (v@{SProp ; sort_poly_elab:89} A false)
 (* {α63}; {sort_poly_elab:89 sort_poly_elab:88 sort_poly_elab:87
            sort_poly_elab:86 sort_poly_elab:85 sort_poly_elab:84} |
-     sort_poly_elab:85 <= sort_poly_elab:84
-     sort_poly_elab:86 <= sort_poly_elab:84
-     sort_poly_elab:88+1 <= sort_poly_elab:86
+     sort_poly_elab:85 ≤ sort_poly_elab:84
+     sort_poly_elab:86 ≤ sort_poly_elab:84
+     sort_poly_elab:88 < sort_poly_elab:86
 Collapsed sorts:
  α63 := Type
 Minimized universes:
@@ -942,8 +942,8 @@ fun (A : SProp) (x y : R6@{SProp ; } A) =>
          (Conversion.box@{SProp α364 ; sort_poly_elab:360} A (R6f1 _ y))
 (* {α364}; {sort_poly_elab:361 sort_poly_elab:360 sort_poly_elab:359
             sort_poly_elab:358} |
-     sort_poly_elab:359 <= sort_poly_elab:358
-     sort_poly_elab:359 <= sort_poly_elab:361
+     sort_poly_elab:359 ≤ sort_poly_elab:358
+     sort_poly_elab:359 ≤ sort_poly_elab:361
 Collapsed sorts:
  α364 := Type
 Minimized universes:
@@ -1293,7 +1293,7 @@ Univ@{α ; max(u+1,u0+1)}
 (* α α0 α1 α2 ; u(+ (= for typing) in term, + in type) u0(+ (= for typing) in term, + in type) | 
    α1 -> Type
    α2 -> Type,
-   u0 <= u *)
+   u0 ≤ u *)
 
 R13 is universe polymorphic and cumulative
 R13@{α α0 α1 α2 ; u u0} may only be eliminated to produce values whose type is in sort quality α,
@@ -1309,7 +1309,7 @@ forall _ : R13@{α α0 α1 α2 ; u u0}, Univ@{α0 ; u}
    α -> Type
    α1 -> Type
    α2 -> Type,
-   u0 <= u *)
+   u0 ≤ u *)
 
 R13f1 is universe polymorphic and cumulative
 R13f1 is a projection of R13
@@ -1323,7 +1323,7 @@ forall _ : R13@{α α0 α1 α2 ; u u0}, Univ@{α0 ; u0}
    α -> Type
    α1 -> Type
    α2 -> Type,
-   u0 <= u *)
+   u0 ≤ u *)
 
 R13f2 is universe polymorphic and cumulative
 R13f2 is a projection of R13
@@ -1337,7 +1337,7 @@ forall _ : R13@{α α0 α1 α2 ; u u0}, bool@{α1 ; }
    α -> α1
    α1 -> Type
    α2 -> Type,
-   u0 <= u *)
+   u0 ≤ u *)
 
 R13f3 is universe polymorphic and cumulative
 R13f3 is a projection of R13
@@ -1361,7 +1361,7 @@ end
    α -> Type
    α1 -> Type
    α2 -> Type,
-   u0 <= u *)
+   u0 ≤ u *)
 
 R13f4 is universe polymorphic and cumulative
 R13f4 is a projection of R13

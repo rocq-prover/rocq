@@ -737,7 +737,7 @@ let pr_source_path prl u src =
   if CList.is_empty src then mt()
   else
     let pr_rel = function
-      | Eq -> str"=" | Le -> str"<=" | Lt -> str"<"
+      | Eq -> str"=" | Le -> str"≤" | Lt -> str"<"
     in
     let pr_one (k,v,ref) =
       spc() ++
@@ -768,7 +768,7 @@ function
       let u' = (u, k) in
       let prv v =
         let src = find_source (ui, Univ.UnivConstraint.Le, v) srcs in
-        str (if is_lt then "< " else "<= ") ++ Universe.pr prl v ++ pr_source_path (Universe.pr prl) ui src
+        str (if is_lt then "< " else "≤ ") ++ Universe.pr prl v ++ pr_source_path (Universe.pr prl) ui src
       in
       LevelExpr.pr prl u' ++ spc () ++ v 0 (prlist_with_sep spc prv l)
     in
