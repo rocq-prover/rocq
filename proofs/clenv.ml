@@ -676,7 +676,7 @@ let clenv_unify_binding_type ~metas env sigma c t u =
           (NotClean _ | ConversionFailed _))) as e ->
           raise e
       | e when precatchable_exception e ->
-          Meta.TypeNotProcessed, metas, sigma, c
+          Meta.CoerceToType, metas, sigma, c
 
 let clenv_assign_binding clenv k c =
   let k_typ = hnf_constr clenv.env clenv.evd (clenv_meta_type ~metas:clenv.metam clenv.env clenv.evd k) in
