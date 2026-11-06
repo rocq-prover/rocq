@@ -563,7 +563,7 @@ let finish_regular env sigma use_inference_hook fix =
   let sigma = Pretyping.(solve_remaining_evars ?hook:inference_hook all_no_fail_flags env sigma) in
   sigma, ground_fixpoint env sigma fix, [], None
 
-let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ?hook ~poly ?typing_flags ?user_warns ?using (rec_order, fixl)
+let do_mutually_recursive ?pm ~refine ~sealed ~program_mode ?(use_inference_hook=false) ?scope ?clearbody ~kind ?hook ~poly ?typing_flags ?user_warns ?using (rec_order, fixl)
   : Declare.OblState.t option * Declare.Proof.t option =
   let env = Global.env () in
   let env = Environ.update_typing_flags ?typing_flags env in
@@ -571,6 +571,7 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
   check_recursive ~kind env sigma fix;
 
   if refine then
+    let () = assert (not sealed) in
     let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?hook ?typing_flags ?user_warns ~ntns:fix.fixntns () in
     let cinfo = build_recthms fix in
     let possible_guard = (possible_guard, fix.fixrs) in
@@ -604,11 +605,11 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
     (match fixwfs, bodies, cinfo, obls with
     | [Some _], [body], [cinfo], [obls] ->
       (* Program Fixpoint wf/measure *)
-      let pm = Declare.Obls.add_definition ~pm ~cinfo ~info ~opaque:false ~body ~uctx ?using obls in
+      let pm = Declare.Obls.add_definition ~pm ~cinfo ~info ~opaque:sealed ~body ~uctx ?using obls in
       Some pm, None
     | _ ->
       let possible_guard = (possible_guard, fixrs) in
-      Some (Declare.Obls.add_mutual_definitions ~pm ~cinfo ~info ~opaque:false ~uctx ~bodies ~possible_guard ?using obls), None)
+      Some (Declare.Obls.add_mutual_definitions ~pm ~cinfo ~info ~opaque:sealed ~uctx ~bodies ~possible_guard ?using obls), None)
   | None ->
     match Option.List.map (fun x -> x) bodies with
     | Some bodies ->
@@ -617,11 +618,12 @@ let do_mutually_recursive ?pm ~refine ~program_mode ?(use_inference_hook=false) 
       (* All bodies are defined *)
       let possible_guard = (possible_guard, fixrs) in
       let _ : GlobRef.t list =
-        Declare.declare_mutual_definitions ~cinfo ~info ~opaque:false ~eff ~uctx ~possible_guard ~bodies ?using ()
+        Declare.declare_mutual_definitions ~cinfo ~info ~opaque:sealed ~eff ~uctx ~possible_guard ~bodies ?using ()
       in
       None, None
     | None ->
       (* At least one undefined body *)
+      let () = assert (not sealed) in
       Evd.check_univ_decl_early ~poly ~with_obls:false sigma udecl (Option.List.flatten bodies @ fixtypes);
       let possible_guard = (possible_guard, fixrs) in
       let lemma = Declare.Proof.start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma in

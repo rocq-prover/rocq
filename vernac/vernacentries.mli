@@ -72,24 +72,25 @@ val preprocess_inductive_decl
 
 module DefAttributes : sig
 
-type t = {
-  hooks : Declare.Hook.t list ;
-  scope : Locality.definition_scope;
-  locality : bool option;
-  poly : PolyFlags.t;
-  program : bool;
-  user_warns : Globnames.extended_global_reference UserWarn.with_qf option;
-  canonical_instance : bool;
-  typing_flags : Declarations.typing_flags option;
-  using : Vernacexpr.section_subset_expr option;
-  reversible : bool;
-  clearbody: bool option;
-}
+  type t = {
+    hooks : Declare.Hook.t list;
+    sealed : bool;
+    scope : Locality.definition_scope;
+    locality : bool option;
+    poly : PolyFlags.t;
+    program : bool;
+    user_warns : Globnames.extended_global_reference UserWarn.with_qf option;
+    canonical_instance : bool;
+    typing_flags : Declarations.typing_flags option;
+    using : Vernacexpr.section_subset_expr option;
+    reversible : bool;
+    clearbody: bool option;
+  }
 
-module Observer : Summary.OBSERVABLE
-  with type value = unit Declare.Hook.g list Attributes.attribute
+  module Observer : Summary.OBSERVABLE
+    with type value = unit Declare.Hook.g list Attributes.attribute
 
-val def_attributes : t Attributes.attribute
+  val def_attributes : t Attributes.attribute
 
 end
 
