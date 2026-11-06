@@ -1049,8 +1049,9 @@ let extract_callback optstr x =
       CErrors.user_err (Pp.str "Extract Callback is supported only for OCaml extraction.");
 
   let refs = mono_global_with_alias x in
-  List.iter begin fun qualid_ref ->
-  match qualid_ref.glob with
+  match refs with
+  | [qualid_ref] ->
+    begin match qualid_ref.glob with
       (* Add the alias and qualid_ref to callback extraction.*)
     | GlobRef.ConstRef kn ->
       let str = match optstr with
@@ -1062,7 +1063,10 @@ let extract_callback optstr x =
       in
       Lib.add_leaf (callback_extraction (str, qualid_ref))
     | _                  -> error_constant ?loc:x.CAst.loc qualid_ref
-  end refs
+    end
+  | [] -> assert false
+  | _ -> CErrors.user_err Pp.(str "Extract Callback is support only for sort monomorphic constants.")
+
 
 let extract_constant_generic r ids s arity_handler (is_redef, redef_msg) extr_type =
   check_inside_section ();
