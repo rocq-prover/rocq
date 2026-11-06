@@ -181,7 +181,7 @@ let discharge_proj (_,_,abstr_inst_length) p =
 let is_empty_modlist (cm, mm) =
   Cmap.is_empty cm && Mindmap.is_empty mm
 
-let expand_constr cache modlist top_abst_subst c =
+let expand_constr ?(depth=0) cache modlist top_abst_subst c =
   let share_univs = share_univs cache top_abst_subst in
   let rec substrec k c =
     match kind c with
@@ -233,7 +233,7 @@ let expand_constr cache modlist top_abst_subst c =
 
   in
   if is_empty_modlist modlist && List.is_empty top_abst_subst then c
-  else substrec 0 c
+  else substrec depth c
 
 (** Cooking is made of 4 steps:
     1. expansion of global constants by applying them to the section
@@ -244,13 +244,13 @@ let expand_constr cache modlist top_abst_subst c =
        (note that the generalization over universe variable is implicit) *)
 
 (** The main expanding/substitution functions, performing the three first steps *)
-let expand_subst0 cache expand_info abstr_ctx abstr_ausubst c =
-  let c = expand_constr cache expand_info abstr_ctx c in
+let expand_subst0 ?depth cache expand_info abstr_ctx abstr_ausubst c =
+  let c = expand_constr ?depth cache expand_info abstr_ctx c in
   let c = Vars.subst_univs_level_constr (make_instance_subst abstr_ausubst) c in
   c
 
-let expand_subst cache c =
-  expand_subst0 cache.cache cache.info.expand_info cache.info.abstr_info.abstr_ctx cache.info.abstr_info.abstr_ausubst c
+let expand_subst ?depth cache c =
+  expand_subst0 ?depth cache.cache cache.info.expand_info cache.info.abstr_info.abstr_ctx cache.info.abstr_info.abstr_ausubst c
 
 (** Adding the final abstraction step, term case *)
 let abstract_as_type cache t =
@@ -261,6 +261,10 @@ let abstract_as_type cache t =
 let abstract_as_body cache c =
   let ctx = Lazy.force cache.rel_ctx in
   it_mkLambda_or_LetIn (expand_subst cache c) ctx
+
+(** Without the final abstraction step, for a subterm under [depth] binders
+    of the judgment *)
+let expand_subterm cache depth c = expand_subst ~depth cache c
 
 (** Adding the final abstraction step, sort case (for universes) *)
 let abstract_as_sort cache s =
@@ -321,6 +325,9 @@ let make_cooking_info ~recursive expand_info hyps uctx =
     { info with expand_info = (cmap, Mindmap.add ind abstr_inst_info imap) }
   in
   info, abstr_inst_info
+
+let discharges_inductive info =
+  not (Mindmap.is_empty (snd info.expand_info))
 
 let names_info info =
   let fold accu id = Id.Set.add (NamedDecl.get_id id) accu in
