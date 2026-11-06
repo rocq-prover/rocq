@@ -43,7 +43,7 @@ fun (A : Type@{uu}) (Wrap : Wrap@{uu} A) => Wrap
 Arguments wrap {A}%_type_scope {Wrap}
 bar@{uu} = nat
      : Wrap@{uu} Set
-(* uu | 1 <= uu *)
+(* uu | 0 < uu *)
 foo@{uu u v} =
 Type@{u} -> Type@{v} -> Type@{uu}
      : Type@{max(uu+1,u+1,v+1)}
@@ -276,7 +276,7 @@ The command has indeed failed with message:
 Universe inconsistency. Cannot enforce a+1 ≤ a because a < a+1.
 JMeq :
 forall [A : Type@{u}], A -> forall [B : Type@{JMeq.u1}], B -> Prop
-(* u | u <= JMeq.u1 *)
+(* u | u ≤ JMeq.u1 *)
 
 JMeq is template universe polymorphic (default instance: {JMeq.u0})
 Arguments JMeq [A]%_type_scope x [B]%_type_scope _
@@ -307,6 +307,6 @@ id@{SProp ; 0}
 id3@{s ; u} =
 fun (A : Univ@{s ; u}) (a : A) => a
      : forall A : Univ@{s ; u}, A -> A
-(* s ; u | 1 <= u *)
+(* s ; u | 0 < u *)
 
 Arguments id3 A%_type_scope a

@@ -17,9 +17,9 @@ UnivNotations:22).
   forall A : Univ, A -> foo Univ A
 foo Type@{UnivNotations:25} nat
      : Type@{foo.u1}
-(* {UnivNotations:25} | UnivNotations:25+1 <= foo.u0
+(* {UnivNotations:25} | UnivNotations:25 < foo.u0
 Normalized constraints:
- {UnivNotations:25} | UnivNotations:25+1 <= foo.u0 *)
+ {UnivNotations:25} | UnivNotations:25 < foo.u0 *)
 foo Univ@{s ; 0} S
      : Type@{foo.u1}
 1 goal
