@@ -1072,7 +1072,7 @@ let intern_notation intern env ntnvars loc ntn fullargs =
 (* Discriminating between bound variables and global references       *)
 
 let gvar (loc, id) us = match us with
-  | None | Some ([],[]) -> DAst.make ?loc @@ GVar id
+  | None | Some {qualities = []; univlevels = []} -> DAst.make ?loc @@ GVar id
   | Some _ ->
     user_err ?loc  (str "Variable " ++ Id.print id ++
       str " cannot have a universe instance")
@@ -1192,10 +1192,15 @@ let intern_sort ~local_univs (q,l) =
 
 let intern_instance ~local_univs = function
   | None -> None
-  | Some (qs, us) ->
-    let qs = List.map (intern_quality ~local_univs) qs in
-    let us = List.map (map_glob_sort_gen (intern_sort_name ~local_univs)) us in
-    Some (qs, us)
+  | Some i ->
+    let qs = List.map (intern_quality ~local_univs) i.univannot_qualities in
+    let us = List.map (map_glob_sort_gen (intern_sort_name ~local_univs)) i.univannot_levels in
+    Some {
+      qualities = qs;
+      extensible_qualities = i.univannot_extensible_qualities;
+      univlevels = us;
+      extensible_univlevels = i.univannot_extensible_levels;
+    }
 
 let intern_name_alias = function
   | { CAst.v = CRef(qid,u) } ->
@@ -1303,9 +1308,8 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
       let c = instantiate_notation_constr loc intern (intern_cases_pattern_as_binder ~dump:true intern) ntnvars subst infos c in
       let loc = c.loc in
       let err () =
-        user_err ?loc  (str "Notation " ++ pr_qualid qid
-                  ++ str " cannot have a universe instance,"
-                  ++ str " its expanded head does not start with a reference")
+        user_err ?loc  (str "Cannot apply a universe instance to notation " ++ pr_qualid qid
+                  ++ str " : after expansion, it does not refer to a universe-instantiable term")
       in
       let c = match us, DAst.get c with
       | None, _ -> c
@@ -1317,7 +1321,9 @@ let intern_qualid ?(no_secvar=false) qid intern env ntnvars us args =
           DAst.make ?loc @@ GApp (DAst.make ?loc:loc' @@ GRef (ref, us), arg)
         | _ -> err ()
         end
-      | Some (qs, us), GSort (gq, gu) ->
+      | Some {extensible_univlevels = true}, GSort _ ->
+        user_err ?loc (str "Extensible flag '+' in universe instances is not supported for sort abbreviations")
+      | Some {qualities = qs; univlevels = us}, GSort (gq, gu) ->
         let q_err () = user_err ?loc (str "Wrong sort instance length, should be <= 1") in
         let q = match qs with [] -> None | [q] -> Some q | _ -> q_err () in
         let u_err () = user_err ?loc (str "Wrong universe instance length, should be <= 1") in
