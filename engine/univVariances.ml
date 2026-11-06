@@ -142,7 +142,19 @@ let compute_variances_named_context env sigma ?(position = fun x -> Position.InB
   debug Pp.(fun () -> str"Variances in context: " ++ Inf.pr (Termops.pr_evd_level sigma) variances);
   variances
 
+(* The variances of the universes being inferred only change at their occurrences: when none of
+   them occurs in [c], e.g. in a monomorphic proof whose flexible universes are all in its universe
+   context but not in its term, the traversal of [c] would leave them unchanged. With Kernel
+   Cumulativity Zeta, the inference also unfolds the let-bound variables of the context, whose
+   bodies may contain such universes. *)
+let occurs_inferred env status c =
+  let inferred = Inf.inferred status in
+  not (Level.Map.is_empty inferred)
+  && ((Environ.typing_flags env).Declarations.cumulativity_zeta
+      || Level.Set.exists (fun l -> Level.Map.mem l inferred) (Vars.universes_of_constr c))
+
 let compute_variances_body_constr env sigma ?(ctx_position = fun i -> Position.InBinder i) ?(ctx_cumul_pb=Conv) ?(cumul_pb=Cumul) status c =
+  if not (occurs_inferred env status c) then Inf.set_position Position.InTerm status else
   let ctx, c = Term.decompose_lambda_decls c in
   let status = compute_variances_context_constr env sigma ~on_lets:true ~position:ctx_position ~typing_pb:ctx_cumul_pb status ctx in
   let status = Inf.set_position Position.InTerm status in
@@ -155,6 +167,7 @@ let compute_variances_body env sigma ?(ctx_position = fun i -> Position.InBinder
   compute_variances_body_constr env sigma ~ctx_position ~ctx_cumul_pb ~cumul_pb status (EConstr.to_constr ~abort_on_undefined_evars:false sigma c)
 
 let compute_variances_type_constr env sigma ?(on_lets=false) ?let_types ?(position=Position.InType) ?(ctx_position = fun x -> Position.InBinder x) ?(ctx_cumul_pb=Conv) ?(ctx_typing_pb=Conv) ?(cumul_pb=Cumul) status c =
+  if not (occurs_inferred env status c) then Inf.set_position position status else
   let ctx, c = Term.decompose_prod_decls c in
   let ctx' = if on_lets then ctx else (Vars.smash_rel_context ctx) in
   let status = compute_variances_context_constr env sigma ~on_lets ?let_types ~position:ctx_position ~cumul_pb:ctx_cumul_pb ~typing_pb:ctx_typing_pb status ctx' in
