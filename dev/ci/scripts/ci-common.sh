@@ -168,6 +168,17 @@ make()
     fi
 }
 
+dune()
+{
+  ret=0
+  command dune "$@" || ret=$?
+  if [ "$1" = build ]; then
+    command dune trace cat >> "$CI_BUILD_DIR/dune-trace.json" ||
+      echo "too old dune (trace cat needs >= 3.22)"
+  fi
+  return $ret
+}
+
 # run make -k; make again if it failed so that the failing file comes last
 # makes it easier to find the error messages in the CI log
 function make_full() {
