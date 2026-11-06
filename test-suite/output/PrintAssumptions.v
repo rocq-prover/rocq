@@ -142,3 +142,40 @@ Print Assumptions M7192.D.f.
 (* A regression introduced in the original fix to #7192 was missing implementations *)
 Require Import module_bug8416.
 Print Assumptions M8416.f.
+
+(* Consecutive equivalent reports share a heading without reordering roots. *)
+Module BATCH.
+Axiom a b : nat.
+Definition shared : nat. Proof. exact a. Qed.
+Definition first := shared.
+Definition second := shared.
+Definition closed := 0.
+Print Assumptions first b closed.
+Print Assumptions first first second b closed second first.
+Print Assumptions TYPES.foo M.bar P.bar.
+Print Assumptions first.
+Print Assumptions closed closed.
+Print Opaque Dependencies first second.
+Print All Dependencies first second.
+
+Section S.
+Variables x y : nat.
+Definition with_x := x.
+Definition with_x_again := x.
+Definition with_y := y.
+Print Assumptions with_x with_x_again with_y closed.
+End S.
+Print Assumptions with_x closed.
+
+Axiom absurd : False.
+Definition absurd_nat : nat := match absurd with end.
+Definition absurd_bool : bool := match absurd with end.
+Print Assumptions absurd_nat absurd_nat absurd_bool.
+
+Unset Guard Checking.
+Fixpoint unguarded (n : nat) : nat := unguarded n.
+Set Guard Checking.
+Definition unguarded_alias := unguarded.
+Print Assumptions unguarded unguarded_alias closed.
+Print Assumptions first b.
+End BATCH.
