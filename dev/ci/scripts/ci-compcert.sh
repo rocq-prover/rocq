@@ -11,7 +11,7 @@ if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 # CompCert does compile with -native-compiler yes
 # but with excessive memory requirements
-export COQCOPTS='-native-compiler no -w -undeclared-scope -w -omega-is-deprecated'
+export COQCOPTS='-native-compiler no -w -undeclared-scope -w -omega-is-deprecated -set OldIfWOBoolCoercion'
 ( cd "${CI_BUILD_DIR}/compcert"
   [ -e Makefile.config ] || ./configure -ignore-coq-version x86_32-linux -install-coqdev -clightgen -use-external-MenhirLib -use-external-Flocq -prefix ${CI_INSTALL_DIR} -coqdevdir ${CI_INSTALL_DIR}/lib/coq/user-contrib/compcert
   make
