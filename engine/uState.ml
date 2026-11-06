@@ -563,9 +563,9 @@ let pr_weak prl {minim_extra={UnivMinim.weak_constraints=weak; above_prop; above
   v 0 (
     prlist_with_sep cut (fun (u,v) -> h (Universe.pr prl u ++ str " ~ " ++ Universe.pr prl v)) (UPairSet.elements weak)
     ++ if UPairSet.is_empty weak || Level.Set.is_empty above_prop then mt() else cut () ++
-    prlist_with_sep cut (fun u -> h (str "Prop <= " ++ prl u)) (Level.Set.elements above_prop) ++
+    prlist_with_sep cut (fun u -> h (str "Prop ≤ " ++ prl u)) (Level.Set.elements above_prop) ++
     if Level.Set.is_empty above_prop || Level.Set.is_empty above_zero then mt() else cut () ++
-    prlist_with_sep cut (fun u -> h (str "Prop <= " ++ prl u)) (Level.Set.elements above_zero))
+    prlist_with_sep cut (fun u -> h (str "Prop ≤ " ++ prl u)) (Level.Set.elements above_zero))
 
 let pr_sort_opt_subst uctx =
   let local_name q = try Some (get_uname (QVar.Map.find q (fst @@ snd uctx.names)))

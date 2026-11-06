@@ -13,8 +13,8 @@ Normalized constraints:
 [| bool; list nat | nat : Set |]@{prim_array:26}
      : array@{prim_array:26} Set
 (* {prim_array:26 prim_array:25 prim_array:24} |
-     1 <= prim_array:24
-     1 <= prim_array:26
+     0 < prim_array:24
+     0 < prim_array:26
 Minimized universes:
  prim_array:26 := 1
  prim_array:25 := 0

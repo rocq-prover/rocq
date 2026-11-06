@@ -91,8 +91,8 @@ RoseTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                    (RoseTree_all@{α ; u u0 u1} A PA) l ->
                  RoseTree_all@{α ; u u0 u1} A PA (RTnode A l).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments RoseTree_all A%_type_scope PA%_function_scope r
 Arguments RTleaf_all A%_type_scope PA%_function_scope a _
@@ -292,8 +292,8 @@ RoseRoseTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                   p ->
                 RoseRoseTree_all@{α ; u u0 u1} A PA (Nnode A p).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments RoseRoseTree_all A%_type_scope PA%_function_scope r
 Arguments Nleaf_all A%_type_scope PA%_function_scope a _
@@ -335,8 +335,8 @@ ArrowTree1_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                      (l H)) ->
                   ArrowTree1_all@{α ; u u0 u1} A PA (ATnode1 A l).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments ArrowTree1_all A%_type_scope PA%_function_scope a
 Arguments ATleaf1_all A%_type_scope PA%_function_scope a _
@@ -379,8 +379,8 @@ ArrowTree2_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                     l ->
                   ArrowTree2_all@{α ; u u0 u1} A PA (ATnode2 A l).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments ArrowTree2_all A%_type_scope PA%_function_scope a
 Arguments ATleaf2_all A%_type_scope PA%_function_scope a _
@@ -426,8 +426,8 @@ ArrowTree3_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                      (l H)) ->
                   ArrowTree3_all@{α ; u u0 u1} A PA (ATnode3 A l).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments ArrowTree3_all A%_type_scope PA%_function_scope a
 Arguments ATleaf3_all A%_type_scope PA%_function_scope a _
@@ -538,8 +538,8 @@ PairTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                   (PairTree A) (PairTree_all@{α ; u u0 u1} A PA) p ->
                 PairTree_all@{α ; u u0 u1} A PA (Pnode A p).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments PairTree_all A%_type_scope PA%_function_scope p
 Arguments Pleaf_all A%_type_scope PA%_function_scope a _
@@ -581,8 +581,8 @@ LeftTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                   (fun _ : nat => unit) p ->
                 LeftTree_all@{α ; u u0 u1} A PA (Lnode A p).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments LeftTree_all A%_type_scope PA%_function_scope l
 Arguments Lleaf_all A%_type_scope PA%_function_scope a _
@@ -624,8 +624,8 @@ LeftTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                   (fun _ : nat => unit) p ->
                 LeftTree_all@{α ; u u0 u1} A PA (Lnode A p).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments LeftTree_all A%_type_scope PA%_function_scope l
 Arguments Lleaf_all A%_type_scope PA%_function_scope a _
@@ -724,8 +724,8 @@ LeftTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                   (LeftTree_all@{α ; u u0 u1} A PA) nat p ->
                 LeftTree_all@{α ; u u0 u1} A PA (Lnode A p).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments LeftTree_all A%_type_scope PA%_function_scope l
 Arguments Lleaf_all A%_type_scope PA%_function_scope a _
@@ -767,8 +767,8 @@ RightTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                   (RightTree_all@{α ; u u0 u1} A PA) p ->
                 RightTree_all@{α ; u u0 u1} A PA (Rnode A p).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments RightTree_all A%_type_scope PA%_function_scope r
 Arguments Rleaf_all A%_type_scope PA%_function_scope a _
@@ -868,8 +868,8 @@ VecTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                    (VecTree_all@{α ; u u0 u1} A PA) n p ->
                  VecTree_all@{α ; u u0 u1} A PA (VNnode A n p).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments VecTree_all A%_type_scope PA%_function_scope v
 Arguments VNleaf_all A%_type_scope PA%_function_scope a _
@@ -1406,8 +1406,8 @@ RoseTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                    (RoseTree_all@{α ; u u0 u1} A PA) l ->
                  RoseTree_all@{α ; u u0 u1} A PA (RTnode@{u} A l).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments RoseTree_all A%_type_scope PA%_function_scope r
 Arguments RTleaf_all A%_type_scope PA%_function_scope a _
@@ -1450,8 +1450,8 @@ RoseRoseTree_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                   p ->
                 RoseRoseTree_all@{α ; u u0 u1} A PA (Nnode@{u} A p).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments RoseRoseTree_all A%_type_scope PA%_function_scope r
 Arguments Nleaf_all A%_type_scope PA%_function_scope a _
@@ -1498,8 +1498,8 @@ ArrowTree3_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                      (l H)) ->
                   ArrowTree3_all@{α ; u u0 u1} A PA (ATnode3@{u} A l).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments ArrowTree3_all A%_type_scope PA%_function_scope a
 Arguments ATleaf3_all A%_type_scope PA%_function_scope a _
@@ -1545,8 +1545,8 @@ trie_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                   (trie_all@{α ; u u0 u1} A PA) a0 ->
                 trie_all@{α ; u u0 u1} A PA (TNode@{u} A a a0).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments trie_all A%_type_scope PA%_function_scope t
 Arguments TLeaf_all A%_type_scope PA%_function_scope
@@ -1599,8 +1599,8 @@ ArrowTrie_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                     (l H)) ->
                  ArrowTrie_all@{α ; u u0 u1} A PA (ATNode@{u} A a l).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments ArrowTrie_all A%_type_scope PA%_function_scope a
 Arguments ATLeaf_all A%_type_scope PA%_function_scope
@@ -1646,8 +1646,8 @@ ArrayTrie_all@{α ; u u0 u1} (A : Type@{u}) (PA : A -> Univ@{α ; u0})
                     a0 ->
                   ArrayTrie_all@{α ; u u0 u1} A PA (AyTNode@{u} A a a0).
 (* α ; u(= in 1st binder, + in type) u0(= in 2nd binder, + in type) u1*(+ in type) | 
-   u <= u1
-   u0 <= u1 *)
+   u ≤ u1
+   u0 ≤ u1 *)
 
 Arguments ArrayTrie_all A%_type_scope PA%_function_scope a
 Arguments AyTLeaf_all A%_type_scope PA%_function_scope
@@ -1662,7 +1662,7 @@ list_all@{α α0 ; u u0 u1} (A : Univ@{α ; u}) (PA : A -> Univ@{α0 ; u1})
                list_all@{α α0 ; u u0 u1} A PA l ->
                list_all@{α α0 ; u u0 u1} A PA (cons@{α ; u u0} A a l).
 (* α α0 ; u(= in 1st binder) u0*(+ in type) u1(= in 2nd binder, + in type) | 
-   u <= u0 *)
+   u ≤ u0 *)
 
 Arguments list_all A%_type_scope PA%_function_scope l
 Arguments nil_all A%_type_scope PA%_function_scope
@@ -1672,7 +1672,7 @@ forall (A : Univ@{α ; u}) (PA : A -> Univ@{α0 ; u1}),
 (forall a : A, PA a) ->
 forall l : list@{α ; u u0} A, list_all@{α α0 ; u u u1} A PA l
 (* α α0 ; u(= in 1st binder) u0* u1(= in 2nd binder) | 
-   u <= u0 *)
+   u ≤ u0 *)
 
 list_all_forall is universe polymorphic and cumulative
 Arguments list_all_forall A%_type_scope (PA HPA)%_function_scope l
@@ -1695,7 +1695,7 @@ list_all_all@{α α0 α1 ; u u0 u1 u2} (A : Univ@{α ; u})
                      (cons@{α ; u u0} A a l)
                      (cons_all@{α α0 ; u u0 u1} A PA a p l l0).
 (* α α0 α1 ; u(= in 1st binder) u0*(+ in type) u1(= in 2nd binder, + in type) u2(= in 3rd binder, + in type) | 
-   u <= u0 *)
+   u ≤ u0 *)
 
 Arguments list_all_all A%_type_scope (PA PPA)%_function_scope l l0
 Arguments nil_all_all A%_type_scope (PA PPA)%_function_scope
@@ -1707,7 +1707,7 @@ forall (A : Univ@{α ; u}) (PA : A -> Univ@{α0 ; u1})
 forall (l : list@{α ; u u0} A) (l0 : list_all@{α α0 ; u u0 u1} A PA l),
 list_all_all@{α α0 α1 ; u u u1 u2} A PA PPA l l0
 (* α α0 α1 ; u(= in 1st binder) u0* u1(= in 2nd binder) u2(= in 3rd binder) | 
-   u <= u0 *)
+   u ≤ u0 *)
 
 list_all_all_forall is universe polymorphic and cumulative
 Arguments list_all_all_forall A%_type_scope (PA PPA HPPA)%_function_scope 

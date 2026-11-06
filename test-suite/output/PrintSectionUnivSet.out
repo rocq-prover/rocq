@@ -12,9 +12,9 @@ foo@{0}
      : Set
 goo@{v} = nat
      : Type@{v}
-(* v*(+ in type) | v <= 0 *)
+(* v*(+ in type) | v ≤ 0 *)
 goo@{v} : Type@{v}
-(* v*(+ in type) | v <= 0 *)
+(* v*(+ in type) | v ≤ 0 *)
 
 goo is universe polymorphic and cumulative
 goo is transparent
