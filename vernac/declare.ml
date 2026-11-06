@@ -1651,7 +1651,8 @@ let declare_mutual_definitions ~pm l =
       CInfo.make ?loc ~name ~typ ~impargs ()) defs first.prg_deps in
   let fixdefs, fixtypes, _ = List.split3 defs in
   let possible_guard = Option.get first.prg_possible_guard in
-  let sigma = UnivVariances.register_universe_variances_of_fix (Global.env ()) (Evd.from_ustate first.prg_uctx) (List.map EConstr.of_constr fixtypes)
+  let cofix = List.for_all List.is_empty (fst possible_guard).Pretyping.possible_fix_indices in
+  let sigma = UnivVariances.register_universe_variances_of_fix (Global.env ()) (Evd.from_ustate first.prg_uctx) ~cofix (List.map EConstr.of_constr fixtypes)
     (List.map (fun x -> Some (EConstr.of_constr x)) fixdefs) in
   (* Declare the recursive definitions *)
   let kns =
@@ -2202,9 +2203,8 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo; sideff } =
     | None -> raise_non_ground_proof evd pid c
   in
   let proofs = List.map (fun (_, body, typ) -> (to_constr body, to_constr typ)) initial_goals in
-  let evd = UnivVariances.register_universe_variances_of_proofs (Global.env()) evd proofs in
-  let evd = Evd.minimize_universes ~poly evd in
-  let proofs = List.map (fun (body, typ) -> (Evarutil.nf_evars_universes evd body, Evarutil.nf_evars_universes evd typ)) proofs in
+  (* The recursive bodies are built before inferring the variances, which have to be those of the
+     (co)fixpoints, as the kernel infers them *)
   let proofs = match pinfo.possible_guard with
     | None -> proofs
     | Some (possible_guard, fixrelevances) ->
@@ -2216,6 +2216,9 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo; sideff } =
       let proofs, sigma, _ = (make_recursive_bodies ~sigma:evd env ~typing_flags ~possible_guard ~rec_declaration) in
       proofs
   in
+  let evd = UnivVariances.register_universe_variances_of_proofs (Global.env()) evd proofs in
+  let evd = Evd.minimize_universes ~poly evd in
+  let proofs = List.map (fun (body, typ) -> (Evarutil.nf_evars_universes evd body, Evarutil.nf_evars_universes evd typ)) proofs in
   let proofs = List.map (fun (body, typ) -> (body, Some typ)) proofs in
   let () = if warn_incomplete then check_incomplete_proof evd in
   { output_entries = proofs; output_ustate = Evd.ustate evd; output_sideff = SideEff.concat eff sideff }
