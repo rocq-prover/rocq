@@ -34,7 +34,7 @@ val register_universe_variances_of_record : Environ.env -> Evd.evar_map -> env_a
   types:EConstr.t list -> Evd.evar_map
 
 val register_universe_variances_of_fix :
-  Environ.env -> Evd.evar_map ->
+  Environ.env -> Evd.evar_map -> cofix:bool ->
   EConstr.t list ->
   EConstr.t option list ->
   Evd.evar_map
