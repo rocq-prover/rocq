@@ -1,0 +1,6 @@
+guard StmtNeg.Flags.g -
+tit StmtNeg.Flags.tt_T -
+pos StmtNeg.Flags.uses_bad -
+uip StmtNeg.Flags.useq -
+hidden_flag StmtNeg.Flags.uses_hidden -
+opaque_hidden StmtNeg.Flags.opaque_hidden -

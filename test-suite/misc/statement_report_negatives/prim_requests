@@ -1,0 +1,4 @@
+int StmtNeg.Prims.i -
+float StmtNeg.Prims.f -
+string StmtNeg.Prims.s -
+array StmtNeg.Prims.a -
