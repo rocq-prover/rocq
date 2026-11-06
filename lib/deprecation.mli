@@ -40,4 +40,5 @@ module Version : sig
   val v9_1 : CWarnings.category
   val v9_2 : CWarnings.category
   val v9_3 : CWarnings.category
+  val v9_4 : CWarnings.category
 end
