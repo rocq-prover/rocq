@@ -1,0 +1,14 @@
+overlay argosy https://github.com/ppedrot/argosy parsing-rm-recovery 22711
+overlay coqutil https://github.com/ppedrot/coqutil parsing-rm-recovery 22711
+overlay bedrock2 https://github.com/ppedrot/bedrock2 parsing-rm-recovery 22711
+overlay category_theory https://github.com/ppedrot/category-theory parsing-rm-recovery 22711
+overlay coq_performance_tests https://github.com/ppedrot/coq-performance-tests parsing-rm-recovery 22711
+overlay hott https://github.com/ppedrot/HoTT parsing-rm-recovery 22711
+overlay itauto https://github.com/proux01/itauto rocq22711 22711
+overlay mtac2 https://github.com/ppedrot/Mtac2 parsing-rm-recovery 22711
+overlay neural_net_interp https://github.com/ppedrot/neural-net-coq-interp parsing-rm-recovery 22711
+overlay rupicola https://github.com/ppedrot/rupicola parsing-rm-recovery 22711
+overlay quickchick https://github.com/ppedrot/QuickChick parsing-rm-recovery 22711
+overlay rewriter https://github.com/ppedrot/rewriter parsing-rm-recovery 22711
+overlay unimath https://github.com/ppedrot/UniMath parsing-rm-recovery 22711
+overlay vst https://github.com/ppedrot/VST parsing-rm-recovery 22711

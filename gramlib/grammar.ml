@@ -1084,6 +1084,7 @@ let interval_loc bpos epos =
 
 let warn_tolerance =
   CWarnings.(create_in (create_warning ~name:"level-tolerance"
+                          ~default:AsError
                           ~from:[CoreCategories.parsing; Deprecation.Version.v9_2] ())
     ~quickfix:(fun ~loc (_, _, qf) -> qf)
     Pp.(fun (e, msg, _) ->
