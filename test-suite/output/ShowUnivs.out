@@ -3,26 +3,26 @@ UNIVERSE VARIABLES:
 DEFINED LOCAL VARIABLES:
  
 UNIVERSES:
- 0 <= u
- 0 <= v
- 0 <= w
- u <= v
- v <= w
- 1 <= sig.u0
- 1 <= sig2.u0
- 1 <= sigT.u0
- 1 <= sigT.u1
- 1 <= eq.u0
- 1 <= option.u0
- 1 <= sigT2.u0
- 1 <= sigT2.u1
- 1 <= sigT2.u2
- 1 <= sum.u0
- 1 <= sum.u1
- 1 <= prod.u0
- 1 <= prod.u1
- 1 <= list.u0
- 1 <= sumor.u0
+ 0 ≤ u
+ 0 ≤ v
+ 0 ≤ w
+ u ≤ v
+ v ≤ w
+ 0 < sig.u0
+ 0 < sig2.u0
+ 0 < sigT.u0
+ 0 < sigT.u1
+ 0 < eq.u0
+ 0 < option.u0
+ 0 < sigT2.u0
+ 0 < sigT2.u1
+ 0 < sigT2.u2
+ 0 < sum.u0
+ 0 < sum.u1
+ 0 < prod.u0
+ 0 < prod.u1
+ 0 < list.u0
+ 0 < sumor.u0
 SORTS:
   |= Prop -> SProp
      Type -> Prop
@@ -37,38 +37,38 @@ WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {w v u} | u <= v
-           v <= w
+ {w v u} | u ≤ v
+           v ≤ w
 UNIVERSE VARIABLES:
  {?ShowUnivs:25 ?ShowUnivs:24 ?ShowUnivs:23 ShowUnivs:22 ?ShowUnivs:21}
 DEFINED LOCAL VARIABLES:
  
 UNIVERSES:
- 0 <= ShowUnivs:21
- 0 <= ShowUnivs:22
- 0 <= ShowUnivs:23
- 0 <= ShowUnivs:24
- 0 <= ShowUnivs:25
- ShowUnivs:23 <= ShowUnivs:21
- ShowUnivs:24 <= ShowUnivs:21
- ShowUnivs:25 <= ShowUnivs:24
- 1 <= sig.u0
- 1 <= sig2.u0
- 1 <= sigT.u0
- 1 <= sigT.u1
- 1 <= eq.u0
- 1 <= option.u0
- 1 <= sigT2.u0
- 1 <= sigT2.u1
- 1 <= sigT2.u2
- 1 <= sum.u0
- 1 <= sum.u1
- 1 <= prod.u0
- 1 <= prod.u1
- 1 <= list.u0
- 1 <= sumor.u0
- ShowUnivs:22+1 <= ShowUnivs:25
- ShowUnivs:25+1 <= ShowUnivs:23
+ 0 ≤ ShowUnivs:21
+ 0 ≤ ShowUnivs:22
+ 0 ≤ ShowUnivs:23
+ 0 ≤ ShowUnivs:24
+ 0 ≤ ShowUnivs:25
+ ShowUnivs:23 ≤ ShowUnivs:21
+ ShowUnivs:24 ≤ ShowUnivs:21
+ ShowUnivs:25 ≤ ShowUnivs:24
+ 0 < sig.u0
+ 0 < sig2.u0
+ 0 < sigT.u0
+ 0 < sigT.u1
+ 0 < eq.u0
+ 0 < option.u0
+ 0 < sigT2.u0
+ 0 < sigT2.u1
+ 0 < sigT2.u2
+ 0 < sum.u0
+ 0 < sum.u1
+ 0 < prod.u0
+ 0 < prod.u1
+ 0 < list.u0
+ 0 < sumor.u0
+ ShowUnivs:22 < ShowUnivs:25
+ ShowUnivs:25 < ShowUnivs:23
 SORTS:
  α1 := Type
  α2 := Type
@@ -91,4 +91,4 @@ WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {ShowUnivs:25 ShowUnivs:22} | ShowUnivs:22+1 <= ShowUnivs:25
+ {ShowUnivs:25 ShowUnivs:22} | ShowUnivs:22 < ShowUnivs:25

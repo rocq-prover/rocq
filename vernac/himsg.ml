@@ -1617,7 +1617,7 @@ let error_inductive_missing_constraints env (us,ind_univ) =
   let pr_sort u = Flags.with_option PrintingFlags.print_universes (Printer.pr_sort sigma) u in
   str "Missing universe constraint declared for inductive type:" ++ spc()
   ++ v 0 (prlist_with_sep spc (fun u ->
-      hov 0 (pr_sort u ++ str " <= " ++ pr_sort ind_univ))
+      hov 0 (pr_sort u ++ str " ≤ " ++ pr_sort ind_univ))
       us)
 
 (* Inductive constructions errors *)

@@ -41,14 +41,14 @@ Expands to: Constant DeclareSort.foo
 Declared in library DeclareSort, line 19, characters 8-11
 foo@{SProp ; } : Univ@{S1 ; 0} -> SProp
      : Univ@{S1 ; 0} -> SProp
-(* {DeclareSort:22} | 1 <= DeclareSort:22
+(* {DeclareSort:22} | 0 < DeclareSort:22
 Minimized universes:
  DeclareSort:22 := 1
 Normalized constraints:
   *)
 foo@{α4 ; } : Univ@{S1 ; 0} -> Set
      : Univ@{S1 ; 0} -> Set
-(* {α4}; {DeclareSort:23} | 1 <= DeclareSort:23
+(* {α4}; {DeclareSort:23} | 0 < DeclareSort:23
 Collapsed sorts:
  α4 := Type
 Minimized universes:
