@@ -1138,7 +1138,7 @@ let is_quantified_hypothesis id gl =
 let warn_deprecated_intros_until_0 =
   CWarnings.create ~name:"deprecated-intros-until-0" ~category:CWarnings.CoreCategories.tactics
     (fun () ->
-       strbrk"\"intros until 0\" is deprecated, use \"intros *\"; instead of \"induction 0\" and \"destruct 0\" use explicitly a name.\"")
+       strbrk"\"intros until 0\" is deprecated, use \"intros *\"; instead of \"induction 0\" and \"destruct 0\" use explicitly a name.")
 
 let depth_of_quantified_hypothesis red h gl =
   if h = AnonHyp 0 then warn_deprecated_intros_until_0 ();

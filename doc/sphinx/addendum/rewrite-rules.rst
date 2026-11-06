@@ -69,6 +69,11 @@ and then substituted into the replacement, which is returned.
      | 0 ++ ?n => ?n
      | S ?n ++ ?m => S (?n ++ ?m).
 
+.. warn:: This rewrite rule breaks subject reduction.
+   :name: rewrite-rules-break-SR
+
+   This means the rewrite rule is likely to generate ill-typed terms when applied.
+
 .. _Pattern syntax:
 
 Pattern syntax
@@ -100,6 +105,13 @@ The projections must be primitive to be allowed.
 
 Finally, a valid pattern needs its head head-pattern to be a symbol.
 
+.. warn:: This subpattern is irrelevant and can never be matched against.
+   :name: irrelevant-pattern
+   :undocumented:
+
+.. warn:: This pattern contains a redex which may prevent this rule from being triggered.
+   :name: redex-in-rewrite-rules
+   :undocumented:
 
 Higher-order pattern holes
 --------------------------
@@ -163,10 +175,15 @@ and a more complete check on type preservation.
 Compatibility with the eta laws
 -------------------------------
 
-Currently, pattern matching against rewrite rules pattern cannot do eta-expansion or contraction,
-which means that it cannot properly match against terms of functional types or primitive records.
-As with type preservation, a check is done to test whether this may happen,
-but it is not complete (false positives) and thus only emits a warning if failed.
+.. warn:: Pattern-matching is not done modulo eta, so this rule may not trigger at required times.
+   :name: eta-in-pattern
+
+   Currently, pattern matching against rewrite rules pattern cannot do
+   eta-expansion or contraction, which means that it cannot properly
+   match against terms of functional types or primitive records. As
+   with type preservation, a check is done to test whether this may
+   happen, but it is not complete (false positives) and thus only
+   emits a warning if failed.
 
 Level of support
 ----------------

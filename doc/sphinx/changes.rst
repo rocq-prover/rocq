@@ -689,7 +689,7 @@ Corelib
   particular, the types of ``eq_sym``, ``eq_sym_involutive`` and
   ``eq_rew_r_dep`` now use a universe local to the scheme instead of
   ``eq.u0``, so that using these constants no longer adds constraints
-  on ``eq.u0`` (which is deprecated, see the ``bad-template-constraint``
+  on ``eq.u0`` (which is deprecated, see the :warn:`bad-template-constraint`
   warning)
   (`#22221 <https://github.com/rocq-prover/rocq/pull/22221>`_,
   fixes `#22220 <https://github.com/rocq-prover/rocq/issues/22220>`_,
@@ -4335,7 +4335,7 @@ Notations
 ^^^^^^^^^
 
 - **Changed:**
-  :warn:`Found no matching notation to enable or disable` is a warning instead of an error
+  :warn:`no-notation-to-enable-or-disable` is a warning instead of an error
   (`#18670 <https://github.com/rocq-prover/rocq/pull/18670>`_,
   by Pierre Roux).
 
@@ -5375,7 +5375,7 @@ Specification language, type inference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - **Changed:**
-  :warn:`Unused variable <Unused variable ‘ident’ might be a misspelled constructor. Use _ or _‘ident’ to silence this warning.>` warning
+  :warn:`unused-pattern-matching-variable` warning
   triggers even when catching a single case. This warning used to be
   triggered only when the unused variable was catching at least
   two cases (`#16135 <https://github.com/rocq-prover/rocq/pull/16135>`_,

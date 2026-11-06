@@ -246,6 +246,21 @@ Here is an example:
 
       Definition f := forall {y}, y = 0.
 
+.. warn:: Ignoring implicit status of product binder @name and following binders
+   :name: ignoring-implicit-status
+
+   It is not clear if this warning can actually be trigggered, it may
+   be prevented by :warn:`unexpected-implicit-declaration`.
+
+.. warn:: Implicit arguments declaration relies on type. Discarding incompatible declaration in term.
+   :name: implicits-in-term
+
+   For instance
+
+   .. rocqtop:: all warn
+
+      Definition g : nat -> nat := fun {x} => x.
+
 .. warn:: Making shadowed name of implicit argument accessible by position
    :name: shadowed-implicit-name
 

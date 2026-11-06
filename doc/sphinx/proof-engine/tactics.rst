@@ -1228,6 +1228,11 @@ Managing the local context
 
          There are fewer than :n:`@natural` premises in the goal.
 
+      .. warn:: "intros until 0" is deprecated, use "intros *"; \
+                instead of "induction 0" and "destruct 0" use explicitly a name.
+         :name: deprecated-intros-until-0
+         :undocumented:
+
 .. tacn:: eintros {* @intropattern }
 
    Works just like :tacn:`intros` except that it creates existential variables
@@ -1255,6 +1260,16 @@ Managing the local context
 
       .. exn:: @ident is used in the hypothesis @ident.
          :undocumented:
+
+      .. warn:: No such hypothesis: @ident.
+         :name: clear-no-such-hyp
+
+         Calling `clear` with an unbound name usually produces an
+         error, but in rare cases for backwards compatibility we need
+         to produce a warning instead. The warning typically happens
+         when the :n:`@ident` is bound by `match goal`, e.g. in
+         `match goal with x : _ |- _ => clear x; clear x end` the second `clear`
+         used to succeed silently leaving the context unchanged and now produces the warning.
 
    :n:`clear - {+ @ident }`
      Selects all hypotheses that are not named by the :n:`@ident`\s, then

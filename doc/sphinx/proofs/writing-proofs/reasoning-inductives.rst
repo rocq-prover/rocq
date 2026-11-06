@@ -167,6 +167,10 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
          parenthesize the argument to make it a :n:`@term` rather than an
          :n:`@ident`, as in :n:`destruct (@ident)`.
 
+         .. warn:: Cannot remove @ident
+            :name: cannot-remove-as-expected
+            :undocumented:
+
      + :n:`@one_term` may contain holes that are denoted by “_”. In this case,
        the tactic selects the first subterm that matches the pattern and performs
        case analysis using that subterm.
@@ -182,6 +186,11 @@ analysis on inductive or coinductive objects (see :ref:`variants`).
       defined.  If there are not enough names, Rocq picks fresh names.
       Inner :n:`intropattern`\s can also split introduced hypotheses into
       multiple hypotheses or subgoals.
+
+      .. warn:: Unused introduction pattern @intropattern
+         :name: unused-intro-pattern
+
+         This warning is omitted when too many patterns are given.
 
    :n:`eqn : @naming_intropattern`
       Generates a new hypothesis in each new subgoal that is an equality between
@@ -405,10 +414,14 @@ Induction
      my_foo_elim as rect_dep for foo` where `my_foo_elim` is a
      dependent elimination scheme for inductive `foo` at sort `Type`.
 
-     If no scheme is registered for the eliminated inductive and goal
-     sort, :tacn:`induction` attempts to find a constant from the same
-     module as the inductive whose name is the inductive's name
-     suffixed by `sind` / `ind` / `rec` / `rect`. This name-based lookup is deprecated.
+     .. warn:: Found unregistered eliminator @qualid for @qualid by name.
+        :name: deprecated-lookup-elim-by-name
+
+        If no scheme is registered for the eliminated inductive and
+        goal sort, :tacn:`induction` attempts to find a constant from
+        the same module as the inductive whose name is the inductive's
+        name suffixed by `sind` / `ind` / `rec` / `rect`. This
+        name-based lookup is deprecated since 9.2.
 
    .. exn:: Cannot recognize a statement based on @reference.
 
@@ -818,6 +831,15 @@ This section describes some special purpose tactics to work with
    .. exn:: Nothing to inject.
 
       Generated when one side of the equality is not a constructor.
+
+   .. warn:: The equality scheme for @qualid could not be used as \
+             Stdlib.Logic.Eqdep_dec has not been required.
+      :name: injection-missing-eqdep-dec
+
+      Some equality schemes need uniqueness of identity proofs to be
+      used. When not using Stdlib it can be provided by
+      :cmd:`registering <Register>` `core.eqdep_dec.inj_pair2` (see
+      Stdlib for the expected type).
 
    .. tacn:: einjection {? @induction_arg } {? as {* @simple_intropattern } }
 
@@ -1514,6 +1536,15 @@ Scheme Equality, and Rewriting
 
    Tries to generate rewriting schemes such as congruence for :n:`@reference`.
    Equivalent to setting :flag:`Rewriting Schemes` before declaring :n:`@reference`.
+
+.. warn:: Cannot build congruence scheme because eq is not found.
+   :name: cannot-build-congruence
+
+   Congruence needs an equality type to be registered as
+   `core.eq.type` (with :cmd:`Register`).
+
+   The prelude includes such a registration so this warning should
+   only appear when using `-noinit`.
 
 .. _automatic-declaration-of-schemes:
 
