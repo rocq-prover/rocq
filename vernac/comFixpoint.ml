@@ -478,7 +478,9 @@ let interp_mutual_definition env ~program_mode ~poly ~function_mode rec_order fi
 
   (* Instantiate evars and check all are resolved *)
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
-  let sigma = UnivVariances.register_universe_variances_of_fix env sigma fixtypes fixdefs in
+  (* Cofixpoints have no structural argument *)
+  let cofix = List.for_all List.is_empty possible_guard.Pretyping.possible_fix_indices in
+  let sigma = UnivVariances.register_universe_variances_of_fix env sigma ~cofix fixtypes fixdefs in
   let sigma = Evd.minimize_universes ~poly ~partial:(List.exists Option.is_empty fixdefs) sigma in
 
   (* Build the fix declaration block *)
