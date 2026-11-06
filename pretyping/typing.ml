@@ -455,6 +455,9 @@ let judge_of_string env v =
   { uj_val = mkString v; uj_type = type_of_string env }
 
 let judge_of_array env sigma u tj defj tyj =
+  let () = if Uint63.(lt Parray.max_length (of_int (Array.length tj))) then
+      raise_type_error (env, sigma, TooLargeArrayLiteral (Array.length tj))
+  in
   let ulev = match UVars.Instance.to_array u with
     | [||], [|u|] -> u
     | _ -> assert false

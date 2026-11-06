@@ -39,6 +39,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker counts local definitions as formal arguments in uniformity analysis](#guard-checker-counts-local-definitions-as-formal-arguments-in-uniformity-analysis)
       - [guard checker computes uniform parameters of nested fixpoints in the wrong environment](#guard-checker-computes-uniform-parameters-of-nested-fixpoints-in-the-wrong-environment)
       - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
+      - [array literals longer than max_length not rejected by the typechecker](#array-literals-longer-than-max_length-not-rejected-by-the-typechecker)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -457,6 +458,19 @@ and lack of checking of relevance marks on constants in coqchk
   [#22383](https://github.com/rocq-prover/rocq/issues/22383): it does not infer
   letin bodies at all.
 
+#### array literals longer than max_length not rejected by the typechecker
+
+- component: primitive arrays, typechecker
+- introduced: V8.13 (introduction of primitive arrays)
+- impacted released versions: V8.13 to V9.3.0
+- impacted coqchk versions: same
+- fixed in: V9.2.1, V9.3.1, v9.4
+- found by: Sami Jawhar
+- exploit: test-suite/bugs/bug_22716.v
+- GH issue number: [#22716](https://github.com/rocq-prover/rocq/issues/22716)
+- risk: requires constructing an array literal longer than
+  `max_length` (4194304 elements) through the typechecker
+  (as opposed to evaluating a primitive function like `make` applied to a large integer)
 
 ### Module system
 
