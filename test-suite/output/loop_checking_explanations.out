@@ -1,0 +1,32 @@
+File "./output/loop_checking_explanations.v", line 6, characters 0-34:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce p = q because p < q.
+File "./output/loop_checking_explanations.v", line 7, characters 0-35:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce t ≤ p because p < q ≤ s < s+1 < t.
+File "./output/loop_checking_explanations.v", line 8, characters 0-37:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce t ≤ p+2 because p+2 ≤ q+1 ≤ s+1 < t.
+File "./output/loop_checking_explanations.v", line 9, characters 0-49:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce t+1 ≤ max(p+3, q+1) because p < q, q
+≤ s, s+1 < t.
+File "./output/loop_checking_explanations.v", line 10, characters 0-37:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce p+1 ≤ p because p < p+1.
+File "./output/loop_checking_explanations.v", line 14, characters 0-43:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce max(c, d) ≤ r because r < max(
+c, d).
+File "./output/loop_checking_explanations.v", line 18, characters 0-35:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce w ≤ x because x ≤ max(
+y, z), y < w, z < w.
+File "./output/loop_checking_explanations.v", line 22, characters 0-35:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce h ≤ e because e < max(
+f, g), f < max(e, g), g ≤ h.
+File "./output/loop_checking_explanations.v", line 26, characters 0-42:
+The command has indeed failed with message:
+Universe inconsistency. Cannot enforce n+1 ≤ max(o, m) because m < max(
+n, o), o ≤ max(m, n).

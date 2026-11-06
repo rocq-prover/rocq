@@ -27,13 +27,17 @@ type 'a check_function = t -> 'a -> 'a -> bool
 
 val check_leq : Universe.t check_function
 val check_eq : Universe.t check_function
-val check_eq_level : Level.t check_function
 
 (** The initial graph of universes: Prop < Set *)
 val initial_universes : t
 
-(** Initial universes, but keeping options such as type in type from the argument. *)
-val initial_universes_with : t -> t
+type locality = Loop_checking.locality =
+  | Global
+  | Local
+
+(** In the resulting graph, additions of universes and constraints are considered local,
+   and they can be retrieved using the only_local/local options of accessort functions below. *)
+val set_local : t -> t
 
 (** Check equality of instances w.r.t. a universe graph *)
 val check_eq_instances : (Sorts.Quality.t -> Sorts.Quality.t -> bool) -> t -> Instance.t -> Instance.t -> bool
@@ -54,9 +58,18 @@ type univ_inconsistency = Sorts.printer option * (UnivConstraint.kind * Sorts.t 
 
 exception UniverseInconsistency of univ_inconsistency
 
-val enforce_constraint : UnivConstraint.t -> t -> t
+type level_equivalences = (Level.t * (Level.t * int)) list
 
-val merge_constraints : UnivConstraints.t -> t -> t
+val enforce_constraint : UnivConstraint.t -> t -> t * level_equivalences
+
+val merge_constraints : UnivConstraints.t -> t -> t * level_equivalences
+
+val merge_global_constraints : UnivConstraints.t -> t -> t * level_equivalences
+(** As [merge_constraints], but the constraints are global even in a local graph (see
+    [set_local]), superseding the same local ones. *)
+
+val localize : UnivConstraints.t -> t -> t
+(** See [Loop_checking.localize] *)
 
 val check_constraint  : t -> UnivConstraint.t -> bool
 val check_constraints : UnivConstraints.t -> t -> bool
@@ -69,48 +82,132 @@ val check_leq_sort : (Sorts.Quality.t -> Sorts.Quality.t -> bool) -> t -> Sorts.
 (** Checks whether (i) the second quality eliminates into the first and (ii)
     that the universe of the first one is below the universe of the second one. *)
 
-val enforce_leq_alg : Univ.Universe.t -> Univ.Universe.t -> t -> Univ.UnivConstraints.t * t
+val normalize : t -> Level.t -> Universe.t option
 
-(** Adds a universe to the graph, ensuring it is >= or > Set.
-   @raise AlreadyDeclared if the level is already declared in the graph. *)
+(** As [normalize], but leaves the rigid levels as they are. *)
+val normalize_flexible : t -> Level.t -> Universe.t option
+
+(** [Some rigid] for a substituted level, [None] for a canonical or undeclared one. *)
+val alias_rigidity : t -> Level.t -> bool option
+
+(** The flexible universes: the local canonical universes which are not rigid, i.e. the
+    unification variables of the elaborator. *)
+val is_flexible : t -> Level.t -> bool
+val flexible_local_levels : t -> Level.Set.t
+
+(** Make a universe rigid or flexible. A substituted universe is substituted in terms (see
+    [normalize_flexible]) only if it is not rigid. *)
+val set_rigid : bool -> Level.t -> t -> t
+
+(** The universes of the context of the elaborator: the local canonical universes, and the
+    local rigid substituted ones, which stay in the terms. *)
+val is_context_level : t -> Level.t -> bool
+val local_levels : t -> Level.Set.t
+
+(** The rigid universes of the context, i.e. [local_levels] but the flexible universes *)
+val rigid_local_levels : t -> Level.Set.t
+
+(** Make a universe, canonical or substituted, local or global. *)
+val set_locality : locality -> Level.t -> t -> t
+
+exception InconsistentEquality
+exception OccurCheck
+(** Sets a universe level equal to a universe in the graph.
+   Stronger than enforcing an equality as the level disappears from the
+   graph in case of success. Returns a new graph + a list of universe levels
+   that are made equal due to the constraint and also disappear from the graph as a result.
+   @raise InconsistentEquality if the equality cannot be enforced.
+   @raise OccurCheck if the level appears in the universe, up to equivalence in the graph
+   *)
+val set : Level.t -> Universe.t -> t -> t * level_equivalences
+
+(** [clause_count g l] is the number of constraints on [l] in [g], the cost of [set l _ g] *)
+val clause_count : t -> Level.t -> int
 
 exception AlreadyDeclared
+val add_universe : Level.t -> strict:bool -> rigid:bool -> t -> t
+(** Adds a universe to the graph, ensuring it is >= or > (if [strict = true]) Set.
+   A [rigid] level is kept canonical when it is made equal to a non-rigid expression.
+   @raise AlreadyDeclared if the level is already declared in the graph. *)
 
-val add_universe : Level.t -> strict:bool -> t -> t
 
 (** Check that the universe levels are declared. *)
 val check_declared_universes : t -> Univ.Level.Set.t -> (unit, Univ.Level.Set.t) result
 
+val is_declared : t -> Level.t -> bool
+
 (** The empty graph of universes *)
 val empty_universes : t
 
-(** [constraints_of_universes g] returns [csts] and [partition] where
+(** [constraints_of_universes only_local g] returns [csts] and [partition] where
    [csts] are the non-Eq constraints and [partition] is the partition
-   of the universes into equivalence classes. *)
-val constraints_of_universes : t -> UnivConstraints.t * Level.Set.t list
+   of the universes into equivalence classes.
+   The [only_local] option only returns the constraints added since [set_local] was performed
+   on the graph. *)
+val constraints_of_universes : ?only_local:bool -> t ->
+   Level.Set.t * UnivConstraints.t * (locality * Universe.t) Level.Map.t
 
 (** [constraints_for ~kept g] returns the constraints about the
    universes [kept] in [g] up to transitivity.
-
-    eg if [g] is [a <= b <= c] then [constraints_for ~kept:{a, c} g] is [a <= c]. *)
+   e.g. if [g] is [a <= b <= c] then [constraints_for ~kept:{a, c} g] is [a <= c]. *)
 val constraints_for : kept:Level.Set.t -> t -> UnivConstraints.t
 
+(** [remove l g] returns the graph [g] where the [l] universes have been removed,
+   keeping the constraints between kept universes that they entail.
+   e.g. if [g] is [a <= b <= c] then [remove {b} g] is [a <= c].
+   The rigid aliases of a removed universe are kept, with its constraints:
+   e.g. if [g] is [a = l + 1, b = l + 1] then [remove {l} g] is [a = b, 1 <= a].
+   Its flexible aliases, which the terms no longer mention, are dropped, as are
+   the aliases by an algebraic universe mentioning a removed one.
+
+   It is not very efficient, so avoid using it: its use is to restrict
+   universe contexts in [UState.restrict].
+   *)
+val remove : Level.Set.t -> t -> t
+
+val minimize : Level.t -> t -> t Loop_checking.simplification_result
+val maximize : Level.t -> t -> t Loop_checking.simplification_result
+
+(* Hack for template polymorphism *)
+val remove_set_clauses : Level.t -> t -> t
+
+(* Print the model. Optionally print only the local universes and constraints. *)
+val pr_model : ?local:bool -> t -> Pp.t
+
 val domain : t -> Level.Set.t
-(** Known universes *)
+(** Known universes. *)
+
+val variables : local:bool -> with_subst:bool -> t -> Level.Set.t
+(** Computes the set of registered variables, optionally restricted to local ones, and
+  optionally including the substituted variables. *)
+
+val subst : ?local:bool -> t -> (locality * Universe.t) Level.Map.t
+(** Substitution from (local) levels to universes.
+   N.B.: slighty expensive to compute, better use [normalize] below. *)
+
+val switch_locality : Level.t -> t -> t
+(** Turn a local universe into a non-local one and conversely. *)
+
+(** [local_status g l] tells if [l] is a local universe of [g], or a local alias, as
+  considered by [constraints_of_universes ~only_local:true] *)
+val local_status : t -> Level.t -> Loop_checking.local_status
 
 (** {6 Dumping} *)
 
 type node =
-| Alias of Level.t
-| Node of bool Level.Map.t (** Nodes v s.t. u < v (true) or u <= v (false) *)
+| Alias of Universe.t
+| Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
 
-val repr : t -> node Level.Map.t
+val repr : ?local:bool -> t -> node Level.Map.t
 
 (** {6 Pretty-printing of universes. } *)
 
 val pr_universes : (Level.t -> Pp.t) -> node Level.Map.t -> Pp.t
 
 val explain_universe_inconsistency : Sorts.printer -> univ_inconsistency -> Pp.t
+
+val pr : ?local:bool -> (Level.t -> Pp.t) -> t -> Pp.t
+(** [pr_universes] of [repr] *)
 
 (** {6 Debugging} *)
 val check_universes_invariants : t -> unit

@@ -1190,11 +1190,13 @@ Requesting information
    .. exn:: Unknown inductive type.
       :undocumented:
 
-.. cmd:: Show Universes
+.. cmd:: Show {? Global } Universes
+   :name: Show Universes; Show Global Universes
 
-   Displays the set of all universe constraints and
-   its normalized form at the current stage of the proof, useful for
-   debugging universe inconsistencies.
+   Displays the universe constraints of the proof and
+   their normalized form at the current stage of the proof, useful for
+   debugging universe inconsistencies. With ``Global``, the constraints
+   between global universes are also displayed.
 
 .. cmd:: Show Goal @natural at @natural
 
