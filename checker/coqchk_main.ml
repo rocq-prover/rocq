@@ -157,6 +157,8 @@ let enable_vm = ref false
 
 let output_context = ref false
 
+let allowed_axioms = ref ([] : string list)
+
 let warn_no_bytecode =
   CWarnings.create ~name:"bytecode-compiler-disabled" ~category:CWarnings.CoreCategories.bytecode_compiler
     Pp.(fun () ->
@@ -231,6 +233,7 @@ let print_usage_channel co command =
 \n  -v, --version               print coqchk version and exit\
 \n  -o, --output-context        print the list of assumptions\
 \n  -axiom-free                 fail if axioms or unsafe features are used\
+\n  -allow-axiom name           allow this axiom with -axiom-free (repeatable)\
 \n  -m, --memory                print the maximum heap size\
 \n  -silent                     disable trace of constants being checked\
 \n\
@@ -435,6 +438,10 @@ let parse_args argv =
 
     | "-axiom-free" :: rem -> CheckFlags.axiom_free := true; parse rem
 
+    | "-allow-axiom" :: name :: rem ->
+        allowed_axioms := name :: !allowed_axioms; parse rem
+    | "-allow-axiom" :: [] -> usage 1
+
     | "-admit" :: s :: rem -> add_admit s; parse rem
     | "-admit" :: [] -> usage 1
 
@@ -448,7 +455,9 @@ let parse_args argv =
         fatal_error (str "Unknown option " ++ str s) 1
     | s :: rem ->  add_compile s; parse rem
   in
-  parse (List.tl (Array.to_list argv))
+  parse (List.tl (Array.to_list argv));
+  if !allowed_axioms <> [] && not !CheckFlags.axiom_free then
+    CErrors.user_err (str "-allow-axiom requires -axiom-free.")
 
 let init_profile ~file =
   let ch = open_out file in
@@ -506,6 +515,10 @@ let main () =
     else []
   in
   Check_stat.stats env (if !output_context then Some axioms else None);
-  if !CheckFlags.axiom_free && not (CheckFlags.is_axiom_free env axioms) then
-    fatal_error (str "Axioms or unsafe features found (-axiom-free).") 1;
+  if !CheckFlags.axiom_free then begin
+    let axioms = List.filter (fun axiom ->
+      not (List.mem (KerName.to_string axiom) !allowed_axioms)) axioms in
+    if not (CheckFlags.is_axiom_free env axioms) then
+      fatal_error (str "Axioms or unsafe features found (-axiom-free).") 1
+  end;
   exit 0

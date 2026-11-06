@@ -38,6 +38,9 @@ EOF
 compile ExplicitAxiom <<'EOF'
 Axiom assumed : forall A : Type, forall _ : A, A.
 EOF
+compile TwoAxioms <<'EOF'
+Axiom first second : Type.
+EOF
 compile AdmittedProof <<'EOF'
 Theorem unfinished : forall A : Type, forall _ : A, A.
 Proof. Admitted.
@@ -107,14 +110,20 @@ check() {
   "$BIN"rocqchk -boot -silent -R "$d" AxiomFree "$@"
 }
 
-expect_rejection() {
-  check "$@"
-  if check -axiom-free "$@" > "$d/out.log" 2>&1 ||
-     ! grep -q 'Axioms or unsafe features found' "$d/out.log"; then
-    echo "expected axiom-free rejection: $*"
+expect_failure() {
+  local message="$1"
+  shift
+  if check "$@" > "$d/out.log" 2>&1 ||
+     ! grep -Fq -- "$message" "$d/out.log"; then
+    echo "expected rejection: $*"
     cat "$d/out.log"
     exit 1
   fi
+}
+
+expect_rejection() {
+  check "$@"
+  expect_failure 'Axioms or unsafe features found' -axiom-free "$@"
 }
 
 # Opaque proofs, section/functor parameters and primitives are safe.
@@ -150,3 +159,29 @@ expect_rejection AxiomFree.Rewrite
 
 # Impredicative Set is a supported theory, not an unsafe bypass.
 check -axiom-free -impredicative-set AxiomFree.Safe
+
+# Allow only the exact names given, and keep them in the report.
+rejection='Axioms or unsafe features found'
+axiom=AxiomFree.ExplicitAxiom.assumed
+check -allow-axiom "$axiom" -axiom-free -o AxiomFree.Dependency > "$d/out.log" 2>&1
+grep -Fq "$axiom" "$d/out.log"
+check -axiom-free -allow-axiom AxiomFree.Missing.unused AxiomFree.Primitives
+for name in assumed AxiomFree.ExplicitAxiom.assume 'AxiomFree.ExplicitAxiom.*'; do
+  expect_failure "$rejection" -axiom-free -allow-axiom "$name" AxiomFree.ExplicitAxiom
+done
+expect_failure "$rejection" -axiom-free -allow-axiom AxiomFree.TwoAxioms.first AxiomFree.TwoAxioms
+check -axiom-free -allow-axiom AxiomFree.TwoAxioms.first \
+  -allow-axiom AxiomFree.TwoAxioms.second AxiomFree.TwoAxioms
+
+# Allow hidden axioms even when their libraries are not rechecked.
+hidden=AxiomFree.SealedAxiom.Sealed.hidden
+check -axiom-free -allow-axiom "$hidden" AxiomFree.SealedAxiomDependency
+check -axiom-free -allow-axiom "$hidden" -norec AxiomFree.SealedAxiomDependency
+check -axiom-free -allow-axiom "$hidden" -admit AxiomFree.SealedAxiom AxiomFree.SealedAxiomDependency
+
+# Naming a declaration cannot permit unsafe features.
+for name in UnsafeGuard.loop SealedInductive.Sealed.bad UnsafeUIP.id Rewrite.id; do
+  expect_failure "$rejection" -axiom-free -allow-axiom "AxiomFree.$name" "AxiomFree.${name%%.*}"
+done
+expect_failure '-allow-axiom requires -axiom-free' -allow-axiom "$axiom" AxiomFree.ExplicitAxiom
+expect_failure 'Usage:' -axiom-free -allow-axiom
