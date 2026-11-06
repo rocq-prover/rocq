@@ -67,11 +67,17 @@ let check_constant_declaration env st kn cb =
   let () =
     match body with
     | Some bd ->
-      let j = Typeops.infer env bd in
-      begin match conv_leq env j.uj_type ty with
-      | Result.Ok () -> ()
-      | Result.Error () -> Type_errors.error_actual_type env j ty
-      end
+      let check () =
+        let j = Typeops.infer env bd in
+        match conv_leq env j.uj_type ty with
+        | Result.Ok () -> ()
+        | Result.Error () -> Type_errors.error_actual_type env j ty
+      in
+      (* Nothing else that is checked looks into an opaque body, so its
+         check can be postponed, and possibly run in another process. A
+         transparent body may be unfolded by later checks, which rely
+         on it being well-typed, so it is checked here. *)
+      if Declareops.is_opaque cb then CheckWorkers.defer kn check else check ()
     | None -> ()
   in
   let retro, st = match Cmap.find_opt kn (snd st.st_retro) with
