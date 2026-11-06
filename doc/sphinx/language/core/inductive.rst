@@ -1312,6 +1312,221 @@ can be recognized as strict subterms of the caller's structural argument.
         | S p => S (rid ((fun x => x) p))
         end.
 
+.. _beta-iota-cuts:
+
+Beta-Iota Cuts
+~~~~~~~~~~~~~~
+
+When working with indexed inductive types, two argument types can depend on
+the same term. A recursive definition may need to preserve this dependency
+when matching the arguments.
+However, :ref:`dependent pattern-matching <matching-dependent>` generalizes the
+indices in the return clause, so matching one argument does not automatically
+refine the type of the other.
+The solution is to create a beta-iota cut by making the match return a function,
+which is then applied to the other argument:
+
+.. example:: Beta-iota cuts to preserve a type dependency
+
+   The type :g:`vec A n` represents vectors with elements of type :g:`A` and
+   length :g:`n`. To combine two vectors of the same length, we must preserve
+   the relationship between their lengths when matching them.
+
+   .. rocqtop:: in
+
+      Inductive vec A : nat -> Type :=
+      | vnil : vec A 0
+      | vcons : A -> forall n, vec A n -> vec A (S n).
+
+      Arguments vnil {_}.
+      Arguments vcons {_}.
+
+   In the following partial definition, matching :g:`vA` introduces a tail
+   :g:`tA` of length :g:`k`, but :g:`vB` still has length :g:`n`.
+   The connection between the lengths is lost:
+
+   .. rocqtop:: all
+
+      #[refine]
+      Fixpoint vec_map2 {A B C} (f : A -> B -> C) {n}
+        (vA : vec A n) (vB : vec B n) {struct vA} : vec C n :=
+        match vA in vec _ k' return vec C k' with
+        | vnil => vnil
+        | vcons a k tA => _
+        end.
+      Proof. Abort.
+
+   To preserve this dependency, make the match return a function accepting the
+   other vector at the generalized length, then apply it to :g:`vB`.
+   In the successor branch, the new argument :g:`vB'` has length :g:`S k`:
+
+   .. rocqtop:: all
+
+      #[refine]
+      Fixpoint vec_map2 {A B C} (f : A -> B -> C) {n}
+        (vA : vec A n) (vB : vec B n) {struct vA} : vec C n :=
+        match vA in vec _ k' return vec B k' -> vec C k' with
+        | vnil => fun _ => vnil
+        | vcons a k tA => fun vB' => _
+        end vB.
+      Proof. Abort.
+
+   This application is called a *beta-iota cut*: :ref:`beta reduction
+   <beta-reduction-sect>` of the application is blocked until :g:`vA` reduces to
+   a constructor and :ref:`iota reduction <iota-reduction-sect>` selects a branch.
+
+The guard condition supports propagating subterm information through beta-iota
+cuts, from the arguments applied to a match to the corresponding binders in its
+branches. This allows a binder to be recognized as a strict subterm even though
+it was introduced by a function rather than by matching the structural argument.
+
+.. example:: Mapping over two vectors of the same length
+
+   The function :g:`vec_map2` applies :g:`f` to corresponding elements of two
+   vectors.
+   The inner match returns a function accepting :g:`tA`, using
+   :g:`sub1` to express the predecessor length in its return clause.
+   In its successor branch, :g:`tA'` and :g:`tB` have the same length :g:`p`.
+   Matching :g:`vA` establishes that :g:`tA` is strictly smaller than :g:`vA`.
+   This information passes through the inner beta-iota cut to :g:`tA'`,
+   allowing the recursive call :g:`vec_map2 f tA' tB`.
+
+   .. rocqtop:: in
+
+      Fixpoint vec_map2 {A B C} (f : A -> B -> C) {n}
+        (vA : vec A n) (vB : vec B n) {struct vA} : vec C n :=
+        match vA in vec _ k' return vec B k' -> vec C k' with
+        | vnil => fun _ => vnil
+        | vcons a k tA => fun vB' : vec B (S k) =>
+          let sub1 p := match p with 0 => 0 | S p => p end in
+          match vB' in vec _ p' return vec A (sub1 p') -> vec C p' with
+          | vnil => fun _ => vnil
+          | vcons b p tB => fun tA' =>
+              vcons (f a b) p (vec_map2 f tA' tB)
+          end tA
+        end vB.
+
+A syntactic restriction on the propagation of subterm information through
+dependent matches was introduced to address incompatibilities with
+:ref:`propositional extensionality <propositional-extensionality-example>` and
+`univalence <https://homotopytypetheory.org/book/>`_.
+Without this restriction, a dependent match could transport an argument to a
+different type while preserving its original subterm information.
+That information could then justify a recursive call without a valid structural
+decrease, making it possible to derive :g:`False` from propositional
+extensionality, as in the `original 2013 Coq-Club report
+<https://sympa.inria.fr/sympa/arc/coq-club/2013-12/msg00114.html>`_.
+
+To prevent this, the guard condition analyzes the return predicate :math:`P`.
+If :math:`P` does not depend on the generalized indices or the scrutinee, the
+incoming subterm information is preserved. Otherwise, :math:`P` is decomposed as
+
+.. math::
+
+   P(\vec{\imath}, c') = \forall (y_1 : T_1) \ldots (y_n : T_n), R,
+
+where :math:`\vec{\imath}` are the generalized indices and :math:`c'` is the
+scrutinee alias. Suppose the match is applied to arguments
+:math:`u_1, \ldots, u_m`. The subterm information of each :math:`u_k` is
+restricted before being passed to the corresponding binder :math:`y_k`:
+
++ If :math:`k > n`, there is no corresponding binder :math:`y_k`, so no domain
+  type :math:`T_k` can be recovered from the return predicate. The subterm
+  information of :math:`u_k` is therefore discarded.
+
++ The domain :math:`T_k` must reduce to a (possibly trivial) function type
+  ending in an inductive type:
+  :math:`T_k \rightsquigarrow \forall (z_1 : U_1) \ldots (z_r : U_r), J\,\vec{a}\,\vec{j}`,
+  where :math:`J` is an inductive type with parameters :math:`\vec{a}` and
+  indices :math:`\vec{j}`. The sequence of binders may be empty. If no such
+  decomposition is possible, the subterm information of :math:`u_k` is discarded.
+
++ If the recursively uniform parameters of :math:`J` do not mention
+  :math:`\vec{\imath}` or :math:`c'`, the subterm information of :math:`u_k` is
+  preserved. Otherwise, the recursive structure of :math:`J\,\vec{a}\,\vec{j}`
+  is recomputed in the generalized context and intersected with the original
+  recursive structure of :math:`u_k`. This discards recursive parts affected by
+  the generalization while preserving the others.
+
+.. example:: Syntactic restriction for :g:`vec_map2`
+
+   The inner match in :g:`vec_map2` has return type :g:`vec A (sub1 p') -> vec C p'`.
+   Since this type depends on the generalized index :g:`p'`, it must be analyzed
+   to determine whether subterm information can be propagated.
+   It is a function type with one binder corresponding to the argument :g:`tA`,
+   so the subterm information of :g:`tA` can be propagated provided
+   :g:`vec A (sub1 p')` has the correct shape.
+   This is the case, since :g:`vec` is an inductive type with parameter :g:`A`
+   and index :g:`sub1 p'`. Since :g:`A` does not depend on :g:`p'`, the subterm
+   information of :g:`tA` is propagated unchanged to the binder :g:`tA'`.
+
+.. _propositional-extensionality-example:
+
+.. example:: Rejecting recursion through a change of type
+
+   Propositional extensionality states that two propositions are equal if they
+   are logically equivalent:
+
+   .. rocqtop:: in
+
+      Module BetaIotaRestriction.
+
+      Axiom PropExt : forall (P Q : Prop), (P <-> Q) -> P = Q.
+
+   Consider the proposition :g:`I`, whose constructor takes a function from
+   :g:`False` to :g:`I`. It is inhabited: such a function can be defined by
+   eliminating its impossible argument, as in :g:`elI` below.
+
+   .. rocqtop:: in
+
+      Inductive I : Prop := C : (False -> I) -> I.
+
+      Definition elI : I := C (fun x => match x with end).
+
+   The propositions :g:`I -> False` and :g:`(False -> I) -> False` are logically
+   equivalent: a proof of the former applies to :g:`C f`, while a proof of
+   the latter applies to the function exposed by matching an inhabitant of
+   :g:`I`.
+
+   .. rocqtop:: in
+
+      Definition IFe : (I -> False) = ((False -> I) -> False).
+      Proof.
+        apply PropExt.
+        split.
+        - intros h f. exact (h (C f)).
+        - intros h x. destruct x as [f]. exact (h f).
+      Qed.
+
+   We now try to define :g:`loop : I -> False` recursively. If accepted, this
+   function would prove :g:`False` when applied to :g:`elI`.
+   Matching its argument :g:`x` exposes :g:`f : False -> I`. To obtain a smaller
+   argument for a recursive call by applying :g:`f`, we would need a proof of
+   :g:`False`, which is unavailable in a consistent context.
+
+   Yet, matching on :g:`IFe` with return clause :g:`T` produces a function of
+   type :g:`(False -> I) -> False`, which can be applied to :g:`f`.
+   In the `eq_refl` case, it suffices to build a term of type :g:`I -> False`.
+   This would be possible using :g:`fun g => loop g` if the subterm information
+   of :g:`f` were propagated to :g:`g`.
+
+   This is forbidden as the return type :g:`T` is a generalized variable, so the
+   guard condition does not propagate the incoming subterm information and
+   rejects the call:
+
+   .. rocqtop:: all
+
+      Fail Fixpoint loop (x : I) : False :=
+        match x with
+        | C f => (match IFe in _ = T return T with
+                  | eq_refl => fun g => loop g
+                  end) f
+        end.
+
+   .. rocqtop:: in
+
+      End BetaIotaRestriction.
+
 .. _traversing-subterm-analysis:
 
 Traversing Subterm Analysis
