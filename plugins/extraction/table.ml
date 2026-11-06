@@ -760,9 +760,9 @@ let add_foreign_entries l =
   foreign_set := List.fold_right (Refset'.add) l !foreign_set
 
 (* Adds the qualid_ref and alias opt to the callback_map. *)
-let add_callback_entry alias_opt qualid_ref =
+let add_callback_entry alias qualid_ref =
   let open Summary.Ref in
-  callback_map := Refmap'.add qualid_ref alias_opt !callback_map
+  callback_map := Refmap'.add qualid_ref alias !callback_map
 
 (* Registration of operations for rollback. *)
 
@@ -780,7 +780,7 @@ let foreign_extraction : global list -> obj =
     ~subst:(Some (fun (s,l) -> (List.map (fun x -> subst_global s x) l)))
     ~discharge:(fun x -> Some x)
 
-let callback_extraction : string option * global -> obj =
+let callback_extraction : string * global -> obj =
   declare_object @@ superglobal_object "Extraction Callback"
     ~cache:(fun (alias, x) -> add_callback_entry alias x)
     ~subst:(Some (fun (s,(alias, x)) -> (alias, subst_global s x)))
@@ -1020,10 +1020,7 @@ let print_extraction_foreign () =
 let print_extraction_callback () =
   let open Summary.Ref in
   let keys = Refmap'.domain !callback_map in
-  print_constref_extractions keys (fun r ->
-    match find_callback r with
-     | None   -> "no custom alias"
-     | Some s -> s) "Extraction Callbacks for Constants:"
+  print_constref_extractions keys find_callback "Extraction Callbacks for Constants:"
 
 (* Registration of operations for rollback. *)
 
@@ -1039,6 +1036,14 @@ let in_custom_matchs : global * string -> obj =
 
 (* Grammar entries. *)
 
+let deprecated_callback_noalias =
+  CWarnings.create ~name:"deprecated-extract-callback-implicit-name"
+    ~category:Deprecation.Version.v9_4
+    Pp.(fun na ->
+        fmt "Extract Callback without an explicit alias is deprecated.@ \
+             Make the implicit alias \"%s\" explicit to resolve this warning."
+          na)
+
 let extract_callback optstr x =
   if lang () != Ocaml then
       CErrors.user_err (Pp.str "Extract Callback is supported only for OCaml extraction.");
@@ -1047,7 +1052,15 @@ let extract_callback optstr x =
   List.iter begin fun qualid_ref ->
   match qualid_ref.glob with
       (* Add the alias and qualid_ref to callback extraction.*)
-    | GlobRef.ConstRef _ -> Lib.add_leaf (callback_extraction (optstr, qualid_ref))
+    | GlobRef.ConstRef kn ->
+      let str = match optstr with
+        | Some s -> s
+        | None ->
+          let na = Constant.label kn |> Id.to_string in
+          deprecated_callback_noalias na;
+          na
+      in
+      Lib.add_leaf (callback_extraction (str, qualid_ref))
     | _                  -> error_constant ?loc:x.CAst.loc qualid_ref
   end refs
 
