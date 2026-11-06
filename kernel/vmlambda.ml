@@ -43,11 +43,17 @@ let hash_block tag args =
   in
   combine tag (Array.fold_left fold 0 args)
 
+(* The table holds the block itself, so that an entry lives as long as the
+   block. Fields compare physically: sub-blocks come from this table. *)
 module HashBlock =
 struct
-  type t = int * structured_values array * structured_values (* tag, block, value *)
-  let eq (tag1, args1, _) (tag2, args2, _) =
-    Int.equal tag1 tag2 && CArray.equal (==) args1 args2
+  type t = structured_values
+  let eq v1 v2 =
+    let o1 = Obj.repr v1 and o2 = Obj.repr v2 in
+    Int.equal (Obj.tag o1) (Obj.tag o2) &&
+    Int.equal (Obj.size o1) (Obj.size o2) &&
+    let rec aux i = i < 0 || (Obj.field o1 i == Obj.field o2 i && aux (i - 1)) in
+    aux (Obj.size o1 - 1)
 end
 
 module HashsetBlock = Hashset.Make(HashBlock)
@@ -66,13 +72,11 @@ let as_value tag args =
     in
     if tag < Obj.last_non_constant_constructor_tag then
       let block = val_of_block tag args in
-      let (_, _, block) = HashsetBlock.repr h (tag, args, block) block_table in
-      Some (h, block)
+      Some (h, HashsetBlock.repr h block block_table)
     else
       let args = Array.append [| val_of_int (tag - Obj.last_non_constant_constructor_tag) |] args in
       let block = val_of_block Obj.last_non_constant_constructor_tag args in
-      let (_, _, block) = HashsetBlock.repr h (tag, args, block) block_table in
-      Some (h, block)
+      Some (h, HashsetBlock.repr h block block_table)
   else None
 
 module Val =
