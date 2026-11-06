@@ -716,14 +716,18 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
   (* | FCaseInvert (ci, u, _, p, _, _, br, e) -> *)
      (* infer_case cv_pb variance infos variances ci u p br e *)
 
-  | FLetIn (_na, b, _ty, body, usubs) ->
-     if Vars.noccurn 1 body then
-       infer_fterm cv_pb variance infos variances (mk_clos usubs (Vars.subst1 (Constr.mkSort Sorts.prop) body)) stk
-     else begin
+  | FLetIn (na, b, _ty, body, usubs) ->
+     (* The body is traversed under the binder, as for lambdas: substituting the variable in
+        the body would copy it at each let-in, quadratically for nested let-ins *)
+     let variances =
+       if Vars.noccurn 1 body then variances
+       else begin
          debug_infer_term Pp.(fun () -> str"infer_term at LetIn: " ++ Inf.pr Level.raw_pr variances ++ Constr.debug_print (CClosure.term_of_fconstr b));
-         let variances = infer_fterm Conv variance infos variances b [] in
-         infer_fterm cv_pb variance infos variances (mk_clos usubs (Vars.subst1 (Constr.mkSort Sorts.prop) body)) stk
+         infer_fterm Conv variance infos variances b []
        end
+     in
+     let na = usubst_binder usubs na in
+     infer_fterm cv_pb variance (push_relevance infos na) variances (mk_clos (CClosure.usubs_lift usubs) body) stk
 
   (* Removed by whnf *)
   | FLOCKED -> assert false
