@@ -217,10 +217,15 @@ let ocaml_toploop ?init_file () =
     | _ -> ()
 
 let ml_load p =
-  match !load with
-  | WithTop t -> t.load_plugin p
-  | WithoutTop ->
-    PluginSpec.load p
+  (* Linking a plugin runs the module initialisers of its dependencies, and
+     some of them turn backtrace recording on (Base does). Keep the setting
+     the user chose, otherwise CDebug reports and re-applies the change. *)
+  let link () = match !load with
+    | WithTop t -> t.load_plugin p
+    | WithoutTop -> PluginSpec.load p
+  in
+  Util.protect_state ~freeze:Printexc.backtrace_status
+    ~unfreeze:Printexc.record_backtrace ~scope:link
 
 let load_module x = match !load with
   | WithTop t -> t.load_module x
