@@ -1731,8 +1731,7 @@ let rec invert_definition unify flags choose imitate_defs
       let () = if not progress then raise (NotEnoughInformationEvarEvar t) in
       (* We could not invert args' in terms of args, so we now make ?evk'' real *)
       let ty = get_type_of env' sigma t in
-      let (sigma, evar'', ev'') =
-          materialize_evar (evar_define unify flags ~choose) env' sigma k ev ty in
+      let (sigma, evar'', ev'') = materialize_evar define_fun env' sigma k ev ty in
       (* materialize_evar may instantiate ev' by another evar; adjust it *)
       let (evk', args' as ev') = normalize_evar sigma ev' in
       let sigma =
@@ -1753,7 +1752,7 @@ let rec invert_definition unify flags choose imitate_defs
     end
   | App (f, args) when EConstr.isLambda sigma f ->
     begin try
-      fold_map_constr_with_full_binders env' sigma (fun d (env, k) -> push_rel d env, k + 1) imitate envk (true, sigma) t
+      imitate_rec ~progress:true envk sigma t
     with e when CErrors.noncritical e ->
       imitate envk (progress, sigma) (whd_beta env' sigma t)
     end
@@ -1776,10 +1775,7 @@ let rec invert_definition unify flags choose imitate_defs
       let ty = get_type_of env' sigma t in
       let sigma, candidates =
         try
-          let (progress, sigma), t =
-            fold_map_constr_with_full_binders env' sigma (fun d (env, k) -> push_rel d env, k + 1)
-              imitate envk (true, sigma) t
-          in
+          let (progress, sigma), t = imitate_rec ~progress:true envk sigma t in
           let () = assert progress in
           (* Less dependent solutions come last *)
           sigma, l@[t]
@@ -1787,13 +1783,16 @@ let rec invert_definition unify flags choose imitate_defs
       begin match candidates with
       | [x] -> (true, sigma), x
       | _ ->
-        let (sigma, evar'', ev'') = materialize_evar (evar_define unify flags ~choose) env' sigma k ev ty in
+        let (sigma, evar'', ev'') = materialize_evar define_fun env' sigma k ev ty in
         let sigma = restrict_evar sigma (fst ev'') None (UpdateWith candidates) in
         (true, sigma), evar''
       end
     | None ->
         (* Evar/Rigid problem (or assimilated if not normal): we "imitate" *)
-      fold_map_constr_with_full_binders env' sigma (fun d (env,k) -> push_rel d env, k+1) imitate envk (true, sigma) t
+      imitate_rec ~progress:true envk sigma t
+
+  and imitate_rec ~progress envk sigma c =
+    fold_map_constr_with_full_binders (fst envk) sigma (fun d (env, k) -> push_rel d env, k + 1) imitate envk (progress, sigma) c
   in
 
   let (progress, sigma), t' = imitate (env, 0) (false, evd) rhs in
