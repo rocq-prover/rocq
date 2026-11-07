@@ -789,7 +789,7 @@ module Search = struct
             in
             (header ++ spc() ++ str "failed with: " ++ pr_internal_exception ie))
       in
-      let tac_of gls i j = Goal.enter begin fun gl' ->
+      let tac_of ~from_shelf gls i j = Goal.enter begin fun gl' ->
         let env = Proofview.Goal.env gl' in
         let sigma' = Goal.sigma gl' in
         let () = ppdebug 0 (fun () ->
@@ -798,7 +798,7 @@ module Search = struct
         in
         let eq c1 c2 = EConstr.eq_constr sigma' c1 c2 in
         let hints' =
-          if hint_extern && not (Context.Named.equal (ERelevance.equal sigma) eq (Goal.hyps gl') (Goal.hyps gl))
+          if (hint_extern || from_shelf) && not (Context.Named.equal (ERelevance.equal sigma) eq (Goal.hyps gl') (Goal.hyps gl))
           then
             let st = Hint_db.transparent_state info.search_hints in
             let modes = Hint_db.modes info.search_hints in
@@ -830,7 +830,7 @@ module Search = struct
         let res =
           if j = 0 then tclUNIT ()
           else search_fixpoint ~best_effort:false ~allow_out_of_order:false
-                 (List.init j (fun j' -> (tac_of gls i (Option.default 0 k + j'))))
+                 (List.init j (fun j' -> (tac_of ~from_shelf:(Option.has_some k) gls i (Option.default 0 k + j'))))
         in
         let finish nestedshelf sigma =
           let filter ev =
