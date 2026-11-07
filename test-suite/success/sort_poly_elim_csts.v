@@ -198,3 +198,26 @@ Fixpoint list'_idV@{s s0 s';l l'|l <= l', s0 -> s'} {A : Univ@{s;l}} (l : List'@
   | nil' => nil'
   | cons' x l => cons' x (list'_idV l)
   end.
+
+Module ElimQVar.
+  Inductive prod@{s s';u v} (A:Univ@{s';u}) (B:Univ@{s;v}) : Univ@{s;max(u,v)} :=
+    pair (_:A) (_:B).
+
+  Inductive pTrue@{s;} : Univ@{s;Set} := pI.
+
+  Fail Definition foo@{s0 s s';+|s -> s'} (t:Univ@{s0;Set})
+    (p: prod@{s s';_ _} pTrue@{s';} pTrue@{s;}) (x:t) : t
+    := match p with pair _ _ _ _ => x end.
+
+  Fail Definition foo@{s0 s s';+|s -> Prop} (t:Univ@{s0;Set})
+    (p: prod@{s s';_ _} pTrue@{s';} pTrue@{s;}) (x:t) : t
+    := match p with pair _ _ _ _ => x end.
+
+  Definition foo@{s0 s s';+|s -> s', s -> Prop} (t:Univ@{s0;Set})
+    (p: prod@{s s';_ _} pTrue@{s';} pTrue@{s;}) (x:t) : t
+    := match p with pair _ _ _ _ => x end.
+
+  Definition bar@{s0 s s';+|s -> s0} (t:Univ@{s0;Set})
+    (p: prod@{s s';_ _} pTrue@{s';} pTrue@{s;}) (x:t) : t
+    := match p with pair _ _ _ _ => x end.
+End ElimQVar.
