@@ -17,10 +17,22 @@ open UVars
 type 'a universe_map = 'a Level.Map.t
 type universe_subst = Universe.t universe_map
 type universe_subst_fn = Level.t -> Universe.t option
-type universe_level_subst_fn = Level.t -> Level.t
+type universe_level_subst_fn = Level.t -> Universe.t
 
 type quality_subst = Quality.t QVar.Map.t
 type quality_subst_fn = QVar.t -> Quality.t
+type quality_subst_opt_fn = QVar.t -> Quality.t option
+
+let level_subst_of f =
+  fun l ->
+  match f l with
+  | None  -> Universe.make l
+  | Some u -> u
+
+let subst_univs_level fn l =
+  match fn l with
+  | None -> Universe.make l
+  | Some u -> u
 
 let subst_univs_universe fn ul =
   let addn n u = iterate Universe.super n u in
@@ -39,31 +51,7 @@ let subst_univs_universe fn ul =
     let substs = List.fold_left Universe.sup u subst in
     List.fold_left (fun acc (u, n) -> Universe.sup acc (addn n (Universe.make u))) substs nosubst
 
-let enforce_eq u v c =
-  if Universe.equal u v then c else match Universe.level u, Universe.level v with
-  | Some u, Some v -> enforce_eq_level u v c
-  | _ -> CErrors.anomaly (Pp.str "A universe comparison can only happen between variables.")
-
-let constraint_add_leq v u c =
-  let eq (x, n) (y, m) = Int.equal m n && Level.equal x y in
-  (* We just discard trivial constraints like u<=u *)
-  if eq v u then c
-  else
-    match v, u with
-    | (x,n), (y,m) ->
-    let j = m - n in
-      if j = -1 (* n = m+1, v+1 <= u <-> v < u *) then
-        UnivConstraints.add (x,Lt,y) c
-      else if j <= -1 (* n = m+k, v+k <= u and k>0 *) then
-        if Level.equal x y then (* u+k <= u with k>0 *)
-          UnivConstraints.add (x,Lt,x) c
-        else CErrors.user_err (Pp.str"Unable to handle arbitrary u+k <= v constraints.")
-      else if j = 0 then
-        UnivConstraints.add (x,Le,y) c
-      else (* j >= 1 *) (* m = n + k, u <= v+k *)
-        if Level.equal x y then c (* u <= u+k, trivial *)
-        else if Level.is_set x then c (* Prop,Set <= u+S k, trivial *)
-        else UnivConstraints.add (x,Le,y) c (* u <= v implies u <= v+k *)
+let enforce_eq u v c = Univ.enforce_eq u v c
 
 let check_univ_leq_one u v =
   let leq (u,n) (v,n') =
@@ -77,43 +65,27 @@ let check_univ_leq u v =
   Universe.for_all (fun u -> check_univ_leq_one u v) u
 
 let enforce_leq u v c =
-  List.fold_left (fun c v -> (List.fold_left (fun c u -> constraint_add_leq u v c) c u)) c v
-
-let enforce_leq u v c =
   if check_univ_leq u v then c
-  else enforce_leq (Universe.repr u) (Universe.repr v) c
+  else Univ.enforce_leq u v c
 
 let enforce_univ_constraint (u,d,v) =
+  let open UnivConstraint in
   match d with
-  | UnivConstraint.Eq -> enforce_eq u v
-  | UnivConstraint.Le -> enforce_leq u v
-  | UnivConstraint.Lt -> enforce_leq (Universe.super u) v
+  | Eq -> enforce_eq u v
+  | Le -> enforce_leq u v
 
-let subst_univs_constraint fn (u,d,v as c) cstrs =
-  let u' = fn u in
-  let v' = fn v in
-  match u', v' with
-  | None, None -> UnivConstraints.add c cstrs
-  | Some u, None -> enforce_univ_constraint (u,d,Universe.make v) cstrs
-  | None, Some v -> enforce_univ_constraint (Universe.make u,d,v) cstrs
-  | Some u, Some v -> enforce_univ_constraint (u,d,v) cstrs
+let subst_univs_constraint fn (u,d,v) cstrs =
+  let u' = subst_univs_universe fn u in
+  let v' = subst_univs_universe fn v in
+  enforce_univ_constraint (u',d,v') cstrs
 
 let subst_univs_constraints subst csts =
   UnivConstraints.fold
     (fun c cstrs -> subst_univs_constraint subst c cstrs)
     csts UnivConstraints.empty
 
-let level_subst_of f =
-  fun l ->
-  match f l with
-  | None  -> l
-  | Some u ->
-    match Universe.level u with
-    | None -> assert false
-    | Some l -> l
-
 let subst_univs_fn_puniverses f (c, u as cu) =
-  let u' = Instance.subst_fn f u in
+  let u' = Instance.subst_opt_fn f u in
     if u' == u then cu else (c, u')
 
 let map_universes_opt_subst_aux_rec next aux frel k ((nas, tys, bds) as rc) =
@@ -131,8 +103,8 @@ let map_universes_opt_subst_aux_ctx next aux frel k ((nas, c) as p) =
   if nas' == nas && c' == c then p
   else (nas', c')
 
-let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
-  let flevel = fqual, level_subst_of funiv in
+let map_sorts_opt_subst_with_binders next aux frel fqual funiv k c =
+  let flevel = fqual, funiv in
   match kind c with
   | Const pu ->
     let pu' = subst_univs_fn_puniverses flevel pu in
@@ -144,10 +116,10 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
     let pu' = subst_univs_fn_puniverses flevel pu in
     if pu' == pu then c else mkConstructU pu'
   | Sort s ->
-    let s' = Sorts.subst_fn (fqual, subst_univs_universe funiv) s in
+    let s' = Sorts.subst_opt_fn (fqual, funiv) s in
     if s' == s then c else mkSort s'
   | Case (ci,u,pms,(p,rel),iv,t,br) ->
-    let u' = Instance.subst_fn flevel u in
+    let u' = Instance.subst_opt_fn flevel u in
     let rel' = frel rel in
     let pms' = Array.Fun1.Smart.map aux k pms in
     let aux_ctx = map_universes_opt_subst_aux_ctx next aux frel k in
@@ -158,7 +130,7 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
     if rel' == rel && u' == u && pms' == pms && p' == p && iv' == iv && t' == t && br' == br then c
     else mkCase (ci, u', pms', (p',rel'), iv', t', br')
   | Array (u,elems,def,ty) ->
-    let u' = Instance.subst_fn flevel u in
+    let u' = Instance.subst_opt_fn flevel u in
     let elems' = CArray.Fun1.Smart.map aux k elems in
     let def' = aux k def in
     let ty' = aux k ty in
@@ -194,9 +166,16 @@ let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
   | Proj (p, r, v) ->
     let r' = frel r in
     let v' = aux k v in
-    if r' == r && v' == v then  c
+    if r' == r && v' == v then c
     else mkProj (p, r', v')
   | _ -> Constr.map_with_binders next aux k c
+
+let map_universes_opt_subst_with_binders next aux frel fqual funiv k c =
+  let fqual q = match fqual q with
+    | Quality.QVar q' when QVar.equal q q' -> None
+    | q' -> Some q'
+  in
+  map_sorts_opt_subst_with_binders next aux frel fqual funiv k c
 
 let nf_evars_and_universes_opt_subst fevar frel fqual funiv c =
   let rec self () c = match Constr.kind c with

@@ -22,9 +22,11 @@ and *monomorphic* definitions is given by the identity function:
 
 .. rocqtop:: in
 
+   Unset Universe Polymorphism.
    Definition identity {A : Type} (a : A) := a.
 
-By default, :term:`constant` declarations are monomorphic, hence the identity
+The prelude sets the :flag:`Universe Polymorphism` flag, which we unset here.
+:term:`Constant <constant>` declarations are then monomorphic, hence the identity
 function declares a global universe (automatically named ``identity.u0``) for its domain.
 Subsequently, if we try to self-apply the identity, we will get an
 error:
@@ -354,6 +356,16 @@ Insufficiently restrictive variance annotations lead to errors:
 
    Fail Polymorphic Cumulative Record bad@{*a} := {p : Type@{a}}.
 
+.. cmd:: Cumulativity Transparent @qualid
+
+   By default, the inference of the variances of universes does not
+   unfold constants: the universes given to a constant are constrained
+   by the variances of the constant's own universes.  This command makes
+   the inference unfold the constant :n:`@qualid` instead, which can
+   give more general variances when :n:`@qualid` does not use all its
+   arguments, as for the identity function or a coercion.  It is also
+   in effect in the files which require the current one.
+
 .. example:: Demonstration of universe variances
 
    .. rocqtop:: in
@@ -530,21 +542,23 @@ Explicit Universes
    universe_name ::= @qualid
    | Set
    | Prop
-   univ_annot ::= @%{ {* @univ_level_or_quality } {? ; {* @univ_level_or_quality } } %}
-   univ_level_or_quality ::= 0
+   univ_annot ::= @%{ {* @univ_or_quality } {? ; {* @univ_or_quality } } %}
+   univ_or_quality ::= 0
    | Set
    | SProp
    | Prop
    | Type
    | _
-   | @qualid
+   | @universe
    sort_quality_var ::= Prop
    | SProp
    | Type
    | @qualid
-   univ_decl ::= @%{ {? {* @ident } {? + } ; } {* @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
-   cumul_univ_decl ::= @%{ {? {* @ident } {? + } ; } {* {? {| + | = | * } } @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
-   sort_constraint ::= @universe_name {| < | = | <= } @universe_name
+   universe_opt ::= @universe
+   | *
+   | _
+   univ_decl ::= @%{ {? {* @ident } {? + } ; } {* {? {| + | - | = | * } } @ident } {? + } {? %| {*, @sort_constraint } {? + } } %}
+   sort_constraint ::= @universe {| < | = | <= } @universe
    | @sort_quality_var -> @sort_quality_var
 
 The syntax has been extended to allow users to explicitly bind names
@@ -582,6 +596,16 @@ to universes and explicitly instantiate polymorphic definitions.
 
    .. exn:: Polymorphic universe constraints can only be declared inside sections, use Monomorphic Constraint instead
       :undocumented:
+
+.. cmd:: Check Constraint {+, @sort_constraint }
+
+   Checks if a list of constraints hold in the current universe context, in which case the command
+   succeeds.
+
+   .. exn:: Constraint does not hold.
+
+      One can use :cmd:`Fail` before the :cmd:`Check Constraint`
+      command to check that a list of constraints does not hold.
 
 .. _printing-universes:
 
@@ -679,8 +703,8 @@ by adding a :g:`+` in the list of bound universe levels:
 
 .. rocqtop:: all
 
-   Fail Definition foobar@{u} : Type@{u} := Type.
-   Definition foobar@{u +} : Type@{u} := Type.
+   Fail Definition foobar@{u} (A : Type) : Type@{u} := A.
+   Definition foobar@{u +} (A : Type) : Type@{u} := A.
    Set Printing Universes.
    Print foobar.
 
@@ -728,7 +752,7 @@ underscore or by omitting the annotation to a polymorphic definition.
    .. rocqtop:: in
 
       Lemma foo@{i} : Type@{i}.
-      Proof. exact Type. Qed.
+      Proof. exact Type@{_}. Qed.
 
    .. rocqtop:: all
 
@@ -760,13 +784,12 @@ underscore or by omitting the annotation to a polymorphic definition.
 
       Unset Private Polymorphic Universes.
 
-      Lemma bar : Type. Proof. exact Type. Qed.
+      Lemma bar : Type@{_}. Proof. exact Type@{_}. Qed.
 
    .. rocqtop:: all
 
       About bar.
-      Fail Check bar@{_}.
-      Check bar@{_ _}.
+      Check bar@{_}.
 
    Note that named universes are always public.
 
@@ -1351,7 +1374,11 @@ sections, except in the following ways:
 
 - no monomorphic constraint may refer to a polymorphic universe:
 
-  .. rocqtop:: all reset
+  .. rocqtop:: none reset
+
+     Unset Universe Polymorphism.
+
+  .. rocqtop:: all
 
      Section Foo.
 
@@ -1364,11 +1391,11 @@ sections, except in the following ways:
 
   .. rocqtop:: all
 
-     Fail Variable A : (Type@{i} : Type).
-     Polymorphic Variable A : (Type@{i} : Type).
+     Fail Variable A : (Type@{_} : Type@{i}).
+     Polymorphic Variable A : (Type@{_} : Type@{i}).
 
-  (in the above example the anonymous :g:`Type` constrains polymorphic
-  universe :g:`i` to be strictly smaller.)
+  (in the above example the anonymous :g:`Type` is constrained to be
+  strictly smaller than the polymorphic universe :g:`i`.)
 
 - no monomorphic :term:`constant` or inductive may be declared if polymorphic
   universes or universe constraints are present.

@@ -242,6 +242,8 @@ let rec same_hd env ise metas p c =
   | Proj(p1,_,x), Proj(p2,_,y) when Environ.QProjection.equal env p1 p2 ->
     let metas, ise = unif_FO_skip_impl env ise metas x y in
     CompareArgs (ise,metas,[])
+  | Proj (p1, _, _), _ when Structures.Structure.is_projection
+    (Environ.projection_repr_constant env (Projection.repr p1)) -> CanonicalInfRequired
   | _ -> Different
 and unif_FO_skip_impl env ise metas p c =
   match EConstr.kind ise p, EConstr.kind ise c with
@@ -412,6 +414,196 @@ type pattern_class =
   | KpatFlex
   | KpatProj of Constant.t
 
+(* An extension of a universe state: new sort variables, universes (rigid
+   or flexible) and constraints. *)
+type univ_extension = {
+  ext_sorts : Sorts.QContextSet.t;
+  ext_rigid : Univ.Level.Set.t;
+  ext_flexible : Univ.Level.Set.t;
+  ext_constraints : Univ.UnivConstraints.t;
+}
+
+(* Normalization of evars and universes which, unlike [Evarutil.nf_evar],
+   does not go through the contexts of the evars: its cost does not depend on
+   the size of the goal's context. *)
+let nf_evars_univs sigma c =
+  let uctx = Evd.ustate sigma in
+  let univ = UState.subst_fn uctx in
+  let qual q = UState.nf_qvar_opt uctx q in
+  let rel r = UState.nf_relevance uctx r in
+  let rec self () c = match Constr.kind c with
+    | Constr.Evar (evk, args) ->
+      let args' = SList.Smart.map (self ()) args in
+      begin match Evd.existential_opt_value0 sigma (evk, args') with
+      | None -> if args == args' then c else Constr.mkEvar (evk, args')
+      | Some v -> self () v
+      end
+    | _ -> UnivSubst.map_sorts_opt_subst_with_binders ignore self rel qual univ () c
+  in
+  EConstr.of_constr (self () (EConstr.Unsafe.to_constr c))
+
+(* The universes of a normalized term, not counting the ones of the types of
+   its evars. Unlike [EConstr.universes_of_constr], this does not expand the
+   instances of evars. *)
+let universes_of_nf acc c = Vars.sort_and_universes_of_constr ~init:acc (EConstr.Unsafe.to_constr c)
+
+(* [sigma] extends [base], so the only constraints of [sigma] which matter
+   for an extension of [base] are the ones it adds: any constraint on a new
+   universe is among them, and so is any path between universes of the
+   extension going through a new universe which is not part of it. We hence
+   only restrict this delta, which is computed once for all the terms whose
+   extension is computed (by partially applying [univ_extension ~base sigma]),
+   instead of the whole local universe context of [sigma].
+   When [sigma] has the universe state of [base], the extension is empty: we
+   then avoid computing the context sets, which is costly. *)
+let univ_extension ~base sigma =
+  if Evd.ustate base == Evd.ustate sigma then fun _ ->
+    { ext_sorts = Sorts.QContextSet.empty;
+      ext_rigid = Univ.Level.Set.empty; ext_flexible = Univ.Level.Set.empty;
+      ext_constraints = Univ.UnivConstraints.empty }
+  else
+  let base_graph = Evd.universes base in
+  let (base_qvars, base_levels), (base_qcst, base_ucst) = Evd.sort_context_set base in
+  let (_, levels), (qcst, ucst) = Evd.sort_context_set sigma in
+  let delta_levels = Univ.Level.Set.diff levels base_levels in
+  let delta_ucst = Univ.UnivConstraints.diff ucst base_ucst in
+  let delta_qcst = Sorts.ElimConstraints.diff qcst base_qcst in
+  let uctx = Evd.ustate sigma in
+  fun (qs, us) ->
+  let new_levels = match UGraph.check_declared_universes base_graph us with
+    | Ok () -> Univ.Level.Set.empty
+    | Error undeclared -> undeclared
+  in
+  let new_qvars = Sorts.Quality.Set.fold (fun q acc -> match q with
+      | Sorts.Quality.QVar q when not (Sorts.QVar.Set.mem q base_qvars) -> Sorts.QVar.Set.add q acc
+      | _ -> acc) qs Sorts.QVar.Set.empty
+  in
+  (* The new universes not in [new_levels] are removed, keeping the
+     transitive constraints between the remaining ones *)
+  let _, ucst = UState.restrict_universe_context (delta_levels, delta_ucst) new_levels in
+  let is_new l = Univ.Level.Set.mem l new_levels in
+  let needed c =
+    Univ.Level.Set.exists is_new (Univ.UnivConstraint.levels c) ||
+    try not (UGraph.check_constraint base_graph c) with e when CErrors.noncritical e -> true
+  in
+  let is_new_q = function
+    | Sorts.Quality.QVar q -> Sorts.QVar.Set.mem q new_qvars
+    | _ -> false
+  in
+  let qcst = Sorts.ElimConstraints.filter (fun (q, _, q') -> is_new_q q || is_new_q q') delta_qcst in
+  let flexible, rigid = Univ.Level.Set.partition (fun l -> UState.is_flexible l uctx) new_levels in
+  { ext_sorts = (new_qvars, qcst);
+    ext_rigid = rigid; ext_flexible = flexible;
+    ext_constraints = Univ.UnivConstraints.filter needed ucst }
+
+let extend_universes sigma ext =
+  let open Univ in
+  let sigma =
+    if Sorts.QContextSet.is_empty ext.ext_sorts then sigma
+    else
+      let qvars, qcst = ext.ext_sorts in
+      Evd.merge_sort_context_set UState.UnivRigid sigma
+        ((qvars, Level.Set.empty), (qcst, UnivConstraints.empty))
+  in
+  let declare rigid levels sigma =
+    if Level.Set.is_empty levels then sigma
+    else Evd.merge_universe_context_set rigid sigma (levels, UnivConstraints.empty)
+  in
+  let sigma = declare UState.UnivRigid ext.ext_rigid sigma in
+  let sigma = declare UState.UnivFlexible ext.ext_flexible sigma in
+  if UnivConstraints.is_empty ext.ext_constraints then sigma
+  else Evd.merge_universe_context_set UState.UnivRigid sigma (Level.Set.empty, ext.ext_constraints)
+
+(* An extension of an evar map: new undefined evars (normalized), the ones
+   among them which are typeclass candidates, the postponed unification
+   problems on them (normalized) and a universe extension. *)
+type evar_map_extension = {
+  ext_evars : (Evar.t * Evd.undefined Evd.evar_info) list;
+  ext_typeclass_evars : Evar.Set.t;
+  ext_conv_pbs : Evd.evar_constraint list;
+  ext_univs : univ_extension;
+}
+
+let evar_map_extension ~env ~base sigma =
+  let goal_hyps = Environ.named_context_val env in
+  let univ_extension = univ_extension ~base sigma in
+  (* The unification problems postponed during the interpretation of the
+     terms, e.g. [?P 0 == true] for [bigD1 0 isT]: they constrain the
+     instances of the evars of the terms. *)
+  let base_pbs = Evd.conv_pbs base in
+  let new_pbs =
+    List.filter_map (fun (pb, penv, t1, t2 as c) ->
+        if List.memq c base_pbs then None
+        else
+          let t1 = nf_evars_univs sigma t1 and t2 = nf_evars_univs sigma t2 in
+          let evs = Evar.Set.union
+              (Evarutil.undefined_evars_of_term sigma t1)
+              (Evarutil.undefined_evars_of_term sigma t2) in
+          Some ((pb, penv, t1, t2), evs))
+      (Evd.conv_pbs sigma)
+  in
+  fun cs ->
+  let rec reach c acc =
+    Evar.Set.fold (fun ev acc ->
+        if Evar.Set.mem ev acc || Evd.mem base ev then acc
+        else reach (Evd.evar_concl (Evd.find_undefined sigma ev)) (Evar.Set.add ev acc))
+      (Evarutil.undefined_evars_of_term sigma c) acc
+  in
+  let evs = List.fold_left (fun acc c -> reach c acc) Evar.Set.empty cs in
+  (* The problems on the evars of the terms, whose evars are then needed too *)
+  let rec add_pbs evs pbs = function
+    | [] -> evs, pbs
+    | (((_, _, t1, t2) as pb), pb_evs) :: rest ->
+      if Evar.Set.exists (fun ev -> Evar.Set.mem ev evs) pb_evs then
+        let evs' = reach t2 (reach t1 evs) in
+        (* New evars may make previously skipped problems relevant *)
+        if Evar.Set.equal evs evs' then add_pbs evs (pb :: pbs) rest
+        else add_pbs evs' [] new_pbs
+      else add_pbs evs pbs rest
+  in
+  let evs, pbs = add_pbs evs [] new_pbs in
+  let pbs = List.rev pbs in
+  (* The evars whose context is the one of the goal (the common case) only
+     need their type to be normalized, as their context lives in [base].
+     Normalizing their whole information would cost the size of the goal's
+     context for each evar of each rule. Evars created under binders have a
+     larger context, which may mention evars of [sigma] defined during the
+     interpretation of the terms: these are normalized entirely. *)
+  let nf_concl evi =
+    if Evd.evar_hyps evi != goal_hyps then Evarutil.nf_evar_info sigma evi
+    else
+      let concl = Evd.evar_concl evi in
+      let concl' = nf_evars_univs sigma concl in
+      if concl' == concl then evi
+      else Evd.map_evar_info (fun c -> if c == concl then concl' else c) evi
+  in
+  let evars = Evar.Set.fold (fun ev acc ->
+      (ev, nf_concl (Evd.find_undefined sigma ev)) :: acc) evs []
+  in
+  let univs = List.fold_left universes_of_nf (Sorts.Quality.Set.empty, Univ.Level.Set.empty) cs in
+  let univs = List.fold_left (fun acc (_, evi) -> universes_of_nf acc (Evd.evar_concl evi)) univs evars in
+  let univs = List.fold_left (fun acc (_, _, t1, t2) -> universes_of_nf (universes_of_nf acc t1) t2) univs pbs in
+  { ext_evars = evars;
+    ext_typeclass_evars = Evar.Set.inter evs (Evd.get_typeclass_evars sigma);
+    ext_conv_pbs = pbs;
+    ext_univs = univ_extension univs }
+
+let extend_evar_map sigma ext =
+  let add sigma (ev, evi) =
+    if Evd.mem sigma ev then
+      CErrors.anomaly Pp.(str "extend_evar_map: evar " ++ Evar.print ev ++ str " already present.");
+    Evd.add sigma ev evi
+  in
+  let sigma = List.fold_left add sigma ext.ext_evars in
+  let sigma =
+    if Evar.Set.is_empty ext.ext_typeclass_evars then sigma
+    else
+      Evd.set_typeclass_evars sigma
+        (Evar.Set.union ext.ext_typeclass_evars (Evd.get_typeclass_evars sigma))
+  in
+  let sigma = List.fold_left (fun sigma pb -> Evd.add_conv_pb pb sigma) sigma ext.ext_conv_pbs in
+  extend_universes sigma ext.ext_univs
+
 type tpattern = {
   up_k : pattern_class;
   up_FO : Unification.Meta.t * EConstr.t;
@@ -420,6 +612,7 @@ type tpattern = {
   up_t : EConstr.t;                      (* equation proof term or matched term *)
   up_dir : ssrdir;                    (* direction of the rule *)
   up_ok : EConstr.t -> evar_map -> bool; (* progress test for rewrite *)
+  up_ext : evar_map_extension option;  (* evars and universes specific to this pattern *)
   }
 
 type tpatterns = {
@@ -490,8 +683,12 @@ let evars_for_FO ~hack ~rigid env (ise0:evar_map) c0 =
 
 (* Compile a match pattern from a term; t is the term to fill. *)
 (* p_origin can be passed to obtain a better error message     *)
-let mk_tpattern ?p_origin ?(hack=false) ?(ok = all_ok) ~rigid env t dir p { tpat_sigma = ise; tpat_pats = pats } =
+let mk_tpattern ?p_origin ?(hack=false) ?(ok = all_ok) ?ext ~rigid env t dir p { tpat_sigma; tpat_pats = pats } =
   let open EConstr in
+  let ise = match ext with
+    | None -> tpat_sigma
+    | Some ext -> extend_evar_map tpat_sigma ext
+  in
   let k, f, a =
     let f, a = Reductionops.whd_betaiota_stack env ise p in
     match EConstr.kind ise f with
@@ -514,8 +711,8 @@ let mk_tpattern ?p_origin ?(hack=false) ?(ok = all_ok) ~rigid env t dir p { tpat
     | _ -> KpatRigid, f, a in
   let aa = Array.of_list a in
   let p' = evars_for_FO ~hack ~rigid env ise (mkApp (f, aa)) in
-  let pat = { up_k = k; up_FO = p'; up_f = f; up_a = aa; up_ok = ok; up_dir = dir; up_t = t} in
-  { tpat_sigma = ise; tpat_pats = pats @ [pat] }
+  let pat = { up_k = k; up_FO = p'; up_f = f; up_a = aa; up_ok = ok; up_dir = dir; up_t = t; up_ext = ext } in
+  { tpat_sigma; tpat_pats = pats @ [pat] }
 
 (* Specialize a pattern after a successful match: assign a precise head *)
 (* kind and arity for Proj and Flex patterns.                           *)
@@ -560,7 +757,7 @@ let nb_cs_proj_args env ise pc f u =
   | Sort s -> na (Sort_cs (ESorts.quality_or_set ise s))
   | Const (c',_) when Environ.QConstant.equal env c' pc -> nargs_of_proj u.up_f
   | Proj (c',_,_) when Environ.QConstant.equal env ((Environ.projection_repr_constant env (Projection.repr c'))) pc -> nargs_of_proj u.up_f
-  | Proj (c',_,_) -> let _ = na (Proj_cs (Names.Projection.repr c')) in 0
+  | Proj (c',_,_) -> na (Proj_cs (Names.Projection.repr c')) - 1
   | Var _ | Ind _ | Construct _ | Const _ -> na (Const_cs (fst @@ destRef ise f))
   | _ -> -1
   with Not_found -> -1
@@ -635,6 +832,29 @@ let dont_impact_evars_in sigma0 cl =
     try let _ = Evd.find_undefined sigma k in true
     with Not_found -> false) evs_in_cl
 
+(* The evars and universes specific to a pattern are only added to the evar
+   map when this pattern is considered. [None] if its universes are not
+   compatible with the current universe state: the pattern cannot match. *)
+let upat_ise ise =
+  let cache = ref [] in
+  fun u ->
+    match u.up_ext with
+    | None -> Some ise
+    | Some ext ->
+      match List.assq_opt u !cache with
+      | Some ise -> ise
+      | None ->
+        let ise_u =
+          try Some (extend_evar_map ise ext)
+          with e when CErrors.noncritical e -> None
+        in
+        cache := (u, ise_u) :: !cache; ise_u
+
+let filter_upats upat_ise filter upats =
+  List.fold_right (fun u fpats -> match upat_ise u with
+      | None -> fpats
+      | Some ise -> filter ise u fpats) upats []
+
 (* We are forced to duplicate code between the FO/HO matching because we    *)
 (* have to work around several kludges in unify.ml:                         *)
 (*  - w_unify drops into second-order unification when the pattern is an    *)
@@ -645,10 +865,11 @@ let dont_impact_evars_in sigma0 cl =
 (*    match a head let rigidly.                                             *)
 let match_upats_FO upats env sigma0 ise orig_c =
   let dont_impact_evars = dont_impact_evars_in sigma0 orig_c in
+  let upat_ise = upat_ise ise in
   let rec loop c =
     let f, a = splay_app ise c in let i0 = ref (-1) in
     let fpats =
-      List.fold_right (filter_upat_FO env ise i0 f (Array.length a)) upats [] in
+      filter_upats upat_ise (fun ise -> filter_upat_FO env ise i0 f (Array.length a)) upats in
     while !i0 >= 0 do
       let i = !i0 in i0 := -1;
       let c' = mkSubApp f i a in
@@ -659,6 +880,7 @@ let match_upats_FO upats env sigma0 ise orig_c =
            if u.up_k == KpatFlex then begin i0 := i - 1; false end else
            begin if !i0 < np then i0 := np; true end in
          if skip || not (EConstr.Vars.closed0 ise c') then () else try
+           let ise = Option.get (upat_ise u) in
            let () = match u.up_k with
            | KpatFlex ->
              let kludge v = mkLambda (make_annot Anonymous ERelevance.relevant, mkProp, v) in
@@ -704,12 +926,13 @@ let match_upats_FO upats env sigma0 ise orig_c =
 
 let match_upats_HO ~on_instance upats env sigma0 ise c =
  let dont_impact_evars = dont_impact_evars_in sigma0 c in
+ let upat_ise = upat_ise ise in
  let it_did_match = ref false in
  let failed_because_of_TC = ref false in
  let rec aux upats env sigma0 ise c =
   let f, a = splay_app ise c in let i0 = ref (-1) in
   let fpats =
-    List.fold_right (filter_upat env ise i0 f (Array.length a)) upats []
+    filter_upats upat_ise (fun ise -> filter_upat env ise i0 f (Array.length a)) upats
   in
   while !i0 >= 0 do
     let i = !i0 in i0 := -1;
@@ -719,9 +942,11 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
         if u.up_k == KpatFlex then begin i0 := i - 1; false end else
         begin if !i0 < np then i0 := np; true end in
       if skip then () else try
+        let ise = Option.get (upat_ise u) in
         let ise' = match u.up_k with
         | KpatFixed
         | KpatConst -> (* Ensure universe instances are unified *)
+          pp(lazy(str"match_upats_HO: " ++ pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise f));
           unif_HO env ise u.up_f f
         | KpatEvar _ ->
           let open EConstr in
@@ -746,6 +971,9 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
                 * the type of the arguments to retrieve that information *)
                let tuf = Retyping.get_type_of ~lax:true env ise u.up_f in
                let tfa = Retyping.get_type_of ~lax:true env ise fa in
+               pp(lazy(str"match_upats_HO, unifying types of projections: " ++
+                pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise f ++ spc () ++
+                pr_econstr_env env ise tuf ++ str" = " ++ pr_econstr_env env ise tfa));
                unif_HO env ise tuf tfa
             | _ -> ise in
           pp(lazy(str"FLEX " ++ pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise fa));
@@ -1075,6 +1303,42 @@ type pattern = {
 let pp_pattern env { pat_sigma = sigma; pat_pat = p } =
   pr_pattern_aux (fun t -> pr_econstr_pat env sigma t) p
 
+(* A pattern whose terms are normalized, with the extension of its base
+   it needs. [pext_pattern] is the original pattern, for printing. *)
+type pattern_extension = {
+  pext_pattern : pattern;
+  pext_pat : (in_pattern, EConstr.t) ssrpattern;
+  pext_ext : evar_map_extension;
+}
+
+let pattern_extension ~env ~base ({ pat_sigma = sigma; pat_pat } as p) =
+  let nf = nf_evars_univs sigma in
+  let nf_in { in_hole; in_func; in_patt } =
+    let in_hole = match EConstr.kind sigma (nf (EConstr.mkEvar in_hole)) with
+      | Evar e -> e
+      | _ -> in_hole
+    in
+    { in_hole; in_func = nf in_func; in_patt = nf in_patt }
+  in
+  let in_terms { in_hole; in_func; in_patt } = [EConstr.mkEvar in_hole; in_func; in_patt] in
+  let pext_pat, terms = match pat_pat with
+    | T t -> let t = nf t in T t, [t]
+    | In_T t -> let t = nf t in In_T t, [t]
+    | X_In_T q -> let q = nf_in q in X_In_T q, in_terms q
+    | In_X_In_T q -> let q = nf_in q in In_X_In_T q, in_terms q
+    | E_In_X_In_T (e, q) ->
+      let e = nf e and q = nf_in q in E_In_X_In_T (e, q), e :: in_terms q
+    | E_As_X_In_T (e, q) ->
+      let e = nf e and q = nf_in q in E_As_X_In_T (e, q), e :: in_terms q
+  in
+  { pext_pattern = p; pext_pat;
+    pext_ext = evar_map_extension ~env ~base sigma terms }
+
+let extend_pattern sigma { pext_pat; pext_ext } =
+  { pat_sigma = extend_evar_map sigma pext_ext; pat_pat = pext_pat }
+
+let pp_pattern_extension env { pext_pattern } = pp_pattern env pext_pattern
+
 type cpattern =
   { kind : ssrtermkind
   ; pattern : Genintern.glob_constr_and_expr
@@ -1374,7 +1638,7 @@ let mk_in_pattern env sigma0 (x, rp) =
   | Some ist -> ist
   in
   let src = Loc.tag (BinderType (Name x)) in
-  let sigma, (ty, s) = Evarutil.new_type_evar env sigma Evd.univ_flexible_alg in
+  let sigma, (ty, s) = Evarutil.new_type_evar env sigma Evd.univ_flexible in
   let na = Context.make_annot (Name x) (Retyping.relevance_of_sort s) in
   let nenv = EConstr.push_rel (Context.Rel.Declaration.LocalAssum (na, ty)) env in
   let sigma, rp0 = Tacinterp.interp_open_constr ist nenv sigma rp.pattern in
@@ -1557,8 +1821,8 @@ let fill_rel_occ_pattern env sigma cl pat occ =
   sigma, e, cl
 
 (* clenup interface for external use *)
-let mk_tpattern ?p_origin ?ok ~rigid env sigma_t dir c =
-  mk_tpattern ?p_origin ?ok ~rigid env sigma_t dir c
+let mk_tpattern ?p_origin ?ok ?ext ~rigid env sigma_t dir c =
+  mk_tpattern ?p_origin ?ok ?ext ~rigid env sigma_t dir c
 
 let pf_fill_occ env concl occ sigma0 p (sigma, t) h =
  let rigid ev = Evd.mem sigma0 ev in

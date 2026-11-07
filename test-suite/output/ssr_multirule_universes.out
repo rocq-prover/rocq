@@ -1,0 +1,42 @@
+UNIVERSE VARIABLES:
+ {?ssr_multirule_universes:41 i}
+DEFINED LOCAL VARIABLES:
+ ssr_multirule_universes:39 = i(local) 
+ ssr_multirule_universes:32 = i(local) 
+ ssr_multirule_universes:31 = i(local) 
+ ssr_multirule_universes:30 = i(local) 
+UNIVERSES:
+ 0 ≤ i
+ 0 ≤ ssr_multirule_universes:41
+ i ≤ ssr_multirule_universes:41
+ 0 < sig.u0
+ 0 < sig2.u0
+ 0 < sigT.u0
+ 0 < sigT.u1
+ 0 < eq.u0
+ 0 < option.u0
+ 0 < sigT2.u0
+ 0 < sigT2.u1
+ 0 < sigT2.u2
+ 0 < sum.u0
+ 0 < sum.u1
+ 0 < prod.u0
+ 0 < prod.u1
+ 0 < list.u0
+ 0 < sumor.u0
+SORTS:
+  |= Prop -> SProp
+     Type -> Prop
+          -> SProp
+     
+
+VARIANCES:
+ ssr_multirule_universes:41
+ ssr_multirule_universes:29: infer: = in 1st binder,
+                           infer: = (* for typing) in term,
+                           infer: = (* for typing) in type,  predicative
+WEAK CONSTRAINTS:
+ 
+
+Normalized constraints:
+ {i} | 
