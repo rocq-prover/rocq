@@ -217,18 +217,21 @@ exception IllTypedInstanceFun of env * evar_map * EConstr.constr * EConstr.types
 
 let checked_appvect, checked_appvect_hook = Hook.make ()
 
-let recheck_applications unify flags env evdref t =
+let recheck_applications unify flags env sigma t =
+  let evdref = ref sigma in
   let rec aux env t =
     (* the order matters: if the sub-applications are incorrect, checked_appvect may fail badly *)
     iter_with_full_binders env !evdref (fun d env -> push_rel d env) aux env t;
     match EConstr.kind !evdref t with
     | App (f, args) ->
-      let evd, _ = Hook.get checked_appvect env !evdref f args in
-      evdref := evd
+      let sigma, _ = Hook.get checked_appvect env !evdref f args in
+      evdref := sigma
     | _ -> ()
   in
-  try aux env t
-  with PretypeError (env,sigma,e) ->
+  try
+    let () = aux env t in
+    !evdref
+  with PretypeError (env, sigma, e) ->
   match e with
   | CantApplyBadTypeExplained (((_,expected,argty),_,_),_) ->
     raise (IllTypedInstance (env,sigma,Some argty, expected))
@@ -1679,132 +1682,125 @@ let rec invert_definition unify flags choose imitate_defs
 
   let define_fun env sigma pbty ev t = evar_define unify flags ~choose env sigma pbty ev t in
   let project_variable ~progress sigma t =
-    project_variable unify flags define_fun ~progress ~choose env sigma aliases subst ev t
+    let sigma, ans = project_variable unify flags define_fun ~progress ~choose env sigma aliases subst ev t in
+    (progress, sigma), ans
   in
 
-  let evdref = ref evd in
-  let progress = ref false in
+  let sigma0 = evd in
 
-  let rec imitate (env',k as envk) t =
-    match EConstr.kind !evdref t with
-    | Rel i when i>k ->
-        let open Context.Rel.Declaration in
-        let sigma, ans = match Environ.lookup_rel i env' with
-        | LocalAssum _ -> project_variable ~progress:!progress !evdref (RelAlias (i-k))
-        | LocalDef (_,b,_) ->
-          try project_variable ~progress:!progress !evdref (RelAlias (i-k))
-          with NotInvertibleUsingOurAlgorithm _ when imitate_defs ->
-            let ans = imitate envk (lift i (EConstr.of_constr b)) in
-            !evdref, ans
-        in
-        let () = evdref := sigma in
-        ans
-    | Var id ->
-        let sigma, ans = match Environ.lookup_named id env' with
-        | LocalAssum _ -> project_variable ~progress:!progress !evdref (VarAlias id)
-        | LocalDef (_,b,_) ->
-          try project_variable ~progress:!progress !evdref (VarAlias id)
-          with NotInvertibleUsingOurAlgorithm _ when imitate_defs ->
-            let ans = imitate envk (EConstr.of_constr b) in
-            !evdref, ans
-        in
-        let () = evdref := sigma in
-        ans
-    | LetIn (na,b,u,c) ->
-        imitate envk (subst1 b c)
-    | Evar (evk',args' as ev') ->
-        if Evar.equal evk evk' then raise (OccurCheckIn (evd,rhs));
-        (* At this point, we imitated a context say, C[ ], and virtually
-           instantiated ?evk@{x₁..xn} with C[?evk''@{x₁..xn,y₁..yk}]
-           for y₁..yk the spine of variables of C[ ], now facing the
-           equation env, y₁...yk |- ?evk'@{args'} =?= ?evk''@{args,y1:=y1..yk:=yk} *)
-        (* Assume evk' is defined in context x₁'..xk'.
-           As a first step, we try to find a restriction ?evk'''@{xᵢ₁'..xᵢⱼ} of
-           ?evk' and an instance args''' in the environment of ?evk such that
-           env, y₁..yk |- args'''[args] = args' and thus such that
-           env, y₁..yk |- ?evk'''@{args'''[args]} = ?evk''@{args,y1:=y1..yk:=yk} *)
-        (* Note that we don't need to declare ?evk'' yet: it may remain virtual *)
-        let aliases = lift_aliases k aliases in
-        (try
-          let ev = normalize_evar !evdref (evk,SList.Skip.map (lift k) argsv) in
-          let evd,body = project_evar_on_evar false unify flags env' !evdref aliases k None ev' ev in
-          evdref := evd;
-          body
+  let rec imitate (env', k as envk) (progress, sigma) t = match EConstr.kind sigma t with
+  | Rel i when i > k ->
+    let open Context.Rel.Declaration in
+    begin match Environ.lookup_rel i env' with
+    | LocalAssum _ -> project_variable ~progress sigma (RelAlias (i-k))
+    | LocalDef (_,b,_) ->
+      try project_variable ~progress sigma (RelAlias (i-k))
+      with NotInvertibleUsingOurAlgorithm _ when imitate_defs ->
+        imitate envk (progress, sigma) (lift i (EConstr.of_constr b))
+    end
+  | Var id ->
+    begin match Environ.lookup_named id env' with
+    | LocalAssum _ -> project_variable ~progress sigma (VarAlias id)
+    | LocalDef (_,b,_) ->
+      try project_variable ~progress sigma (VarAlias id)
+      with NotInvertibleUsingOurAlgorithm _ when imitate_defs ->
+        imitate envk (progress, sigma) (EConstr.of_constr b)
+    end
+  | LetIn (na,b,u,c) ->
+    imitate envk (progress, sigma) (subst1 b c)
+  | Evar (evk', args' as ev') ->
+    let () = if Evar.equal evk evk' then raise (OccurCheckIn (sigma0, rhs)) in
+    (* At this point, we imitated a context say, C[ ], and virtually
+        instantiated ?evk@{x₁..xn} with C[?evk''@{x₁..xn,y₁..yk}]
+        for y₁..yk the spine of variables of C[ ], now facing the
+        equation env, y₁...yk |- ?evk'@{args'} =?= ?evk''@{args,y1:=y1..yk:=yk} *)
+    (* Assume evk' is defined in context x₁'..xk'.
+        As a first step, we try to find a restriction ?evk'''@{xᵢ₁'..xᵢⱼ} of
+        ?evk' and an instance args''' in the environment of ?evk such that
+        env, y₁..yk |- args'''[args] = args' and thus such that
+        env, y₁..yk |- ?evk'''@{args'''[args]} = ?evk''@{args,y1:=y1..yk:=yk} *)
+    (* Note that we don't need to declare ?evk'' yet: it may remain virtual *)
+    let aliases = lift_aliases k aliases in
+    begin try
+      let ev = normalize_evar sigma (evk, SList.Skip.map (lift k) argsv) in
+      let sigma, body = project_evar_on_evar false unify flags env' sigma aliases k None ev' ev in
+      (progress, sigma), body
+    with
+    | EvarSolvedOnTheFly (sigma, t) -> imitate envk (progress, sigma) t
+    | CannotProject (sigma, ev') ->
+      let () = if not progress then raise (NotEnoughInformationEvarEvar t) in
+      (* We could not invert args' in terms of args, so we now make ?evk'' real *)
+      let ty = get_type_of env' sigma t in
+      let (sigma, evar'', ev'') =
+          materialize_evar (evar_define unify flags ~choose) env' sigma k ev ty in
+      (* materialize_evar may instantiate ev' by another evar; adjust it *)
+      let (evk', args' as ev') = normalize_evar sigma ev' in
+      let sigma =
+          (* Try now to invert args in terms of args' *)
+        try
+          let () = if not @@ is_evar_allowed flags sigma evk' then raise (CannotProject (sigma, ev'')) in
+          let sigma, body = project_evar_on_evar false unify flags env' sigma aliases 0 None ev'' ev' in
+          let evi = Evd.find_undefined sigma evk' in
+          let sigma = Evd.define evk' body sigma in
+          check_evar_instance_evi unify flags env' sigma evi body
         with
-        | EvarSolvedOnTheFly (evd,t) -> evdref:=evd; imitate envk t
-        | CannotProject (evd,ev') ->
-          if not !progress then
-            raise (NotEnoughInformationEvarEvar t);
-          (* We could not invert args' in terms of args, so we now make ?evk'' real *)
-          let ty = get_type_of env' evd t in
-          let (evd,evar'',ev'') =
-             materialize_evar (evar_define unify flags ~choose) env' evd k ev ty in
-          (* materialize_evar may instantiate ev' by another evar; adjust it *)
-          let (evk',args' as ev') = normalize_evar evd ev' in
-          let evd =
-             (* Try now to invert args in terms of args' *)
-            try
-              if not @@ is_evar_allowed flags evd evk' then
-                raise (CannotProject (evd, ev''));
-              let evd,body = project_evar_on_evar false unify flags env' evd aliases 0 None ev'' ev' in
-              let evi = Evd.find_undefined evd evk' in
-              let evd = Evd.define evk' body evd in
-                check_evar_instance_evi unify flags env' evd evi body
-            with
-            | EvarSolvedOnTheFly _ -> assert false (* ev has no candidates *)
-            | CannotProject (evd,ev'') ->
-              (* ... or postpone the problem *)
-              add_conv_oriented_pb (None,env',mkEvar ev'',mkEvar ev') evd in
-          evdref := evd;
-          evar'')
-    | App (f, args) when EConstr.isLambda !evdref f ->
-        let p = !progress in
-        progress := true;
-        (try
-          map_constr_with_full_binders env' !evdref (fun d (env,k) -> push_rel d env, k+1)
-                                        imitate envk t
-        with e when CErrors.noncritical e -> progress := p; imitate envk (whd_beta env' !evdref t))
-    | _ ->
-        progress := true;
-        match
-          let c,args = decompose_app !evdref t in
-          match EConstr.kind !evdref c with
-          | Construct (cstr,u) when noccur_between !evdref 1 k t ->
-            (* This is common case when inferring the return clause of match *)
-            (* (currently rudimentary: we do not treat the case of multiple *)
-            (*  possible inversions; we do not treat overlap with a possible *)
-            (*  alternative inversion of the subterms of the constructor, etc)*)
-            (match find_projectable_constructor env evd cstr k args cstr_subst with
-             | _::_ as l -> Some (List.map mkVar l)
-             | _ -> None)
-          | _ -> None
-        with
-        | Some l ->
-            let ty = get_type_of env' !evdref t in
-            let candidates =
-              try
-                let t =
-                  map_constr_with_full_binders env' !evdref (fun d (env,k) -> push_rel d env, k+1)
-                    imitate envk t in
-                (* Less dependent solutions come last *)
-                l@[t]
-              with e when CErrors.noncritical e -> l in
-            (match candidates with
-            | [x] -> x
-            | _ ->
-              let (evd,evar'',ev'') =
-                materialize_evar (evar_define unify flags ~choose) env' !evdref k ev ty in
-              evdref := restrict_evar evd (fst ev'') None (UpdateWith candidates);
-              evar'')
-        | None ->
-           (* Evar/Rigid problem (or assimilated if not normal): we "imitate" *)
-          map_constr_with_full_binders env' !evdref (fun d (env,k) -> push_rel d env, k+1)
-                                        imitate envk t
+        | EvarSolvedOnTheFly _ -> assert false (* ev has no candidates *)
+        | CannotProject (sigma, ev'') ->
+          (* ... or postpone the problem *)
+          add_conv_oriented_pb (None,env',mkEvar ev'',mkEvar ev') sigma
+      in
+      (progress, sigma), evar''
+    end
+  | App (f, args) when EConstr.isLambda sigma f ->
+    begin try
+      fold_map_constr_with_full_binders env' sigma (fun d (env, k) -> push_rel d env, k + 1) imitate envk (true, sigma) t
+    with e when CErrors.noncritical e ->
+      imitate envk (progress, sigma) (whd_beta env' sigma t)
+    end
+  | _ ->
+    match
+      let c, args = decompose_app sigma t in
+      match EConstr.kind sigma c with
+      | Construct (cstr,u) when noccur_between sigma 1 k t ->
+        (* This is common case when inferring the return clause of match *)
+        (* (currently rudimentary: we do not treat the case of multiple *)
+        (*  possible inversions; we do not treat overlap with a possible *)
+        (*  alternative inversion of the subterms of the constructor, etc)*)
+        begin match find_projectable_constructor env sigma0 (* XXX why sigma0 here? *) cstr k args cstr_subst with
+        | _::_ as l -> Some (List.map mkVar l)
+        | _ -> None
+        end
+      | _ -> None
+    with
+    | Some l ->
+      let ty = get_type_of env' sigma t in
+      let sigma, candidates =
+        try
+          let (progress, sigma), t =
+            fold_map_constr_with_full_binders env' sigma (fun d (env, k) -> push_rel d env, k + 1)
+              imitate envk (true, sigma) t
+          in
+          let () = assert progress in
+          (* Less dependent solutions come last *)
+          sigma, l@[t]
+        with e when CErrors.noncritical e -> sigma, l in
+      begin match candidates with
+      | [x] -> (true, sigma), x
+      | _ ->
+        let (sigma, evar'', ev'') = materialize_evar (evar_define unify flags ~choose) env' sigma k ev ty in
+        let sigma = restrict_evar sigma (fst ev'') None (UpdateWith candidates) in
+        (true, sigma), evar''
+      end
+    | None ->
+        (* Evar/Rigid problem (or assimilated if not normal): we "imitate" *)
+      fold_map_constr_with_full_binders env' sigma (fun d (env,k) -> push_rel d env, k+1) imitate envk (true, sigma) t
   in
 
-  let t' = imitate (env, 0) rhs in
-  let body = if !progress then (recheck_applications unify flags (evar_env env evi) evdref t'; t') else t' in
-  (!evdref,body)
+  let (progress, sigma), t' = imitate (env, 0) (false, evd) rhs in
+  if progress then
+    let sigma = recheck_applications unify flags (evar_env env evi) sigma t' in
+    (sigma, t')
+  else (sigma, t')
 
 (* [define] tries to solve the problem "?ev[args] = rhs" when "?ev" is
  * an (uninstantiated) evar such that "hyps |- ?ev : typ". Otherwise said,

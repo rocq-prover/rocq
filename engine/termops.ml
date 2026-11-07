@@ -715,6 +715,78 @@ let fold_constr_with_full_binders env sigma g f n acc c =
       Array.fold_left (fun acc (t,b) -> f n' (f n acc t) b) acc fd
   | Array(_u,t,def,ty) -> f n (f n (Array.fold_left (f n) acc t) def) ty
 
+let fold_map_invert f acc iv = match iv with
+| NoInvert -> acc, iv
+| CaseInvert {indices} ->
+  let acc, indices' = Array.Smart.fold_left_map f acc indices in
+  if indices == indices' then acc, iv
+  else acc, CaseInvert {indices = indices'}
+
+(* Mix of the two above *)
+let fold_map_constr_with_full_binders env sigma g f l acc cstr =
+  let open EConstr in
+  match EConstr.kind sigma cstr with
+  | (Rel _ | Meta _ | Var _   | Sort _ | Const _ | Ind _
+    | Construct _ | Int _ | Float _ | String _) -> acc, cstr
+  | Cast (c, k, t) ->
+    let acc, c' = f l acc c in
+    let acc, t' = f l acc t in
+    if c==c' && t==t' then acc, cstr else acc, mkCast (c', k, t')
+  | Prod (na, t, c) ->
+    let acc, t' = f l acc t in
+    let acc, c' = f (g (RelDecl.LocalAssum (na, t)) l) acc c in
+    if t==t' && c==c' then acc, cstr else acc, mkProd (na, t', c')
+  | Lambda (na, t, c) ->
+    let acc, t' = f l acc t in
+    let acc, c' = f (g (RelDecl.LocalAssum (na, t)) l) acc c in
+    if t==t' && c==c' then acc, cstr else  acc, mkLambda (na, t', c')
+  | LetIn (na, b, t, c) ->
+    let acc, b' = f l acc b in
+    let acc, t' = f l acc t in
+    let acc, c' = f (g (RelDecl.LocalDef (na, b, t)) l) acc c in
+    if b==b' && t==t' && c==c' then acc, cstr else acc, mkLetIn (na, b', t', c')
+  | App (c, al) ->
+    let acc, c' = f l acc c in
+    let acc, al' = Array.Smart.fold_left_map (f l) acc al in
+    if c==c' && Array.for_all2 (==) al al' then acc, cstr else acc, mkApp (c', al')
+  | Proj (p, r, c) ->
+    let acc, c' = f l acc c in
+    if c' == c then acc, cstr else acc, mkProj (p, r, c')
+  | Evar (evk, args as ev) ->
+    let args = Evd.expand_existential sigma ev in
+    let acc, args' = List.Smart.fold_left_map (f l) acc args in
+    if args==args' then acc, cstr else acc, mkLEvar sigma (evk, args')
+  | Case (ci, u, pms, (p, r), iv, c, bl) ->
+    let (ci, _, pms, (p0, _), _, c, bl0) = annotate_case env sigma (ci, u, pms, (p,r), iv, c, bl) in
+    let f_ctx acc (ctx, c) (nas, _ as r) =
+      let acc, c' = f (List.fold_right g ctx l) acc c in
+      if c' == c then acc, r else acc, (nas, c')
+    in
+    let acc, pms' = Array.Smart.fold_left_map (f l) acc pms in
+    let acc, p' = f_ctx acc p0 p in
+    let acc, iv' = fold_map_invert (f l) acc iv in
+    let acc, c' = f l acc c in
+    let acc, bl' = Array.Smart.fold_left2_map f_ctx acc bl0 bl in
+    if pms==pms' && p==p' && iv'==iv && c==c' && Array.for_all2 (==) bl bl' then acc, cstr
+    else acc, mkCase (ci, u, pms', (p',r), iv', c', bl')
+  | Fix (ln, (lna, tl, bl as fx)) ->
+    let acc, tl' = Array.Smart.fold_left_map (f l) acc tl in
+    let l' = fold_rec_types g fx l in
+    let acc, bl' = Array.Smart.fold_left_map (f l') acc bl in
+    if Array.for_all2 (==) tl tl' && Array.for_all2 (==) bl bl' then acc, cstr
+    else acc, mkFix (ln,(lna,tl',bl'))
+  | CoFix(ln, (lna, tl, bl as fx)) ->
+    let acc, tl' = Array.Smart.fold_left_map (f l) acc tl in
+    let l' = fold_rec_types g fx l in
+    let acc, bl' = Array.Smart.fold_left_map (f l') acc bl in
+    if Array.for_all2 (==) tl tl' && Array.for_all2 (==) bl bl' then acc, cstr
+    else acc, mkCoFix (ln,(lna,tl',bl'))
+  | Array(u, t, def, ty) ->
+    let acc, t' = Array.Smart.fold_left_map (f l) acc t in
+    let acc, def' = f l acc def in
+    let acc, ty' = f l acc ty in
+    if def==def' && t == t' && ty==ty' then acc, cstr else acc, mkArray (u,t', def',ty')
+
 (***************************)
 (* occurs check functions  *)
 (***************************)

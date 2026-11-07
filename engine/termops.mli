@@ -55,6 +55,9 @@ val fold_constr_with_full_binders : Environ.env -> Evd.evar_map ->
   ('a -> 'b -> constr -> 'b) ->
   'a -> 'b -> constr -> 'b
 
+val fold_map_constr_with_full_binders : Environ.env -> Evd.evar_map ->
+  (rel_declaration -> 'a -> 'a) -> ('a -> 'b -> constr -> 'b * constr) -> 'a -> 'b -> constr -> 'b * constr
+
 (**********************************************************************)
 
 val strip_head_cast : Evd.evar_map -> constr -> constr
