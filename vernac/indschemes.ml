@@ -478,18 +478,26 @@ let build_combined_scheme env schemes =
     let sigma, c = Evd.fresh_constant_instance env sigma cst in
     let c = on_snd (EConstr.EInstance.kind sigma) c in
     sigma, (c, Typeops.type_of_constant_in env c)) sigma schemes in
-  let find_inductive ty =
+  let find_inductive cst ty =
     let (ctx, arity) = decompose_prod ty in
-    let (_, last) = List.hd ctx in
-      match Constr.kind last with
-        | Constr.App (ind, args) ->
-            let ind = Constr.destInd ind in
-            let (_,spec) = Inductive.lookup_mind_specif env (fst ind) in
-              ctx, ind, spec.mind_nrealargs
-        | _ -> ctx, Constr.destInd last, 0
+    let error () =
+      CErrors.user_err
+        (str "Combined Scheme: the type of " ++
+         Printer.pr_constant env cst ++
+         str " does not end with a quantification over an inductive type.")
+    in
+    match ctx with
+    | [] -> error ()
+    | (_, last) :: _ ->
+      match Constr.kind (fst (Constr.decompose_app last)) with
+      | Constr.Ind ind ->
+        let (_,spec) = Inductive.lookup_mind_specif env (fst ind) in
+        ctx, ind, spec.mind_nrealargs
+      | _ -> error ()
   in
   let (c, t) = List.hd defs in
-  let ctx, ind, nargs = find_inductive t in
+  let () = List.iter2 (fun cst (_, t) -> ignore (find_inductive cst t)) schemes defs in
+  let ctx, ind, nargs = find_inductive (List.hd schemes) t in
   (* We check if ALL the predicates are in Prop, if so we use propositional
      conjunction '/\', otherwise we use the simple product '*'.
   *)
