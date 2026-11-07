@@ -1635,71 +1635,78 @@ let rec invert_definition unify flags choose imitate_defs
   if fast then (evd, nf_evar evd rhs) (* FIXME? *)
   else
 
-  let evdref = ref evd in
-  let progress = ref false in
   let aliases = make_alias_map env evd in
   let subst = make_projectable_subst aliases evd sign argsv in
   let cstr_subst = make_constructor_subst evd sign argsv in
 
   (* Projection *)
-  let project_variable t =
+  let project_variable ~progress sigma t =
     (* Evar/Var problem: unifiable iff variable projectable from ev subst *)
     try
-      let sols = find_projectable_vars aliases !evdref t subst in
+      let sols = find_projectable_vars aliases sigma t subst in
       let c, p = match sols with
         | [] -> raise Not_found
         | [id,p] -> (mkVar id, p)
         | (id,p)::_ ->
             if choose then (mkVar id, p) else raise (NotUniqueInType sols)
       in
-      let ty = lazy (Retyping.get_type_of env !evdref (of_alias t)) in
-      let evd = do_projection_effects unify flags (evar_define unify flags ~choose) env ty !evdref p in
-      evdref := evd;
-      c
+      let ty = lazy (Retyping.get_type_of env sigma (of_alias t)) in
+      let sigma = do_projection_effects unify flags (evar_define unify flags ~choose) env ty sigma p in
+      (sigma, c)
     with
-      | Not_found -> raise (NotInvertibleUsingOurAlgorithm (of_alias t))
-      | NotUniqueInType sols ->
-          if not !progress then
-            raise (NotEnoughInformationToProgress sols);
-          (* No unique projection but still restrict to where it is possible *)
-          (* materializing is necessary, but is restricting useful? *)
-          let t' = of_alias t in
-          let ty = Retyping.get_type_of env !evdref t' in
-          let (evd,evar,(evk',argsv' as ev')) =
-            materialize_evar (evar_define unify flags ~choose) env !evdref 0 ev ty in
-          let ts = expansions_of_var aliases t in
-          let test c = isEvar evd c || List.exists (is_alias evd c) ts in
-          let argsv' = Evd.expand_existential evd (evk, argsv') in
-          let filter = restrict_upon_filter evd evk test argsv' in
-          let filter = closure_of_filter ~can_drop:choose evd evk' filter in
-          let candidates = extract_candidates sols in
-          let evd = match candidates with
-          | NoUpdate ->
-            let evd, ev'' = restrict_applied_evar evd ev' filter NoUpdate in
-            add_conv_oriented_pb ~tail:false (None,env,mkEvar ev'',t') evd
-          | UpdateWith _ ->
-            restrict_evar evd evk' filter candidates
-          in
-          evdref := evd;
-          evar in
+    | Not_found -> raise (NotInvertibleUsingOurAlgorithm (of_alias t))
+    | NotUniqueInType sols ->
+      let () = if not progress then raise (NotEnoughInformationToProgress sols) in
+      (* No unique projection but still restrict to where it is possible *)
+      (* materializing is necessary, but is restricting useful? *)
+      let t' = of_alias t in
+      let ty = Retyping.get_type_of env sigma t' in
+      let (sigma,evar,(evk',argsv' as ev')) =
+        materialize_evar (evar_define unify flags ~choose) env sigma 0 ev ty in
+      let ts = expansions_of_var aliases t in
+      let test c = isEvar sigma c || List.exists (is_alias sigma c) ts in
+      let argsv' = Evd.expand_existential sigma (evk, argsv') in
+      let filter = restrict_upon_filter sigma evk test argsv' in
+      let filter = closure_of_filter ~can_drop:choose sigma evk' filter in
+      let candidates = extract_candidates sols in
+      let sigma = match candidates with
+      | NoUpdate ->
+        let sigma, ev'' = restrict_applied_evar sigma ev' filter NoUpdate in
+        add_conv_oriented_pb ~tail:false (None,env,mkEvar ev'',t') sigma
+      | UpdateWith _ ->
+        restrict_evar sigma evk' filter candidates
+      in
+      (sigma, evar)
+    in
+
+  let evdref = ref evd in
+  let progress = ref false in
 
   let rec imitate (env',k as envk) t =
     match EConstr.kind !evdref t with
     | Rel i when i>k ->
         let open Context.Rel.Declaration in
-        (match Environ.lookup_rel i env' with
-        | LocalAssum _ -> project_variable (RelAlias (i-k))
+        let sigma, ans = match Environ.lookup_rel i env' with
+        | LocalAssum _ -> project_variable ~progress:!progress !evdref (RelAlias (i-k))
         | LocalDef (_,b,_) ->
-          try project_variable (RelAlias (i-k))
+          try project_variable ~progress:!progress !evdref (RelAlias (i-k))
           with NotInvertibleUsingOurAlgorithm _ when imitate_defs ->
-            imitate envk (lift i (EConstr.of_constr b)))
+            let ans = imitate envk (lift i (EConstr.of_constr b)) in
+            !evdref, ans
+        in
+        let () = evdref := sigma in
+        ans
     | Var id ->
-        (match Environ.lookup_named id env' with
-        | LocalAssum _ -> project_variable (VarAlias id)
+        let sigma, ans = match Environ.lookup_named id env' with
+        | LocalAssum _ -> project_variable ~progress:!progress !evdref (VarAlias id)
         | LocalDef (_,b,_) ->
-          try project_variable (VarAlias id)
+          try project_variable ~progress:!progress !evdref (VarAlias id)
           with NotInvertibleUsingOurAlgorithm _ when imitate_defs ->
-            imitate envk (EConstr.of_constr b))
+            let ans = imitate envk (EConstr.of_constr b) in
+            !evdref, ans
+        in
+        let () = evdref := sigma in
+        ans
     | LetIn (na,b,u,c) ->
         imitate envk (subst1 b c)
     | Evar (evk',args' as ev') ->
