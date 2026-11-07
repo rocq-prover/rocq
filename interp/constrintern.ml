@@ -1351,17 +1351,20 @@ let intern_qualid_for_pattern test_global intern_not qid pats =
     dump_extended_global qid.loc (TrueGlobal g);
     (g, false, Some [], pats)
   | Abbrev kn as xref ->
+    let drop_vars vars =
+      let nvars = List.length vars in
+      if List.length pats < nvars then error_not_enough_arguments ?loc:qid.loc;
+      List.skipn nvars pats
+    in
     let filter (vars,a) =
       match a with
       | NRef (g,_) ->
         (* Convention: do not deactivate implicit arguments and scopes for further arguments *)
         test_global g;
-        let () = assert (List.is_empty vars) in
-        Some (g, Some [], pats)
+        Some (g, Some [], drop_vars vars)
       | NApp (NRef (g,_),[]) -> (* special case: abbreviation for @Cstr deactivates implicit arguments *)
         test_global g;
-        let () = assert (List.is_empty vars) in
-        Some (g, None, pats)
+        Some (g, None, drop_vars vars)
       | NApp (NRef (g,_),args) ->
         (* Convention: do not deactivate implicit arguments and scopes for further arguments *)
         test_global g;
