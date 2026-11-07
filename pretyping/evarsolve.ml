@@ -1611,6 +1611,44 @@ exception NotEnoughInformationEvarEvar of EConstr.constr
 exception OccurCheckIn of evar_map * EConstr.constr
 exception MetaOccurInBodyInternal
 
+(* Projection *)
+let project_variable unify flags define_fun ~progress ~choose env sigma aliases subst (evk,argsv as ev) t =
+  (* Evar/Var problem: unifiable iff variable projectable from ev subst *)
+  try
+    let sols = find_projectable_vars aliases sigma t subst in
+    let c, p = match sols with
+      | [] -> raise Not_found
+      | [id,p] -> (mkVar id, p)
+      | (id,p)::_ ->
+          if choose then (mkVar id, p) else raise (NotUniqueInType sols)
+    in
+    let ty = lazy (Retyping.get_type_of env sigma (of_alias t)) in
+    let sigma = do_projection_effects unify flags define_fun env ty sigma p in
+    (sigma, c)
+  with
+  | Not_found -> raise (NotInvertibleUsingOurAlgorithm (of_alias t))
+  | NotUniqueInType sols ->
+    let () = if not progress then raise (NotEnoughInformationToProgress sols) in
+    (* No unique projection but still restrict to where it is possible *)
+    (* materializing is necessary, but is restricting useful? *)
+    let t' = of_alias t in
+    let ty = Retyping.get_type_of env sigma t' in
+    let (sigma,evar,(evk',argsv' as ev')) = materialize_evar define_fun env sigma 0 ev ty in
+    let ts = expansions_of_var aliases t in
+    let test c = isEvar sigma c || List.exists (is_alias sigma c) ts in
+    let argsv' = Evd.expand_existential sigma (evk, argsv') in
+    let filter = restrict_upon_filter sigma evk test argsv' in
+    let filter = closure_of_filter ~can_drop:choose sigma evk' filter in
+    let candidates = extract_candidates sols in
+    let sigma = match candidates with
+    | NoUpdate ->
+      let sigma, ev'' = restrict_applied_evar sigma ev' filter NoUpdate in
+      add_conv_oriented_pb ~tail:false (None,env,mkEvar ev'',t') sigma
+    | UpdateWith _ ->
+      restrict_evar sigma evk' filter candidates
+    in
+    (sigma, evar)
+
 let rec invert_definition unify flags choose imitate_defs
                           env evd pbty (evk,argsv as ev) rhs =
   let EvarInfo evi = Evd.find evd evk in
@@ -1639,45 +1677,10 @@ let rec invert_definition unify flags choose imitate_defs
   let subst = make_projectable_subst aliases evd sign argsv in
   let cstr_subst = make_constructor_subst evd sign argsv in
 
-  (* Projection *)
+  let define_fun env sigma pbty ev t = evar_define unify flags ~choose env sigma pbty ev t in
   let project_variable ~progress sigma t =
-    (* Evar/Var problem: unifiable iff variable projectable from ev subst *)
-    try
-      let sols = find_projectable_vars aliases sigma t subst in
-      let c, p = match sols with
-        | [] -> raise Not_found
-        | [id,p] -> (mkVar id, p)
-        | (id,p)::_ ->
-            if choose then (mkVar id, p) else raise (NotUniqueInType sols)
-      in
-      let ty = lazy (Retyping.get_type_of env sigma (of_alias t)) in
-      let sigma = do_projection_effects unify flags (evar_define unify flags ~choose) env ty sigma p in
-      (sigma, c)
-    with
-    | Not_found -> raise (NotInvertibleUsingOurAlgorithm (of_alias t))
-    | NotUniqueInType sols ->
-      let () = if not progress then raise (NotEnoughInformationToProgress sols) in
-      (* No unique projection but still restrict to where it is possible *)
-      (* materializing is necessary, but is restricting useful? *)
-      let t' = of_alias t in
-      let ty = Retyping.get_type_of env sigma t' in
-      let (sigma,evar,(evk',argsv' as ev')) =
-        materialize_evar (evar_define unify flags ~choose) env sigma 0 ev ty in
-      let ts = expansions_of_var aliases t in
-      let test c = isEvar sigma c || List.exists (is_alias sigma c) ts in
-      let argsv' = Evd.expand_existential sigma (evk, argsv') in
-      let filter = restrict_upon_filter sigma evk test argsv' in
-      let filter = closure_of_filter ~can_drop:choose sigma evk' filter in
-      let candidates = extract_candidates sols in
-      let sigma = match candidates with
-      | NoUpdate ->
-        let sigma, ev'' = restrict_applied_evar sigma ev' filter NoUpdate in
-        add_conv_oriented_pb ~tail:false (None,env,mkEvar ev'',t') sigma
-      | UpdateWith _ ->
-        restrict_evar sigma evk' filter candidates
-      in
-      (sigma, evar)
-    in
+    project_variable unify flags define_fun ~progress ~choose env sigma aliases subst ev t
+  in
 
   let evdref = ref evd in
   let progress = ref false in
