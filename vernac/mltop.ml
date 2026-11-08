@@ -218,8 +218,9 @@ let ocaml_toploop ?init_file () =
 
 let ml_load p =
   (* Linking a plugin runs the module initialisers of its dependencies, and
-     some of them turn backtrace recording on (Base does). Keep the setting
-     the user chose, otherwise CDebug reports and re-applies the change. *)
+     Base turns backtrace recording on in its initialiser. Keep the setting
+     the user chose. Otherwise CDebug reports the change as the "backtrace"
+     flag and re-applies it before the next command. *)
   let link () = match !load with
     | WithTop t -> t.load_plugin p
     | WithoutTop -> PluginSpec.load p
