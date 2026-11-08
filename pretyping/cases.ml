@@ -1078,6 +1078,15 @@ let add_assert_false_case pb tomatch =
       orig = None;
       catch_all_vars = [] } ]
 
+let absurd_judge env sigma tycon =
+  let sort = match tycon with
+  | None -> None
+  | Some t ->
+    try Some (Retyping.get_sort_of ~lax:true env sigma t)
+    with Retyping.RetypeError _ -> None
+  in
+  coq_unit_judge ?sort env sigma
+
 let adjust_impossible_cases sigma pb pred tomatch submat =
   match submat with
   | [] ->
@@ -1085,13 +1094,17 @@ let adjust_impossible_cases sigma pb pred tomatch submat =
     | Evar (evk, _) ->
       let evi = Evd.find_undefined sigma evk in
       if snd (Evd.evar_source evi) == Evar_kinds.ImpossibleCase then
-        let sigma, default = coq_unit_judge !!(pb.env) sigma in
+        let sort = match EConstr.kind sigma (Evd.evar_concl evi) with
+          | Sort s -> Some s
+          | _ -> None
+        in
+        let sigma, default = coq_unit_judge ?sort !!(pb.env) sigma in
         let sigma = Evd.define evk default.uj_type sigma in
         sigma, add_assert_false_case pb tomatch
       else
         sigma, submat
     | _ ->
-      let sigma', default = coq_unit_judge !!(pb.env) sigma in
+      let sigma', default = absurd_judge !!(pb.env) sigma (Some pred) in
       if EConstr.eq_constr_nounivs sigma' pred default.uj_type
       then sigma, add_assert_false_case pb tomatch
       else sigma, submat
@@ -2691,7 +2704,7 @@ let compile_program_cases ?loc style (typing_function, sigma) tycon env
     (predopt, tomatchl, eqns) =
   let typing_fun tycon env sigma = function
     | Some t ->	typing_function tycon env sigma t
-    | None -> coq_unit_judge !!env sigma in
+    | None -> absurd_judge !!env sigma tycon in
 
   (* We build the matrix of patterns and right-hand side *)
   let matx = matx_of_eqns env eqns in
@@ -2773,7 +2786,7 @@ let compile_program_cases ?loc style (typing_function, sigma) tycon env
 
   let typing_function tycon env sigma = function
     | Some t -> typing_function tycon env sigma t
-    | None -> coq_unit_judge !!env sigma in
+    | None -> absurd_judge !!env sigma tycon in
 
   let pb =
     { env      = env;
@@ -2850,7 +2863,7 @@ let compile_cases ?loc ~program_mode style (typing_fun, sigma) tycon env (predop
     (* A typing function that provides with a canonical term for absurd cases*)
     let typing_fun tycon env sigma = function
     | Some t -> typing_fun tycon env sigma t
-    | None -> coq_unit_judge !!env sigma in
+    | None -> absurd_judge !!env sigma tycon in
 
     let pb =
       { env       = env;

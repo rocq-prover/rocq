@@ -63,7 +63,26 @@ let unit_judge_fallback =
     (mkLambda (na1,mkProp,mkLambda(na2,mkRel 1,mkRel 1)))
     (mkProd (na1,mkProp,mkArrow (mkRel 1) ERelevance.relevant (mkRel 2)))
 
-let coq_unit_judge env sigma =
+let generic_unit_judge s =
+  let r = ESorts.relevance_of_sort s in
+  let na1 = make_annot (Name (Id.of_string "A")) ERelevance.relevant in
+  let na2 = make_annot (Name (Id.of_string "H")) r in
+  make_judge
+    (mkLambda (na1,mkSort s,mkLambda(na2,mkRel 1,mkRel 1)))
+    (mkProd (na1,mkSort s,mkArrow (mkRel 1) r (mkRel 2)))
+
+let coq_unit_judge ?sort env sigma =
+  let generic = match sort with
+    | None -> None
+    | Some s ->
+      match ESorts.kind sigma s with
+      | Sorts.Prop | Sorts.Set | Sorts.Type _ -> None
+      | Sorts.SProp | Sorts.GSort _ -> Some s
+      | Sorts.VSort (q, _) -> if Evd.is_rigid_qvar sigma q then Some s else None
+  in
+  match generic with
+  | Some s -> sigma, generic_unit_judge s
+  | None ->
   match Rocqlib.lib_ref_opt "core.IDProp.idProp" with
   | Some c ->
     let sigma, c = Evd.fresh_global env sigma c in
@@ -2191,7 +2210,11 @@ let rec solve_unconstrained_evars_with_candidates flags env evd =
 
 let solve_unconstrained_impossible_cases env evd =
   Evar.Set.fold (fun evk evd' ->
-      let evd', j = coq_unit_judge env evd' in
+      let sort = match EConstr.kind evd' (Evd.evar_concl (Evd.find_undefined evd' evk)) with
+        | Sort s -> Some s
+        | _ -> None
+      in
+      let evd', j = coq_unit_judge ?sort env evd' in
       let ty = j_type j in
       let flags = default_flags env in
       instantiate_evar evar_unify flags env evd' evk ty (* should we protect from raising IllTypedInstance? *)
