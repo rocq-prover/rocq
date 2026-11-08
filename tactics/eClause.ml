@@ -64,7 +64,7 @@ let error_not_right_number_missing_arguments n =
     Pp.(strbrk "Not the right number of missing arguments (expected " ++
         int n ++ str ").")
 
-let make_evar_clause env sigma ?len t =
+let make_evar_clause env sigma ?ext ?len t =
   let open EConstr in
   let open Vars in
   let bound = match len with
@@ -79,8 +79,14 @@ let make_evar_clause env sigma ?len t =
       (* Share the evar instances as we are living in the same context *)
       let inst, ctx, args, subst = match inst with
       | None ->
-        (* Dummy type *)
-        let ctx, _, args, subst = push_rel_context_to_named_context env sigma mkProp in
+        let ctx, args, subst = match ext with
+        | None ->
+          (* Dummy type *)
+          let ctx, _, args, subst = push_rel_context_to_named_context env sigma mkProp in
+          ctx, args, subst
+        | Some ext ->
+          ext_named_context_val ext, default_ext_instance ext, ext_csubst ext
+        in
         Some (ctx, args, subst), ctx, args, subst
       | Some (ctx, args, subst) -> inst, ctx, args, subst
       in
