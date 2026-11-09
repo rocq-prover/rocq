@@ -299,7 +299,7 @@ let check_type_fixpoint ?loc env sigma lna lar vdefj =
       | sigma -> sigma
       | exception Evarconv.UnableToUnify _ ->
         error_ill_typed_rec_body ?loc env sigma
-          i lna vdefj lar)
+          i lna vdefj (Array.map (fun ty -> lift lt ty) lar))
     sigma vdefj lar
 
 

@@ -1,0 +1,8 @@
+File "./output/IllTypedRecBody.v", line 5, characters 0-20:
+The command has indeed failed with message:
+The recursive definition "fun n : nat => n" has type 
+"nat -> nat" while it should be "nat -> A".
+File "./output/IllTypedRecBody.v", line 6, characters 0-13:
+The command has indeed failed with message:
+The recursive definition "fun n : nat => n" has type 
+"nat -> nat" while it should be "nat -> A".
