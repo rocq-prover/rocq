@@ -1,0 +1,3 @@
+File "./output/NonPosNestedMutual.v", line 2, characters 0-64:
+The command has indeed failed with message:
+Non strictly positive occurrence of "T" in "nat -> A (T P) -> T P".
