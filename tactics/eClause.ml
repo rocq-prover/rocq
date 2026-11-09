@@ -140,15 +140,26 @@ let evar_of_binder holes = function
   with e when CErrors.noncritical e ->
     user_err Pp.(str "No such binder.")
 
+exception IncompatibleBinder of Environ.env * Evd.evar_map * EConstr.constr * EConstr.constr * Pretype_errors.unification_error
+
+let () = CErrors.register_handler @@ function
+  | IncompatibleBinder (env, sigma, c1, c2, e) ->
+    Some Pp.(str "Binder already defined with incompatible value:" ++ spc() ++
+             CErrors.print Pretype_errors.(PretypeError (env, sigma, CannotUnify (c1, c2, Some e))))
+  | _ -> None
+
 let define_with_type sigma env ev c =
   let open EConstr in
   let t = Retyping.get_type_of env sigma ev in
   let ty = Retyping.get_type_of env sigma c in
   let j = Environ.make_judge c ty in
   let (sigma, j, _trace) = Coercion.inh_conv_coerce_to ~program_mode:false ~resolve_tc:true env sigma j t in
-  let (ev, _) = destEvar sigma ev in
-  let sigma = Evd.define ev j.Environ.uj_val sigma in
-  sigma
+  match kind sigma ev with
+  | Evar (ev, _) -> Evd.define ev j.Environ.uj_val sigma
+  | _ ->
+    try Evarconv.unify_delay env sigma ev j.Environ.uj_val
+    with Evarconv.UnableToUnify (sigma, e) ->
+      raise (IncompatibleBinder (env, sigma, ev, j.uj_val, e))
 
 let solve_evar_clause env sigma hyp_only clause = function
 | NoBindings -> sigma
