@@ -54,7 +54,7 @@ type clause = {
   cl_concl : EConstr.types;
 }
 
-val make_evar_clause : env -> evar_map -> ?len:int -> EConstr.types ->
+val make_evar_clause : env -> evar_map -> ?ext:Evarutil.ext_named_context -> ?len:int -> EConstr.types ->
   (evar_map * clause)
 (** An evar version of {!make_clenv_binding}. Given a type [t],
     [evar_environments env sigma ~len t bl] tries to eliminate at most [len]
