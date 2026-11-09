@@ -144,7 +144,7 @@ Leibniz equality is a relation and every function is a morphism that
 respects Leibniz equality. Unfortunately, Leibniz equality is not
 always the intended equality for a given structure.
 
-In the next section we will describe the commands to register terms as
+In the next section we will describe how to register terms as
 parametric relations and morphisms. Several tactics that deal with
 equality in Rocq can also work with the registered relations. The exact
 list of tactics will be given :ref:`in this section <tactics-enabled-on-user-provided-relations>`.
@@ -169,50 +169,57 @@ compatibility constraints.
    has also been declared as a morphism.
 
 
+.. _adding-new-relations-and-morphisms:
+
 Adding new relations and morphisms
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-These commands support the :attr:`local` and :attr:`global` locality attributes.
-The default is :attr:`local` if the command is used inside a section, :attr:`global` otherwise.
-They also support the :attr:`universes(polymorphic)` attributes.
+Relations and morphisms are registered by declaring instances of the
+typeclasses defined in the modules ``Corelib.Classes.RelationClasses`` and
+``Corelib.Classes.Morphisms``. The declarations are made with the usual typeclass
+commands such as :cmd:`Instance`, :cmd:`Existing Instance` or :cmd:`Declare Instance`,
+and they support the same locality and :attr:`universes(polymorphic)` attributes.
 
-.. cmd::  Add Parametric Relation {* @binder } : @one_term__A @one_term__Aeq {? reflexivity proved by @one_term } {? symmetry proved by @one_term } {? transitivity proved by @one_term } as @ident
+To use them, you need to first import the modules ``Setoid`` and ``Morphisms``
+using the command ``Require Import Setoid Morphisms``.
 
-   Declares a parametric relation of :n:`@one_term__A`, which is a `Type`, say `T`, with
-   :n:`@one_term__Aeq`, which is a relation on `T`, i.e. of type `(T -> T -> Prop)`.
-   Thus, if :n:`@one_term__A` is
-   :n:`A: forall α__1 … α__n, Type` then :n:`@one_term__Aeq` is
-   :n:`Aeq: forall α__1 … α__n, (A α__1 … α__n) -> (A α__1 … α__n) -> Prop`,
-   or equivalently, :n:`Aeq: forall α__1 … α__n, relation (A α__1 … α__n)`.
+A parametric relation is declared by an instance of the form:
 
-   :n:`@one_term__A` and :n:`@one_term__Aeq` must be typeable under the context
-   :token:`binder`\s.  In practice, the :token:`binder`\s usually correspond to the :n:`α`\s
+.. rocqdoc::
 
-   The final :token:`ident` gives a unique name to the morphism and it is used
-   by the command to generate fresh names for automatically provided
-   lemmas used internally.
+   Instance id (x1 : T1) ... (xn : Tn) : C (Aeq t1 ... tm) := { ... }.
 
-   Notice that the carrier and relation parameters may refer to the
-   context of variables introduced at the beginning of the declaration,
-   but the instances need not be made only of variables. Also notice that
-   ``A`` is *not* required to be a term having the same parameters as ``Aeq``,
-   although that is often the case in practice (this departs from the
-   previous implementation).
+Here ``Aeq t1 ... tm`` is a relation over a carrier ``T``, i.e. a term of type
+``T -> T -> Prop``, and ``C`` is one of the following classes, chosen according
+to the properties of the relation:
 
-   To use this command, you need to first import the module ``Setoid`` using
-   the command ``Require Import Setoid``.
++ ``Reflexive``, ``Symmetric`` and ``Transitive`` state a single property.
++ ``PreOrder`` packs reflexivity and transitivity.
++ ``PER`` packs symmetry and transitivity.
++ ``Equivalence`` packs reflexivity, symmetry and transitivity.
++ ``RewriteRelation`` states no property, and only registers the relation
+  (see :ref:`declaring-rewrite-relations`). Every declared ``Equivalence`` is
+  automatically a ``RewriteRelation``, but the other classes must declare it
+  separately if it is needed.
 
-.. cmd:: Add Relation @one_term @one_term {? reflexivity proved by @one_term } {? symmetry proved by @one_term } {? transitivity proved by @one_term } as @ident
+An instance of a class packing several properties also provides an instance of
+each of them, so that it is not necessary to declare them individually.
 
-   If the carrier and relations are not parametric, use this command
-   instead, whose syntax is the same except there is no local context.
+If the carrier is :n:`A: forall α__1 … α__n, Type` then ``Aeq`` is usually of type
+:n:`Aeq: forall α__1 … α__n, (A α__1 … α__n) -> (A α__1 … α__n) -> Prop`,
+or equivalently :n:`Aeq: forall α__1 … α__n, relation (A α__1 … α__n)`, and the
+binders of the instance correspond to the :n:`α`\s. Notice however that
+the carrier and relation parameters may refer to the
+context of variables introduced at the beginning of the declaration,
+but they need not be made only of variables. Also notice that
+``A`` is *not* required to be a term having the same parameters as ``Aeq``,
+although that is often the case in practice.
 
-   The proofs of reflexivity, symmetry and transitivity can be omitted if
-   the relation is not an equivalence relation. The proofs must be
-   instances of the corresponding relation definitions: e.g. the proof of
-   reflexivity must have a type convertible to
-   :g:`reflexive (A t1 … tn) (Aeq t′1 … t′m)`.
-   Each proof may refer to the introduced variables as well.
+The fields of the instance are the proofs of the properties. They must have
+a type convertible to the corresponding relation definition: e.g. the proof of
+reflexivity must have a type convertible to
+:g:`reflexive (A t1 … tn) (Aeq t′1 … t′m)`.
+Each proof may refer to the variables introduced by the binders as well.
 
 .. example:: Parametric relation
 
@@ -221,30 +228,37 @@ They also support the :attr:`universes(polymorphic)` attributes.
    .. rocqtop:: in
 
      From Corelib Require Import Setoid.
-     Add Parametric Relation (A : Type) : A (@eq A)
-       reflexivity proved by (@eq_refl A)
-       symmetry proved by (@eq_sym A)
-       transitivity proved by (@eq_trans A)
-       as eq_rel.
+     Instance eq_rel (A : Type) : Equivalence (@eq A) := {
+       Equivalence_Reflexive := @eq_refl A;
+       Equivalence_Symmetric := @eq_sym A;
+       Equivalence_Transitive := @eq_trans A }.
 
 Some tactics (:tacn:`reflexivity`, :tacn:`symmetry`, :tacn:`transitivity`) work only on
 relations that respect the expected properties. The remaining tactics
 (:tacn:`replace`, :tacn:`rewrite` and derived tactics such as :tacn:`autorewrite`) do not
 require any properties over the relation. However, they are able to
 replace terms with related ones only in contexts that are syntactic
-compositions of parametric morphism instances declared with the
-following command.
+compositions of parametric morphism instances, which are declared
+as instances of the class ``Proper``.
 
-.. cmd:: Add Parametric Morphism {* @binder } : @one_term with signature @term as @ident
+A parametric morphism ``f`` of signature ``s`` is declared by an instance of
+the form:
 
-   Declares a parametric morphism :n:`@one_term` of
-   signature :n:`@term`.  The final identifier :token:`ident` gives a unique
-   name to the morphism and it is used as the base name of the typeclass
-   instance definition and as the name of the lemma that proves the
-   well-definedness of the morphism. The parameters of the morphism as well as
-   the signature may refer to the context of variables. The command asks the
-   user to prove interactively that the function denoted by the first
-   :token:`ident` respects the relations identified from the signature.
+.. rocqdoc::
+
+   Instance id (x1 : T1) ... (xn : Tn) : Proper s f.
+
+The final identifier ``id`` is the name of the instance. It is also the name of
+the lemma that proves the well-definedness of the morphism. The parameters of
+the morphism as well as the signature may refer to the context of variables.
+Signatures are written with the arrows ``==>``, ``++>`` and ``-->``, which the
+``Setoid`` module makes available.
+
+When no body is given, as above, the :cmd:`Instance` command asks the user to
+prove interactively that ``f`` respects the relations identified from the
+signature. The goal ``Proper s f`` unfolds to this property, so that it can be
+solved by :tacn:`intros` followed by the proof of the property, or directly by a
+lemma that states it.
 
 .. example::
 
@@ -255,7 +269,7 @@ following command.
    .. rocqtop:: in
 
       Require Export Setoid.
-      Require Export Relation_Definitions.
+      Require Export Relation_Definitions Morphisms.
 
       Set Implicit Arguments.
 
@@ -275,14 +289,13 @@ following command.
           forall y y' : set A, eq_set y y' ->
             eq_set (union x y) (union x' y').
 
-      Add Parametric Relation A : (set A) (@eq_set A)
-        reflexivity proved by (eq_set_refl (A:=A))
-        symmetry proved by (eq_set_sym (A:=A))
-        transitivity proved by (eq_set_trans (A:=A))
-        as eq_set_rel.
+      Instance eq_set_rel A : Equivalence (@eq_set A) := {
+        Equivalence_Reflexive := eq_set_refl (A:=A);
+        Equivalence_Symmetric := eq_set_sym (A:=A);
+        Equivalence_Transitive := eq_set_trans (A:=A) }.
 
-      Add Parametric Morphism A : (@union A)
-        with signature (@eq_set A) ==> (@eq_set A) ==> (@eq_set A) as union_mor.
+      Instance union_mor A :
+        Proper (@eq_set A ==> @eq_set A ==> @eq_set A) (@union A).
       Proof.
         exact (@union_compat A).
       Qed.
@@ -293,14 +306,12 @@ following command.
 
    .. rocqdoc::
 
-      Add Parametric Relation A : (set A) eq_set
-        reflexivity proved by eq_set_refl
-        symmetry proved by eq_set_sym
-        transitivity proved by eq_set_trans
-        as eq_set_rel.
+      Instance eq_set_rel A : Equivalence (@eq_set A) := {
+        Equivalence_Reflexive := eq_set_refl;
+        Equivalence_Symmetric := eq_set_sym;
+        Equivalence_Transitive := eq_set_trans }.
 
-      Add Parametric Morphism A : (@union A) with
-        signature eq_set ==> eq_set ==> eq_set as union_mor.
+      Instance union_mor A : Proper (eq_set ==> eq_set ==> eq_set) (@union A).
       Proof. exact (@union_compat A). Qed.
 
    We proceed now by proving a simple lemma performing a rewrite step and
@@ -324,11 +335,11 @@ following command.
    used in the proofs of instance declarations) but not to export them in
    the rest of the development for proof search. One can use the
    :cmd:`Existing Instance` command to do so outside the section, using the name of the
-   declared morphism suffixed by ``_Morphism``, or use the ``Global`` modifier
+   declared instance, or use the :attr:`global` or :attr:`export` attribute
    for the corresponding class instance declaration
    (see :ref:`First Class Setoids and Morphisms <first-class-setoids-and-morphisms>`) at
-   definition time. When loading a compiled file or importing a module,
-   all the declarations of this module will be loaded.
+   definition time. When importing a module,
+   all the non-local declarations of this module will be loaded.
 
 
 Rewriting and nonreflexive relations
@@ -442,8 +453,8 @@ be declared as a morphism having multiple signatures.
    ``multiset_eq ==> multiset_eq ==> multiset_eq`` (``multiset_eq``
    being the equality over unordered lists).
 
-To declare multiple signatures for a morphism, repeat the :cmd:`Add Morphism`
-command.
+To declare multiple signatures for a morphism, declare several ``Proper``
+instances for it.
 
 When morphisms have multiple signatures it can be the case that a
 rewrite request is ambiguous, since it is unclear what relations
@@ -463,6 +474,8 @@ same names based on ``Type`` are in ``Classes.CRelations``,
 
 Importing these modules allows for generalized rewriting with relations of the
 form ``R : A -> A -> Type`` together with support for universe polymorphism.
+
+.. _declaring-rewrite-relations:
 
 Declaring rewrite relations
 ---------------------------
@@ -506,43 +519,21 @@ hint database. For example, the declaration:
 
 .. rocqdoc::
 
-   Add Parametric Relation (x1 : T1) ... (xn : Tn) : (A t1 ... tn) (Aeq t′1 ... t′m)
-     reflexivity proved by refl
-     symmetry proved by sym
-     transitivity proved by trans
-     as id.
-
-
-is equivalent to an instance declaration:
-
-.. rocqdoc::
-
    Instance id (x1 : T1) ... (xn : Tn) : @Equivalence (A t1 ... tn) (Aeq t′1 ... t′m) := {
      Equivalence_Reflexive := refl;
      Equivalence_Symmetric := sym;
      Equivalence_Transitive := trans }.
 
-The declaration itself amounts to the definition of an object of the record type
-``Stdlib.Classes.RelationClasses.Equivalence`` and a hint added to the
+amounts to the definition of an object of the record type
+``Corelib.Classes.RelationClasses.Equivalence`` and a hint added to the
 typeclass instances database. See the documentation on :ref:`typeclasses`
-and the theories files in ``Stdlib.Classes`` for further explanations.
+and the theories files in ``Corelib.Classes`` for further explanations.
 
 One can inform the rewrite tactic about morphisms and relations just
 by using the typeclass mechanism to declare them using the :cmd:`Instance` and
 :cmd:`Context` commands. Any object of type ``Proper`` (the type of
 morphism declarations) in the local context will also be automatically
 used by the rewriting tactic to solve constraints.
-
-.. example:: Instance declaration for Proper
-
-   The `union` morphism from the example above can also be declared succinctly using:
-
-   .. rocqtop:: in
-
-      Require Import Relation_Definitions RelationClasses Morphisms.
-
-      Instance Proper_union A : Proper (@eq_set A ==> @eq_set A ==> @eq_set A) (@union A).
-      Proof. exact (@union_compat A). Qed.
 
 Other representations of first class setoids and morphisms can also be
 handled by encoding them as records. In the following example, the
@@ -553,7 +544,7 @@ registered as parametric relations and morphisms.
 
    .. rocqtop:: in reset
 
-      Require Import Relation_Definitions Setoid.
+      Require Import Relation_Definitions Morphisms Setoid.
 
       Record Setoid : Type :=
       { car: Type;
@@ -563,19 +554,19 @@ registered as parametric relations and morphisms.
         trans: transitive _ eq
       }.
 
-      Add Parametric Relation (s : Setoid) : (@car s) (@eq s)
-        reflexivity proved by (refl s)
-        symmetry proved by (sym s)
-        transitivity proved by (trans s) as eq_rel.
+      Instance eq_rel (s : Setoid) : Equivalence (@eq s) := {
+        Equivalence_Reflexive := refl s;
+        Equivalence_Symmetric := sym s;
+        Equivalence_Transitive := trans s }.
 
       Record Morphism (S1 S2 : Setoid) : Type :=
       { f: car S1 -> car S2;
         compat: forall (x1 x2 : car S1), eq S1 x1 x2 -> eq S2 (f x1) (f x2)
       }.
 
-      Add Parametric Morphism (S1 S2 : Setoid) (M : Morphism S1 S2) :
-        (@f S1 S2 M) with signature (@eq S1 ==> @eq S2) as apply_mor.
-      Proof. apply (compat S1 S2 M). Qed.
+      Instance apply_mor (S1 S2 : Setoid) (M : Morphism S1 S2) :
+        Proper (@eq S1 ==> @eq S2) (@f S1 S2 M).
+      Proof. exact (compat S1 S2 M). Qed.
 
       Lemma test : forall (S1 S2 : Setoid) (m : Morphism S1 S2)
         (x y : car S1), eq S1 x y -> eq S2 (f _ _ m x) (f _ _ m y).
@@ -762,49 +753,130 @@ a successful resolution for subsequent constraints.
 
 .. _deprecated_syntax_for_generalized_rewriting:
 
-Deprecated syntax and backward incompatibilities
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Deprecated commands
+~~~~~~~~~~~~~~~~~~~
 
-.. cmd:: Add Setoid @one_term__carrier @one_term__congruence @one_term__proofs as @ident
+The following commands are wrappers around the typeclass declarations described
+in :ref:`Adding new relations and morphisms <adding-new-relations-and-morphisms>`.
+They support the :attr:`local` and :attr:`global` locality attributes.
+The default is :attr:`local` if the command is used inside a section, :attr:`global` otherwise.
+They also support the :attr:`universes(polymorphic)` attributes.
 
-   This command for declaring setoids and morphisms is also accepted due
-   to backward compatibility reasons.
+For example, the declaration:
 
-   Here :n:`@one_term__congruence` is a congruence relation without parameters,
-   :n:`@one_term__carrier` is its carrier and :n:`@one_term__proofs` is an object
-   of type (:n:`Setoid_Theory @one_term__carrier @one_term__congruence`) (i.e. a record
-   packing together the reflexivity, symmetry and transitivity lemmas).
-   Notice that the syntax is not completely backward compatible since the
-   identifier was not required.
+.. rocqdoc::
 
-.. cmd:: Add Parametric Setoid {* @binder } : @one_term @one_term @one_term as @ident
-   :undocumented:
+   Add Parametric Relation (x1 : T1) ... (xn : Tn) : (A t1 ... tn) (Aeq t′1 ... t′m)
+     reflexivity proved by refl
+     symmetry proved by sym
+     transitivity proved by trans
+     as id.
+
+can be replaced by an instance declaration:
+
+.. rocqdoc::
+
+   #[global] Instance id (x1 : T1) ... (xn : Tn) : @Equivalence (A t1 ... tn) (Aeq t′1 ... t′m) := {
+     Equivalence_Reflexive := refl;
+     Equivalence_Symmetric := sym;
+     Equivalence_Transitive := trans }.
+
+Similarly, the declaration:
+
+.. rocqdoc::
+
+   Add Parametric Morphism (x1 : T1) ... (xn : Tn) : f with signature s as id.
+
+can be replaced by an instance declaration:
+
+.. rocqdoc::
+
+   #[global] Instance id_Proper (x1 : T1) ... (xn : Tn) : Proper s f.
+
+The :attr:`global` attribute is only needed to preserve the default locality of
+these commands, which differs from the one of :cmd:`Instance`.
+The goal of the instance is ``Proper s f`` rather than the unfolded property
+that the commands ask to prove, so that the proof usually starts with
+:tacn:`intros`.
+
+.. cmd::  Add Parametric Relation {* @binder } : @one_term__A @one_term__Aeq {? reflexivity proved by @one_term } {? symmetry proved by @one_term } {? transitivity proved by @one_term } as @ident
+
+   .. deprecated:: 9.4
+
+      Declare instead instances of the classes ``RewriteRelation``, ``Reflexive``,
+      ``Symmetric``, ``Transitive``, ``PreOrder``, ``PER`` or ``Equivalence``.
+
+   Declares a parametric relation :n:`@one_term__Aeq` over the carrier
+   :n:`@one_term__A` in the context of the :token:`binder`\s, together with the
+   proofs of the given properties.
+
+   The final :token:`ident` is the base name of the generated instances. These
+   are :n:`@ident`\ ``_relation`` of class ``RewriteRelation`` and, for each
+   given proof, :n:`@ident`\ ``_Reflexive``, :n:`@ident`\ ``_Symmetric`` or
+   :n:`@ident`\ ``_Transitive``. If the proofs make up a ``PreOrder``, a ``PER`` or
+   an ``Equivalence``, an instance of this class is also declared with the name
+   :n:`@ident`.
+
+.. cmd:: Add Relation @one_term @one_term {? reflexivity proved by @one_term } {? symmetry proved by @one_term } {? transitivity proved by @one_term } as @ident
+
+   .. deprecated:: 9.4
+
+      Declare instead instances of the classes ``RewriteRelation``, ``Reflexive``,
+      ``Symmetric``, ``Transitive``, ``PreOrder``, ``PER`` or ``Equivalence``.
+
+   Same as :cmd:`Add Parametric Relation`, without a local context.
+
+.. cmd:: Add Parametric Morphism {* @binder } : @one_term with signature @term as @ident
+
+   .. deprecated:: 9.4
+
+      Declare instead instances of the class ``Proper``.
+
+   Declares a parametric morphism :n:`@one_term` of signature :n:`@term` in the
+   context of the :token:`binder`\s, and asks the user to prove interactively
+   that it respects the relations identified from the signature. The final
+   :token:`ident` is the name of the lemma stating this property, and the
+   instance of ``Proper`` is named :n:`@ident`\ ``_Proper``.
 
 .. cmd:: Add Morphism @one_term : @ident
          Add Morphism @one_term with signature @term as @ident
    :name: Add Morphism; _
 
-   This command is restricted to the declaration of morphisms
-   without parameters. It is not fully backward compatible since the
-   property the user is asked to prove is slightly different: for n-ary
-   morphisms the hypotheses of the property are permuted; moreover, when
-   the morphism returns a proposition, the property is now stated using a
-   bi-implication in place of a simple implication. In practice, porting
-   an old development to the new semantics is usually quite simple.
+   .. deprecated:: 9.4
+
+      Declare instead instances of the class ``Proper``.
+
+   Same as :cmd:`Add Parametric Morphism`, without a local context. In the
+   first form, the signature is inferred.
+
+.. cmd:: Add Setoid @one_term__carrier @one_term__congruence @one_term__proofs as @ident
+
+   .. deprecated:: 9.4
+
+      Declare instead an instance of the class ``Equivalence``.
+
+   Here :n:`@one_term__congruence` is a congruence relation without parameters,
+   :n:`@one_term__carrier` is its carrier and :n:`@one_term__proofs` is an object
+   of type (:n:`Setoid_Theory @one_term__carrier @one_term__congruence`) (i.e. a record
+   packing together the reflexivity, symmetry and transitivity lemmas). As
+   ``Setoid_Theory`` is a synonym of ``Equivalence``, this object can be directly
+   used as the body of the instance.
+
+.. cmd:: Add Parametric Setoid {* @binder } : @one_term @one_term @one_term as @ident
+
+   .. deprecated:: 9.4
+
+      Declare instead an instance of the class ``Equivalence``.
+
+   Same as :cmd:`Add Setoid`, in the context of the :token:`binder`\s.
 
 .. cmd:: Declare Morphism @one_term : @ident
 
-   Declares a parameter in a module type that is a morphism.
+   .. deprecated:: 9.4
 
-Notice that several limitations of the old implementation have been
-lifted. In particular, it is now possible to declare several relations
-with the same carrier and several signatures for the same morphism.
-Moreover, it is now also possible to declare several morphisms having
-the same signature. Finally, the :tacn:`replace` and :tacn:`rewrite` tactics can be
-used to replace terms in contexts that were refused by the old
-implementation. As discussed in the next section, the semantics of the
-new :tacn:`setoid_rewrite` tactic differs slightly from the old one and
-:tacn:`rewrite`.
+      Use :cmd:`Declare Instance` with the class ``Proper`` instead.
+
+   Declares a parameter in a module type that is a morphism.
 
 Extensions
 ----------
