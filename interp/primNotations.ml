@@ -253,13 +253,13 @@ module PrimTokenNotation = struct
     cbv.
 *)
 
-let eval_constr env sigma (c : Constr.t) =
-  let c = EConstr.of_constr c in
+let type_judgment env sigma c =
   let sigma, t = Typing.type_of env sigma c in
-  TokenValue.make env sigma { Environ.uj_val = c; Environ.uj_type = t }
+  sigma, { Environ.uj_val = c; uj_type = t }
 
 let eval_constr_app env sigma c1 c2 =
-  eval_constr env sigma (mkApp (c1,[| c2 |]))
+  let sigma, j = Typing.judge_of_apply env sigma c1 [| c2 |] in
+  TokenValue.make env sigma j
 
 exception NotAValidPrimToken
 
@@ -525,10 +525,10 @@ let uninterp to_raw o n =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let sigma,of_ty = Evd.fresh_global env sigma o.of_ty in
-  let of_ty = EConstr.Unsafe.to_constr of_ty in
   try
     let sigma,n = constr_of_glob o.to_post env sigma n in
-    let n = EConstr.Unsafe.to_constr n in
+    let sigma, of_ty = type_judgment env sigma of_ty in
+    let sigma, n = type_judgment env sigma n in
     let c = eval_constr_app env sigma of_ty n in
     let c = match snd o.of_kind with
       | Direct -> c
@@ -842,13 +842,15 @@ let interp o ?loc n =
   in
   let sigma = !sigma in
   let sigma,to_ty = Evd.fresh_global env sigma o.to_ty in
-  let to_ty = EConstr.Unsafe.to_constr to_ty in
   match o.warning, snd o.to_kind with
   | Abstract threshold, Direct when NumTok.Signed.is_bigger_int_than n threshold ->
+     let to_ty = EConstr.Unsafe.to_constr to_ty in
      warn_abstract_large_num (o.ty_name,o.to_ty);
      assert (Array.length o.to_post = 0);
      glob_of_constr "number" o.ty_name ?loc env sigma o.to_post (mkApp (to_ty,[|c|]))
   | _ ->
+     let sigma, to_ty = type_judgment env sigma to_ty in
+     let sigma, c = type_judgment env sigma (EConstr.of_constr c) in
      let res = eval_constr_app env sigma to_ty c in
      match snd o.to_kind with
      | Direct -> glob_of_token "number" o.ty_name ?loc env sigma o.to_post res
@@ -965,7 +967,8 @@ let interp o ?loc n =
   in
   let sigma = !sigma in
   let sigma,to_ty = Evd.fresh_global env sigma o.to_ty in
-  let to_ty = EConstr.Unsafe.to_constr to_ty in
+  let sigma, to_ty = type_judgment env sigma to_ty in
+  let sigma, c = type_judgment env sigma (EConstr.of_constr c) in
   let res = eval_constr_app env sigma to_ty c in
   match snd o.to_kind with
   | Direct -> glob_of_token "string" o.ty_name ?loc env sigma o.to_post res
