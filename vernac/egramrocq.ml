@@ -477,8 +477,9 @@ let rec ty_eval : type s a. (s, a, Loc.t -> s) ty_rule -> s gen_eval -> env -> a
          (* We rearrange constrs = c1..cn rem and constrlists = [d1..dr e1..ep] rem' into
             constrs = e1..ep rem and constrlists [c1..cn d1..dr] rem' *)
          let constrlist = match List.hd env with NtnTypeArgList l -> l | _ -> anomaly (Pp.str "TyMark: List expected") in
+         let constrlist = heads @ constrlist in
          let constrlist, tail = List.chop (List.length constrlist - p) constrlist in
-         NtnTypeArgList (heads @ constrlist) :: tail @ List.tl env
+         NtnTypeArgList constrlist :: tail @ List.tl env
       else
          (* We rearrange constrs = c1..cn e1..ep rem into
             constrs = e1..ep rem and add a constr list [c1..cn] *)
