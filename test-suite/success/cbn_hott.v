@@ -31,7 +31,7 @@ Reserved Notation "x + y" (at level 50, left associativity).
 Reserved Notation "x * y" (at level 40, left associativity).
 
 Reserved Notation "{ x : A  & P }" (at level 0, x at level 99).
-Reserved Notation "p @ q" (at level 20).
+Reserved Notation "p @ q" (at level 20, left associativity).
 Reserved Notation "p # x" (right associativity, at level 65).
 Reserved Notation "p @@ q" (at level 20).
 Reserved Notation "f == g" (at level 70, no associativity).
@@ -42,7 +42,7 @@ Reserved Infix "$->" (at level 99).
 Reserved Infix "$<~>" (at level 85).
 Reserved Infix "$o" (at level 40, left associativity).
 Reserved Infix "$==" (at level 70).
-Reserved Infix "$@" (at level 30).
+Reserved Infix "$@" (at level 30, left associativity).
 Reserved Infix "$@L" (at level 30).
 Reserved Infix "$@R" (at level 30).
 Reserved Infix "$=>" (at level 99).

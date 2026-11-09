@@ -1,4 +1,3 @@
-Set Warnings "+level-tolerance".
 Set Warnings "-closed-notation-not-level-0".
 Set Warnings "-level-0-notation-not-closed".
 Set Warnings "-postfix-notation-not-level-1".
