@@ -418,7 +418,7 @@ let add_coercion_in_graph env sigma ?(update=false) ic =
     in
     ClTypMap.iter iter dir
   end;
-  class_tab := ClTypMap.mapi (fun k k_info ->
+  let update_class k k_info =
       let reachable_k_source = ClTypSet.mem k source_info.cl_reachable_to in
       let reachable_target_k = ClTypSet.mem k target_info.cl_reachable_from in
       { k_info with
@@ -438,7 +438,19 @@ let add_coercion_in_graph env sigma ?(update=false) ic =
             target_info.cl_repr
           else
             k_info.cl_repr
-      }) !class_tab;
+      } in
+  (* Reachable sets are transitively closed: if target is already reachable
+     from source, adding source -> target changes nothing. Otherwise only the
+     classes reaching source or reachable from target are affected. *)
+  if not (ClTypSet.mem target source_info.cl_reachable_from) then begin
+    let affected =
+      ClTypSet.union source_info.cl_reachable_to target_info.cl_reachable_from in
+    class_tab := ClTypSet.fold (fun k tab ->
+        match ClTypMap.find_opt k tab with
+        | Some k_info -> ClTypMap.add k (update_class k k_info) tab
+        | None -> anomaly (Pp.str "Coercion class not declared."))
+        affected !class_tab
+  end;
   Stdlib.(match !ambig_paths with [] -> () | _ -> warn_ambiguous_path !ambig_paths)
 
 let subst_coercion subst c =
