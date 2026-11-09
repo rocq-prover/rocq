@@ -1267,6 +1267,30 @@ let update_value premv concl m (clause : PartialClausesOf.ClauseInfo.t) : int op
     | Some v when newk <= v -> None
     | _ -> Some newk
 
+(** When the inference starts from the raise of a single universe [root] in a model of the other
+  clauses, every update is caused by an earlier one, back to the raise of [root]. While all these
+  updates are caused by single-premise clauses ([CycleRoot root]), a new raise of [root] follows a
+  cycle of single-premise clauses [root + w <= root] with [w > 0], which has no model
+  ([PositiveCycle]): the inference reports a loop at once, instead of going around the cycle and
+  propagating the raise to the universes below it until all of them are updated. With a clause
+  [concl + k <= max(p, q)], a cycle through [p] gives no loop, as [concl] can be below [q]: the
+  first update by a clause with several premises gives [NoCycle]. *)
+type cycle_check =
+  | NoCycleCheck
+  | CycleRoot of Index.t
+  | NoCycle
+  | PositiveCycle
+
+(** [update_cycle cyc concl cls] is the state after an update of [concl] by one of the clauses [cls]
+  from the same premise, conservatively assuming that a clause with several premises caused it *)
+let update_cycle cyc concl cls =
+  match cyc with
+  | CycleRoot root ->
+    if PartialClausesOf.exists (fun (_, prems) -> Option.has_some prems) cls then NoCycle
+    else if Index.equal concl root then PositiveCycle
+    else cyc
+  | NoCycleCheck | NoCycle | PositiveCycle -> cyc
+
 let check_model_clauses_of_aux m prem premv concl cls =
   PartialClausesOf.fold (fun cls m ->
     let (conclk, prems) = cls in
@@ -1281,27 +1305,28 @@ let check_model_clauses_of_aux m prem premv concl cls =
 let find_bwd idx cls = ForwardClauses.PMap.find_opt idx cls
 
 (** Check a set of forward clauses *)
-let check_model_fwd_clause_aux ?early_stop prem (fwd : ForwardClauses.t) (acc : PSet.t * model) : PSet.t * model =
+let check_model_fwd_clause_aux ?early_stop prem (fwd : ForwardClauses.t) (acc : PSet.t * model * cycle_check) =
   let open ForwardClauses in
   let check () =
-    IntMap.fold (fun premk fwd acc ->
-      let premv = get_model_value (snd acc) prem premk in
-      PMap.fold (fun concl fwd (* (prem + premk), premises -> concl + k *) (wcls, m as acc) ->
+    IntMap.fold (fun premk fwd (_, m, _ as acc) ->
+      let premv = get_model_value m prem premk in
+      PMap.fold (fun concl fwd (* (prem + premk), premises -> concl + k *) (wcls, m, cyc as acc) ->
+        if cyc == PositiveCycle then acc else
         let can = repr m concl in
         let m' = check_model_clauses_of_aux m (prem, premk) premv can fwd in
         if m == m' then (* not modifed *) acc
-        else (PSet.add can.canon wcls, m')) fwd acc)
+        else (PSet.add can.canon wcls, m', update_cycle cyc can.canon fwd)) fwd acc)
       fwd acc
   in
   match early_stop with
   | None -> check ()
   | Some (can, k) ->
-      let (_, m) = acc in
+      let (_, m, _) = acc in
       IntMap.iter (fun premk fwd ->
         match find_bwd can.canon fwd with
         | None -> ()
         | Some cls ->
-          let premv = get_model_value (snd acc) prem premk in
+          let premv = get_model_value m prem premk in
           PartialClausesOf.iter (fun cls ->
             match update_value premv can m cls with
             | None -> ()
@@ -1309,13 +1334,14 @@ let check_model_fwd_clause_aux ?early_stop prem (fwd : ForwardClauses.t) (acc : 
             cls) fwd;
         check ()
 
-let check_model_fwd_aux ?early_stop (cls, m) : PSet.t * model =
-  CanSet.fold (fun can fwd m -> check_model_fwd_clause_aux ?early_stop can fwd m) cls (PSet.empty, m)
+let check_model_fwd_aux ?early_stop cyc (cls, m) : PSet.t * model * cycle_check =
+  CanSet.fold (fun can fwd acc -> check_model_fwd_clause_aux ?early_stop can fwd acc) cls (PSet.empty, m, cyc)
 
-let check_clauses_with_premises ?early_stop (cls : CanSet.t) model : (PSet.t * model) option =
-  let (updates, model') = check_model_fwd_aux ?early_stop (cls, model) in
+(** The updates, see [cycle_check] *)
+let check_clauses_with_premises_cycle ?early_stop cyc (cls : CanSet.t) model : (PSet.t * model * cycle_check) option =
+  let (_, model', _ as res) = check_model_fwd_aux ?early_stop cyc (cls, model) in
   if model == model' then None
-  else Some (updates, model')
+  else Some res
 
 type 'a result = Loop | Model of 'a * model
 
@@ -1369,58 +1395,65 @@ let add_fwd_clause m w cls =
 (* If early_stop is given, check raises FoundImplication as soon as
    it finds that the given atom is true *)
 
-(* model is a model for the clauses outside cls *)
-let check_canset ?early_stop model ?(w=PSet.empty) (cls : CanSet.t) =
+(* model is a model for the clauses outside cls.
+   With [cycle], see [cycle_check], a new raise of its root answers [Loop] *)
+let check_canset ?early_stop ?(cycle=NoCycleCheck) model ?(w=PSet.empty) (cls : CanSet.t) =
+  let check_clauses cyc cls m = check_clauses_with_premises_cycle ?early_stop cyc cls m in
   let cV = canonical_cardinal model in
   debug_check_invariants model;
-  let rec inner_loop w cardW premconclw conclw m =
+  let rec inner_loop w cardW premconclw conclw m cyc =
     (* Should consider only clauses with conclusions in w *)
     (* Partition the clauses according to the presence of w in the premises *)
     (* Warning: m is not necessarily a model for w *)
-    let rec inner_loop_partition w cardW premconclw conclw m =
-      match loop ~inner:true cardW PSet.empty premconclw m with
+    let rec inner_loop_partition w cardW premconclw conclw m cyc =
+      match loop ~inner:true cardW PSet.empty premconclw m cyc with
       | Loop -> Loop
-      | Model (wr, mr) ->
+      | Model ((wr, cyc), mr) ->
         (* This is only necessary when clauses do have multiple premises,
            otherwise each clause is either in premconclw and already considered
            or in conclw but then the premise cannot be updated and this is useless work *)
-        (match check_clauses_with_premises ?early_stop conclw mr with
-        | Some (_wconcl, mconcl) ->
-          inner_loop_partition w cardW premconclw conclw mconcl
-        | None -> Model (wr, mr))
+        (match check_clauses cyc conclw mr with
+        | Some (_, _, PositiveCycle) -> Loop
+        | Some (_wconcl, mconcl, cyc) ->
+          inner_loop_partition w cardW premconclw conclw mconcl cyc
+        | None -> Model ((wr, cyc), mr))
       in
-      inner_loop_partition w cardW premconclw conclw m
-  and loop ?(inner=false) cV winit (cls : CanSet.t) m =
+      inner_loop_partition w cardW premconclw conclw m cyc
+  and loop ?(inner=false) cV winit (cls : CanSet.t) m cyc =
     (* An inner loop on [w] is given all the clauses whose conclusion and premises are in [w]
        (MetaRocq's [cls ⇂ W]) and only considers them: the forward clauses of the universes it
        updates could conclude outside [w], while it reports a loop only when all the universes
        of [w] are updated *)
     let add_fwd_clause m w cls = if inner then cls else add_fwd_clause m w cls in
-    match check_clauses_with_premises ?early_stop cls m with
-    | None -> Model (cls, m)
-    | Some (wupd, m) ->
+    match check_clauses cyc cls m with
+    | None -> Model ((cls, cyc), m)
+    | Some (_, _, PositiveCycle) -> Loop
+    | Some (wupd, m, cyc) ->
       let w = PSet.union winit wupd in
       let cardW = PSet.cardinal w in
       if Int.equal cardW cV then Loop
       else begin
         let cls = add_fwd_clause m wupd cls in
         let (premconclw, conclw, premw) = partition_clauses_fwd m w cls in
-        (match inner_loop w cardW premconclw conclw m with
+        (match inner_loop w cardW premconclw conclw m cyc with
         | Loop -> Loop
-        | Model (wc, mc) ->
+        | Model ((wc, cyc), mc) ->
           (* wc is a subset of w *)
-          (match check_clauses_with_premises ?early_stop premw mc with
-          | None -> Model (wc, mc)
-          | Some (w', mcls) ->
+          (match check_clauses cyc premw mc with
+          | None -> Model ((wc, cyc), mc)
+          | Some (_, _, PositiveCycle) -> Loop
+          | Some (w', mcls, cyc) ->
             let cls = add_fwd_clause mcls w' cls in
-            loop ~inner cV (PSet.union w w') cls mcls))
+            loop ~inner cV (PSet.union w w') cls mcls cyc))
       end
   in
-  loop cV w cls model
+  match loop cV w cls model cycle with
+  | Loop -> Loop
+  | Model ((cls, _), m) -> Model (cls, m)
 
-let check ?early_stop model w =
+let check ?early_stop ?cycle model w =
   let cls = add_fwd_clause model w CanSet.empty in
-  check_canset ?early_stop model ~w cls
+  check_canset ?early_stop ?cycle model ~w cls
 
 let expr_value m (can, k) = add_opt (canonical_value m can) (- k)
 
@@ -1471,8 +1504,8 @@ let add_can_clause_model m ((prems, (canl, conclk)) : can_clause) : (can_clause 
       prems m'
   in Some ((prems', refresh_can_expr m' (canl', conclk)), m')
 
-let infer_clauses_extension cans m =
-  match check m cans with
+let infer_clauses_extension ?cycle cans m =
+  match check ?cycle m cans with
   | Loop -> None
   | Model (_updates, model) ->
     debug_check_invariants model;
@@ -1755,17 +1788,17 @@ let update_can_premises model prem =
   Premises.fold_ne f (g model) prem
 
 
-let update_model ((prems, (can, k)) : can_clause) (m : model) : PSet.t * model =
+let update_model cyc ((prems, (can, k)) : can_clause) (m : model) : PSet.t * model * cycle_check =
   match update_can_premises (m, CanSet.empty) prems with
-  | exception VacuouslyTrue -> (PSet.empty, m)
+  | exception VacuouslyTrue -> (PSet.empty, m, cyc)
   | ((m', canset), k0) ->
     let m' = update_model_value m' can (Some (k + k0)) in
     if m' != m then
       let canset = CanSet.add can.canon can.clauses_fwd canset in
-      match check_clauses_with_premises canset m' with
-      | Some (modified, wm) -> (modified, wm)
-      | None -> (PSet.empty, m')
-    else (PSet.empty, m)
+      match check_clauses_with_premises_cycle cyc canset m' with
+      | Some res -> res
+      | None -> (PSet.empty, m', cyc)
+    else (PSet.empty, m, cyc)
 
 let infer_clause_extension cl minit =
   debug_loop_checking Pp.(fun () -> str "infer_clause_extension " ++ pr_clause (pr_can_expr minit) cl);
@@ -1776,8 +1809,11 @@ let infer_clause_extension cl minit =
     match add_can_clause_model minit cl with
     | None -> (* The clause was already present in the model *)
       Some minit
-    | Some (cl, m) ->
-      let cans, m = update_model cl m in
+    | Some ((_, (concl, _)) as cl, m) ->
+      (* [minit] is a model of the other clauses: only the conclusion of [cl] is raised *)
+      match update_model (CycleRoot concl.canon) cl m with
+      | _, _, PositiveCycle -> None
+      | cans, m, cycle ->
       if PSet.is_empty cans then begin
         (* The clause is already true in the current model,
           but might not be in an extension, so we keep it *)
@@ -1785,7 +1821,7 @@ let infer_clause_extension cl minit =
       end else
         (* The clauses are not valid in the current model, we have to find a new one *)
         (* debug Pp.(fun () -> str"Enforcing clauses requires a new inference"); *)
-        match infer_clauses_extension cans m with
+        match infer_clauses_extension ~cycle cans m with
         | None ->
           debug_loop_checking Pp.(fun () -> str"infer_clause_extension found loop");
           None
@@ -2194,9 +2230,15 @@ let enforce_clauses cls m =
   | Some (m, added, raised) ->
     let m =
       if PSet.is_empty raised then Some m else
-      match check_clauses_with_premises (add_fwd_clause m raised CanSet.empty) m with
+      (* [m] is a model of the clauses whose conclusion is not raised: from a single raised
+         universe, a positive cycle of single-premise clauses through it is found at once *)
+      let cycle =
+        if Int.equal (PSet.cardinal raised) 1 then CycleRoot (PSet.choose raised) else NoCycleCheck
+      in
+      match check_clauses_with_premises_cycle cycle (add_fwd_clause m raised CanSet.empty) m with
       | None -> Some m
-      | Some (modified, m) -> infer_clauses_extension modified m
+      | Some (_, _, PositiveCycle) -> None
+      | Some (modified, m, cycle) -> infer_clauses_extension ~cycle modified m
     in
     let merge (m, equivs) (prems, concl) =
       let concl = refresh_can_expr_can m concl in
