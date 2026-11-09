@@ -7,6 +7,7 @@ import re
 import argparse
 import os
 import math
+import json
 from io import open
 
 # This script parses the output of `make TIMED=1` into a dictionary
@@ -88,6 +89,12 @@ def add_include_mem(parser):
         '--no-include-mem', dest='include_mem', default=True, action='store_false',
         help=(r'''Don't include memory in the table.'''))
 
+def add_json(parser):
+    return parser.add_argument(
+        '--json', action='store_true', dest='json', default=False,
+        help=(r'''Parse the input as a dune trace file (line-delimited JSON as
+produced by `dune trace cat`) rather than a `make TIMED=1` build log.'''))
+
 # N.B. We need to include default=None for nargs='*', c.f., https://bugs.python.org/issue28609#msg280180
 def add_file_name_gen(parser, prefix='', descr='file containing the build log', stddir='in', defaults=None, **kwargs):
     extra = ('' if defaults is None else ' (defaults to %s if no argument is passed)' % defaults)
@@ -167,6 +174,44 @@ def get_times_and_mems(file_name, use_real=False, include_mem=True):
     lines = get_file(file_name)
     return merge_dicts(get_times_of_lines(lines, use_real=use_real),
                        (get_mems_of_lines(lines) if include_mem else None))
+
+def get_times_and_mems_from_trace(file_name, use_real=False, include_mem=True):
+    '''
+    Reads the contents of file_name, which should be a dune trace file
+    (as produced by `dune trace cat`), and parses it to construct a dict
+    mapping .vo file names to compile durations, as strings, and peak
+    memory usage.  Uses the events with cat=process, name=finish and a
+    `.vo` file in the target_files of their args, keyed by the `.vo`
+    file name.
+    '''
+    stats = dict()
+    for line in get_file_lines(file_name):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if event.get('cat') != 'process' or event.get('name') != 'finish':
+            continue
+        args = event.get('args') or {}
+        vo_files = [f for f in args.get('target_files', []) if f.endswith('.vo')]
+        if not vo_files:
+            continue
+        name = vo_files[0]
+        dir = args.get('dir')
+        if dir and name.startswith(dir + os.sep):
+            name = name[len(dir) + 1:]
+        rusage = args.get('rusage') or {}
+        user_seconds = rusage.get('user_cpu_time', 0) / 1e9
+        real_seconds = event.get('dur', user_seconds)
+        seconds = real_seconds if use_real else user_seconds
+        data = {TIME_KEY: reformat_time_string('%.2f' % seconds)}
+        if include_mem:
+            data[MEM_KEY] = int(rusage.get('maxrss', 0))
+        stats[name] = data
+    return stats
 
 def get_mems(file_name):
     '''
