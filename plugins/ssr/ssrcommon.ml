@@ -585,9 +585,9 @@ let abs_cterm env sigma n c0 =
     i :: dl, mkProd (x, strip i t, c2)
   | LetIn (x, b, t, c1) when i < j ->
     let _, _, c1' = destProd sigma c1 in
-    let dl, c2 = strip_ndeps j (i + 1) c1' in
+    let dl, c2 = strip_ndeps j (i + 1) (Vars.lift (-1) c1') in
     if Vars.noccurn sigma 1 c2 then dl, Vars.lift (-1) c2 else
-    i :: dl, mkLetIn (x, strip i b, strip i t, c2)
+    dl, mkLetIn (x, strip i b, strip i t, c2)
   | _ -> [], strip i c in
   let rec strip_evars i c = match EConstr.kind sigma c with
     | Lambda (x, t1, c1) when i < n ->
