@@ -64,7 +64,14 @@ let case_tac dep names tac (ind, u, args as spec) c =
       let (l1,l2),l3 =
         if n1 < n2 then List.chop n1 branchnames, []
         else (branchnames, []), List.make (n1-n2) false in
-      (intro_patterns false l1) <*> (intros_clearing l3) <*> (elim_on_ba (tac l2) n1)
+      Proofview.Goal.enter begin fun gl ->
+        let old = Proofview.Goal.env gl in
+        (intro_patterns false l1) <*> (intros_clearing l3) <*>
+        Proofview.Goal.enter begin fun gl ->
+          let is_new d = not (Environ.mem_named (Context.Named.Declaration.get_id d) old) in
+          tac l2 (List.rev (List.filter is_new (Proofview.Goal.hyps gl)))
+        end
+      end
     in
     let branchtacs = List.init (Array.length branchsigns) after_tac in
     general_elim_using (Case dep) spec c <*>
