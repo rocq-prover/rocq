@@ -3,19 +3,18 @@ CONTEXT SUMMARY
 ===============
 
 * Theory: Set is predicative
-  
+
 * Theory: Rewrite rules are not allowed
-  
+
 * Axioms: <none>
-  
+
 * Constants/Inductives relying on type-in-type: <none>
-  
+
 * Constants/Inductives relying on unsafe (co)fixpoints: <none>
-  
+
 * Inductives whose positivity is assumed: <none>
-  
+
 * Inductives relying on indices not mattering:
     Corelib.Init.Datatypes.eq_true
-    indices_matter.M.X
+    indices_matter.F.X
     Corelib.Init.Logic.eq
-  

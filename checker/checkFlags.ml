@@ -12,13 +12,35 @@ open Declarations
 
 let axiom_free = ref false
 
-let flags_are_safe flags =
-  flags.check_guarded && flags.check_positive && flags.check_universes &&
-  flags.check_eliminations && not flags.allow_uip
+type unsafe_flags = {
+  unguarded : bool;
+  nonpositive : bool;
+  typeintype : bool;
+  badelims : bool;
+  indices_nomatter : bool;
+  uip : bool;
+}
 
-let check_axiom_free flags =
-  if !axiom_free && not (flags_are_safe flags) then
-    CErrors.user_err Pp.(str "Axioms or unsafe features found (-axiom-free).")
+let flags_are_safe ~isind flags =
+  let indices_nomatter = match isind with
+    | None -> false
+    | Some mib ->
+      not flags.indices_matter &&
+      Array.exists (fun mip -> mip.mind_relies_on_indices_not_mattering) mib.mind_packets
+  in
+  let unsafe = {
+    unguarded = not flags.check_guarded;
+    nonpositive = not flags.check_positive && Option.has_some isind;
+    typeintype = not flags.check_universes;
+    badelims = not flags.check_eliminations;
+    indices_nomatter;
+    uip = flags.allow_uip && Option.has_some isind;
+  }
+  in
+  if unsafe.unguarded || unsafe.nonpositive || unsafe.typeintype || unsafe.badelims ||
+     indices_nomatter || unsafe.uip
+  then Some unsafe
+  else None
 
 let set_local_flags flags env =
   (* Explicitly ignored flags are set to not change *)
@@ -48,7 +70,3 @@ let set_local_flags flags env =
    this rather than the environment's flag when deciding whether to recompile
    the VM bytecode of a library. *)
 let enable_vm = ref false
-
-let is_axiom_free env axioms =
-  let primitive c = Environ.is_primitive_type env (Names.Constant.make1 c) in
-  List.for_all primitive axioms && not (Environ.rewrite_rules_allowed env)
