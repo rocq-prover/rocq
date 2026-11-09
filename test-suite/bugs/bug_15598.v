@@ -27,3 +27,14 @@ Proof.
 rewrite -[0]/(r (widen (from (Phantom _ 0)) : def false)).
 Fail rewrite -[0]/(r (@Def false 0 _)).
 Abort.
+
+Lemma test_unfold x : x = 0.
+Proof.
+rewrite [0]/(r (widen (from (Phantom _ 0)) : def false)).
+Abort.
+
+Lemma test_unfold_holes x : x = 0.
+Proof.
+rewrite [0]/(r (@Def false 0 _)).
+Fail rewrite [0]/(r (@widen _ (@Def false 0 _) false _)).
+Abort.

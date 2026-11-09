@@ -313,12 +313,22 @@ let unfoldintac occ rdx t (kt,_) =
                 str" contains no " ++ pr_econstr_env env sigma t ++ str" even after unfolding")
           in aux c
       else
-        try
-          (* [us] extends the universe state of [sigma] *)
-          let sigma = unify_HO env (Evd.set_ustate sigma us) c t in
-          body env t (fs sigma t), Evd.ustate sigma
-        with e when CErrors.noncritical e -> errorstrm Pp.(str "The term " ++
-          pr_econstr_env env sigma c ++spc()++ str "does not unify with " ++ pr_econstr_pat env sigma t)),
+        let sigma' =
+          try
+            (* [us] extends the universe state of [sigma] *)
+            unify_HO env (Evd.set_ustate sigma us) c t
+          with e when CErrors.noncritical e -> errorstrm Pp.(str "The term " ++
+            pr_econstr_env env sigma c ++spc()++ str "does not unify with " ++ pr_econstr_pat env sigma t)
+        in
+        let sigma' = resolve_typeclasses env sigma' ~where:t ~fail:false in
+        let t' = fs sigma' t in
+        let c' = Tacred.unfoldn [AllOccurrences, get_evalref env sigma' t'] env sigma' t' in
+        let c' = Reductionops.clos_norm_flags red_flags env sigma' c' in
+        let evs = Evarutil.undefined_evars_of_term sigma' c' in
+        if Evar.Set.exists (fun k -> not (Evd.mem sigma0 k)) evs then
+          errorstrm Pp.(str "unfold pattern " ++ pr_econstr_pat env sigma' t' ++ spc ()
+                        ++ str "has uninstantiated existential variables");
+        c', Evd.ustate sigma'),
     ignore in
   let concl = beta env0 (fst (eval_pattern env0 sigma0 concl0 rdx occ unfold)) in
   let () = conclude () in
