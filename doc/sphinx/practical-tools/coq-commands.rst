@@ -324,7 +324,7 @@ Command line options
 The following command-line options are recognized by the commands ``rocq compile``
 and ``rocq repl``, unless stated otherwise:
 
-:-I *directory*, -include *directory*: Add physical path *directory*
+- :n:`-I directory`, :n:`-include directory`: Add physical path *directory*
   to the OCaml loadpath, which is needed to load OCaml object code files
   (``.cmo`` or ``.cmxs``).  Subdirectories are not included.
   See the command :cmd:`Declare ML Module`.
@@ -340,7 +340,7 @@ and ``rocq repl``, unless stated otherwise:
 
 .. _-Q-option:
 
-:-Q *directory dirpath*: Makes the `.vo` files in a :term:`package` available for
+- :n:`-Q directory dirpath`: Makes the `.vo` files in a :term:`package` available for
   loading with the :cmd:`Require` command by adding new entries to the :term:`load path`.
   The entries map the
   :term:`logical path` *dirpath* to the physical path *directory*.  Then Rocq
@@ -363,35 +363,35 @@ and ``rocq repl``, unless stated otherwise:
 
   The added loadpath is considered local, see :cmd:`Print LoadPath`.
 
-:-R *directory dirpath*: Similar to ``-Q`` *directory dirpath*, but allows using
+- :n:`-R directory dirpath`: Similar to :n:`-Q directory dirpath`, but allows using
   :cmd:`Require` with a partially qualified name (i.e. without a `From` clause).
 
-:-package *dependency*: automatically adds the necessary ``-Q`` and ``-I``
+- :n:`-package dependency`: automatically adds the necessary `-Q` and `-I`
   arguments to be able to work with the Rocq package *dependency* (defined in
   terms of an ``ocamlfind`` package) and its transitive dependencies.  See
   :ref:`rocqfind` and :ref:`rocq_package_layout`.
 
-:-top *dirpath*: Set the logical module name to :n:`@dirpath` for the
+- :n:`-top dirpath`: Set the logical module name to :n:`@dirpath` for the
   `rocq repl` interactive session. If no module name is specified,
   `rocq repl` will default to ``Top``. `rocq compile` does not accept this option
   because the logical module name is inferred from the name of
   the input file and the corresponding `-R` / `-Q` options.
-:-exclude-dir *directory*: Exclude any subdirectory named *directory*
+- :n:`-exclude-dir directory`: Exclude any subdirectory named *directory*
   while processing options such as -R and -Q. By default, only the
   conventional version control management directories named ``CVS``
   and ``_darcs`` are excluded.
-:-nois, -noinit: Start from an empty state instead of loading the `Init.Prelude`
+- :n:`-nois`, :n:`-noinit`: Start from an empty state instead of loading the `Init.Prelude`
   module.
-:-boot: don't automatically setup Corelib and ocamlfind paths (see :ref:`system_config`)
-:-init-file *file*: Load *file* as the resource file instead of
+- :n:`-boot`: don't automatically setup Corelib and ocamlfind paths (see :ref:`system_config`)
+- :n:`-init-file file`: Load *file* as the resource file instead of
   loading the default resource file from the standard configuration
   directories.
-:-q: Do not to load the default resource file.
-:-l *file*, -load-vernac-source *file*: Load and execute the Rocq
+- :n:`-q`: Do not to load the default resource file.
+- :n:`-l file`, :n:`-load-vernac-source file`: Load and execute the Rocq
   script from *file.v*.
-:-require *qualid*: Load Rocq compiled library :n:`@qualid`.
+- :n:`-require @qualid`: Load Rocq compiled library :n:`@qualid`.
   This is equivalent to running :cmd:`Require` :n:`@qualid`
-  (note: the short form `-r *qualid*` is intentionally not provided to
+  (note: the short form :n:`-r @qualid` is intentionally not provided to
   prevent the risk of collision with `-R`).
 
   .. _interleave-command-line:
@@ -405,34 +405,34 @@ and ``rocq repl``, unless stated otherwise:
      :cmd:`Unset` commands will be executed in the order specified on
      the command-line.
 
-:-ri *qualid*, -require-import *qualid*: Load Rocq compiled library :n:`@qualid` and import it.
+- :n:`-ri @qualid`, :n:`-require-import @qualid`: Load Rocq compiled library :n:`@qualid` and import it.
   This is equivalent to running :cmd:`Require Import` :n:`@qualid`.
   See the :ref:`note above <interleave-command-line>` regarding the order
   of command-line options.
-:-re *qualid*, -require-export *qualid*: Load Rocq compiled library :n:`@qualid` and transitively import it.
+- :n:`-re @qualid`, :n:`-require-export @qualid`: Load Rocq compiled library :n:`@qualid` and transitively import it.
   This is equivalent to running :cmd:`Require Export` :n:`@qualid`.
   See the :ref:`note above <interleave-command-line>` regarding the order
   of command-line options.
-:-rfrom *dirpath qualid*, -require-from *dirpath qualid*: Load Rocq compiled library :n:`@qualid`.
+- :n:`-rfrom dirpath @qualid`, :n:`-require-from dirpath @qualid`: Load Rocq compiled library :n:`@qualid`.
   This is equivalent to running :cmd:`From <From … Require>`
   :n:`@dirpath` :cmd:`Require <From … Require>` :n:`@qualid`.
   See the :ref:`note above <interleave-command-line>` regarding the order
   of command-line options.
-:-rifrom *dirpath qualid*, -require-import-from *dirpath qualid*:
+- :n:`-rifrom dirpath @qualid`, :n:`-require-import-from dirpath @qualid`:
   Load Rocq compiled library :n:`@qualid` and import it.  This is
   equivalent to running :cmd:`From <From … Require>` :n:`@dirpath`
   :cmd:`Require Import <From … Require>` :n:`@qualid`.  See the
   :ref:`note above <interleave-command-line>` regarding the order of
   command-line options.
-:-refrom *dirpath qualid*, -require-export-from *dirpath qualid*:
+- :n:`-refrom dirpath @qualid`, :n:`-require-export-from dirpath @qualid`:
   Load Rocq compiled library :n:`@qualid` and transitively import it.
   This is equivalent to running :cmd:`From <From … Require>`
   :n:`@dirpath` :cmd:`Require Export <From … Require>` :n:`@qualid`.
   See the :ref:`note above <interleave-command-line>` regarding the
   order of command-line options.
-:-load-vernac-object *qualid*: Obsolete synonym of :n:`-require qualid`.
-:-batch: Exit just after argument parsing. Available for ``rocq repl`` only.
-:-native-compiler (yes|no|ondemand): Enable the :tacn:`native_compute`
+- :n:`-load-vernac-object @qualid`: Obsolete synonym of :n:`-require @qualid`.
+- :n:`-batch`: Exit just after argument parsing. Available for ``rocq repl`` only.
+- :n:`-native-compiler {| yes | no | ondemand }`: Enable the :tacn:`native_compute`
   reduction machine and precompilation to ``.cmxs`` files for future use
   by :tacn:`native_compute`.
   Setting ``yes`` enables :tacn:`native_compute`; it also causes Rocq
@@ -503,49 +503,49 @@ and ``rocq repl``, unless stated otherwise:
        - none
        - none
 
-:-native-output-dir *dir*: Set the directory in which to put the aforementioned
+- :n:`-native-output-dir dir`: Set the directory in which to put the aforementioned
   ``.cmxs`` for :tacn:`native_compute`. Defaults to ``.coq-native``.
-:-output-directory *dir*, -output-dir *dir*: Sets the output directory for commands that
+- :n:`-output-directory dir`, :n:`-output-dir dir`: Sets the output directory for commands that
   write output to files, such as :ref:`extraction` commands, :cmd:`Redirect` and :cmd:`Print Universes`.
-:-vos: Indicate Rocq to skip the processing of opaque proofs
+- :n:`-vos`: Indicate Rocq to skip the processing of opaque proofs
   (i.e., proofs ending with :cmd:`Qed` or :cmd:`Admitted`), output a ``.vos`` files
   instead of a ``.vo`` file, and to load ``.vos`` files instead of ``.vo`` files
   when interpreting :cmd:`Require` commands.
-:-vok: Indicate Rocq to check a file completely, to load ``.vos`` files instead
+- :n:`-vok`: Indicate Rocq to check a file completely, to load ``.vos`` files instead
   of ``.vo`` files when interpreting :cmd:`Require` commands. No ``.vo`` file is written.
-:-w (all|none|w₁,…,wₙ): Configure the display of warnings. This
+- :n:`-w {| all | none | w₁,…,wₙ }`: Configure the display of warnings. This
   option expects all, none or a comma-separated list of warning names or
   categories (see Section :ref:`controlling-display`).
-:-color (on|off|auto):  Enable or disable color output.
+- :n:`-color {| on | off | auto }`:  Enable or disable color output.
   Default is auto, meaning color is shown only if
   the output channel supports ANSI escape sequences.
-:-diffs (on|off|removed): *Rocq repl only*.  Controls highlighting of differences
+- :n:`-diffs {| on | off | removed }`: *Rocq repl only*.  Controls highlighting of differences
   between proof steps.  ``on`` highlights added tokens, ``removed`` highlights both added and
   removed tokens.  Requires that ``-color`` is enabled.  (see Section
   :ref:`showing_diffs`).
-:-beautify: Pretty-print each command to *file.beautified* when
+- :n:`-beautify`: Pretty-print each command to *file.beautified* when
   compiling *file.v*. Very buggy.
-:-emacs, -ide-slave: Start a special toplevel to communicate with a
+- :n:`-emacs`, :n:`-ide-slave`: Start a special toplevel to communicate with a
   specific IDE.
-:-impredicative-set: Change the logical theory of Rocq by declaring the
-   sort :g:`Set` impredicative.
+- :n:`-impredicative-set`: Change the logical theory of Rocq by declaring the
+  sort :g:`Set` impredicative.
 
-   .. warning::
+  .. warning::
 
-      This is known to be inconsistent with some
-      standard axioms of classical mathematics such as the functional
-      axiom of choice or the principle of description.
-:-type-in-type: Collapse the universe hierarchy of Rocq.
+     This is known to be inconsistent with some standard axioms of
+     classical mathematics such as the functional axiom of choice or
+     the principle of description.
+- :n:`-type-in-type`: Collapse the universe hierarchy of Rocq.
 
   .. warning:: This makes the logic inconsistent.
-:-mangle-names *ident*: *Experimental.* Do not depend on this option. Replace
+- :n:`-mangle-names @ident`: *Experimental.* Do not depend on this option. Replace
   Rocq's auto-generated name scheme with names of the form *ident0*, *ident1*,
   etc. Within Rocq, the :flag:`Mangle Names` flag turns this behavior on,
   and the :opt:`Mangle Names Prefix` option sets the prefix to use. This feature
   is intended to be used as a linter for developments that want to be robust to
   changes in the auto-generated name scheme. The options are provided to
   facilitate tracking down problems.
-:-set *string*: Enable flags and set options. *string* should be
+- :n:`-set string`: Enable flags and set options. *string* should be
    :n:`@setting_name=value`, the value is interpreted according to the
    type of the option. For flags :n:`@setting_name` is equivalent to
    :n:`@setting_name=true`. For instance ``-set "Universe Polymorphism"``
@@ -553,13 +553,13 @@ and ``rocq repl``, unless stated otherwise:
    shell syntax, Rocq does not see them.
    See the :ref:`note above <interleave-command-line>` regarding the order
    of command-line options.
-:-unset *string*: As ``-set`` but used to disable options and flags.
+- :n:`-unset string`: As ``-set`` but used to disable options and flags.
   *string* must be :n:`"@setting_name"`.
   See the :ref:`note above <interleave-command-line>` regarding the order
   of command-line options.
-:-compat *version*: same as ``-compat-from Stdlib Rocq<version>``
+- :n:`-compat version`: same as ``-compat-from Stdlib Rocq<version>``
   (or ``Rocq`` when version is ``8.*``)
-:-compat-from *root* *library*: Loads a file that sets a few options to maintain
+- :n:`-compat-from root library`: Loads a file that sets a few options to maintain
   partial backward-compatibility with a previous version. This is
   equivalent to ``-require-import-from <root> <library>``
   except that a non existing file only produces a warning (so that the option can
@@ -568,27 +568,26 @@ and ``rocq repl``, unless stated otherwise:
   <interleave-command-line>` regarding the order of command-line
   options apply, and this could be relevant if you are resetting some
   of the compatibility options.
-:-dump-glob *file*: Dump references for global names in file *file*
+- :n:`-dump-glob file`: Dump references for global names in file *file*
   (to be used by rocq doc, see :ref:`rocqdoc`). By default, if *file.v* is being
   compiled, *file.glob* is used.
-:-no-glob: Disable the dumping of references for global names.
-:-image *file*: Set the binary image to be used by ``rocq compile`` to be *file*
-  instead of the standard one. Not of general use.
-:-bindir *directory*: Set the directory containing Rocq binaries to be
+- :n:`-no-glob`: Disable the dumping of references for global names.
+- :n:`-image file`: Deprecated noop.
+- :n:`-bindir directory`: Set the directory containing Rocq binaries to be
   used by ``rocq compile``. It is equivalent to doing export COQBIN= *directory*
   before launching ``rocq compile``.
-:-where: Print the location of Rocq’s standard library and exit.
-:-config: Print the locations of Rocq’s binaries, dependencies, and
+- :n:`-where`: Print the location of Rocq’s standard library and exit.
+- :n:`-config`: Print the locations of Rocq’s binaries, dependencies, and
   libraries, then exit.
-:-filteropts: Print the list of command line arguments that `rocq repl` has
+- :n:`-filteropts`: Print the list of command line arguments that `rocq repl` has
   recognized as options and exit.
-:-v: Print Rocq’s version and exit.
-:-list-tags: Print the highlight tags known by Rocq as well as their
+- :n:`-v`: Print Rocq’s version and exit.
+- :n:`-list-tags`: Print the highlight tags known by Rocq as well as their
   currently associated color and exit.
-:-h, --help: Print a short usage and exit.
-:-time: Output timing information for each command to standard output.
-:-time-file *file*: Output timing information for each command to the given file.
-:-profile *file*: Output :ref:`profiling` information to the given file.
+- :n:`-h`, :n:`--help`: Print a short usage and exit.
+- :n:`-time`: Output timing information for each command to standard output.
+- :n:`-time-file file`: Output timing information for each command to the given file.
+- :n:`-profile file`: Output :ref:`profiling` information to the given file.
 
 .. _profiling:
 
@@ -779,17 +778,17 @@ Command-line options ``-Q``, ``-R``, ``-where`` and ``-impredicative-set`` are s
 by ``rocqchk`` and have the same meaning as for ``rocq repl``. As there is no notion of
 relative paths in object files ``-Q`` and ``-R`` have exactly the same meaning.
 
-:-norec *module*: Check *module* but do not check its dependencies.
-:-admit *module*: Do not check *module* and any of its dependencies,
+- :n:`-norec module`: Check *module* but do not check its dependencies.
+- :n:`-admit module`: Do not check *module* and any of its dependencies,
   unless explicitly required.
-:-o: At exit, print a summary about the context. List the names of all
+- :n:`-o`: At exit, print a summary about the context. List the names of all
   assumptions and variables (constants without a :term:`body`).
-:-axiom-free: Return a nonzero exit code for axioms (including admitted proofs),
+- :n:`-axiom-free`: Return a nonzero exit code for axioms (including admitted proofs),
   disabled safety checks, definitional UIP, or enabled rewrite rules. Axiom discovery
   uses the same analysis as ``-o`` without enabling its output. Kernel primitives
   and impredicative ``Set`` are accepted; ``-admit`` and ``-norec`` retain their trust
   assumptions. The default exit-status policy is unchanged.
-:-silent: Do not write progress information to the standard output.
+- :n:`-silent`: Do not write progress information to the standard output.
 
 Environment variable ``$ROCQLIB`` can be set to override the location of
 the standard library.
