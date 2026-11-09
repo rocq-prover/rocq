@@ -140,9 +140,12 @@ let define_with_type sigma env ev c =
   let ty = Retyping.get_type_of env sigma c in
   let j = Environ.make_judge c ty in
   let (sigma, j, _trace) = Coercion.inh_conv_coerce_to ~program_mode:false ~resolve_tc:true env sigma j t in
-  let (ev, _) = destEvar sigma ev in
-  let sigma = Evd.define ev j.Environ.uj_val sigma in
-  sigma
+  match kind sigma ev with
+  | Evar (ev, _) -> Evd.define ev j.Environ.uj_val sigma
+  | _ ->
+    try Evarconv.unify_delay env sigma ev j.Environ.uj_val
+    with Evarconv.UnableToUnify _ ->
+      user_err Pp.(str "Binder already defined with incompatible value.")
 
 let solve_evar_clause env sigma hyp_only clause = function
 | NoBindings -> sigma
