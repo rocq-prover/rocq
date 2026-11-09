@@ -1074,7 +1074,22 @@ let cache_one_syntax_extension (ntn,synext) =
   (* Save the location for `Locate`: *)
   declare_ntn_gram_loc ntn synext.synext_location
 
-let cache_syntax_extension (_, sy) =
+let local_syntax_notations =
+  Summary.ref ~stage:Summary.Stage.Synterp ~name:"LOCAL-SYNTAX-NOTATIONS" NotationSet.empty
+
+let is_local_syntax ntn =
+  let open Summary.Ref in
+  NotationSet.mem ntn !local_syntax_notations
+
+let cache_syntax_extension (local, (ntn, _ as sy)) =
+  let open Summary.Ref in
+  let () =
+    if not local then
+      local_syntax_notations := NotationSet.remove ntn !local_syntax_notations
+    else
+      try ignore (Notation.level_of_notation ntn)
+      with Not_found -> local_syntax_notations := NotationSet.add ntn !local_syntax_notations
+  in
   cache_one_syntax_extension sy
 
 let subst_syntax_extension (subst, (local, (ntn, synext))) =
@@ -2110,6 +2125,7 @@ let prepare_where_notation ntn_decl =
 
 let add_notation_interpretation ~local env (ntn_decl, main_data, notation_symbols, ntn, syntax_rules) =
   let { ntn_decl_string = { CAst.loc ; v = df }; ntn_decl_interp = c; ntn_decl_scope = sc } = ntn_decl in
+  let local = local || is_local_syntax ntn in
   let notation = make_notation_interpretation ~local loc main_data notation_symbols ntn syntax_rules df env c sc in
   Lib.add_leaf (inNotation notation);
   Dumpglob.dump_notation (CAst.make ?loc ntn) sc true
