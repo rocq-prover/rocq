@@ -2175,6 +2175,7 @@ let rec solve_unconstrained_evars_with_candidates flags env evd =
       | [] -> user_err Pp.(str "Unsolvable existential variables.")
       | a::l ->
           (* In case of variables, most recent ones come first *)
+          if occur_evar evd evk a then aux l else
           try
             let evd = instantiate_evar evar_unify flags env evd evk a in
             match reconsider_unif_constraints evar_unify flags evd with
