@@ -364,8 +364,10 @@ let get_sort_quality_or_set_of ?(polyprop=true) env sigma t =
 let get_sort_quality_of ?polyprop env sigma t =
   UnivGen.QualityOrSet.quality @@ get_sort_quality_or_set_of ?polyprop env sigma t
 
-let get_sort_of ?(polyprop=true) env sigma t =
-  let _,f,_ = retype ~polyprop sigma in anomaly_on_error (f env) t
+let get_sort_of ?(polyprop=true) ?(lax=false) env sigma t =
+  let _,f,_ = retype ~polyprop sigma in
+  if lax then f env t else anomaly_on_error (f env) t
+
 let type_of_global_reference_knowing_parameters env sigma c args =
   let _,_,f = retype sigma in anomaly_on_error (f env c) args
 

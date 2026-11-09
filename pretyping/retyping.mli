@@ -36,7 +36,7 @@ val get_type_of_constr : ?polyprop:bool -> ?lax:bool
   -> env -> ?uctx:UState.t -> Constr.t -> Constr.types
 
 val get_sort_of :
-  ?polyprop:bool -> env -> evar_map -> types -> ESorts.t
+  ?polyprop:bool -> ?lax:bool -> env -> evar_map -> types -> ESorts.t
 
 val get_sort_quality_or_set_of :
   ?polyprop:bool -> env -> evar_map -> types -> UnivGen.QualityOrSet.t
