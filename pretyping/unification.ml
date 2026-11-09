@@ -1836,7 +1836,11 @@ let nf_meta ~metas env sigma c =
 
 let unify_to_type ~metas env sigma flags c status u =
   let sigma, c = refresh_universes ~status:Evd.univ_flexible ~onlyalg:true (Some false) env sigma c in
-  let t = get_type_of_with_metas ~metas env sigma (nf_meta ~metas env sigma c) in
+  let c = nf_meta ~metas env sigma c in
+  let t =
+    try get_type_of_with_metas ~metas ~lax:true env sigma c
+    with RetypeError _ -> error_cannot_unify env sigma (c, u)
+  in
   let t = nf_betaiota env sigma (nf_meta ~metas env sigma t) in
   unify_0 ~metas env sigma CUMUL flags t u
 
