@@ -43,7 +43,7 @@ type full_state = {
 }
 
 let empty_full_state =
-  let empty_gstate = { GState.estate = EState.empty; kwstate = CLexer.empty_keyword_state; recover = true; has_non_assoc = false } in
+  let empty_gstate = { GState.estate = EState.empty; kwstate = CLexer.empty_keyword_state; has_non_assoc = false } in
   {
     current_state = empty_gstate;
     base_state = empty_gstate;
@@ -82,7 +82,7 @@ let modify_state_unsync f () =
   state := modify_state_unsync f !state
 
 let modify_keyword_state f =
-  modify_state_unsync (fun {estate;kwstate;recover;has_non_assoc} -> {estate; kwstate = f kwstate; recover; has_non_assoc})
+  modify_state_unsync (fun {estate;kwstate;has_non_assoc} -> {estate; kwstate = f kwstate; has_non_assoc})
     ()
 
 let make_entry_unsync make remake state =
@@ -105,22 +105,22 @@ let add_kw = { add_kw = CLexer.add_keyword_tok }
 
 let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let r = Production.make (Rule.next Rule.stop e) (fun x _ -> f x) in
-  let { GState.estate; kwstate; recover; has_non_assoc } = gstate() in
+  let { GState.estate; kwstate; has_non_assoc } = gstate() in
   let estate, entry = Entry.make "epsilon" estate in
   let ext = Fresh (Gramlib.Gramext.First, [None, None, [r]]) in
   let estate = safe_extend estate entry ext in
   let kwstate = add_extend_kws add_kw kwstate ext in
   let strm = Stream.empty () in
   let strm = Parsable.make strm in
-  try Some (Entry.parse entry strm {estate;kwstate;recover;has_non_assoc}) with e when CErrors.noncritical e -> None
+  try Some (Entry.parse entry strm {estate;kwstate;has_non_assoc}) with e when CErrors.noncritical e -> None
 
-let extend_gstate ~ignore_kw {GState.kwstate; estate; recover; has_non_assoc} e ext =
+let extend_gstate ~ignore_kw {GState.kwstate; estate; has_non_assoc} e ext =
   let estate = safe_extend estate e ext in
   let kwstate =
     if ignore_kw then kwstate
     else add_extend_kws add_kw kwstate ext
   in
-  {GState.kwstate; estate; recover; has_non_assoc}
+  {GState.kwstate; estate; has_non_assoc}
 
 (* XXX rename to grammar_extend_unsync? *)
 let grammar_extend ~ignore_kw e ext =
