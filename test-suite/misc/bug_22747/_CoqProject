@@ -1,0 +1,5 @@
+-Q theories Bug22747
+
+theories/A.v
+theories/B.v
+theories/Stale.v

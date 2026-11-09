@@ -1628,7 +1628,7 @@ let find_subentry_types from n assoc etyps symbols =
   let prec = List.map (assoc_of_type from n) sy_typs in
   sy_typs, prec
 
-let custom_entry_locality = Summary.ref ~name:"LOCAL-CUSTOM-ENTRY" CustomName.Set.empty
+let custom_entry_locality = Summary.ref ~stage:Summary.Stage.Synterp ~name:"LOCAL-CUSTOM-ENTRY" CustomName.Set.empty
 (** If the entry is present then local *)
 
 let locality_of_custom_entry s =
