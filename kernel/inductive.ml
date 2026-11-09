@@ -1816,10 +1816,12 @@ let inductive_of_mutfix ?evars env ((nvect, bodynum), (names, types, bodies as r
     let () = if not (noccur_with_meta 1 nbfix initial_context) then
       raise_err env i RecCallInFixBinderType
     in
+    let decl, ctx_tail = List.sep_first ctx in
     (* ctx has size [recarg+1], top entry is recarg *)
-    let ty = Context.Rel.Declaration.get_type (List.hd ctx) in
+    let ty = Context.Rel.Declaration.get_type decl in
     (* get the inductive type of the fixpoint *)
     let mind, _ =
+      let env = Environ.push_rel_context ctx_tail env in
       try find_inductive ?evars env ty
       with Not_found ->
         raise_err env i (RecursionNotOnInductiveType ty)
