@@ -256,7 +256,12 @@ let declare_one_induction_scheme ?loc ind =
       else elim_scheme ~dep:false ~to_kind, None)
       elims
   in
-  let elims = ((if depelim then poly_dep else poly_nodep), Some "poly_rec") :: elims
+  let is_set_target_sort = List.mem_f UnivGen.QualityOrSet.equal UnivGen.QualityOrSet.set kelim in
+  let is_impredicative_set = Environ.is_impredicative_set (Global.env()) in
+  let elims =
+    if is_impredicative_set && is_set_target_sort
+    then elims
+    else ((if depelim then poly_dep else poly_nodep), Some "poly_rec") :: elims
   in
   List.iter (fun (kind, suff) ->
       let id = match suff with
