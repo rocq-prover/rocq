@@ -2,3 +2,7 @@ File "./output/check_case_relevance.v", line 10, characters 0-92:
 The command has indeed failed with message:
 Binder (_ : "nat") has relevance mark set to irrelevant but was expected to
 be relevant (maybe a bugged tactic).
+File "./output/check_case_relevance.v", line 19, characters 0-92:
+The command has indeed failed with message:
+Binder (e : "(fun x : nat => x = 0) x") has relevance mark set to irrelevant
+but was expected to be relevant (maybe a bugged tactic).
