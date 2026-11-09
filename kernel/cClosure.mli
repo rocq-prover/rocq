@@ -22,6 +22,10 @@ type fconstr
 (** [fconstr] can be accessed by using the function [fterm_of] and by
    matching on type [fterm] *)
 
+type fid
+(** Stable cell id for the conversion cache. It holds [ConvCache.default_fid]
+    when unassigned. *)
+
 type finvert
 
 type evar_repack
@@ -57,6 +61,21 @@ type fterm =
   | FCLOS of constr * usubs
   | FIrrelevant
   | FLOCKED
+
+(* Cache for Checked Conversion *)
+
+module ConvCache : sig
+  type t
+  
+  val default_fid : fid
+
+  type cache_res = CSuccess | CFailure | CAbsent
+  type conv_pb = Conv | Cumul
+
+  val make : ?size:int -> ?max_size:int -> unit -> t
+  val find : t -> fconstr -> lift -> fconstr -> lift -> conv_pb -> cache_res
+  val insert : t -> fconstr -> lift -> fconstr -> lift -> conv_pb -> cache_res -> unit
+end
 
 (***********************************************************************
   s A [stack] is a context of arguments, arguments are pushed by
