@@ -326,7 +326,7 @@ project menhirlib "https://gitlab.inria.fr/fpottier/menhir" "master"
 ########################################################################
 # coq-neural-net-interp
 ########################################################################
-project neural_net_interp "https://github.com/JasonGross/neural-net-coq-interp" "tested"
+project neural_net_interp "https://github.com/JasonGross/neural-net-coq-interp" "main"
 # Contact @JasonGross on github
 
 ########################################################################
