@@ -1563,10 +1563,10 @@ let () = define "module_contents" (modpath @-> ret (option (list module_field)))
   let to_field (lab, f) : ModField.t = match (f:_ Declarations.structure_field_body) with
     | SFBconst _ ->
       let kn = KerName.make m lab in
-      Ref (ConstRef (Global.constant_of_delta_kn kn))
+      Ref (ConstRef (Global.constant_of_kn kn))
     | SFBmind _ ->
       let kn = KerName.make m lab in
-      Ref (IndRef ((Global.mind_of_delta_kn kn, 0)))
+      Ref (IndRef ((Global.mind_of_kn kn, 0)))
     | SFBrules _ -> Rewrule
     | SFBmodule _ -> Submodule (MPdot (m, lab))
     | SFBmodtype _ -> Submodule (MPdot (m, lab))

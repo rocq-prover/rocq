@@ -191,6 +191,11 @@ val lookup_constant_canonical :  Constant.t -> env -> KerName.t
 val evaluable_constant : Constant.t -> env -> bool
 val constant_relevance : Constant.t -> env -> Sorts.relevance
 
+(** With [lax:true] raise [Not_found], otherwise anomaly if the
+    kername is not the user name of a constant. *)
+val constant_of_kn : ?lax:bool -> env -> KerName.t -> Constant.t
+val mind_of_kn : ?lax:bool -> env -> KerName.t -> MutInd.t
+
 val mem_constant : Constant.t -> env -> bool
 
 val add_rewrite_rules : (Constant.t * machine_rewrite_rule) list -> env -> env
