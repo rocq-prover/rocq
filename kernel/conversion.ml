@@ -1016,6 +1016,8 @@ let cumul_inst qeq ~nargs cv_pb variances u1 u2 (univs as gs) =
 
 let cumul_head_instances_gen env qeq univs cv_pb head u1 u2 =
   match head with
+  (* As in [conv_table_key], equal instances do not need the variances of the head *)
+  | Some _ when UVars.Instance.equal u1 u2 -> true
   | Some (gr, nargs) ->
     let conv_inst = conv_inst qeq in
     let cumul_inst = cumul_inst qeq in
