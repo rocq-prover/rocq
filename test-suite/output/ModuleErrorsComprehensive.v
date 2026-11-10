@@ -196,10 +196,20 @@ Module VarianceMod.
 End VarianceMod.
 Fail Module VarianceTest : VarianceType := VarianceMod.
 
+Module NotEqualInductiveAliases.
+  Unset Elimination Schemes.
+  Module M1. Inductive t : Set := . End M1.
+  Module Type T. Include M1. End T.
+  Module F(X:T). Definition f : X.t -> M1.t := fun x => x. End F.
+  Module M2. Inductive t : Set := . End M2.
+  Fail Module A := F M2.
+  (* NB: if the inductive has a constructor, a type mismatch error for
+     it is waiting behind this alias error.
+     Same if the module type contains eliminators. *)
+End NotEqualInductiveAliases.
+
 (* NOTE: Some errors are not easily triggerable from this test file:
    - NoRewriteRulesSubtyping: requires -allow-rewrite-rules flag
-   - NotEqualInductiveAliases: this error checks inductive aliasing through module resolvers;
-     it may be dead code or only triggerable in very specific module functor contexts
    - IncompatibleUniverses in subtyping: tested above with Set/Type mismatch (Test4 in WithDefErrors)
    - IncompatibleQualities in subtyping: requires quality constraint conflicts during conversion
    - WithCannotConstrainPrimitive/Symbol: module types export primitives/symbols as Parameters,

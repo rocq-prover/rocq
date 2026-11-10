@@ -87,24 +87,30 @@ File "./output/ModuleErrorsComprehensive.v", line 197, characters 0-55:
 The command has indeed failed with message:
 Signature components for field I do not match:
 incompatible variance information.
-File "./output/ModuleErrorsComprehensive.v", line 214, characters 0-72:
+File "./output/ModuleErrorsComprehensive.v", line 205, characters 2-24:
+The command has indeed failed with message:
+Signature components for field t do not match:
+aliases to inductive types do not match: expected
+ModuleErrorsComprehensive.NotEqualInductiveAliases.M2.t but found
+ModuleErrorsComprehensive.NotEqualInductiveAliases.M2.t.
+File "./output/ModuleErrorsComprehensive.v", line 224, characters 0-72:
 The command has indeed failed with message:
 Incorrect constraint for label "x": expected type 
 "nat" but found type "bool"
-File "./output/ModuleErrorsComprehensive.v", line 220, characters 0-70:
+File "./output/ModuleErrorsComprehensive.v", line 230, characters 0-70:
 The command has indeed failed with message:
 Incorrect constraint for label "x": the body of definitions differs: expected
 "5" but found "10"
-File "./output/ModuleErrorsComprehensive.v", line 227, characters 0-76:
+File "./output/ModuleErrorsComprehensive.v", line 237, characters 0-76:
 The command has indeed failed with message:
 Incorrect constraint for label "x": the universe constraints are inconsistent:
 Cannot enforce big_type.u0 < Set because Set < big_type.u0 when comparing
 "Type" and "Set"
-File "./output/ModuleErrorsComprehensive.v", line 233, characters 0-71:
+File "./output/ModuleErrorsComprehensive.v", line 243, characters 0-71:
 The command has indeed failed with message:
 Incorrect constraint for label "p": incompatible polymorphic binders: got 
 @{} but expected @{u}
-File "./output/ModuleErrorsComprehensive.v", line 240, characters 0-95:
+File "./output/ModuleErrorsComprehensive.v", line 250, characters 0-95:
 The command has indeed failed with message:
 Incorrect constraint for label "b": expected type
 "ModuleErrorsComprehensive.WithAbsType.a" but found type 
