@@ -1688,8 +1688,9 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
       env
   in
   let relation, evuctx = interp_constr env_with_pre_rec_args evd r in
-  let () = check_relation_type env_with_pre_rec_args evd relation in
+  (* The relation can have fresh universes *)
   let evd = Evd.from_ustate evuctx in
+  let () = check_relation_type env_with_pre_rec_args evd relation in
   let tcc_lemma_name = add_suffix function_name "_tcc" in
   let tcc_lemma_constr = ref Undefined in
   (* let _ = Pp.msgnl (fun _ _ -> str "relation := " ++ Printer.pr_lconstr_env env_with_pre_rec_args relation) in *)
