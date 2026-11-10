@@ -42,6 +42,11 @@ val define_evar_as_product : env -> evar_map -> ?name:Names.Id.t -> existential 
 val define_evar_as_lambda : env -> evar_map -> ?name:Names.Id.t -> existential -> evar_map * types
 val define_evar_as_sort : env -> evar_map -> existential -> evar_map * ESorts.t
 
+(** [define_evar_as_inductive env sigma ev ind] refines [ev], the type of a
+    term, to the inductive type [ind] applied to fresh evars, and returns that
+    type. *)
+val define_evar_as_inductive : env -> evar_map -> existential -> Names.inductive -> evar_map * types
+
 (** {6 debug pretty-printer:} *)
 
 val pr_tycon : env -> evar_map -> type_constraint -> Pp.t
