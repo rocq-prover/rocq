@@ -14,7 +14,7 @@ UnivNotations:25).
 1 goal
   
   ============================
-  forall A : Univ, A -> foo Univ A
+  forall A : Univ, A -> # A
 foo Type@{UnivNotations:28} nat
      : Type@{foo.u1}
 (* {UnivNotations:28} | UnivNotations:28 < foo.u0

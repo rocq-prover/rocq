@@ -1619,7 +1619,7 @@ let rec match_ inner u alp metas sigma a1 a2 =
      This means it never matches the result of detyping a sort when Printing Universes is on.
      Is that really what we want?
      (Behaviour deliberately introduced in a38fbefca61f3392efe0ba98adfbae138022cce4 AFAICT) *)
-  | GSort s1, NSort s2 when glob_sort_eq s1 s2 -> sigma
+  | GSort s1, NSort s2 when glob_sort_eq_upto_rigid s1 s2 -> sigma
 
   | GInt i1, NInt i2 when Uint63.equal i1 i2 -> sigma
   | GFloat f1, NFloat f2 when Float64.equal f1 f2 -> sigma
