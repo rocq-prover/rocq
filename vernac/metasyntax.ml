@@ -1424,7 +1424,7 @@ let make_interpretation_vars
 let check_rule_productivity l =
   if List.for_all (function NonTerminal _ | Break _ -> true | _ -> false) l then
     user_err Pp.(str "A notation must include at least one symbol.");
-  if (match l with SProdList _ :: _ -> true | _ -> false) then
+  if (match List.filter (function Break _ -> false | _ -> true) l with SProdList _ :: _ -> true | _ -> false) then
     user_err Pp.(str "A recursive notation must start with at least one symbol.")
 
 let warn_notation_bound_to_variable =
