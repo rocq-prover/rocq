@@ -1015,6 +1015,24 @@ type prim_token_interp_info =
   | NumberNotation of number_notation_obj
   | StringNotation of string_notation_obj
 
+let subst_prim_token_interp_info subst info =
+  let subst_ref r = Globnames.subst_global_reference subst r in
+  let subst_arg = function
+    | ToPostCheck c -> ToPostCheck (Mod_subst.subst_mps subst c)
+    | ToPostCopy | ToPostAs _ | ToPostHole _ as a -> a
+  in
+  let subst_post (f, t, args) = (subst_ref f, subst_ref t, List.map subst_arg args) in
+  let subst_obj o =
+    { o with
+      to_ty = subst_ref o.to_ty;
+      of_ty = subst_ref o.of_ty;
+      to_post = Array.map (List.map subst_post) o.to_post }
+  in
+  match info with
+  | Uid _ -> info
+  | NumberNotation o -> NumberNotation (subst_obj o)
+  | StringNotation o -> StringNotation (subst_obj o)
+
 let do_interp ?loc info p =
   let interp = match info with
     | Uid uid -> Hashtbl.find prim_token_interpreters uid
