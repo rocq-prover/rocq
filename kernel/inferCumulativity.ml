@@ -674,7 +674,9 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
     in
     infer_stack cv_pb variance infos variances stk
   | FConstruct ((ctor,u),args) ->
-    assert (List.is_empty stk);
+    (* Without (co)fixpoint unfolding (when guard checking is off), a constructor can be the
+       recursive argument of a fixpoint left on the stack: it is then in an invariant position *)
+    let variance = if List.is_empty stk then variance else (fst variance, Invariant) in
     let variances =
       let nargs = Array.length args in
       infer_constructor_instance_eq (info_env (fst infos)) variance variances ctor nargs u
@@ -803,6 +805,11 @@ and infer_vect cv_pb variance infos variances v =
 let infer_infos ~fl env ~evars =
   let open CClosure in
   let reds = RedFlags.red_add_transparent fl TransparentState.full in
+  (* Without guard checking, unfolding (co)fixpoints may not terminate *)
+  let reds =
+    if (Environ.typing_flags env).Declarations.check_guarded then reds
+    else RedFlags.red_sub_list reds RedFlags.[fFIX; fCOFIX]
+  in
   (create_clos_infos reds ~evars env, create_tab ())
 
 let variance_of_cv_pb = function
