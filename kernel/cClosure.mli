@@ -51,7 +51,7 @@ type fterm =
   | FInt of Uint63.t
   | FFloat of Float64.t
   | FString of Pstring.t
-  | FArray of UVars.Instance.t * fconstr Parray.t * fconstr
+  | FArray of UVars.Instance.t * fconstr Parray.t * fconstr * int (* lift *)
   | FLIFT of int * fconstr
   | FCLOS of constr * usubs
   | FIrrelevant
@@ -89,6 +89,8 @@ val inductive_subst : Declarations.mutual_inductive_body
   -> UVars.Instance.t
   -> fconstr array
   -> usubs
+
+val lift_fconstr : int -> fconstr -> fconstr
 
 val usubs_lift : usubs -> usubs
 val usubs_liftn : int -> usubs -> usubs

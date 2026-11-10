@@ -77,6 +77,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [tactic code could mutate a global cache of values for section variables](#tactic-code-could-mutate-a-global-cache-of-values-for-section-variables)
       - [incorrect handling of universe polymorphism](#incorrect-handling-of-universe-polymorphism)
       - [Forgotten universe substitution with Register Inline on universe polymorphic definition](#forgotten-universe-substitution-with-register-inline-on-universe-polymorphic-definition)
+      - [kernel reduction drops the lift on a primitive array](#kernel-reduction-drops-the-lift-on-a-primitive-array)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -913,6 +914,20 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - additional note: does not seem to be exploitable before 8.8 (until 8.6 Register
   Inline fails with anomaly on universe polymorphic constants, and before
   8.8 Register Inline only affects native which fails in ocamlopt)
+
+#### kernel reduction drops the lift on a primitive array
+
+- component: lazy reduction, primitive arrays
+- introduced: V8.13 (introduction of primitive arrays)
+- impacted released versions: V8.13 to V9.3.0
+- impacted coqchk versions: same
+- fixed in: V9.2.1, V9.3.1, V9.4
+- found by: Jan-Oliver Kaiser
+- exploit: test-suite/bugs/bug_22772.v
+- GH issue number: rocq-prover/rocq#22772
+- risk: when reducing a primitive array under binders, the lift on the
+  array was eagerly dropped, producing wrong normal forms and letting the
+  kernel accept ill-typed terms
 
 ### Side-effects
 
