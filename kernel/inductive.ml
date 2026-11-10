@@ -682,8 +682,8 @@ val lookup_subterms : env -> inductive -> t
 val lookup_mutual_subterms : env -> MutInd.t -> t array
 val inter : t -> t -> t
 val restrict : t -> wf_paths -> t
-val dest_subterm : t -> int -> int -> t
-val dest_subterms : t -> t array array
+val dest_subterm : t -> recarg_type -> int -> int -> t
+val dest_subterms : t -> recarg_type -> t array array
 val is_norec : t -> bool
 val is_inductive : env -> inductive -> t -> bool
 val is_primitive_positive_container : env -> Constant.t -> t -> bool
@@ -721,12 +721,27 @@ let restrict t p =
   let automaton = Atm.inter meet_recarg t p in
   Atm.compact compare_recarg automaton
 
-let dest_subterm t i j =
-  let trans = Atm.transitions t (Atm.initial t) in
+let check_recarg expect found =
+  match found with
+  | Norec -> ()
+  | Mrec _ ->
+    if not (eq_recarg found (Mrec expect)) then
+      CErrors.anomaly Pp.(
+        str "In guard checking, tried to lookup subterms for " ++
+        pr_recarg (Mrec expect) ++
+        str " of a subterm tree rooted at " ++
+        pr_recarg found ++ str"." )
+
+let dest_subterm t recarg i j =
+  let initial = Atm.initial t in
+  let () = check_recarg recarg (Atm.data t initial) in
+  let trans = Atm.transitions t initial in
   Atm.move t trans.(i).(j)
 
-let dest_subterms t =
-  let trans = Atm.transitions t (Atm.initial t) in
+let dest_subterms t recarg =
+  let initial = Atm.initial t in
+  let () = check_recarg recarg (Atm.data t initial) in
+  let trans = Atm.transitions t initial in
   let map v = Array.map (fun tgt -> Atm.move t tgt) v in
   Array.map map trans
 
@@ -832,8 +847,8 @@ val inter_spec : t array -> t
 
 val on_branches : env -> inductive -> t lazy_t -> int -> t lazy_t list
 
-val on_projection : t -> int -> t
-val on_array : t -> t
+val on_projection : t -> inductive -> int -> t
+val on_array : t -> Constant.t -> t
 
 val prune_path : ?evars:CClosure.evar_handler ->
   env -> t -> pinductive -> types list -> t
@@ -924,25 +939,25 @@ let inter_spec =
   Array.fold_left inter_spec DeadCode
 
 
-let on_constructors discr i j =
+let on_constructors discr r i j =
   lazy begin match Lazy.force discr with
   | DeadCode | Vars _ | NotSubterm as spec -> spec
   | Subterm (_, tree, vars) ->
-    let subtree = WfPaths.dest_subterm tree i j in
+    let subtree = WfPaths.dest_subterm tree r i j in
     spec_of_tree Strict vars subtree
   end
 
 let on_branches env ind discr =
   let _, mip = lookup_mind_specif env ind in
   let sizes = mip.mind_consnrealargs in
-  let subterms = on_constructors discr in
+  let subterms = on_constructors discr (RecArgInd ind) in
   fun i -> List.init sizes.(i) (subterms i)
 
-let on_projection discr n =
-  Lazy.force (on_constructors (lazy discr) 0 n)
+let on_projection discr ind n =
+  Lazy.force (on_constructors (lazy discr) (RecArgInd ind) 0 n)
 
-let on_array discr =
-  Lazy.force (on_constructors (lazy discr) 0 0)
+let on_array discr cst =
+  Lazy.force (on_constructors (lazy discr) (RecArgPrim cst) 0 0)
 
 
 
@@ -1034,7 +1049,7 @@ let get_recargs_approx ?evars env tree ind args =
          let c' = hnf_prod_applist ?evars env' c lpar' in
          (* skip non-recursive parameters *)
          let (ienv',c') = ienv_decompose_prod ?evars ienv' nonrecpar c' in
-         build_recargs_constructors ienv' trees.(j) k c')
+         build_recargs_constructors ienv' trees.(j) (mind, j) k c')
         auxlcvect
       in
       mk_paths (Mrec (RecArgInd (mind,j))) paths
@@ -1048,18 +1063,18 @@ let get_recargs_approx ?evars env tree ind args =
     let ntypes = 1 in (* Primitive types are modelled by non-mutual inductive types *)
     let ra_env = List.map (fun (r,t) -> (r,Rtree.lift ntypes t)) ra_env in
     let ienv = (env, ra_env) in
-    let paths = List.map2 (build_recargs ienv) (Array.to_list (WfPaths.dest_subterms tree).(0)) largs in
+    let paths = List.map2 (build_recargs ienv) (Array.to_list (WfPaths.dest_subterms tree (RecArgPrim c)).(0)) largs in
     let recargs = [| mk_paths (Mrec (RecArgPrim c)) [| paths |] |] in
     (Rtree.mk_rec recargs).(0)
 
-  and build_recargs_constructors ienv trees k c =
+  and build_recargs_constructors ienv trees ind k c =
     let rec recargs_constr_rec (env,_ra_env as ienv) i lrec c =
       let x,largs = decompose_app_list (whd_all ?evars env c) in
         match kind x with
 
           | Prod (na,b,d) ->
              let () = assert (List.is_empty largs) in
-             let recarg = build_recargs ienv (WfPaths.dest_subterm trees k i) b in
+             let recarg = build_recargs ienv (WfPaths.dest_subterm trees (RecArgInd ind) k i) b in
              let ienv' = ienv_push_var ienv (na,b,mk_norec) in
              recargs_constr_rec ienv' (i+1) (recarg::lrec) d
           | _hd ->
@@ -1332,7 +1347,7 @@ let rec subterm_specif ?evars renv stack t =
 
     | Proj (p, _, c) ->
       let subt = subterm_specif ?evars renv [] c in
-      Subterm.on_projection subt (Projection.arg p)
+      Subterm.on_projection subt (Projection.inductive p) (Projection.arg p)
 
     | Const c ->
       begin try
@@ -1371,7 +1386,8 @@ and primitive_specif ?evars renv op args =
        potentially nested rectree. *)
     let arg = List.nth args 1 in (* the result is a strict subterm of the second argument *)
     let subt = subterm_specif ?evars renv [] arg in
-    Subterm.on_array subt
+    let c = Option.get (Environ.retroknowledge renv.env).Retroknowledge.retro_array in
+    Subterm.on_array subt c
   | _ -> Subterm.not_subterm
 
 (************************************************************************)
@@ -1923,14 +1939,14 @@ let check_one_cofix ?evars env nbfix def vlra =
               raise (CoFixGuardError (env,UnguardedRecursiveCall t))
             else if not(List.for_all (noccur_with_meta n nbfix) args) then
               raise (CoFixGuardError (env,NestedRecursiveOccurrences))
-        | Construct ((_,i as cstr_kn),_u)  ->
+        | Construct ((ind, i as cstr_kn),_u)  ->
             let mI = inductive_of_constructor cstr_kn in
             let (mib,_mip) = lookup_mind_specif env mI in
             let realargs = List.skipn mib.mind_nparams args in
             let rec process_args_of_constr j = function
             | [] -> ()
             | t :: lr ->
-              let rar = WfPaths.dest_subterm tree (i - 1) j in
+              let rar = WfPaths.dest_subterm tree (RecArgInd ind) (i - 1) j in
               let () =
                 if WfPaths.is_norec rar then
                   if noccur_with_meta n nbfix t then ()
