@@ -1545,6 +1545,9 @@ let solve_candidates unify flags env evd (evk,argsv) rhs =
         | [] -> [], []
         | c::l ->
            let compatl, disjointl = aux l in
+           if occur_evar evd evk c then
+             compatl, instantiate_evar_array evd evi c argsv :: disjointl
+           else
            match filter_compatible_candidates unify flags env evd evi argsv rhs c with
            | Inl c -> c::compatl, disjointl
            | Inr c -> compatl, c::disjointl in
