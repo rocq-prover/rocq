@@ -99,7 +99,7 @@ and fterm =
   | FInt of Uint63.t
   | FFloat of Float64.t
   | FString of Pstring.t
-  | FArray of UVars.Instance.t * fconstr Parray.t * fconstr
+  | FArray of UVars.Instance.t * fconstr Parray.t * fconstr * int (* lift *)
   | FLIFT of int * fconstr
   | FCLOS of constr * usubs
   | FIrrelevant
@@ -248,9 +248,10 @@ let rec lft_fconstr n ft =
       {mark=Cstr; term=FCoFix(cfx,usubs_shft(n,e))}
     | FLIFT(k,m) -> lft_fconstr (n+k) m
     | FConstruct (c,args) -> {mark=Cstr; term=FConstruct(c,Array.Fun1.map lft_fconstr n args)}
+    | FArray (u,ar,ty,l) -> {mark=Cstr; term=FArray(u,ar,ty,l+n)}
     | FLOCKED -> assert false
     | FFlex (RelKey _) | FAtom _ | FApp _ | FProj _ | FCaseT _ | FCaseInvert _ | FProd _
-    | FLetIn _ | FEvar _ | FCLOS _ | FArray _ -> {mark=ft.mark; term=FLIFT(n,ft)}
+    | FLetIn _ | FEvar _ | FCLOS _ -> {mark=ft.mark; term=FLIFT(n,ft)}
 let lift_fconstr k f =
   if Int.equal k 0 then f else lft_fconstr k f
 
@@ -606,7 +607,8 @@ let rec to_constr lfts v =
     | FString s ->
         Constr.mkString s
 
-    | FArray (u,t,ty) ->
+    | FArray (u,t,ty,lft) ->
+      let lfts = el_shft lft lfts in
       let def = to_constr lfts (Parray.default t) in
       let t = Array.init (Parray.length_int t) (fun i ->
           to_constr lfts (Parray.get t (Uint63.of_int i)))
@@ -730,11 +732,12 @@ let rec resubst subs v =
   | FLIFT (k, a) ->
     resubst (subs_popn k subs) a
 
-  | FArray (u, t, ty) ->
+  | FArray (u, t, ty, lft) ->
+    let subs = subs_popn lft subs in
     let t = Parray.map (resubst subs) t in
     let ty = resubst subs ty in
     { v with term =
-      FArray (u, t, ty) }
+      FArray (u, t, ty, 0) }
 
   | FCLOS (t,env) ->
     let env = comp_subs subs env in
@@ -1114,6 +1117,7 @@ module FNativeEntries =
     type args = fconstr array
     type evd = unit
     type uinstance = UVars.Instance.t
+    type lft = int
 
     let mk_construct c =
       (* All constructors used in primitive functions are relevant *)
@@ -1138,8 +1142,12 @@ module FNativeEntries =
 
     let get_parray () e =
       match [@ocaml.warning "-4"] e.term with
-      | FArray (_u,t,_ty) -> t
+      | FArray (_u,t,_ty,lft) -> lft, t
       | _ -> assert false
+
+    let trivial_lift n = Int.equal n 0
+
+    let lift n e = lift_fconstr n e
 
     let dummy = {mark = Ntrl; term = FRel 0}
 
@@ -1424,7 +1432,7 @@ module FNativeEntries =
 
     let mkArray env u t ty =
       check_array env;
-      { mark = Cstr; term = FArray (u,t,ty)}
+      { mark = Cstr; term = FArray (u,t,ty,0)}
 
   end
 
@@ -1561,7 +1569,7 @@ and knht info e t stk =
       let len = Array.length t in
       let ty = mk_clos e ty in
       let t = Parray.init (Uint63.of_int len) (fun i -> mk_clos e t.(i)) (mk_clos e def) in
-      let term = FArray (u,t,ty) in
+      let term = FArray (u,t,ty,0) in
       knh info { mark = Cstr; term } stk
 
 (************************************************************************)
@@ -2050,7 +2058,7 @@ let rec knr info tab ~pat_state m stk =
       knit info tab ~pat_state (usubs_cons v e) bd stk
   | FInt _ | FFloat _ | FString _ | FArray _ ->
     (match [@ocaml.warning "-4"] strip_update_shift_app m stk with
-     | (_, _, _, Zprimitive(op,(_,u as c),rargs,nargs)::s) ->
+     | (_, m, _, Zprimitive(op,(_,u as c),rargs,nargs)::s) ->
        let (rargs, nargs) = skip_native_args (m::rargs) nargs in
        begin match nargs with
          | [] ->
@@ -2259,11 +2267,11 @@ and norm_head info tab m =
           repack (ev, List.map (fun a -> klt info tab env a) args)
       | FProj (p,r,c) ->
         mkProj (p, r, kl info tab c)
-      | FArray (u, a, ty) ->
+      | FArray (u, a, ty, lft) ->
         let a, def = Parray.to_array a in
-        let a = Array.map (kl info tab) a in
-        let def = kl info tab def in
-        let ty = kl info tab ty in
+        let a = Array.map (fun a -> kl info tab (lift_fconstr lft a)) a in
+        let def = kl info tab (lift_fconstr lft def) in
+        let ty = kl info tab (lift_fconstr lft ty) in
         mkArray (u, a, def, ty)
       | FConstruct (c,args) -> mkApp (mkConstructU c, Array.map (kl info tab) args)
       | FLOCKED | FRel _ | FAtom _ | FFlex _ | FInd _

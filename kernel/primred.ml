@@ -149,12 +149,15 @@ module type RedNativeEntries =
     type args
     type evd (* will be unit in kernel, evar_map outside *)
     type uinstance
+    type lft
 
     val get : args -> int -> elem
     val get_int : evd -> elem -> Uint63.t
     val get_float : evd -> elem -> Float64.t
     val get_string : evd -> elem -> Pstring.t
-    val get_parray : evd -> elem -> elem Parray.t
+    val get_parray : evd -> elem -> lft * elem Parray.t
+    val trivial_lift : lft -> bool
+    val lift : lft -> elem -> elem
     val mkInt : env -> Uint63.t -> elem
     val mkFloat : env -> Float64.t -> elem
     val mkString : env -> Pstring.t -> elem
@@ -383,26 +386,27 @@ struct
       let d = E.get args 2 in
       E.mkArray env u (Parray.make i d) ty
     | Arrayget ->
-      let t = get_parray evd args 1 in
+      let lft, t = get_parray evd args 1 in
       let i = get_int evd args 2 in
-      Parray.get t i
+      E.lift lft (Parray.get t i)
     | Arraydefault ->
-      let t = get_parray evd args 1 in
-      Parray.default t
+      let lft, t = get_parray evd args 1 in
+      E.lift lft (Parray.default t)
     | Arrayset ->
       let ty = E.get args 0 in
-      let t = get_parray evd args 1 in
+      let lft, t = get_parray evd args 1 in
+      let t = if E.trivial_lift lft then t else Parray.map (E.lift lft) t in
       let i = get_int evd args 2 in
       let a = E.get args 3 in
       let t' = Parray.set t i a in
       E.mkArray env u t' ty
     | Arraycopy ->
       let ty = E.get args 0 in
-      let t = get_parray evd args 1 in
-      let t' = Parray.copy t in
+      let lft, t = get_parray evd args 1 in
+      let t' = if E.trivial_lift lft then Parray.copy t else Parray.map (E.lift lft) t in
       E.mkArray env u t' ty
     | Arraylength ->
-      let t = get_parray evd args 1 in
+      let _lft, t = get_parray evd args 1 in
       E.mkInt env (Parray.length t)
     | Stringmake ->
       let i = get_int evd args 0 in
