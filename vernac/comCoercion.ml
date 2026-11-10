@@ -263,7 +263,9 @@ let inCoercion : coe_info_typ -> obj =
 let declare_coercion coef ?(local = false) ~reversible ~isid ~src:cls ~target:clt ~params:ps () =
   let isproj =
     match coef with
-    | GlobRef.ConstRef c -> Structures.PrimitiveProjections.find_opt c
+    | GlobRef.ConstRef c ->
+      Option.filter (fun p -> Int.equal (Projection.Repr.npars p) ps)
+        (Structures.PrimitiveProjections.find_opt c)
     | _ -> None
   in
   let c = {
