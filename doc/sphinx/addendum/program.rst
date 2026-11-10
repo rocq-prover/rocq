@@ -276,13 +276,19 @@ optional tactic is replaced by the default one if not specified.
    module. :attr:`local` is the default inside sections while :attr:`global`
    otherwise. :attr:`export` and :attr:`global` may be used together.
 
-   When :attr:`global` is used without :attr:`export` and when no
-   explicit locality is used outside sections, the meaning is
-   different from the usual meaning of :attr:`global`: the command's
-   effect persists after the current module is closed (as with the
-   usual :attr:`global`), but it is also reapplied when the module or
-   any of its parents is imported. This will change in a future
-   version.
+   .. warn:: The default and global localities have a special meaning.
+      :name: deprecated-tacopt-without-locality
+
+      When :attr:`global` is used without :attr:`export` and when no
+      explicit locality is used outside sections, the meaning is
+      different from the usual meaning of :attr:`global`: the
+      command's effect persists after the current module is closed (as
+      with the usual :attr:`global`), but it is also reapplied when
+      the module or any of its parents is imported. This will change
+      in a future version.
+
+      This warning is also used by other commands which use the
+      "tactic valued option" mechanism such as :opt:`Firstorder Solver`.
 
 .. cmd:: Show Obligation Tactic
 
@@ -311,6 +317,12 @@ optional tactic is replaced by the default one if not specified.
 .. cmd:: Solve Obligations {? of @ident } {? with @ltac_expr }
 
    Tries to solve each obligation of :token:`ident` using the given :token:`ltac_expr` or the default one.
+
+   .. warn:: Solve Obligations tactic returned error: @string
+      :name: solve_obligation_error
+
+      Solve Obligations currently turns errors from the tactic into
+      this warning. This may change in the future.
 
 .. cmd:: Solve All Obligations {? with @ltac_expr }
 

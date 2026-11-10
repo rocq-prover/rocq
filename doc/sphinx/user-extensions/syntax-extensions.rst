@@ -119,6 +119,11 @@ associativity rules have to be given.
    the user may instead mean :g:`Reserved Notation "A ""string"""" ! B`,
    :g:`Reserved Notation "A ""string""""!"" B`, or :g:`Reserved Notation "A '""string""!' B`.
 
+.. warn:: Notation @string was already used in scope @scope_name.
+   :name: notation-overridden
+
+   Redefining a notation produces this warning.
+
 Precedences and associativity
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -170,6 +175,32 @@ Some :ref:`associativities are predefined <init-notations>` in the
 ``Notations`` module.
 
 .. TODO I don't find it obvious -- CPC
+
+.. warn:: Non left recursive notations declared at level 200 are actually at level 10
+   :name: at-level-200-changed
+
+   For backwards compatibility non left recursive notations declared
+   at level 200 are actually at level 10, with any right-recursion
+   being at level 200. In the future level 200 will be treated as a
+   normal level. To keep the current behaviour, use "at level 10",
+   remove any "right associativity" annotation, and if right recursive
+   add "x at level 200" where "x" is the last argument.
+
+   Typically, previously `exists` was declared with
+
+   .. rocqdoc::
+
+      Notation "'exists' x .. y , p" :=
+        (ex (fun x => .. (ex (fun y => p)) ..))
+        (at level 200, x binder, y binder, right associativity).
+
+   and is now
+
+   .. rocqtop:: in
+
+      Notation "'exists' x .. y , p" :=
+        (ex (fun x => .. (ex (fun y => p)) ..))
+        (at level 10, x binder, y binder, p at level 200).
 
 Complex notations
 ~~~~~~~~~~~~~~~~~
@@ -362,6 +393,41 @@ the possible following elements delimited by single quotes:
 
 - extra spaces in other tokens are preserved in the output
 
+.. warn:: Discarding format implicitly indicated by multiple spaces in \
+          notation because an explicit format modifier is given.
+   :name: notation-both-format-and-spaces
+   :undocumented:
+
+.. warn:: This notation is not reversible, it will not be used for printing.
+   :name: non-reversible-notation
+
+   Some constructions (typically tactics :n:`ltac:(@ltac_expr)` and
+   volatile cases :n:`@term :> @type`) are not reversible. If used in
+   a notation they prevent that notation from being used for printing.
+
+.. warn:: This notation will not be used for printing as it is bound to a single variable.
+   :name: notation-bound-to-variable
+
+   Such a notation would match every term so using it for printing would produce useless output.
+
+.. warn:: Notation @string was already defined with a different format.
+   :name: notation-incompatible-format
+   :undocumented:
+
+.. why do we have 2 warnings for the same thing?
+
+.. warn:: The format modifier has no effect for only-parsing notations.
+   :name: discarded-format-only-parsing
+   :undocumented:
+
+.. warn:: The format modifier is irrelevant for only-parsing rules.
+   :name: irrelevant-format-only-parsing
+   :undocumented:
+
+.. warn:: Interpretation is used neither for printing not for parsing.
+   :name: unused-notation
+   :undocumented:
+
 Notations disappear when a section is closed. No typing of the denoted
 expression is performed at definition time. Type checking is done only
 at the time of use of the notation.
@@ -487,6 +553,11 @@ Reserving notations
       the other. See :ref:`factorization <NotationFactorization>` for
       details.
 
+   .. warn:: The only parsing modifier has no effect in Reserved Notation.
+      :name: irrelevant-reserved-notation-only-parsing
+      :undocumented:
+
+
 Simultaneous definition of terms and notations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -608,7 +679,7 @@ Enabling and disabling notations
       originally defined as only printing.
 
    .. warn:: Found no matching notation to enable or disable.
-      :name: Found no matching notation to enable or disable
+      :name: no-notation-to-enable-or-disable
 
       No previously defined notation satisfies the given constraints.
 
@@ -1282,6 +1353,16 @@ Custom entries
    Non-local custom entries survive module closing and are
    declared when a file is Required.
 
+   .. warn:: Accessing custom entry @qualid by its unqualified name is deprecated.
+      :name: deprecated-unqualified-custom-entry
+
+      .. deprecated:: 9.2
+
+      Custom entry names used to be unqualified and always accessible
+      by the unqualified name. Now :cmd:`Import` should be used to
+      refer to a custom entry by its unqualified name outside the
+      module where it was declared.
+
 .. example::
 
    For instance, we may want to define an ad hoc
@@ -1531,6 +1612,15 @@ Note that `_` by itself is a valid :n:`@name` but is not a valid :n:`@ident`.
 
    Occurs when :cmd:`Notation` or :cmd:`Print Notation` can't find the custom entry given by the user.
 
+.. warn:: Notations for numbers or strings are primitive; skipping this modifier.
+   :name: primitive-token-modifier
+
+   This warning is emitted when defining a notation which matches a primitive token, e.g.
+
+   .. rocqtop:: all warn
+
+      Notation "- 0" := 0 (at level 50).
+
 .. _Scopes:
 
 Notation scopes
@@ -1570,9 +1660,15 @@ Most commands use :token:`scope_name`; :token:`scope_key`\s are used within :tok
 
    Use commands such as :cmd:`Notation` to add notations to the scope.
 
-.. exn:: Scope names should not start with an underscore.
+.. warn:: Declaring a scope implicitly is deprecated; use in advance an explicit "Declare Scope"
+   :name: undeclared-scope
+   :undocumented:
+
+.. warn:: Scope names should not start with an underscore.
+   :name: scope-underscore-start
 
    Scope names starting with an underscore would make the :g:`%_` syntax ambiguous.
+   This warning is an error by default.
 
 Global interpretation rules for notations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1654,17 +1750,50 @@ rather than all its subterms.
 
    Binds the delimiting key :token:`scope_key` to a scope.
 
+   .. warn:: Hiding binding of key @scope_key to @scope_name__old.
+      :name: hiding-delimiting-key
+
+      This warning is procuced when :n:`@scope_key` was already bound to a scope.
+
 .. cmd:: Undelimit Scope @scope_name
 
    Removes the delimiting keys associated with a scope.
 
-.. exn:: Scope delimiters should not start with an underscore.
+.. warn:: Scope delimiters should not start with an underscore.
+   :name: scope-delimiter-underscore-start
 
    Scope delimiters starting with an underscore would make the :g:`%_` syntax ambiguous.
+   This warning is an error by default.
 
 The arguments of an :ref:`abbreviation <Abbreviations>` can be interpreted
 in a scope stack locally extended with a given scope by using the modifier
 :n:`{+, @ident } in scope @scope_name`.s
+
+Scopes of notation arguments
+++++++++++++++++++++++++++++
+
+Notation arguments are interpreted in scopes according to their use in the notation.
+For instance in
+
+.. rocqtop:: all
+
+   Notation "'idtype' :( x )" := (x -> x).
+
+   Check fun T => idtype:(T + T).
+
+The argument `x` is interpreted in the scope stack extended with
+`type_scope` (bound to key `type`), so `+` means sum type instead of
+natural addition.
+
+.. warn:: Argument @ident was previously inferred to be in scope \
+          @scope_name but is here used in @scope_name. \
+          Scope @scope_name will be used at parsing time unless \
+          you override it by annotating the argument with an explicit \
+          scope of choice.
+   :name: inconsistent-scopes
+
+   If a notation declaration uses its arguments in inconsistent scope
+   stacks this warning will be emitted.
 
 Binding types or coercion classes to notation scopes
 ++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1928,6 +2057,13 @@ Abbreviations
 --------------
 
 .. cmd:: Abbreviation @ident {* @ident__parm } := @one_term {? ( {+, @syntax_modifier } ) }
+
+   .. warn:: Use of "Notation" keyword for abbreviation is deprecated.
+      :name: notation-for-abbreviation
+
+      .. deprecated:: 9.2
+
+      Abbreviations used to share a keyword with notations.
 
    .. deprecated
       .. cmd:: Notation @ident {* @ident__parm } := @one_term {? ( {+, @syntax_modifier } ) }
@@ -2353,7 +2489,7 @@ The following errors apply to both string and number notations:
       A mapping should be provided for :n:`@qualid` in the :n:`mapping` list.
 
    .. warn:: @type was already mapped to @type, mapping it also to @type might yield ill typed terms when using the notation.
-      :name: via-type-renapping
+      :name: via-type-remapping
 
       Two pairs in the :n:`mapping` list associate types that might be incompatible.
 
@@ -2804,6 +2940,6 @@ Tactic notations allow customizing the syntax of tactics.
    implementation of Rocq
 
 .. [#no_associativity] Rocq accepts notations declared as nonassociative but the parser on
-   which Rocq is built, namely Camlp5, currently does not implement ``no associativity`` and
+   which Rocq is built, based on Camlp5, currently does not implement ``no associativity`` and
    replaces it with ``left associativity``; hence it is the same for Rocq: ``no associativity``
    is in fact ``left associativity`` for the purposes of parsing
