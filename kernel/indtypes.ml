@@ -296,7 +296,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
     let auxnnonrecpar = mib.mind_nparams - auxnrecpar in
     let (auxrecparams,auxnonrecargs) =
       try List.chop auxnrecpar largs
-      with Failure _ -> raise (IllFormedInd (LocalNonPos n)) in
+      with Failure _ -> failwith_non_pos_list n ntypes largs in
 
       (** Inductives of the inductive block being defined are only
           allowed to appear nested in the parameters of another inductive
@@ -305,7 +305,7 @@ let check_positivity_one ~chkpos recursive (env,_,ntypes,_ as ienv) paramsctxt (
         failwith_non_pos_list n ntypes auxnonrecargs;
       (* Nested mutual inductive types are not supported *)
       let auxntyp = Declareops.mind_ntypes mib in
-        if not (Int.equal auxntyp 1) then raise (IllFormedInd (LocalNonPos n));
+        if not (Int.equal auxntyp 1) then failwith_non_pos_list n ntypes largs;
         (* The nested inductive type with parameters removed *)
         let auxlcvect = abstract_mind_lc env auxntyp auxnrecpar mind mip.mind_nf_lc in
           (* Extends the environment with a variable corresponding to
