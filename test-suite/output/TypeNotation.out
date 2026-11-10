@@ -1,0 +1,7 @@
+fun A : TYPE => A
+     : TYPE -> TYPE
+foo
+     : TYPE -> TYPE
+foo
+     : (∃ A : Type@{foo.u0}, A -> Type@{foo.u1}) ->
+       ∃ A : Type@{foo.u0}, A -> Type@{foo.u1}

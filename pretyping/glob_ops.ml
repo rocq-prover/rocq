@@ -86,6 +86,12 @@ let glob_sort_eq (q1, l1) (q2, l2) =
          && Int.equal m n))
     l1 l2
 
+(* Ignores the rigidity of anonymous universes, an elaboration hint *)
+let glob_sort_eq_upto_rigid (q1, l1 as s1) (q2, l2 as s2) =
+  match l1, l2 with
+  | UAnonymous _, UAnonymous _ -> Option.equal glob_quality_eq q1 q2
+  | _ -> glob_sort_eq s1 s2
+
 let glob_sort_quality s =
   match s with
   | None, UAnonymous _ -> UnivGen.QualityOrSet.qtype
