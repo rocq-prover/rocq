@@ -305,7 +305,7 @@ and slot_for_fv env sigma fv envcache table =
       | None ->
         let v = match env |> lookup_named id |> NamedDecl.get_value with
           | None -> assert false (* handled specifically in Vmbytegen *)
-          | Some c -> val_of_constr env sigma c envcache table
+          | Some c -> val_of_constr ~share:true env sigma c envcache table
         in
         cache_named envcache id v; v
       | Some v -> v
@@ -316,7 +316,7 @@ and slot_for_fv env sigma fv envcache table =
       | None ->
         let v = match env |> lookup_rel i |> RelDecl.get_value with
           | None -> val_of_rel i
-          | Some c -> val_of_constr (env_of_rel i env) sigma c (envcache_of_rel i envcache) table
+          | Some c -> val_of_constr ~share:true (env_of_rel i env) sigma c (envcache_of_rel i envcache) table
         in
         cache_rel envcache i v; v
       | Some v -> v
@@ -345,8 +345,8 @@ and eval_to_patch env sigma code envcache table =
   let v = rocq_interprete tc crazy_val (get_atom_rel ()) global (inj_env vm_env) 0 in
   v
 
-and val_of_constr env sigma c envcache table =
-  match compile ~fail_on_error:true env sigma c with
+and val_of_constr ~share env sigma c envcache table =
+  match compile ~share ~fail_on_error:true env sigma c with
   | Some (_, code, patch) -> eval_to_patch env sigma (code, patch) envcache table
   | None -> assert false
 
@@ -366,8 +366,8 @@ let fresh_envcache () = {
   rel_adjust = 0;
 }
 
-let val_of_constr env sigma c =
-  let v = val_of_constr env sigma c (fresh_envcache ()) global_table in
+let val_of_constr ~share env sigma c =
+  let v = val_of_constr ~share env sigma c (fresh_envcache ()) global_table in
   v
 
 let vm_interp code v env k =

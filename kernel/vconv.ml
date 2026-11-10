@@ -248,8 +248,9 @@ let vm_conv_gen (type err) cv_pb sigma env univs t1 t2 =
   let box = { fail = fun e -> raise (Error e) } in
   try
     let (state, check) = univs in
-    let v1 = val_of_constr env sigma t1 in
-    let v2 = val_of_constr env sigma t2 in
+    (* Is it more efficient to share here? *)
+    let v1 = val_of_constr ~share:true env sigma t1 in
+    let v2 = val_of_constr ~share:true env sigma t2 in
     Result.Ok (pi1 (conv_val env cv_pb (nb_rel env) v1 v2 (state, check, box)))
   with
   | NotConvertible -> Result.Error None

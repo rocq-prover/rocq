@@ -3,10 +3,10 @@ open Utest
 
 let integer i =
   let env = Environ.empty_env in
-  Vmlambda.lambda_of_constr env (Genlambda.empty_evars env) (Constr.mkInt (Uint63.of_int i))
+  Vmlambda.lambda_of_constr ~share:true env (Genlambda.empty_evars env) (Constr.mkInt (Uint63.of_int i))
 
 let block tag arg =
-  match Vmlambda.as_value tag [| arg |] with
+  match Vmlambda.as_value ~share:true tag [| arg |] with
   | Some value -> Vmlambda.get_lval value
   | None -> assert false
 

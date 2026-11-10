@@ -13,6 +13,9 @@ open Environ
 
 type vm_flags = {
   vm_normalize_params : bool;
+  (** Whether inductive parameters are normalized when reifying *)
+  vm_share_values : bool;
+  (** Whether structured values are shared when compiling *)
 }
 
 (** {6 Reduction functions } *)
