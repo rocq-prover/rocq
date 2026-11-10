@@ -1395,19 +1395,16 @@ let rec debug_print c =
   | Cast (c,_, t) -> hov 1
       (str"(" ++ debug_print c ++ cut() ++
        str":" ++ debug_print t ++ str")")
-  | Prod ({binder_name=Name id;_},t,c) -> hov 1
-      (str"forall " ++ Id.print id ++ str":" ++ debug_print t ++ str"," ++
-       spc() ++ debug_print c)
-  | Prod ({binder_name=Anonymous;_},t,c) -> hov 0
-      (str"(" ++ debug_print t ++ str " ->" ++ spc() ++
-       debug_print c ++ str")")
+  | Prod (na,t,c) -> hov 1
+      (str"forall " ++ Name.print na.binder_name ++ str" :" ++
+       spc() ++ debug_print t ++ str"," ++ spc() ++ debug_print c)
   | Lambda (na,t,c) -> hov 1
-      (str"fun " ++ Name.print na.binder_name ++ str":" ++
-       debug_print t ++ str" =>" ++ spc() ++ debug_print c)
+      (str"fun " ++ Name.print na.binder_name ++ str" :" ++
+       spc() ++ debug_print t ++ str" =>" ++ spc() ++ debug_print c)
   | LetIn (na,b,t,c) -> hov 0
-      (str"let " ++ Name.print na.binder_name ++ str":=" ++ debug_print b ++
-       str":" ++ brk(1,2) ++ debug_print t ++ cut() ++
-       debug_print c)
+      (str"let " ++ Name.print na.binder_name ++ str " :" ++
+        spc() ++ debug_print t ++ str":=" ++ spc() ++
+        debug_print b ++ str" in" ++ brk(1,2) ++ debug_print c)
   | App (c,l) ->  hov 1
       (str"(" ++ debug_print c ++ spc() ++
        prlist_with_sep spc debug_print (Array.to_list l) ++ str")")
