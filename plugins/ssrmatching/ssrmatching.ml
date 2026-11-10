@@ -290,9 +290,21 @@ and unif_FO_skip_impl env ise metas p c =
         pp(lazy(str "Fail"));
         failure_FO ()
     end
+  | _ when is_structure_projection_head env ise p ->
+    (* As for [CanonicalInfRequired]: the pattern is headed by a projection of a structure,
+       possibly primitive (e.g. [Proj] against another projection), whose instance is left
+       to canonical structure inference *)
+    pp(lazy(str "Skip"));
+    metas, ise
   | _ ->
     let kludge v = EConstr.mkLambda (make_annot Anonymous EConstr.ERelevance.relevant, EConstr.mkProp, v) in
     Unification.w_unify ~metas env ise Conversion.CONV ~flags:(flags_FO env) (kludge p) (kludge c)
+and is_structure_projection_head env ise p =
+  match EConstr.kind ise (fst (EConstr.decompose_app ise p)) with
+  | Const (c, _) -> Structures.Structure.is_projection c
+  | Proj (pr, _, _) ->
+    Structures.Structure.is_projection (Environ.projection_repr_constant env (Projection.repr pr))
+  | _ -> false
 and unif_FO_skip_impl3 env ise metas args1 args2 imp =
   match args1, args2, imp with
   | a1::args1, a2::args2, Some _ :: imp ->
