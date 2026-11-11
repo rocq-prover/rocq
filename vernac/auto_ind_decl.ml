@@ -1070,6 +1070,26 @@ let eqI handle (ind,u) list_id =
   and e = Constr.mkRef (get_scheme handle beq_scheme_kind ind,u)
   in mkApp(e,eA)
 
+let cast_if_primitive env ind c typ =
+  if Option.has_some (Environ.get_projections env ind) then
+    mkCast (c, DEFAULTcast, EConstr.Unsafe.to_constr typ)
+  else c
+
+let unfold_beq_if_primitive handle ind loc =
+  let open Proofview.Notations in
+  Proofview.tclENV >>= fun env ->
+  match Environ.get_projections env ind with
+  | None -> Proofview.tclUNIT ()
+  | Some _ ->
+    match get_scheme handle beq_scheme_kind ind with
+    | GlobRef.ConstRef c ->
+      let cs = [Locus.AllOccurrences, Evaluable.EvalConstRef c] in
+      begin match loc with
+      | None -> Tactics.unfold_in_concl cs
+      | Some id -> Tactics.unfold_in_hyp cs (id, Locus.InHyp)
+      end
+    | _ -> Proofview.tclUNIT ()
+
 (**********************************************************************)
 (* Boolean->Leibniz *)
 
@@ -1137,6 +1157,7 @@ let compute_bl_tact handle ind lnamesparrec nparrec =
               Tacticals.tclTRY (
                   Tacticals.tclORELSE reflexivity my_discr_tac
                 );
+              unfold_beq_if_primitive handle (fst ind) (Some freshz);
               simpl_in_hyp (freshz,Locus.InHyp);
               (*
 repeat ( apply andb_prop in z;let z1:= fresh "Z" in destruct z as [z1 z]).
@@ -1204,6 +1225,7 @@ let make_bl_scheme env handle mind =
   let (ans, _, _, uctx) = Subproof.build_by_tactic ~poly env ~uctx ~typ:bl_goal
     (compute_bl_tact handle (ind, EConstr.EInstance.make u) lnamesparrec nparrec)
   in
+  let ans = cast_if_primitive env ind ans bl_goal in
   ([|ans|], uctx)
 
 let make_bl_scheme_deps env ind =
@@ -1286,7 +1308,7 @@ let compute_lb_tact handle ind lnamesparrec nparrec =
                   Tacticals.tclORELSE reflexivity my_discr_tac
                 );
               my_inj_tac freshz;
-              intros; simpl_in_concl;
+              intros; unfold_beq_if_primitive handle ind None; simpl_in_concl;
               Auto.default_auto;
               Tacticals.tclREPEAT (
                   Tacticals.tclTHENLIST [apply (EConstr.of_constr (andb_true_intro()));
@@ -1338,6 +1360,7 @@ let make_lb_scheme env handle mind =
   let (ans, _, _, ctx) = Subproof.build_by_tactic ~poly env ~uctx ~typ:lb_goal
     (compute_lb_tact handle ind lnamesparrec nparrec)
   in
+  let ans = cast_if_primitive env ind ans lb_goal in
   ([|ans|], ctx)
 
 let make_lb_scheme_deps env ind =
