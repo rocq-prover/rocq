@@ -2040,8 +2040,22 @@ let cl_rewrite_clause_newtac ?origsigma ~progress abs strat clause =
     | Some id ->
       (* Only consider variables not depending on [id] *)
       let ctx = named_context_of_val_with_status @@ named_context_val env in
-      let filter (_, decl) = not (occur_var_in_decl env sigma id decl) in
-      let nctx = List.filter filter ctx in
+      let exception Occur in
+      let occur ids c =
+        let rec occur c = match EConstr.kind sigma c with
+        | Evar _ -> ()
+        | _ ->
+          match EConstr.destRef sigma c with
+          | gr, _ -> if not (Id.Set.is_empty (Id.Set.inter ids (vars_of_global env gr))) then raise Occur
+          | exception DestKO -> EConstr.iter sigma occur c
+        in
+        try occur c; false with Occur -> true
+      in
+      let filter (_, decl as d) (nctx, ids) =
+        if Named.Declaration.exists (occur ids) decl then (nctx, Id.Set.add (Named.Declaration.get_id decl) ids)
+        else (d :: nctx, ids)
+      in
+      let nctx, _ = List.fold_right filter ctx ([], Id.Set.singleton id) in
       Environ.reset_with_named_context (val_of_named_context nctx) env
     in
     try
