@@ -1600,11 +1600,23 @@ let whd_betaiota_deltazeta_for_iota_state ts ?metas env sigma s =
   (* Unset the sharing flag to get a call-by-name reduction. This matters for
      the shape of the generated term. *)
   let env' = Environ.set_typing_flags { (Environ.typing_flags env) with Declarations.share_reduction = false } env in
+  (* The kernel machine does not know the values of metas *)
+  let rec subst_metas c = match metas with
+    | None -> c
+    | Some metas ->
+      match EConstr.kind sigma c with
+      | Meta mv ->
+        begin match metas.meta_value mv with
+        | Some v -> subst_metas v
+        | None -> c
+        end
+      | _ -> EConstr.map sigma subst_metas c
+  in
   let whd_opt c =
     let open CClosure in
     let infos = Evarutil.create_clos_infos env' sigma all' in
     let tab = create_tab () in
-    let c = inject (EConstr.Unsafe.to_constr (Stack.zip sigma c)) in
+    let c = inject (EConstr.Unsafe.to_constr (subst_metas (Stack.zip sigma c))) in
     let (c, stk) = whd_stack infos tab c [] in
     match fterm_of c with
     | (FConstruct _ | FCoFix _) ->
