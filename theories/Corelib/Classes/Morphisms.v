@@ -572,8 +572,7 @@ Ltac partial_application_tactic :=
   in
   let params m sk fk :=
     (let m' := fresh in Ltac.Internal.head_of_constr m' m ;
-     let n := fresh in evar (n:nat) ;
-     let v := eval compute in n in clear n ;
+     let v := open_constr:(_ :> nat) in
       let H := fresh in
         assert(H:Params m' v) by (subst m'; once typeclasses eauto) ;
           let v' := eval compute in v in subst m';
