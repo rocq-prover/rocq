@@ -2855,6 +2855,11 @@ let maximize level model =
   | exception Not_found -> CannotSimplify
   | can -> maximize_can can model
 
+let has_upper_bound level model =
+  match repr model (Index.find level model.table) with
+  | exception Not_found -> true
+  | can -> not (ClausesOf.is_empty can.clauses_bwd)
+
 let remove_bwd_clauses_from model idx k other =
   let can = repr model idx in
   let bwd = can.clauses_bwd in

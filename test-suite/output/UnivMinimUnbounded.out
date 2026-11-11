@@ -1,0 +1,40 @@
+same_box@{u u0} :
+forall (I : Type@{u}) (G : Box@{u0}), G = box@{u} I -> G = box@{u} I
+(* u(= in 1st binder) u0(= in 2nd, 3rd binders, = in type) | 
+   u ≤ u0 *)
+
+same_box is universe polymorphic and cumulative
+Arguments same_box I%_type_scope G e
+same_box is transparent
+Expands to: Constant UnivMinimUnbounded.same_box
+Declared in library UnivMinimUnbounded, line 10, characters 11-19
+same_box'@{u} :
+forall (I : Type@{u}) (G : Box@{u}), G = box@{u} I -> G = box@{u} I
+(* u(= in 1st, 2nd, 3rd binders, = in type) |  *)
+
+same_box' is universe polymorphic and cumulative
+Arguments same_box' I%_type_scope G e
+same_box' is transparent
+Expands to: Constant UnivMinimUnbounded.same_box'
+Declared in library UnivMinimUnbounded, line 16, characters 11-20
+set_box@{u} :
+forall G : Box@{u}, G = box@{0} nat -> G = box@{0} nat
+(* u(= in 1st, 2nd binders, = in type) |  *)
+
+set_box is universe polymorphic and cumulative
+Arguments set_box G e
+set_box is transparent
+Expands to: Constant UnivMinimUnbounded.set_box
+Declared in library UnivMinimUnbounded, line 20, characters 11-18
+pair_box@{u u0 u1} :
+forall (I : Type@{u}) (J : Type@{u0}) (G : Box@{u1}),
+G = box@{max(u,u0)} (I * J) -> G = box@{max(u,u0)} (I * J)
+(* u(= in 1st binder) u0(= in 2nd binder) u1(= in 3rd, 4th binders, = in type) | 
+   u ≤ u1
+   u0 ≤ u1 *)
+
+pair_box is universe polymorphic and cumulative
+Arguments pair_box (I J)%_type_scope G e
+pair_box is transparent
+Expands to: Constant UnivMinimUnbounded.pair_box
+Declared in library UnivMinimUnbounded, line 24, characters 11-19

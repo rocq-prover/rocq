@@ -531,6 +531,20 @@ it is an atomic universe (i.e. not an algebraic max() universe).
    to the sort :g:`Set` and only collapses floating universes between
    themselves.
 
+.. flag:: Universe Minimization Unbounded
+
+   Turning this :term:`flag` on (it is off by default) also minimizes the
+   floating universes that occur invariantly in the type of a definition,
+   when no constraint bounds them from above and their lower bound is a
+   single universe level of the definition that occurs invariantly itself
+   (not :g:`Set` nor an algebraic universe): they are then identified with
+   that level. Such universes typically come from cumulative instances of
+   definitions, e.g. a common universe for both sides of an equality
+   between instances at different universes. The resulting type is less
+   general, but the universes do not accumulate in the definitions built
+   on top of it. The floating universes which occur in the body of the
+   definition but not in its type are also minimized.
+
 .. _explicit-universes:
 
 Explicit Universes
