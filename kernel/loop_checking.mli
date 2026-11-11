@@ -131,6 +131,10 @@ type 'a simplification_result =
 val minimize : Level.t -> t -> t simplification_result
 val maximize : Level.t -> t -> t simplification_result
 
+(** [has_upper_bound l m] holds when a clause of [m] concludes on [l], i.e. bounds it from above
+  (also when [l] is not in [m]) *)
+val has_upper_bound : Level.t -> t -> bool
+
 (** {5 High-level representation} *)
 
 type node =
