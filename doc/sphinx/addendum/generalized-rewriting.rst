@@ -1039,6 +1039,122 @@ hint database ``typeclass_instances``.
 For more information, see :cmd:`Typeclasses Opaque` and :tacn:`typeclasses
 eauto`.
 
+.. _morphism-parameters:
+
+Declaring the parameters of morphisms
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The class ``Params`` of ``Classes.Morphisms`` declares how many leading
+arguments of a :term:`constant` are parameters of the morphisms it defines,
+i.e. arguments that are never rewritten:
+
+.. rocqdoc::
+
+   Class Params {A : Type} (from : A) (arity : nat).
+   #[global] Instance eq_pars : Params (@eq) 1 := {}.
+
+A missing ``Params`` instance never makes rewriting fail, but it can make
+:tacn:`rewrite` and :tacn:`setoid_rewrite` considerably slower.
+
+When rewriting under an application :g:`f a1 … ak`, the morphism considered is
+:g:`f` applied to all the arguments before the first one being rewritten, and
+the rewriting constraint is a goal such as :g:`Proper (R1 ==> … ==> impl) (f a1 … aj)`.
+When no instance matches it directly, proof search falls back on a hint from
+``Classes.Morphisms`` that decomposes partial applications, before trying
+subrelations. On a goal :g:`Proper R (f a1 … ak)`, this hint behaves as follows:
+
+- If there is an instance :g:`Params (@f) n` and :g:`k > n`, the :g:`k - n`
+  trailing arguments are removed at once, each of them being required to be
+  related to itself (through ``ProperProxy``), and the search continues with
+  :g:`Proper (Rn+1 ==> … ==> Rk ==> R) (f a1 … an)`.
+- If there is an instance :g:`Params (@f) n` and :g:`k ≤ n`, the hint fails
+  immediately.
+- If there is no such instance, a single trailing argument is removed and the
+  hint applies again on the resulting goal, down to the bare constant. This
+  also removes type arguments and typeclass instances, and produces goals such
+  as :g:`Proper ?R (@f A)` where the relation :g:`?R` is unconstrained. Such
+  goals match every ``Proper`` instance in scope, so the search can become very
+  expensive, and it usually fails in the end.
+
+A typical trigger is a morphism declared with ``iff`` as output relation, used
+to rewrite in a hypothesis, which requires ``impl``: the direct match fails,
+the decomposition of partial applications is explored, and only then is the
+instance found through the subrelation from ``iff`` to ``impl``.
+
+In the output of :flag:`Typeclasses Debug`, a missing instance shows up as a
+failed goal :g:`Params (@f) ?n`, followed by goals :g:`Proper ?R (@f …)` where
+:g:`?R` is an unconstrained existential variable.
+
+When to declare a ``Params`` instance
+  Declare :g:`Params (@f) n` when the following conditions hold:
+
+  - :g:`f` has leading parameters: types, typeclass instances, structure or
+    record arguments, or section variables over which :g:`f` was generalized
+    at the end of its section. Functions without such parameters, like
+    :g:`Nat.add`, do not need an instance.
+  - Morphisms for :g:`f` are declared on :g:`@f p1 … pn`, i.e. on :g:`f`
+    applied to exactly its parameters.
+  - Rewriting happens under :g:`f` in situations where these morphisms do not
+    match directly, typically when :g:`f` is a predicate whose morphisms have
+    output relation ``iff``.
+
+  Relations with parameters are a common case of the last condition. Rewriting
+  with such a relation in a hypothesis relies on the instance
+  :g:`Proper (R ==> R ==> iff) R` derived for partial equivalence relations,
+  whose output relation is ``iff``. This is why ``Classes.Morphisms`` declares
+  :g:`Params (@eq) 1`.
+
+  Declaring an instance where the morphisms always match directly is harmless,
+  but does not speed anything up.
+
+Choosing the arity
+  The arity is the number of leading arguments of :g:`f` that are never
+  rewritten. It should be the number of arguments to which the declared
+  morphisms apply :g:`f`. All the binders of the constant count, including
+  implicit and generalized ones, and the section variables used by :g:`f`; use
+  :cmd:`About` to check them once the section is closed.
+
+  - For a field of a class with a single field (which is defined as a constant
+    rather than a record projection), the arity is the number of parameters of
+    the class plus one, for the instance.
+  - For a record projection, the arity is the number of parameters of the
+    record plus one, for the record itself.
+
+  An arity that is too small brings back the unconstrained search on some
+  partial applications. An arity that is too large prevents the decomposition
+  of partial applications when one of the extra arguments is rewritten, so
+  that rewriting may fail where it previously succeeded.
+
+Declaring the instance
+  The instance must mention the bare constant, as in :g:`Params (@f) n`, and it
+  must be declared outside of any section over whose variables :g:`f` is
+  generalized. Inside such a section, :g:`@f` does not take these variables as
+  arguments yet: at the end of the section, the instance is generalized into
+  :g:`forall x1 … xm, Params (@f x1 … xm) n`, which never matches the bare
+  constant, so the instance has no effect. As for any instance, its locality
+  must make it available wherever rewriting happens. For ``Type``-valued
+  relations, use the class ``Params`` of ``Classes.CMorphisms`` instead.
+
+.. example:: Declaring the parameters of an operation
+
+   .. rocqtop:: in
+
+      From Corelib Require Import Morphisms.
+
+      Class Op (A : Type) := op : A -> A -> A.
+
+   .. rocqtop:: all
+
+      About op.
+
+   The constant :g:`op` has two parameters, the type :g:`A` and the instance
+   of :g:`Op A`, so morphisms for it are declared on terms of the form
+   :g:`@op A opA`, and its parameters are declared as follows.
+
+   .. rocqtop:: in
+
+      #[global] Instance op_params : Params (@op) 2 := {}.
+
 .. _strategies4rewriting:
 
 Strategies for rewriting
