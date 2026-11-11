@@ -521,7 +521,12 @@ OCaml code with C code, the linker needs to know
 
    This expression signals OCaml that the given ML function :n:`@qualid` shall be
    accessible via the alias :n:`@string`, when calling from C/C++.
-   If no alias is specified, it is set to the string representation of :n:`@qualid`.
+   If no alias is specified, it is set to the basename representation of the constant.
+
+   .. warn:: Extract Callback without an explicit alias is deprecated.
+      :name: deprecated-extract-callback-implicit-name
+
+      .. deprecated:: 9.4
 
    .. caution::
       * The optional alias :n:`@string` is currently **not** checked in any way.
