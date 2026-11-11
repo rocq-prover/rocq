@@ -175,7 +175,15 @@ let find_class_type env sigma t =
   let t', args = Reductionops.whd_betaiotazeta_stack env sigma t in
   match EConstr.kind sigma t' with
     | Var id -> CL_SECVAR id, EInstance.empty, args
-    | Const (sp,u) -> CL_CONST sp, u, args
+    | Const (sp,u) ->
+      (* The application of the compatibility constant of a primitive
+         projection to its parameters and a record is in the class of the
+         projection, as the projection of that record is. *)
+      begin match Structures.PrimitiveProjections.find_opt sp with
+      | Some p when List.length args > Projection.Repr.npars p ->
+        CL_PROJ p, EInstance.empty, args
+      | Some _ | None -> CL_CONST sp, u, args
+      end
     | Proj (p, _, c) when not (Projection.unfolded p) ->
       let revparams =
         let open Inductiveops in
