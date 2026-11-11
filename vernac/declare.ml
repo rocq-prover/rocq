@@ -266,23 +266,27 @@ let universes_of_body_type ~used_univs body typ =
 
 let make_univs_deferred_private_mono ~initial_euctx ?feedback_id ~uctx ~udecl body typ =
   let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body typ in
-  let uctx = UState.constrain_variables (fst (UState.universe_context_set initial_euctx)) uctx in
+  let initial_levels = fst (UState.universe_context_set initial_euctx) in
+  let uctx = UState.constrain_variables initial_levels uctx in
   (* For vi2vo compilation proofs are computed now but we need to
      complement the univ constraints of the typ with the ones of
      the body.  So we keep the two sets distinct. *)
   let uctx_body = UState.restrict uctx used_univs in
-  UState.check_mono_univ_decl uctx_body udecl
+  let uctx_body = UState.check_mono_univ_decl uctx_body udecl in
+  Univ.ContextSet.diff uctx_body (initial_levels, Univ.UnivConstraints.empty)
 
 let make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_univs body typ =
   let utyp = UState.univ_entry ~poly:PolyFlags.default initial_euctx in
   let _, used_univs = universes_of_body_type ~used_univs body typ in
   let ubody =
-    let uctx = UState.constrain_variables (fst (UState.universe_context_set initial_euctx)) uctx in
+    let initial_levels = fst (UState.universe_context_set initial_euctx) in
+    let uctx = UState.constrain_variables initial_levels uctx in
     (* For vi2vo compilation proofs are computed now but we need to
        complement the univ constraints of the typ with the ones of
        the body.  So we keep the two sets distinct. *)
     let uctx_body = UState.restrict uctx used_univs in
-    UState.check_mono_univ_decl uctx_body udecl in
+    let uctx_body = UState.check_mono_univ_decl uctx_body udecl in
+    Univ.ContextSet.diff uctx_body (initial_levels, Univ.UnivConstraints.empty) in
   initial_euctx, utyp, used_univs, Default { body; opaque = Opaque (ubody, eff) }
 
 let make_univs_immediate_private_poly ~poly ~uctx ~udecl ~eff ~used_univs body typ =
