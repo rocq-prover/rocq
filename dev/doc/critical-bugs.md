@@ -41,6 +41,8 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
       - [array literals longer than max_length not rejected by the typechecker](#array-literals-longer-than-max_length-not-rejected-by-the-typechecker)
       - [guard checker computes recursive argument type in the wrong environment](#guard-checker-computes-recursive-argument-type-in-the-wrong-environment)
+    - [Section system](#section-system)
+      - [projections are cooked in wrong environment](#projections-are-cooked-in-wrong-environment)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -482,6 +484,20 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit: test-suite/bugs/bug_22759.v
 - exploit / GH issue: [#22759](https://github.com/rocq-prover/rocq/pull/22759)
 - risk: needs DB index hacking in local defs preceding fixpoint
+
+### Section system
+
+#### projections are cooked in wrong environment
+
+- component: sections, projections
+- introduced: V8.12 (inductive cooking doesn't recheck it)
+- impacted released versions: V8.12 to V9.3.0
+- impacted coqchk versions: none
+- fixed in: V9.2.1, V9.3.1, v9.4 [#22767](https://github.com/rocq-prover/rocq/issues/22767)
+- found by: Axel Mierczuk, Spencer Michaels
+- exploit: test-suite/bugs/bug_22761.v
+- GH issue number: [#22761](https://github.com/rocq-prover/rocq/issues/22761)
+- risk: needs local definition in record parameters, in a section with variables
 
 ### Module system
 
