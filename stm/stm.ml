@@ -1485,7 +1485,7 @@ end = struct (* {{{ *)
           State.unfreeze st;
           let pobject =
             PG_compat.close_future_proof ~feedback_id:stop (Future.from_val proof) in
-
+          let () = Reach.known_state ~doc:dummy_doc ~cache:false (VCS.get_branch VCS.Branch.master).VCS.root in
           let st = Vernacstate.freeze_full_state () in
           let opaque = Opaque in
           try
