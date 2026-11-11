@@ -552,6 +552,18 @@ Class Params {A : Type} (from : A) (arity : nat).
 #[global] Instance iff_pars : Params (@iff) 0 := {}.
 #[global] Instance impl_pars : Params (@impl) 0 := {}.
 #[global] Instance flip_pars : Params (@flip) 4 := {}.
+#[global] Instance not_pars : Params (@not) 0 := {}.
+#[global] Instance and_pars : Params (@and) 0 := {}.
+#[global] Instance or_pars : Params (@or) 0 := {}.
+#[global] Instance ex_pars : Params (@ex) 1 := {}.
+#[global] Instance all_pars : Params (@all) 1 := {}.
+#[global] Instance Acc_pars : Params (@Acc) 1 := {}.
+#[global] Instance well_founded_pars : Params (@well_founded) 1 := {}.
+#[global] Instance id_pars : Params (@id) 1 := {}.
+#[global] Instance compose_pars : Params (@compose) 3 := {}.
+#[global] Instance complement_pars : Params (@complement) 1 := {}.
+#[global] Instance respectful_pars : Params (@respectful) 2 := {}.
+#[global] Instance Proper_pars : Params (@Proper) 1 := {}.
 
 Ltac partial_application_tactic :=
   let rec do_partial_apps H m cont := 
