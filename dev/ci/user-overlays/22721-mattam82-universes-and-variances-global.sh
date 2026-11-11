@@ -6,7 +6,7 @@ overlay hierarchy_builder https://github.com/mattam82/hierarchy-builder universe
 overlay mathcomp https://github.com/mattam82/math-comp universes-and-variances-global 22721
 overlay metarocq https://github.com/mattam82/metacoq universes-and-variances-global 22721
 overlay rewriter https://github.com/mattam82/rewriter universes-and-variances-global 22721
-overlay hott https://github.com/mattam82/hott universes-and-variances 22721
+overlay hott https://github.com/mattam82/hott universes-and-variances-global 22721
 overlay paramcoq https://github.com/mattam82/paramcoq universes-and-variances-global 22721
 overlay lean_importer https://github.com/mattam82/rocq-lean-import universes-and-variances-global 22721
 overlay unicoq https://github.com/unicoq/unicoq universes-and-variances-global 22721
