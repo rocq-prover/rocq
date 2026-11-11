@@ -1170,11 +1170,16 @@ let induction_with_atomization_of_ind_arg isrec with_evars elim names hyp0 inhyp
   end
 
 let msg_not_right_number_induction_arguments scheme =
-  str"Not the right number of induction arguments (expected " ++
-  pr_enum (fun x -> x) [
-    if scheme.farg_in_concl then str "the function name" else mt();
-    if scheme.nparams != 0 then int scheme.nparams ++ str (String.plural scheme.nparams " parameter") else mt ();
-    if scheme.nargs != 0 then int scheme.nargs ++ str (String.plural scheme.nargs " argument") else mt ()] ++ str ")."
+  let expected =
+    if not scheme.farg_in_concl && Int.equal scheme.nparams 0 && Int.equal scheme.nargs 0 then
+      if Option.has_some scheme.indarg then str "1 argument" else str "no argument"
+    else
+      pr_enum (fun x -> x) [
+        if scheme.farg_in_concl then str "the function name" else mt();
+        if scheme.nparams != 0 then int scheme.nparams ++ str (String.plural scheme.nparams " parameter") else mt ();
+        if scheme.nargs != 0 then int scheme.nargs ++ str (String.plural scheme.nargs " argument") else mt ()]
+  in
+  str"Not the right number of induction arguments (expected " ++ expected ++ str ")."
 
 (* Induction on a list of induction arguments. Analyze the elim
    scheme (which is mandatory for multiple ind args), check that all
