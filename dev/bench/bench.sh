@@ -95,6 +95,7 @@ export COQ_LOG_DIR=$log_dir
 # to space separated list of opam packages which use the project's url
 declare -A auto_overlay_map
 auto_overlay_map[stdlib]="rocq-stdlib"
+auto_overlay_map[ext_lib]="coq-ext-lib"
 auto_overlay_map[hott]="coq-hott"
 auto_overlay_map[elpi]="rocq-elpi"
 auto_overlay_map[hierarchy_builder]="rocq-hierarchy-builder"
