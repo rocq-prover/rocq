@@ -16,30 +16,35 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
   - [Fixed bugs](#fixed-bugs)
     - [Typing constructions](#typing-constructions)
       - [substitution missing in the body of a let](#substitution-missing-in-the-body-of-a-let)
-      - [missing lift in checking guard](#missing-lift-in-checking-guard)
-      - [de Bruijn indice bug in checking guard of nested cofixpoints](#de-bruijn-indice-bug-in-checking-guard-of-nested-cofixpoints)
       - [de Bruijn indice bug in computing allowed elimination principle](#de-bruijn-indice-bug-in-computing-allowed-elimination-principle)
       - [bug in Prop<=Set conversion which made Set identifiable with Prop, preventing a proof-irrelevant interpretation of Prop](#bug-in-propset-conversion-which-made-set-identifiable-with-prop-preventing-a-proof-irrelevant-interpretation-of-prop)
       - [incorrect abstraction of sort variables in relevance marks on opaque constants](#incorrect-abstraction-of-sort-variables-in-relevance-marks-on-opaque-constants)
+      - [incorrect reification in lazy machine of matches with universe polymorphism](#incorrect-reification-in-lazy-machine-of-matches-with-universe-polymorphism)
+      - [variance inference ignores stack of stuck irrelevant to relevant matches](#variance-inference-ignores-stack-of-stuck-irrelevant-to-relevant-matches)
+      - [missing universe substitution when converting matches with letin in constructor type](#missing-universe-substitution-when-converting-matches-with-letin-in-constructor-type)
+      - [incorrect variance inference with letin in constructor type](#incorrect-variance-inference-with-letin-in-constructor-type)
+      - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
+      - [array literals longer than max_length not rejected by the typechecker](#array-literals-longer-than-max_length-not-rejected-by-the-typechecker)
+    - [Guard condition](#guard-condition)
+      - [missing lift in checking guard](#missing-lift-in-checking-guard)
+      - [de Bruijn indice bug in checking guard of nested cofixpoints](#de-bruijn-indice-bug-in-checking-guard-of-nested-cofixpoints)
+      - [guard condition was unknown to be inconsistent with propositional extensionality in library Sets](#guard-condition-was-unknown-to-be-inconsistent-with-propositional-extensionality-in-library-sets)
+      - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
+      - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
       - [guard checker forgot to check non-structural arguments of fixpoint](#guard-checker-forgot-to-check-non-structural-arguments-of-fixpoint)
       - [guard checker incorrectly detects match on match as returning a subterm](#guard-checker-incorrectly-detects-match-on-match-as-returning-a-subterm)
       - [guard checker does incorrect reduction across inner fixpoint, accepting wrong fixpoints](#guard-checker-does-incorrect-reduction-across-inner-fixpoint-accepting-wrong-fixpoints)
+      - [guard condition issue made it inconsistent with propositional extensionality in library Sets](#guard-condition-issue-made-it-inconsistent-with-propositional-extensionality-in-library-sets)
       - [guard checker does not account for cross calls to compute uniform arguments of a nested mutual fixpoint](#guard-checker-does-not-account-for-cross-calls-to-compute-uniform-arguments-of-a-nested-mutual-fixpoint)
       - [guard checker does not check for correct recursive calls when passed as uniform argument in a nested fixpoint](#guard-checker-does-not-check-for-correct-recursive-calls-when-passed-as-uniform-argument-in-a-nested-fixpoint)
       - [guard checker does not count argument-less recursive calls to compute uniform arguments of a nested mutual fixpoint](#guard-checker-does-not-count-argument-less-recursive-calls-to-compute-uniform-arguments-of-a-nested-mutual-fixpoint)
       - [guard checker does not check arguments of recursive calls in uniformity analysis](#guard-checker-does-not-check-arguments-of-recursive-calls-in-uniformity-analysis)
       - [guard checker sometimes does reduction in the wrong context accepting wrong fixpoints](#guard-checker-sometimes-does-reduction-in-the-wrong-context-accepting-wrong-fixpoints)
       - [guard checker sometimes forgets to check lambda domains in nested fixpoints](#guard-checker-sometimes-forgets-to-check-lambda-domains-in-nested-fixpoints)
-      - [incorrect reification in lazy machine of matches with universe polymorphism](#incorrect-reification-in-lazy-machine-of-matches-with-universe-polymorphism)
-      - [variance inference ignores stack of stuck irrelevant to relevant matches](#variance-inference-ignores-stack-of-stuck-irrelevant-to-relevant-matches)
-      - [missing universe substitution when converting matches with letin in constructor type](#missing-universe-substitution-when-converting-matches-with-letin-in-constructor-type)
-      - [incorrect variance inference with letin in constructor type](#incorrect-variance-inference-with-letin-in-constructor-type)
       - [cofixpoint guard checker passes wrong rectree for nested mutual cofixpoints](#cofixpoint-guard-checker-passes-wrong-rectree-for-nested-mutual-cofixpoints)
       - [cofixpoint guard checker computes rectree in the wrong environment](#cofixpoint-guard-checker-computes-rectree-in-the-wrong-environment)
       - [guard checker counts local definitions as formal arguments in uniformity analysis](#guard-checker-counts-local-definitions-as-formal-arguments-in-uniformity-analysis)
       - [guard checker computes uniform parameters of nested fixpoints in the wrong environment](#guard-checker-computes-uniform-parameters-of-nested-fixpoints-in-the-wrong-environment)
-      - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
-      - [array literals longer than max_length not rejected by the typechecker](#array-literals-longer-than-max_length-not-rejected-by-the-typechecker)
       - [guard checker computes recursive argument type in the wrong environment](#guard-checker-computes-recursive-argument-type-in-the-wrong-environment)
     - [Section system](#section-system)
       - [projections are cooked in wrong environment](#projections-are-cooked-in-wrong-environment)
@@ -73,8 +78,6 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Double universe substitution in letins from constructor arguments in match branches](#double-universe-substitution-in-letins-from-constructor-arguments-in-match-branches)
       - [Universe checking state gets confused when locally changed in module](#universe-checking-state-gets-confused-when-locally-changed-in-module)
     - [Primitive projections](#primitive-projections)
-      - [check of guardedness of extra arguments of primitive projections missing](#check-of-guardedness-of-extra-arguments-of-primitive-projections-missing)
-      - [records based on primitive projections became possibly recursive without the guard condition being updated](#records-based-on-primitive-projections-became-possibly-recursive-without-the-guard-condition-being-updated)
       - [incorrect checking of subtyping with algebraic universes](#incorrect-checking-of-subtyping-with-algebraic-universes)
     - [Conversion machines](#conversion-machines)
       - [the invariant justifying some optimization was wrong for some combination of sharing side effects](#the-invariant-justifying-some-optimization-was-wrong-for-some-combination-of-sharing-side-effects)
@@ -108,13 +111,11 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [roqchk --output-context did not report axioms used through inductives sealed in a module](#roqchk-output-context-did-not-report-axioms-used-through-inductives-sealed-in-a-module)
     - [Conflicts with axioms in library](#conflicts-with-axioms-in-library)
       - [axiom of description and decidability of equality on real numbers in library Reals was inconsistent with impredicative Set](#axiom-of-description-and-decidability-of-equality-on-real-numbers-in-library-reals-was-inconsistent-with-impredicative-set)
-      - [guard condition was unknown to be inconsistent with propositional extensionality in library Sets](#guard-condition-was-unknown-to-be-inconsistent-with-propositional-extensionality-in-library-sets)
       - [incompatibility axiom of choice and excluded-middle with elimination of large singletons to Set](#incompatibility-axiom-of-choice-and-excluded-middle-with-elimination-of-large-singletons-to-set)
       - [Incorrect specification of PrimFloat.leb](#incorrect-specification-of-primfloatleb)
       - [Incorrect implementation of SFclassify.](#incorrect-implementation-of-sfclassify)
       - [Incorrect implementation of PrimInt.asr](#incorrect-implementation-of-primintasr)
       - [nativenorm reading back closures as arbitrary floating-point values](#nativenorm-reading-back-closures-as-arbitrary-floating-point-values)
-      - [guard condition issue made it inconsistent with propositional extensionality in library Sets](#guard-condition-issue-made-it-inconsistent-with-propositional-extensionality-in-library-sets)
     - [Deserialization](#deserialization)
       - [deserialization of .vo data not properly checked](#deserialization-of-vo-data-not-properly-checked)
       - [rocqchk trusts the serialized VM bytecode segment](#rocqchk-trusts-the-serialized-vm-bytecode-segment)
@@ -199,32 +200,6 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
 - GH issue number: ?
 - risk: ?
 
-#### missing lift in checking guard
-
-- component: fixpoint, guard
-- introduced: probably from V5.10
-- impacted released versions: probably V5-V7, V8.0-V8.0pl4, V8.1-V8.1pl4
-- impacted development branches: v8.0 ?
-- impacted coqchk versions: ?
-- fixed in: master/trunk/v8.2 ([ff45afa8](https://github.com/rocq-prover/rocq/commit/ff45afa83a9235cbe33af525b6b0c7985dc7e091), r11646, 2 Dec 2008, Barras), v8.1 ([f8e7f273](https://github.com/rocq-prover/rocq/commit/f8e7f273f2e6009c3c0f0eee47c33542a6fdf361), r11648, 2 Dec 2008, Barras)
-- found by: Barras
-- exploit: test-suite/failure/guard.v
-- GH issue number: none
-- risk: unprobable by chance
-
-#### de Bruijn indice bug in checking guard of nested cofixpoints
-
-- component: cofixpoint, guard
-- introduced: after V6.3.1, before V7.0
-- impacted released versions: V8.0-V8.0pl4, V8.1-V8.1pl4, V8.2-V8.2pl2, V8.3-V8.3pl2, V8.4-V8.4pl4
-- impacted development branches: none
-- impacted coqchk versions: ?
-- fixed in: master ([9f81e2c36](https://github.com/rocq-prover/rocq/commit/9f81e2c360c2be764e71d21ed7c266ee6e8a88c5), 10 Apr 2014, Dénès), v8.4 ([f50ec9e7d](https://github.com/rocq-prover/rocq/commit/f50ec9e7dbd082c9a465aedda25427d93e12cabe), 11 Apr 2014, Dénès), v8.3 ([40c0fe7f4](https://github.com/rocq-prover/rocq/commit/40c0fe7f44b3c99bec5188e01197c8a77348a4ee), 11 Apr 2014, Dénès), v8.2 ([06d66df8c](https://github.com/rocq-prover/rocq/commit/06d66df8c713307625b1c40c054ca06c00ff74b3), 11 Apr 2014, Dénès), v8.1 ([977afae90](https://github.com/rocq-prover/rocq/commit/977afae90c4e2aa974232b0c664346db72aadaa3), 11 Apr 2014, Dénès), v8.0 ([f1d632992](https://github.com/rocq-prover/rocq/commit/f1d632992e33a74b30e79271bd3748d69c5a2152), 29 Nov 2015, Herbelin, backport)
-- found by: Dénès
-- exploit: ?
-- GH issue number: none ?
-- risk: ?
-
 #### de Bruijn indice bug in computing allowed elimination principle
 
 - component: inductive types, elimination principle
@@ -263,99 +238,6 @@ and lack of checking of relevance marks on constants in coqchk
 - found by: Gaëtan Gilbert
 - exploit / GH issue: [#18629](https://github.com/rocq-prover/rocq/issues/18629)
 - risk: low (requires specific plugin code unlikely to be found in non malicious plugin)
-
-#### guard checker forgot to check non-structural arguments of fixpoint
-
-- component: guard checking
-- introduced: V8.16 ([#15434](https://github.com/rocq-prover/rocq/pull/15434))
-- impacted released versions: V8.16 to V9.0.0
-- impacted coqchk versions: Same
-- fixed in: V9.0.1, V9.1.0
-- found by: ccz181078
-- exploit / GH issue: [#20413](https://github.com/rocq-prover/rocq/issues/20413)
-- risk: significant (bad terms may be generated by Program machinery)
-
-#### guard checker incorrectly detects match on match as returning a subterm
-
-- component: guard checking
-- introduced: V8.16 ([#15434](https://github.com/rocq-prover/rocq/pull/15434))
-- impacted released versions: V8.16 to V9.0.0
-- impacted coqchk versions: Same
-- fixed in: V9.0.1, V9.1.0
-- found by: Yann Leray
-- exploit / GH issue: [#20455](https://github.com/rocq-prover/rocq/issues/20455)
-- risk: unknown (no development in CI was affected)
-
-#### guard checker does incorrect reduction across inner fixpoint, accepting wrong fixpoints
-
-- component: guard checking
-- introduced: V8.16 ([#15434](https://github.com/rocq-prover/rocq/pull/15434))
-- impacted released versions: V8.16 to V9.0.0
-- impacted coqchk versions: Same
-- fixed in: V9.0.1, V9.1.0 ([#20648](https://github.com/rocq-prover/rocq/issues/20648))
-- found by: Yann Leray
-- exploit / GH issue: [#20555](https://github.com/rocq-prover/rocq/issues/20555)
-- risk: unknown (no development in CI was affected)
-
-#### guard checker does not account for cross calls to compute uniform arguments of a nested mutual fixpoint
-- component: guard checking
-- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
-- impacted released versions: V8.20, V9.0, V9.1
-- impacted coqchk versions: Same
-- fixed in: V9.2.0 ([#21684](https://github.com/rocq-prover/rocq/pull/21684))
-- found by: Tristan Stérin
-- exploit / GH issue: [#21682](https://github.com/rocq-prover/rocq/issues/21682)
-- risk: unknown (no development in CI was affected)
-
-#### guard checker does not check for correct recursive calls when passed as uniform argument in a nested fixpoint
-- component: guard checking
-- introduced: V9.0.1, V9.1.0 ([#20648](https://github.com/rocq-prover/rocq/issues/20648), see 2 above)
-- impacted released versions: V9.0.1, V9.1.0, V9.1.1
-- impacted coqchk versions: Same
-- fixed in: V9.2.0 ([#21684](https://github.com/rocq-prover/rocq/pull/21684))
-- found by: Tristan Stérin
-- exploit / GH issue: [#21683](https://github.com/rocq-prover/rocq/issues/21683)
-- risk: unknown (no development in CI was affected)
-
-#### guard checker does not count argument-less recursive calls to compute uniform arguments of a nested mutual fixpoint
-- component: guard checking
-- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
-- impacted released versions: V8.20, V9.0, V9.1
-- impacted coqchk versions: Same
-- fixed in: V9.2.0 ([#21684](https://github.com/rocq-prover/rocq/pull/21684))
-- found by: Tristan Stérin
-- exploit / GH issue: [#21701](https://github.com/rocq-prover/rocq/issues/21701)
-- risk: unknown (no development in CI was affected)
-
-#### guard checker does not check arguments of recursive calls in uniformity analysis
-- component: guard checking
-- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
-- impacted released versions: V8.20, V9.0, V9.1
-- impacted coqchk versions: Same
-- fixed in: V9.2.0 ([#21798](https://github.com/rocq-prover/rocq/pull/21798))
-- found by: Pierre-Marie Pédrot
-- exploit / GH issue: [#21797](https://github.com/rocq-prover/rocq/issues/21797)
-- risk: unknown (no development in CI was affected)
-
-#### guard checker sometimes does reduction in the wrong context accepting wrong fixpoints
-- component: guard checking
-- introduced: V8.16 ([#15453](https://github.com/rocq-prover/rocq/pull/15453))
-- impacted released versions: V8.16, V8.17, V8.19, V8.20, V9.0, V9.1, V9.2.0
-- impacted coqchk versions: Same
-- fixed in: V9.3 ([#21845](https://github.com/rocq-prover/rocq/pull/21845))
-- found by: Yann Leray
-- exploit / GH issue: [#21839](https://github.com/rocq-prover/rocq/issues/21839)
-- risk: unknown (no development in CI was affected)
-
-#### guard checker sometimes forgets to check lambda domains in nested fixpoints
-- component: guard checking
-- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
-- impacted released versions: V8.20, V9.0, V9.1, V9.2.0
-- impacted coqchk versions: Same
-- fixed in: V9.2.1, V9.3 ([#22022](https://github.com/rocq-prover/rocq/pull/22022))
-- found by: Yann Leray
-- exploit / GH issue: [#22021](https://github.com/rocq-prover/rocq/issues/22021)
-- risk: low (no known way to exploit the issue)
 
 #### incorrect reification in lazy machine of matches with universe polymorphism
 - component: "lazy" reduction
@@ -405,6 +287,206 @@ and lack of checking of relevance marks on constants in coqchk
   which means those letins cannot be irrelevant for conversion.
   Differences in reduction may mean the bug is harder to exploit before V8.19, see issue.
 
+#### incorrect variance inference for a constructor applied in a letin of a constructor type
+- component: inductive declarations, universe polymorphism
+- introduced: V9.3.0 ([#22385](https://github.com/rocq-prover/rocq/pull/22385))
+- impacted released versions: V9.3.0
+- impacted coqchk versions: Same
+- fixed in: V9.2.1, V9.3.1, V9.4 ([#22681](https://github.com/rocq-prover/rocq/pull/22681))
+- found by: Sami Jawhar
+- exploit: test-suite/bugs/bug_22675.v
+- GH issue number: [#22675](https://github.com/rocq-prover/rocq/issues/22675)
+- risk: needs a cumulative inductive one of whose constructors has a letin whose
+  body contains a fully applied constructor of another cumulative inductive
+  which has a letin of its own. V9.2.0 accepts the issue's file through
+  [#22383](https://github.com/rocq-prover/rocq/issues/22383): it does not infer
+  letin bodies at all.
+
+#### array literals longer than max_length not rejected by the typechecker
+
+- component: primitive arrays, typechecker
+- introduced: V8.13 (introduction of primitive arrays)
+- impacted released versions: V8.13 to V9.3.0
+- impacted coqchk versions: same
+- fixed in: V9.2.1, V9.3.1, v9.4
+- found by: Sami Jawhar
+- exploit: test-suite/bugs/bug_22716.v
+- GH issue number: [#22716](https://github.com/rocq-prover/rocq/issues/22716)
+- risk: requires constructing an array literal longer than
+  `max_length` (4194304 elements) through the typechecker
+  (as opposed to evaluating a primitive function like `make` applied to a large integer)
+
+### Guard condition
+
+#### missing lift in checking guard
+
+- component: fixpoint, guard
+- introduced: probably from V5.10
+- impacted released versions: probably V5-V7, V8.0-V8.0pl4, V8.1-V8.1pl4
+- impacted development branches: v8.0 ?
+- impacted coqchk versions: ?
+- fixed in: master/trunk/v8.2 ([ff45afa8](https://github.com/rocq-prover/rocq/commit/ff45afa83a9235cbe33af525b6b0c7985dc7e091), r11646, 2 Dec 2008, Barras), v8.1 ([f8e7f273](https://github.com/rocq-prover/rocq/commit/f8e7f273f2e6009c3c0f0eee47c33542a6fdf361), r11648, 2 Dec 2008, Barras)
+- found by: Barras
+- exploit: test-suite/failure/guard.v
+- GH issue number: none
+- risk: unprobable by chance
+
+#### de Bruijn indice bug in checking guard of nested cofixpoints
+
+- component: cofixpoint, guard
+- introduced: after V6.3.1, before V7.0
+- impacted released versions: V8.0-V8.0pl4, V8.1-V8.1pl4, V8.2-V8.2pl2, V8.3-V8.3pl2, V8.4-V8.4pl4
+- impacted development branches: none
+- impacted coqchk versions: ?
+- fixed in: master ([9f81e2c36](https://github.com/rocq-prover/rocq/commit/9f81e2c360c2be764e71d21ed7c266ee6e8a88c5), 10 Apr 2014, Dénès), v8.4 ([f50ec9e7d](https://github.com/rocq-prover/rocq/commit/f50ec9e7dbd082c9a465aedda25427d93e12cabe), 11 Apr 2014, Dénès), v8.3 ([40c0fe7f4](https://github.com/rocq-prover/rocq/commit/40c0fe7f44b3c99bec5188e01197c8a77348a4ee), 11 Apr 2014, Dénès), v8.2 ([06d66df8c](https://github.com/rocq-prover/rocq/commit/06d66df8c713307625b1c40c054ca06c00ff74b3), 11 Apr 2014, Dénès), v8.1 ([977afae90](https://github.com/rocq-prover/rocq/commit/977afae90c4e2aa974232b0c664346db72aadaa3), 11 Apr 2014, Dénès), v8.0 ([f1d632992](https://github.com/rocq-prover/rocq/commit/f1d632992e33a74b30e79271bd3748d69c5a2152), 29 Nov 2015, Herbelin, backport)
+- found by: Dénès
+- exploit: ?
+- GH issue number: none ?
+- risk: ?
+
+#### guard condition was unknown to be inconsistent with propositional extensionality in library Sets
+
+- component: library of extensional sets, guard condition
+- introduced: not a bug per se but an incompatibility discovered late
+- impacted released versions: technically speaking from V6.1 with the introduction of the Sets library which was then inconsistent from the very beginning without we knew it
+- impacted coqchk versions: ?
+- fixed by constraining the guard condition: ([9b272a8](https://github.com/rocq-prover/rocq/commit/9b272a861bc3263c69b699cd2ac40ab2606543fa), [ccd7546c](https://github.com/rocq-prover/rocq/commit/ccd7546cd32c8a7901a4234f86aa23b4a7e1a043) 28 Oct 2014, Barras, Dénès)
+- found by: Schepler, Dénès, Azevedo de Amorim
+- exploit: ?
+- GH issue number: none
+- risk: unlikely to be exploited by chance (?)
+
+#### records based on primitive projections became possibly recursive without the guard condition being updated
+
+- component: primitive projections, guard condition
+- introduced: 10 Sep 2014, [6624459e4](https://github.com/rocq-prover/rocq/commit/6624459e492164b3d189e3518864379ff985bf8c), Sozeau (?)
+- impacted released versions: V8.5
+- impacted development branches: none
+- impacted coqchk versions: ?
+- fixed in: trunk/master/v8.5 ([120053a50](https://github.com/rocq-prover/rocq/commit/120053a50f87bd53398eedc887fa5e979f56f112), 4 Mar 2016, Dénès)
+- found by: Dénès exploiting bug rocq-prover/rocq#4588
+- exploit: test-suite/bugs/bug_4588.v
+- GH issue number: rocq-prover/rocq#4588
+- risk: ?
+
+#### check of guardedness of extra arguments of primitive projections missing
+
+- component: primitive projections, guard condition
+- introduced: 6 May 2014, [a4043608f](https://github.com/rocq-prover/rocq/commit/a4043608f704f026de7eb5167a109ca48e00c221), Sozeau
+- impacted released versions: V8.5-V8.5pl2,
+- impacted development branches: none
+- impacted coqchk versions: ?
+- fixed in: trunk/master/v8.5 ([ba00867d5](https://github.com/rocq-prover/rocq/commit/ba00867d515624aee734d998bfbe3880f559d907), 25 Jul 2016, Sozeau)
+- found by: Sozeau, by analyzing bug report rocq-prover/rocq#4876
+- exploit: to be done (?)
+- GH issue number: rocq-prover/rocq#4876
+- risk: consequence of bug found by chance, unlikely to be exploited by chance (MS?)
+
+#### guard checker forgot to check non-structural arguments of fixpoint
+
+- component: guard checking
+- introduced: V8.16 ([#15434](https://github.com/rocq-prover/rocq/pull/15434))
+- impacted released versions: V8.16 to V9.0.0
+- impacted coqchk versions: Same
+- fixed in: V9.0.1, V9.1.0
+- found by: ccz181078
+- exploit / GH issue: [#20413](https://github.com/rocq-prover/rocq/issues/20413)
+- risk: significant (bad terms may be generated by Program machinery)
+
+#### guard checker incorrectly detects match on match as returning a subterm
+
+- component: guard checking
+- introduced: V8.16 ([#15434](https://github.com/rocq-prover/rocq/pull/15434))
+- impacted released versions: V8.16 to V9.0.0
+- impacted coqchk versions: Same
+- fixed in: V9.0.1, V9.1.0
+- found by: Yann Leray
+- exploit / GH issue: [#20455](https://github.com/rocq-prover/rocq/issues/20455)
+- risk: unknown (no development in CI was affected)
+
+#### guard checker does incorrect reduction across inner fixpoint, accepting wrong fixpoints
+
+- component: guard checking
+- introduced: V8.16 ([#15434](https://github.com/rocq-prover/rocq/pull/15434))
+- impacted released versions: V8.16 to V9.0.0
+- impacted coqchk versions: Same
+- fixed in: V9.0.1, V9.1.0 ([#20648](https://github.com/rocq-prover/rocq/issues/20648))
+- found by: Yann Leray
+- exploit / GH issue: [#20555](https://github.com/rocq-prover/rocq/issues/20555)
+- risk: unknown (no development in CI was affected)
+
+#### guard condition issue made it inconsistent with propositional extensionality in library Sets
+
+- component: library of extensional sets, guard condition
+- introduced: variant of [the issue with propositional extensionality](#guard-condition-was-unknown-to-be-inconsistent-with-propositional-extensionality-in-library-Sets) that was not fixed then
+- impacted released versions: the relative inconsistency was present from the very beginning, until 9.0
+- impacted coqchk versions: *-9.0
+- fixed in: 9.0.1
+- fixed by further constraining the guard condition: [PR 21050](https://github.com/rocq-prover/rocq/pull/21050)
+- found by: Thomas Lamiaux, Yann Leray, Pierre-Marie Pédrot, Nicolas Tabareau
+- GH issue number: [21053](https://github.com/rocq-prover/issues/21053)
+- risk: unlikely to be exploited by chance (?)
+
+#### guard checker does not account for cross calls to compute uniform arguments of a nested mutual fixpoint
+- component: guard checking
+- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
+- impacted released versions: V8.20, V9.0, V9.1
+- impacted coqchk versions: Same
+- fixed in: V9.2.0 ([#21684](https://github.com/rocq-prover/rocq/pull/21684))
+- found by: Tristan Stérin
+- exploit / GH issue: [#21682](https://github.com/rocq-prover/rocq/issues/21682)
+- risk: unknown (no development in CI was affected)
+
+#### guard checker does not check for correct recursive calls when passed as uniform argument in a nested fixpoint
+- component: guard checking
+- introduced: V9.0.1, V9.1.0 ([#20648](https://github.com/rocq-prover/rocq/issues/20648), see 3 above)
+- impacted released versions: V9.0.1, V9.1.0, V9.1.1
+- impacted coqchk versions: Same
+- fixed in: V9.2.0 ([#21684](https://github.com/rocq-prover/rocq/pull/21684))
+- found by: Tristan Stérin
+- exploit / GH issue: [#21683](https://github.com/rocq-prover/rocq/issues/21683)
+- risk: unknown (no development in CI was affected)
+
+#### guard checker does not count argument-less recursive calls to compute uniform arguments of a nested mutual fixpoint
+- component: guard checking
+- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
+- impacted released versions: V8.20, V9.0, V9.1
+- impacted coqchk versions: Same
+- fixed in: V9.2.0 ([#21684](https://github.com/rocq-prover/rocq/pull/21684))
+- found by: Tristan Stérin
+- exploit / GH issue: [#21701](https://github.com/rocq-prover/rocq/issues/21701)
+- risk: unknown (no development in CI was affected)
+
+#### guard checker does not check arguments of recursive calls in uniformity analysis
+- component: guard checking
+- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
+- impacted released versions: V8.20, V9.0, V9.1
+- impacted coqchk versions: Same
+- fixed in: V9.2.0 ([#21798](https://github.com/rocq-prover/rocq/pull/21798))
+- found by: Pierre-Marie Pédrot
+- exploit / GH issue: [#21797](https://github.com/rocq-prover/rocq/issues/21797)
+- risk: unknown (no development in CI was affected)
+
+#### guard checker sometimes does reduction in the wrong context accepting wrong fixpoints
+- component: guard checking
+- introduced: V8.16 ([#15453](https://github.com/rocq-prover/rocq/pull/15453))
+- impacted released versions: V8.16, V8.17, V8.19, V8.20, V9.0, V9.1, V9.2.0
+- impacted coqchk versions: Same
+- fixed in: V9.3 ([#21845](https://github.com/rocq-prover/rocq/pull/21845))
+- found by: Yann Leray
+- exploit / GH issue: [#21839](https://github.com/rocq-prover/rocq/issues/21839)
+- risk: unknown (no development in CI was affected)
+
+#### guard checker sometimes forgets to check lambda domains in nested fixpoints
+- component: guard checking
+- introduced: V8.20 ([#17986](https://github.com/rocq-prover/rocq/pull/17986))
+- impacted released versions: V8.20, V9.0, V9.1, V9.2.0
+- impacted coqchk versions: Same
+- fixed in: V9.2.1, V9.3 ([#22022](https://github.com/rocq-prover/rocq/pull/22022))
+- found by: Yann Leray
+- exploit / GH issue: [#22021](https://github.com/rocq-prover/rocq/issues/22021)
+- risk: low (no known way to exploit the issue)
+
 #### cofixpoint guard checker passes wrong rectree for nested mutual cofixpoints
 - component: cofixpoints, guard checking
 - introduced: before V7.0, probably when coinductives first appeared
@@ -444,35 +526,6 @@ and lack of checking of relevance marks on constants in coqchk
 - found by: Sami Jawhar
 - exploit: test-suite/bugs/bug_22645.v
 - risk: ?
-
-#### incorrect variance inference for a constructor applied in a letin of a constructor type
-- component: inductive declarations, universe polymorphism
-- introduced: V9.3.0 ([#22385](https://github.com/rocq-prover/rocq/pull/22385))
-- impacted released versions: V9.3.0
-- impacted coqchk versions: Same
-- fixed in: V9.2.1, V9.3.1, V9.4 ([#22681](https://github.com/rocq-prover/rocq/pull/22681))
-- found by: Sami Jawhar
-- exploit: test-suite/bugs/bug_22675.v
-- GH issue number: [#22675](https://github.com/rocq-prover/rocq/issues/22675)
-- risk: needs a cumulative inductive one of whose constructors has a letin whose
-  body contains a fully applied constructor of another cumulative inductive
-  which has a letin of its own. V9.2.0 accepts the issue's file through
-  [#22383](https://github.com/rocq-prover/rocq/issues/22383): it does not infer
-  letin bodies at all.
-
-#### array literals longer than max_length not rejected by the typechecker
-
-- component: primitive arrays, typechecker
-- introduced: V8.13 (introduction of primitive arrays)
-- impacted released versions: V8.13 to V9.3.0
-- impacted coqchk versions: same
-- fixed in: V9.2.1, V9.3.1, v9.4
-- found by: Sami Jawhar
-- exploit: test-suite/bugs/bug_22716.v
-- GH issue number: [#22716](https://github.com/rocq-prover/rocq/issues/22716)
-- risk: requires constructing an array literal longer than
-  `max_length` (4194304 elements) through the typechecker
-  (as opposed to evaluating a primitive function like `make` applied to a large integer)
 
 #### guard checker computes recursive argument type in the wrong environment
 - component: guard checking
@@ -846,32 +899,6 @@ fix.
 
 ### Primitive projections
 
-#### check of guardedness of extra arguments of primitive projections missing
-
-- component: primitive projections, guard condition
-- introduced: 6 May 2014, [a4043608f](https://github.com/rocq-prover/rocq/commit/a4043608f704f026de7eb5167a109ca48e00c221), Sozeau
-- impacted released versions: V8.5-V8.5pl2,
-- impacted development branches: none
-- impacted coqchk versions: ?
-- fixed in: trunk/master/v8.5 ([ba00867d5](https://github.com/rocq-prover/rocq/commit/ba00867d515624aee734d998bfbe3880f559d907), 25 Jul 2016, Sozeau)
-- found by: Sozeau, by analyzing bug report rocq-prover/rocq#4876
-- exploit: to be done (?)
-- GH issue number: rocq-prover/rocq#4876
-- risk: consequence of bug found by chance, unlikely to be exploited by chance (MS?)
-
-#### records based on primitive projections became possibly recursive without the guard condition being updated
-
-- component: primitive projections, guard condition
-- introduced: 10 Sep 2014, [6624459e4](https://github.com/rocq-prover/rocq/commit/6624459e492164b3d189e3518864379ff985bf8c), Sozeau (?)
-- impacted released versions: V8.5
-- impacted development branches: none
-- impacted coqchk versions: ?
-- fixed in: trunk/master/v8.5 ([120053a50](https://github.com/rocq-prover/rocq/commit/120053a50f87bd53398eedc887fa5e979f56f112), 4 Mar 2016, Dénès)
-- found by: Dénès exploiting bug rocq-prover/rocq#4588
-- exploit: test-suite/bugs/bug_4588.v
-- GH issue number: rocq-prover/rocq#4588
-- risk: ?
-
 #### incorrect checking of subtyping with algebraic universes
 
 - component: modules and universes
@@ -1237,18 +1264,6 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - GH issue number: no
 - risk: unlikely to be exploited by chance
 
-#### guard condition was unknown to be inconsistent with propositional extensionality in library Sets
-
-- component: library of extensional sets, guard condition
-- introduced: not a bug per se but an incompatibility discovered late
-- impacted released versions: technically speaking from V6.1 with the introduction of the Sets library which was then inconsistent from the very beginning without we knew it
-- impacted coqchk versions: ?
-- fixed by constraining the guard condition: ([9b272a8](https://github.com/rocq-prover/rocq/commit/9b272a861bc3263c69b699cd2ac40ab2606543fa), [ccd7546c](https://github.com/rocq-prover/rocq/commit/ccd7546cd32c8a7901a4234f86aa23b4a7e1a043) 28 Oct 2014, Barras, Dénès)
-- found by: Schepler, Dénès, Azevedo de Amorim
-- exploit: ?
-- GH issue number: none
-- risk: unlikely to be exploited by chance (?)
-
 #### incompatibility axiom of choice and excluded-middle with elimination of large singletons to Set
 
 - component: library for axiom of choice and excluded-middle
@@ -1304,18 +1319,6 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - found by: Jason Gross
 - GH issue number: rocq-prover/rocq#17871
 - risk: proof of false when using primitive floats and native_compute
-
-#### guard condition issue made it inconsistent with propositional extensionality in library Sets
-
-- component: library of extensional sets, guard condition
-- introduced: variant of [the issue with propositional extensionality](#guard-condition-was-unknown-to-be-inconsistent-with-propositional-extensionality-in-library-Sets) that was not fixed then
-- impacted released versions: the relative inconsistency was present from the very beginning, until 9.0
-- impacted coqchk versions: *-9.0
-- fixed in: 9.0.1
-- fixed by further constraining the guard condition: [PR 21050](https://github.com/rocq-prover/rocq/pull/21050)
-- found by: Thomas Lamiaux, Yann Leray, Pierre-Marie Pédrot, Nicolas Tabareau
-- GH issue number: [21053](https://github.com/rocq-prover/issues/21053)
-- risk: unlikely to be exploited by chance (?)
 
 ### Deserialization
 
