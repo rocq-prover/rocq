@@ -1154,7 +1154,6 @@ let intern_args params =
 let start_module_core id args res =
   let mp = Global.start_module id in
   let params, ctx = intern_args args in
-  let () = Global.push_context_set ctx in
   let env = Global.env () in
   let res_entry_o, subtyps, ctx' = match res with
     | Enforce (mte, base, kind, inl) ->
@@ -1367,7 +1366,6 @@ let openmodtype_info =
 let start_modtype_core id args mtys =
   let mp = Global.start_modtype id in
   let params, params_ctx = RawModOps.Interp.intern_args args in
-  let () = Global.push_context_set params_ctx in
   let env = Global.env () in
   let sub_mty_l, sub_mty_ctx = RawModOps.Interp.build_subtypes env mp params mtys in
   let () = Global.push_context_set sub_mty_ctx in
