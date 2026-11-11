@@ -149,10 +149,11 @@ let evd_convertible env evd x y =
       [PrfExtern] are checked by the node that consumes them, or against the
       goal in [cl_rewrite_clause_newtac] for the root.
     - Judgements marked (evar): they only concern terms used to build the
-      type of a constraint evar. Such terms do not occur in ⟦p⟧, which only
-      contains the solution of the evar found by typeclass resolution, so
-      they are not relied upon for the well-typedness of ⟦p⟧. Judgements
-      marked (unused) describe fields that do not occur in ⟦p⟧ at all. *)
+      type of a constraint evar. Such terms do not occur syntactically in
+      ⟦p⟧, but the solution of the evar found by typeclass resolution may
+      contain subterms of its type obtained by unification, so they must
+      hold as well. Judgements marked (unused) describe fields that do not
+      occur in ⟦p⟧ at all. *)
 
 (** Arguments of a morphism application, relative to an argument type A and
     an argument relation R of the morphism signature (see [PrfApp]). *)
@@ -492,7 +493,7 @@ end) = struct
             let evars, relty = mk_relty evars env ext ty obj in
             let evars', b' = Evarsolve.refresh_universes ~onlyalg:true ~status:(Evd.UnivFlexible false)
               (Some false) env (fst evars) b' in
-            let evars, newarg = app_poly env (evars', snd evars) respectful [| ty ; b' ; relty ; arg |] in
+            let evars, newarg = app_poly_check env (evars', snd evars) respectful [| ty ; b' ; relty ; arg |] in
               evars, mkProd(na, ty, b), newarg, (ty, Some relty) :: cstrs
           else if not (Option.is_empty obj) then
             user_err Pp.(str "Cannot rewrite inside dependent arguments of a function.")
@@ -504,7 +505,7 @@ end) = struct
             let ty = Reductionops.nf_betaiota env (goalevars evars) ty in
             let pred = mkLambda (na, ty, b) in
             let liftarg = mkLambda (na, ty, arg) in
-            let evars, arg' = app_poly env evars forall_relation [| ty ; pred ; liftarg |] in
+            let evars, arg' = app_poly_check env evars forall_relation [| ty ; pred ; liftarg |] in
             evars, mkProd(na, ty, b), arg', (ty, None) :: cstrs
         | _, obj :: _ -> anomaly ~label:"build_signature" (Pp.str "not enough products.")
         | _, [] ->
