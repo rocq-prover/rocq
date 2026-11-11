@@ -209,6 +209,8 @@ let maximize l g =
   | G.NoBound -> G.NoBound
   | G.CannotSimplify -> G.CannotSimplify
 
+let has_upper_bound l g = G.has_upper_bound l g.graph
+
 let remove_set_clauses l g =
   let graph = G.Internal.remove_set_clauses l g.graph in
   { g with graph }

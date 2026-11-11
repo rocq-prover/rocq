@@ -24,6 +24,15 @@ let { Goptions.get = get_set_minimization } =
     ~value:true
     ()
 
+(* To also minimize the flexible universes without upper bound whose lower bound is an invariant
+   level, whatever their own variance, and the flexible universes not occurring in the type
+   (see [simplify_variables]) *)
+let { Goptions.get = get_unbounded_minimization } =
+  Goptions.declare_bool_option_and_ref
+    ~key:["Universe";"Minimization";"Unbounded"]
+    ~value:false
+    ()
+
 (** Simplification *)
 
 let variance_info u flex (variances : InferCumulativity.variances) =
@@ -111,6 +120,13 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
       else update_equivs_bound (flex, variances, graph) u lbound equivs
     | NoBound | CannotSimplify -> acc
   in
+  let minimize_not_to_set u (flex, variances, graph as acc) =
+    match UGraph.minimize u graph with
+    | HasSubst (graph, equivs, lbound) ->
+      if Universe.exists (fun (l, _) -> Level.is_set l) lbound then acc
+      else update_equivs_bound (flex, variances, graph) u lbound equivs
+    | NoBound | CannotSimplify -> acc
+  in
   let collapse_to_zero u acc =
     try instantiate_variable u Universe.type0 acc
     with Loop_checking.NotCanonical -> assert false
@@ -123,12 +139,30 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
       update_equivs_bound (flex, variances, graph) u ubound equivs
     | NoBound | CannotSimplify -> acc
   in
-  let arbitrary ~allow_collapse_to_zero u (flex, variances, graph as acc) =
-    match UGraph.minimize u graph with
+  let arbitrary ?(irrelevant=false) ~allow_collapse_to_zero u (flex, variances, graph0 as acc) =
+    match UGraph.minimize u graph0 with
       | HasSubst (graph, equivs, lbound) ->
         debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
-        if not (allowed_instance ~allow_collapse_to_zero u lbound) then acc
-        else update_equivs_bound (flex, variances, graph) u lbound equivs
+        (* With [Universe Minimization Unbounded], a universe irrelevant to the type and the typing
+           of the definition is set to [Set] even without [Universe Minimization ToSet]: it only
+           remains in the instances of the body, where it does not make the type less general *)
+        (* (Not with partial information: the universes of a statement look irrelevant before the
+           proof uses them) *)
+        (* (Nor when a universe equal to [u], which the substitution sets too, is relevant) *)
+        let irrelevant_level l =
+          Level.is_set l ||
+          let _, typev, typingv, _ = variance_info l flex variances in
+          typev == UVars.Variance.Irrelevant && typingv == UVars.Variance.Irrelevant
+        in
+        let irrelevant_equivs () =
+          List.for_all (fun (l, (l', _)) -> irrelevant_level l && irrelevant_level l') equivs
+        in
+        let collapse_irrelevant () =
+          irrelevant && not partial && get_unbounded_minimization () && irrelevant_equivs ()
+        in
+        if allowed_instance ~allow_collapse_to_zero u lbound || collapse_irrelevant () then
+          update_equivs_bound (flex, variances, graph) u lbound equivs
+        else acc
       | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
         if allow_collapse_to_zero && not (Level.Set.mem u above_prop) then collapse_to_zero u acc
         else maximize u acc
@@ -150,7 +184,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
     | Irrelevant ->
       (* The universe does not occur relevantly in the principal type of the expressions where it appears *)
       begin match type_variance with
-      | Irrelevant -> arbitrary ~allow_collapse_to_zero:true u acc
+      | Irrelevant -> arbitrary ~irrelevant:true ~allow_collapse_to_zero:true u acc
       | Covariant -> minimize ~allow_collapse_to_zero:false u acc
       | Contravariant -> acc (* Do not maximize at first, as it would break the template hacks with max (0, ...) *)
       | Invariant -> acc
@@ -161,8 +195,13 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
       simplify_impred u acc impred
     | _ ->
       (* Agressive minimization when the universe does not direcly affect the type of the expression. *)
-      if not partial && solve_term && not (CDebug.get_flag disable_solve_term) && type_variance == Irrelevant then
-        minimize ~allow_collapse_to_zero:true u acc
+      if not partial && not (CDebug.get_flag disable_solve_term) && type_variance == Irrelevant then
+        if solve_term then minimize ~allow_collapse_to_zero:true u acc
+        (* [Universe Minimization Unbounded] also minimizes the universes not occurring in the type,
+           but not to [Set]: it could still constrain the universes of the type, e.g.
+           [u <= max(v, w)] becomes [u <= v] when [w := Set] *)
+        else if get_unbounded_minimization () then minimize_not_to_set u acc
+        else simplify_impred u acc impred
       else simplify_impred u acc impred
   in
   let (flex, _, _ as acc) = Level.Set.fold simplify_min flex (flex, variances, graph) in
@@ -178,6 +217,36 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
       | _, _, _ -> acc
   in
   let (flex, _, _ as acc) = Level.Set.fold simplify_max flex acc in
+  (* With [Universe Minimization Unbounded], a flexible universe that is still undefined, e.g. one
+     occurring invariantly, is set to its lower bound when no constraint bounds it from above, as
+     the minimization ignoring variances did. The type loses generality, but the universes made by
+     cumulative instances, only bounded from below by the universes of the instances, do not pile up. *)
+  let (flex, _, _ as acc) =
+    if partial || not (get_unbounded_minimization ()) then acc else
+    let simplify_unbounded u (flex, variances, graph as acc) =
+      if not (Level.Set.mem u flex) || UGraph.has_upper_bound u graph then acc
+      else match UGraph.minimize u graph with
+        | HasSubst (graph', equivs, lbound) ->
+          (* Only when the lower bound is a universe level which occurs invariantly itself, e.g. one
+             of the binders of the definition: [u] is identified with it. A universe bounded by [Set],
+             by universes the type does not mention, or by an algebraic universe ([max], [l+1]) keeps
+             its generality, as it did when instances could only mention levels. *)
+          let invariant_level = function
+            | [(l, 0)] ->
+              not (Level.is_set l) &&
+              let _, typev, typingv, _ = variance_info l flex variances in
+              typev == UVars.Variance.Invariant || typingv == UVars.Variance.Invariant
+            | _ -> false
+          in
+          if not (invariant_level (Universe.repr lbound)) then acc
+          else begin
+            debug_each Pp.(fun () -> str"Minimizing unbounded " ++ Level.raw_pr u ++ str" to lbound: " ++ Universe.pr Level.raw_pr lbound);
+            update_equivs_bound (flex, variances, graph') u lbound equivs
+          end
+        | NoBound | CannotSimplify -> acc
+    in
+    Level.Set.fold simplify_unbounded flex acc
+  in
   let simplify_arbitrary u (flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
     let term_variance, type_variance, typing_variance, _impred_qvars = variance_info u flex variances in
