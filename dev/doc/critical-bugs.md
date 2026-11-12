@@ -46,6 +46,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker counts local definitions as formal arguments in uniformity analysis](#guard-checker-counts-local-definitions-as-formal-arguments-in-uniformity-analysis)
       - [guard checker computes uniform parameters of nested fixpoints in the wrong environment](#guard-checker-computes-uniform-parameters-of-nested-fixpoints-in-the-wrong-environment)
       - [guard checker computes recursive argument type in the wrong environment](#guard-checker-computes-recursive-argument-type-in-the-wrong-environment)
+      - [guard checker computes commutative cuts in the wrong environment and breaks propositional extensionality](#guard-checker-computes-commutative-cuts-in-the-wrong-environment-and-breaks-propositional-extensionality)
     - [Section system](#section-system)
       - [projections are cooked in wrong environment](#projections-are-cooked-in-wrong-environment)
     - [Module system](#module-system)
@@ -59,6 +60,9 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Incorrect subtyping rule for universe polymorphic "with Definition".](#incorrect-subtyping-rule-for-universe-polymorphic-with-definition)
       - [Subtyping ignored elimination constraints](#subtyping-ignored-elimination-constraints)
       - [kernel and checker accept incorrect name aliasing information](#kernel-and-checker-accept-incorrect-name-aliasing-information)
+      - [rocqchk accepts a forged alias between declared-only fields](#rocqchk-accepts-a-forged-alias-between-declared-only-fields)
+      - [rocqchk does not check the canonical names a module gives its submodules' fields](#rocqchk-does-not-check-the-canonical-names-a-module-gives-its-submodules-fields)
+      - [rocqchk accepts a forged alias that changes the label of a name](#rocqchk-accepts-a-forged-alias-that-changes-the-label-of-a-name)
     - [Incorrect subtyping of inductives with letins in constructor types](#incorrect-subtyping-of-inductives-with-letins-in-constructor-types)
     - [Including functor application generates garbage delta-resolvers](#including-functor-application-generates-garbage-delta-resolvers)
       - [Subtyping of inductive types ignores uniform parameters making it inconsistent with propext](#subtyping-of-inductive-types-ignores-uniform-parameters-making-it-inconsistent-with-propext)
@@ -689,6 +693,55 @@ and lack of checking of relevance marks on constants in coqchk
 - GH issue number: rocq-prover/rocq#7609
 - exploit: see issue (requires a plugin or hand crafted .vo file)
 - risk: low
+
+#### rocqchk accepts a forged alias between declared-only fields
+
+- component: rocqchk, modules
+- introduced: unknown
+- impacted released versions: unknown (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#22877
+- exploit: test-suite/misc/rocqchk_forged_aliases.sh, case parameter: a crafted
+  .vo makes c, declared in the type of a sealed module M2 with M2.c := false,
+  an alias of c declared in the type of a sealed module M1 with M1.c := true,
+  and a client proves False from what the two types state about c
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk does not check the canonical names a module gives its submodules' fields
+
+- component: rocqchk, modules
+- introduced: unknown
+- impacted released versions: unknown (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#22877
+- exploit: test-suite/misc/rocqchk_forged_aliases.sh, case nested: a crafted
+  .vo gives the resolver of a module A, and not that of its submodule A.X,
+  the alias A.X.d -> A.Y.d, with A.Y.d := true and A.X.d := false; rocqchk
+  then finds that R : T := F A matches a T stating A.Y.d = false (case
+  nested-inductive does the same with two inductives)
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk accepts a forged alias that changes the label of a name
+
+- component: rocqchk, modules
+- introduced: unknown
+- impacted released versions: unknown (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#22877
+- exploit: test-suite/misc/rocqchk_forged_aliases.sh, case label: a crafted
+  .vo makes k := P.X.d, in the body of a functor F (P : S), an alias of
+  P.X.d; the application F A rebuilds it as an alias of A.X.k, a field that
+  F never names, so that F's lemma : k = false states A.X.k = false
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
 
 ### Incorrect subtyping of inductives with letins in constructor types
 - component: subtyping, inductive declarations
