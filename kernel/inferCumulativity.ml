@@ -218,6 +218,13 @@ let term_type_variances
   sup_vopt (Option.map typing_variance infer_binders) (Option.map typing_variance infer_type),
   sup_vopt (Option.map typing_variance infer_binders) (Option.map typing_variance infer_term)
 
+let declared_type_cumul_variance
+  ({ infer_binders = (_, (infer_binders, _)); infer_topfix_binders = (_, (infer_fix_binders, _));
+     infer_type = (_, infer_type); _ } : infer_variance_occurrence) =
+  let open VariancePair in
+  sup_vopt (sup_vopt (Option.map cumul_variance infer_binders) (Option.map cumul_variance infer_fix_binders))
+    (Option.map cumul_variance infer_type)
+
 type pre_variances = (Univ.Level.t * VarianceOccurrence.t option) array
 type infer_variance_occurrences = infer_variance_occurrence array
 
