@@ -2048,6 +2048,33 @@ let sccs nodes succ =
   PMap.iter (fun v _ -> if not (PMap.mem v !index) then visit v) nodes;
   !result
 
+(** [refuted_by_witnesses model r units] Two universes equal in all the valuations of [model] have
+  the same difference of values in all its models. Two models where [r] and the first universe [y0] of
+  [units] are not equal, extensions of [model] by the negations [r + 1 <= y0 + d0] and
+  [y0 + d0 + 1 <= r] of the two halves of [r = y0 + d0] (as in [check_one_clause_complete]), refute
+  at once the equality of [r] and the universes of [units] whose difference with [r] changes, which
+  would otherwise each be refuted by the complete checks of [entails]. *)
+let refuted_by_witnesses model rcan units =
+  match units with
+  | [] -> (fun _ -> false)
+  | (y0, _) :: _ ->
+    let value m idx = canonical_value m (repr m idx) in
+    let vr = get_canonical_value model rcan in
+    let y0can = repr model y0 in
+    let d0 = get_canonical_value model y0can - vr in
+    let s = max 0 (- d0) in
+    let witness cl = infer_clause_extension cl model in
+    let witnesses = List.filter_map witness
+        [ (NeList.tip (y0can, d0 + s), (rcan, 1 + s));
+          (NeList.tip (rcan, s), (y0can, d0 + 1 + s)) ]
+    in
+    fun y ->
+      let d = get_canonical_value model (repr model y) - vr in
+      List.exists (fun m' ->
+          match value m' y, value m' rcan.canon with
+          | Some vy, Some vr' -> not (Int.equal (vy - vr') d)
+          | _ -> false) witnesses
+
 (** [batch_classes model cls] For clauses [cls] of [model], computes the classes of equal
   universes that they can create, all at once, as [find_to_merge] and [zone_classes] do for a
   single clause. The universes made equal are in the zone of the universes below a conclusion
@@ -2104,9 +2131,11 @@ let batch_classes model cls =
           let below_r =
             entails_from model (rcan, 0) (List.map (fun (y, _) -> (repr model y, value y - vr)) units)
           in
+          let refuted = refuted_by_witnesses model rcan units in
           let eq, units = List.partition (fun (y, _) ->
               let ky = value y - vr in
               let ycan = repr model y in
+              not (refuted y) &&
               below_r (ycan, ky) && entails model (NeList.tip (ycan, ky)) (rcan, 0))
               units
           in
