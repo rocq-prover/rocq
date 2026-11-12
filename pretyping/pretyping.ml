@@ -564,6 +564,52 @@ let pretype_global ?loc ~flags rigid env evd gr (us, us') =
   in
   Evd.fresh_global ?loc ?names:instance !!env evd gr
 
+(** [mark_parameter_only_universes env sigma head nargs] records the universes of the instance of
+  [head], applied to [nargs] arguments, which only occur in the binders of these arguments, e.g.
+  [u] in [@sig@{u v} nat P] or [@idpath@{u} nat n], as only bounding the types of the arguments:
+  the instance must be fresh. For a constructor, fully applied, these are the universes
+  irrelevant to its type, the inductive type applied to its parameters and indices. They are only
+  set to their lower bound by the minimization: until then the evars of the arguments, e.g. a
+  parameter given by the expected type, can still raise it. *)
+let mark_parameter_only_universes env sigma head nargs =
+  let open UVars in
+  let inductive_variances mind =
+    Declareops.(universes_variances (inductive_universes (Environ.lookup_mind mind env)))
+  in
+  let positions = match EConstr.kind sigma head with
+    | Ind ((mind, _), u) ->
+      Option.map (fun vs -> u, vs, NumArgs nargs) (inductive_variances mind)
+    | Construct (((mind, i), j), u) ->
+      let mib = Environ.lookup_mind mind env in
+      if nargs < UCompare.constructor_cumulativity_arguments (mib, i, j) then None
+      else
+        let nargs_ind = UCompare.inductive_cumulativity_arguments (mib, i) in
+        Option.map (fun vs -> u, vs, NumArgs nargs_ind) (inductive_variances mind)
+    | Const (c, u) ->
+      let cb = Environ.lookup_constant c env in
+      Option.map (fun vs -> u, vs, NumArgs nargs)
+        (Declareops.universes_variances cb.Declarations.const_universes)
+    | _ -> None
+  in
+  match positions with
+  | None -> sigma
+  | Some (u, variances, app) ->
+    let _, us = Instance.to_array (EInstance.kind sigma u) in
+    let variances = Variances.repr variances in
+    if not (Int.equal (Array.length us) (Array.length variances)) then sigma
+    else
+      let irrelevant acc u occ =
+        let v = VarianceOccurrence.variance_app app occ in
+        if v.cumul_variance == Variance.Irrelevant && v.typing_variance == Variance.Irrelevant then
+          match Univ.Universe.level u with
+          | Some l -> Univ.Level.Set.add l acc
+          | None -> acc
+        else acc
+      in
+      let levels = CArray.fold_left2 irrelevant Univ.Level.Set.empty us variances in
+      if Univ.Level.Set.is_empty levels then sigma
+      else Evd.add_parameter_only_levels sigma levels
+
 let pretype_ref ?loc ~flags sigma env ref us tycon =
   match ref with
   | GlobRef.VarRef id ->
@@ -1217,6 +1263,11 @@ struct
     in
     let sigma, resj, val_before_bidi, bidiargs =
       apply_rec env sigma arg_state body (subst,typ) args
+    in
+    (* The instance of a global without user instance is fresh *)
+    let sigma = match DAst.get f with
+      | GRef (_, None) -> mark_parameter_only_universes !!env sigma fj.uj_val length
+      | _ -> sigma
     in
     let sigma, resj, otrace = inh_conv_coerce_to_tycon ?loc ~flags env sigma resj tycon in
     let refine_arg (sigma,t) (newarg,ty,origarg,trace) =

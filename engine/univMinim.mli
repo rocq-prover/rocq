@@ -17,6 +17,10 @@ type extra = {
   weak_constraints : UPairSet.t; (* weak equality constraints *)
   above_prop : Level.Set.t;
   above_zero : Level.Set.t;
+  parameter_only : Level.Set.t;
+  (** Universes of the fresh instances of fully applied globals at the positions which only
+    bound the types of their arguments, e.g. [u] in [@sig@{u v} nat P] (see
+    [Pretyping]): they are irrelevant, and are set to their lower bound *)
 }
 
 val empty_extra : extra
