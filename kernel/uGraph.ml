@@ -197,8 +197,8 @@ let check_declared_universes g l =
 let is_declared g l =
   G.is_declared g.graph l
 
-let minimize l g =
-  match G.minimize l g.graph with
+let minimize ?require_entailed l g =
+  match G.minimize ?require_entailed l g.graph with
   | G.HasSubst (graph, equivs, lbound) -> G.HasSubst ({ g with graph }, equivs, lbound)
   | G.NoBound -> G.NoBound
   | G.CannotSimplify -> G.CannotSimplify

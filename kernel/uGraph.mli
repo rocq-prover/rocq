@@ -165,7 +165,7 @@ val constraints_for : kept:Level.Set.t -> t -> UnivConstraints.t
    *)
 val remove : Level.Set.t -> t -> t
 
-val minimize : Level.t -> t -> t Loop_checking.simplification_result
+val minimize : ?require_entailed:bool -> Level.t -> t -> t Loop_checking.simplification_result
 val maximize : Level.t -> t -> t Loop_checking.simplification_result
 
 (** [has_upper_bound l g]: some constraint of [g] bounds [l] from above *)
