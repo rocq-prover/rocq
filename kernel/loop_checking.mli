@@ -138,6 +138,11 @@ val maximize : Level.t -> t -> t simplification_result
   (also when [l] is not in [m]) *)
 val has_upper_bound : Level.t -> t -> bool
 
+(** [remove_if_entailed c m]: when the clauses of the constraint [c] are local clauses of [m] (see
+  [set_local]) that the other clauses entail, [m] without them. As only entailed clauses are
+  removed, the result has the same models. *)
+val remove_if_entailed : UnivConstraint.t -> t -> t option
+
 (** {5 High-level representation} *)
 
 type node =
