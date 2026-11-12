@@ -24,6 +24,7 @@ type rew_rule = {
   rew_type: types;
   rew_pat: constr;
   rew_ctx: UnivGen.sort_context_set;
+  rew_vars: Id.Set.t;
   rew_l2r: bool;
   rew_tac: Gentactic.glob_generic_tactic option;
 }
@@ -373,7 +374,11 @@ let one_base where conds tac_main bas forward =
   in
   let try_rewrite h tc =
   Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    if not (Id.Set.subset h.rew_vars (Environ.section_variables env)) then
+      Tacticals.tclFAIL (str "Rewrite hint refers to unavailable variables.")
+    else
     let subst, ctx' = UnivGen.fresh_sort_context_instance h.rew_ctx in
     let c' = Vars.subst_univs_level_constr subst h.rew_lemma in
     let sigma = Evd.merge_sort_context_set Evd.univ_flexible ~src:UState.Internal sigma ctx' in
@@ -592,7 +597,7 @@ let add_rew_rules ~locality base (lrul:raw_rew_rule list) =
     let pat = EConstr.Unsafe.to_constr info.hyp_pat in
     let uid = fresh_key () in
     { rew_id = uid; rew_lemma = c; rew_type = EConstr.Unsafe.to_constr info.hyp_ty;
-      rew_pat = pat; rew_ctx = ctx; rew_l2r = b;
+      rew_pat = pat; rew_ctx = ctx; rew_vars = Environ.global_vars_set env c; rew_l2r = b;
       rew_tac = Option.map intern t }
   in
   let lrul = List.map map lrul in
