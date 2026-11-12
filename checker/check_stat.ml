@@ -10,8 +10,8 @@
 
 open Pp
 open Names
-open Declarations
 open Environ
+open Mod_checking
 
 let memory_stat = ref false
 
@@ -30,61 +30,76 @@ let pr_rewrite_rules env =
   if rewrite_rules_allowed env then str "Theory: Rewrite rules are allowed (consistency, subject reduction, confluence and normalization might be broken)"
   else str "Theory: Rewrite rules are not allowed"
 
-let pr_assumptions ass axs =
-  if axs = [] then
-    str ass ++ str ": <none>"
-  else
-    hv 2 (str ass ++ str ":" ++ fnl() ++ prlist_with_sep fnl str axs)
+let pr_assumptions ?(skip_if_empty=false) ass axs =
+  match axs with
+  | [] ->
+    if skip_if_empty then mt()
+    else
+      str "* " ++ str ass ++ str ": <none>"
+  | _ :: _ ->
+    str "* " ++ v 2 (str ass ++ str ":" ++ spc() ++ prlist_with_sep spc KerName.print axs)
 
-let pr_axioms env axioms =
-  let csts = List.map KerName.to_string axioms in
+let pr_axioms axioms =
+  let csts = KerName.Set.elements axioms.undef in
   pr_assumptions "Axioms" csts
 
-let pr_type_in_type env =
-  let csts = fold_constants (fun c cb acc -> if not cb.const_typing_flags.check_universes then Constant.to_string c :: acc else acc) env [] in
-  let csts = fold_inductives (fun c cb acc -> if not cb.mind_typing_flags.check_universes then MutInd.to_string c :: acc else acc) env csts in
-  pr_assumptions "Constants/Inductives relying on type-in-type" csts
+let get_unsafe p axioms =
+  KerName.Map.fold (fun kn flags acc -> if p flags then kn::acc else acc)
+    axioms.unsafe_flags
+    []
+
+let pr_unsafe ?skip_if_empty hdr p axioms =
+  let l = get_unsafe p axioms in
+  pr_assumptions ?skip_if_empty hdr l
+
+let pr_type_in_type axioms =
+  pr_unsafe "Constants/Inductives relying on type-in-type"
+    (fun flags -> flags.typeintype) axioms
 
 (* Kept out of the report when empty: this flag has no vernacular setter and
    should stay obscure (see #22294 discussion). *)
-let pr_unchecked_eliminations env =
-  let csts = fold_constants (fun c cb acc -> if not cb.const_typing_flags.check_eliminations then Constant.to_string c :: acc else acc) env [] in
-  let csts = fold_inductives (fun c cb acc -> if not cb.mind_typing_flags.check_eliminations then MutInd.to_string c :: acc else acc) env csts in
-  if csts = [] then mt ()
-  else str "* " ++ hov 0 (pr_assumptions "Constants/Inductives relying on unchecked sort eliminations" csts ++ fnl()) ++ fnl()
+let pr_unchecked_eliminations axioms =
+  pr_unsafe ~skip_if_empty:true "Constants/Inductives relying on unchecked sort eliminations"
+    (fun flags -> flags.badelims) axioms
 
-let pr_unguarded env =
-  let csts = fold_constants (fun c cb acc -> if not cb.const_typing_flags.check_guarded then Constant.to_string c :: acc else acc) env [] in
-  let csts = fold_inductives (fun c cb acc -> if not cb.mind_typing_flags.check_guarded then MutInd.to_string c :: acc else acc) env csts in
-  pr_assumptions "Constants/Inductives relying on unsafe (co)fixpoints" csts
+let pr_unguarded axioms =
+  pr_unsafe "Constants/Inductives relying on unsafe (co)fixpoints"
+    (fun flags -> flags.unguarded) axioms
 
-let pr_nonpositive env =
-  let inds = fold_inductives (fun c cb acc -> if not cb.mind_typing_flags.check_positive then MutInd.to_string c :: acc else acc) env [] in
-  pr_assumptions "Inductives whose positivity is assumed" inds
+let pr_nonpositive axioms =
+  pr_unsafe "Inductives whose positivity is assumed"
+    (fun flags -> flags.nonpositive) axioms
 
-let pr_indices_matter env =
-  let inds = fold_inductives (fun c cb acc ->
-    if cb.mind_typing_flags.indices_matter then acc
-    else if Array.exists (fun mip -> mip.mind_relies_on_indices_not_mattering) cb.mind_packets
-    then MutInd.to_string c :: acc
-    else acc) env [] in
-  pr_assumptions "Inductives relying on indices not mattering" inds
+let pr_indices_matter axioms =
+  pr_unsafe "Inductives relying on indices not mattering"
+    (fun flags -> flags.indices_nomatter) axioms
+
+(* rare option, not printed when empty *)
+let pr_uip axioms =
+  pr_unsafe ~skip_if_empty:true "Inductives relying on Definitional UIP"
+    (fun flags -> flags.uip) axioms
 
 let print_context env axioms = match axioms with
 | None -> ()
 | Some axioms ->
+  let axioms = [
+    pr_axioms axioms;
+    pr_type_in_type axioms;
+    pr_unchecked_eliminations axioms;
+    pr_unguarded axioms;
+    pr_nonpositive axioms;
+    pr_indices_matter axioms;
+    pr_uip axioms;
+  ]
+  in
+  let axioms = List.filter (fun pp -> not (Pp.ismt pp)) axioms in
   Feedback.msg_notice
     (hov 0
     (fnl() ++ str"CONTEXT SUMMARY" ++ fnl() ++
     str"===============" ++ fnl() ++ fnl() ++
-    str "* " ++ hov 0 (pr_impredicative_set env ++ fnl()) ++ fnl() ++
-    str "* " ++ hov 0 (pr_rewrite_rules env ++ fnl()) ++ fnl() ++
-    str "* " ++ hov 0 (pr_axioms env axioms ++ fnl()) ++ fnl() ++
-    str "* " ++ hov 0 (pr_type_in_type env ++ fnl()) ++ fnl() ++
-    pr_unchecked_eliminations env ++
-    str "* " ++ hov 0 (pr_unguarded env ++ fnl()) ++ fnl() ++
-    str "* " ++ hov 0 (pr_nonpositive env ++ fnl()) ++ fnl() ++
-    str "* " ++ hov 0 (pr_indices_matter env ++ fnl()))
+    str "* " ++ hov 0 (pr_impredicative_set env) ++ fnl() ++ fnl() ++
+    str "* " ++ hov 0 (pr_rewrite_rules env) ++ fnl() ++ fnl() ++
+    prlist_with_sep (fun () -> fnl() ++ fnl()) Fun.id axioms)
     )
 
 let stats env axioms =

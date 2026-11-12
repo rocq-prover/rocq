@@ -17,6 +17,13 @@ val enable_vm : bool ref
 (** Whether axioms and unsafe typing flags must be rejected (-axiom-free). *)
 val axiom_free : bool ref
 
-val check_axiom_free : Declarations.typing_flags -> unit
+type unsafe_flags = {
+  unguarded : bool;
+  nonpositive : bool;
+  typeintype : bool;
+  badelims : bool;
+  indices_nomatter : bool;
+  uip : bool;
+}
 
-val is_axiom_free : Environ.env -> Names.KerName.t list -> bool
+val flags_are_safe : isind:Declarations.mutual_inductive_body option -> Declarations.typing_flags -> unsafe_flags option

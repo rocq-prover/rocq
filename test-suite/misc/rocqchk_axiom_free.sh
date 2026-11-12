@@ -61,7 +61,7 @@ Primitive add := #int63_add.
 EOF
 compile UnsafeUIP <<'EOF'
 Set Definitional UIP.
-Definition id (A : Type) (x : A) := x.
+Inductive eq {A} (a:A) : forall _:A, SProp := eq_refl : eq a a.
 EOF
 compile SealedUnsafe <<'EOF'
 Module Type Signature.

@@ -8,13 +8,30 @@ open Environ
 
 (** {6 Checking constants } *)
 
-type axioms = { cset : KerName.Set.t }
+type axioms = {
+  undef : KerName.Set.t;
+  unsafe_flags : CheckFlags.unsafe_flags KerName.Map.t;
+}
 
-let empty_axioms = { cset = KerName.Set.empty }
+let empty_axioms = {
+  undef = KerName.Set.empty;
+  unsafe_flags = KerName.Map.empty;
+}
 
-let constants_of_axioms {cset} = KerName.Set.elements cset
+let axioms_add_undef c ax = {ax with undef=KerName.Set.add c ax.undef}
 
-let axioms_add c {cset} = {cset=KerName.Set.add c cset}
+let check_flags ~isind axioms kn flags =
+  match CheckFlags.flags_are_safe ~isind flags with
+  | None -> axioms
+  | Some flags ->
+    if !CheckFlags.axiom_free then CErrors.user_err Pp.(str "Axioms or unsafe features found (-axiom-free).")
+    else {axioms with unsafe_flags = KerName.Map.add kn flags axioms.unsafe_flags}
+
+let is_axiom_free env axioms =
+  let primitive c = Environ.is_primitive_type env (Names.Constant.make1 c) in
+  not (Environ.rewrite_rules_allowed env) &&
+  KerName.Set.for_all primitive axioms.undef &&
+  KerName.Map.is_empty axioms.unsafe_flags
 
 type check_state = {
   st_retro : (int * CPrimitives.prim_ind_ex) Mindmap.t * CPrimitives.prim_type_ex Cmap.t;
@@ -357,12 +374,12 @@ and collect_signature_axioms axioms sign mp =
   | NoFunctor struc ->
     let fold axioms (lab, field) = match field with
     | SFBconst cb ->
-      CheckFlags.check_axiom_free cb.const_typing_flags;
       let kn = KerName.make mp lab in
+      let axioms = check_flags ~isind:None axioms kn cb.const_typing_flags in
       let axioms =
         match cb.const_body with
         | Def _ | OpaqueDef _ | Primitive _ -> axioms
-        | Undef _ | Symbol _ -> axioms_add kn axioms
+        | Undef _ | Symbol _ -> axioms_add_undef kn axioms
       in
       axioms
     | SFBmodule mb ->
@@ -371,8 +388,8 @@ and collect_signature_axioms axioms sign mp =
       axioms
     | SFBmodtype _ -> axioms
     | SFBmind mib ->
-      CheckFlags.check_axiom_free mib.mind_typing_flags;
-      axioms
+      let kn = KerName.make mp lab in
+      check_flags ~isind:(Some mib) axioms kn mib.mind_typing_flags
     | SFBrules _ -> axioms
     in
     List.fold_left fold axioms struc

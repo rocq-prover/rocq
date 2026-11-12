@@ -501,12 +501,7 @@ let main () =
   let senv = init() in
   let senv, axioms = run senv in
   let env = Safe_typing.env_of_safe_env senv in
-  let axioms =
-    if !output_context || !CheckFlags.axiom_free then
-      Mod_checking.constants_of_axioms axioms
-    else []
-  in
   Check_stat.stats env (if !output_context then Some axioms else None);
-  if !CheckFlags.axiom_free && not (CheckFlags.is_axiom_free env axioms) then
+  if !CheckFlags.axiom_free && not (Mod_checking.is_axiom_free env axioms) then
     fatal_error (str "Axioms or unsafe features found (-axiom-free).") 1;
   exit 0
