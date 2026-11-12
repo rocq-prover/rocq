@@ -43,6 +43,16 @@ let variance_info u flex (variances : InferCumulativity.variances) =
     let termv, typev, principal = term_type_variances occs in
     Option.default Irrelevant termv, Option.default Irrelevant typev, Option.default Irrelevant principal, occs.infer_under_impred_qvars
 
+(* [u] occurs relevantly for cumulativity in the type of the declaration, e.g. in the type of a
+   binder: setting it to a bound of its choice would make this type less general *)
+let in_declared_type u (variances : InferCumulativity.variances) =
+  match Level.Map.find_opt u variances with
+  | None -> false
+  | Some occs ->
+    match InferCumulativity.declared_type_cumul_variance occs with
+    | None | Some UVars.Variance.Irrelevant -> false
+    | Some _ -> true
+
 let _warn_not_minimizable u =
   Feedback.msg_notice Pp.(str"Universe " ++ Level.raw_pr u ++ str" is not mimimizable as its lower bound \
        is not expressible in terms of other universes")
@@ -187,7 +197,14 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
     | Irrelevant ->
       (* The universe does not occur relevantly in the principal type of the expressions where it appears *)
       begin match type_variance with
-      | Irrelevant -> arbitrary ~irrelevant:true ~allow_collapse_to_zero:true u acc
+      | Irrelevant ->
+        (* A universe of the type of a binder of the declaration (e.g. [H : P (A@{u})]), not
+           affecting the sort of this type, is still part of the type of the declaration: as in
+           the minimization ignoring variances, it is only set to its lower bound, and to [Set]
+           only with [Universe Minimization ToSet]. *)
+        let _, variances, _ = acc in
+        if in_declared_type u variances then minimize ~allow_collapse_to_zero:false u acc
+        else arbitrary ~irrelevant:true ~allow_collapse_to_zero:true u acc
       | Covariant -> minimize ~allow_collapse_to_zero:false u acc
       | Contravariant -> acc (* Do not maximize at first, as it would break the template hacks with max (0, ...) *)
       | Invariant -> acc
@@ -211,7 +228,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
   let simplify_max u (flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
     let term_variance, type_variance, typing_variance, _impred_qvars = variance_info u flex variances in
-    if typing_variance == Irrelevant && type_variance == Irrelevant then
+    if typing_variance == Irrelevant && type_variance == Irrelevant && not (in_declared_type u variances) then
       maximize u acc
     else
       let open UVars.Variance in

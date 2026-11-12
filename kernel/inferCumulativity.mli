@@ -61,6 +61,12 @@ val union_variances : variances -> variances -> variances
 val term_type_variances : infer_variance_occurrence ->
     Variance.t option * Variance.t option * Variance.t option
 
+(* The cumulativity variance in the type of the declaration, i.e. in its binders and its type:
+   unlike the typing variances of [term_type_variances], which tell how the universe affects the
+   sorts of these types, it tells how it affects the types themselves. E.g. [u] in a binder
+   [H : P (A@{u})] for a variable [P] is relevant for cumulativity, but not for typing. *)
+val declared_type_cumul_variance : infer_variance_occurrence -> Variance.t option
+
 val of_variance_occurrences : infer_in_type:bool -> pre_variances -> variances
 
 module Inf : sig
