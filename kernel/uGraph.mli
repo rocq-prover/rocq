@@ -119,7 +119,7 @@ exception OccurCheck
    @raise InconsistentEquality if the equality cannot be enforced.
    @raise OccurCheck if the level appears in the universe, up to equivalence in the graph
    *)
-val set : Level.t -> Universe.t -> t -> t * level_equivalences
+val set : ?entailed:bool -> Level.t -> Universe.t -> t -> t * level_equivalences
 
 (** [clause_count g l] is the number of constraints on [l] in [g], the cost of [set l _ g] *)
 val clause_count : t -> Level.t -> int
@@ -170,6 +170,10 @@ val maximize : Level.t -> t -> t Loop_checking.simplification_result
 
 (** [has_upper_bound l g]: some constraint of [g] bounds [l] from above *)
 val has_upper_bound : Level.t -> t -> bool
+
+(** See [Loop_checking.lower_bound] and [Loop_checking.substitution_entailed] *)
+val lower_bound : Level.t -> t -> Universe.t option
+val substitution_entailed : (Level.t * Level.t) list -> t -> bool
 
 (** [remove_if_entailed c g]: when the local clauses of [c] (see [set_local]) are entailed by the
   others in [g], [g] without them *)

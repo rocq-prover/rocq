@@ -225,6 +225,52 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
       else simplify_impred u acc impred
   in
   let (flex, _, _ as acc) = Level.Set.fold simplify_min flex (flex, variances, graph) in
+  (* The universes irrelevant to the type of the declaration which cannot be set to their lower
+     bounds one at a time, as each substitution would constrain the others, are set to them
+     jointly when all their substituted clauses are entailed ([UGraph.substitution_entailed]): the
+     constraints on the other universes are then the same, whether they occur in the type or not.
+     E.g. the copies [x, y, z] of the universes [a, b, c] of the type, related by
+     [x <= max(a, b, c, y', z')], [x' <= max(a, b, c, y, z)], ... with [a <= x], [a <= x'], ...
+     All the candidates are tried at once, then the ones with the same lower bound; the
+     candidates bounded by another candidate wait for the next round. *)
+  let joint_minimize (flex, variances, graph as acc) =
+    let candidates = Level.Set.fold (fun u cands ->
+        let _, type_variance, _, _ = variance_info u flex variances in
+        if type_variance != Irrelevant || in_declared_type u variances then cands else
+        match Option.bind (UGraph.lower_bound u graph) Universe.level with
+        | Some l when not (Level.is_set l) -> (u, l) :: cands
+        | _ -> cands) flex [] in
+    let candidates = List.filter (fun (_, l) ->
+        not (List.exists (fun (u, _) -> Level.equal u l) candidates)) candidates in
+    let apply acc subst =
+      List.fold_left (fun (flex, variances, graph as acc) (u, l) ->
+          if not (Level.Set.mem u flex) then acc else
+          let lbound = Universe.make l in
+          match UGraph.set ~entailed:true u lbound graph with
+          | graph, equivs ->
+            debug_each Pp.(fun () -> str"Minimizing jointly " ++ Level.raw_pr u ++ str" to lbound: " ++ Level.raw_pr l);
+            update_equivs_bound (flex, variances, graph) u lbound equivs
+          | exception (Loop_checking.NotCanonical | UGraph.InconsistentEquality | UGraph.OccurCheck) -> acc)
+        acc subst
+    in
+    if List.is_empty candidates then None
+    else if UGraph.substitution_entailed candidates graph then Some (apply acc candidates)
+    else
+      let groups = List.fold_left (fun groups (u, l) ->
+          Level.Map.update l (fun g -> Some ((u, l) :: Option.default [] g)) groups)
+          Level.Map.empty candidates in
+      let acc', changed = Level.Map.fold (fun _ group ((_, _, graph as acc), changed) ->
+          if UGraph.substitution_entailed group graph then apply acc group, true else acc, changed)
+          groups (acc, false) in
+      if changed then Some acc' else None
+  in
+  let rec rounds n acc =
+    if Int.equal n 0 then acc else
+    match joint_minimize acc with None -> acc | Some acc -> rounds (n - 1) acc
+  in
+  let (flex, _, _ as acc) =
+    if partial || not (solve_term || get_unbounded_minimization ()) then acc else rounds 5 acc
+  in
   let simplify_max u (flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
     let term_variance, type_variance, typing_variance, _impred_qvars = variance_info u flex variances in
