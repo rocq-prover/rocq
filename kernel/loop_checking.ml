@@ -3,6 +3,7 @@ open Univ
 let debug_loop_checking_invariants_flag, debug_loop_checking_invariants = CDebug.create_full ~name:"loop-checking-invariants" ()
 let _debug_loop_checking_flag, debug_loop_checking = CDebug.create_full ~name:"loop-checking" ()
 let _debug_loop_checking_set_can_flag, debug_loop_checking_set_can = CDebug.create_full ~name:"loop-checking-set-can" ()
+let _debug_loop_checking_minimize_flag, debug_loop_checking_minimize = CDebug.create_full ~name:"loop-checking-minimize" ()
 let debug_loop_checking_merged_flag, _debug_loop_checking_merged = CDebug.create_full ~name:"loop-checking-merged" ()
 
 module Index :
@@ -2201,7 +2202,7 @@ let decompose_eq_constraints u k v =
 (** Batches of at most this many clauses are merged one clause at a time *)
 let batch_threshold = 16
 
-let enforce_clauses cls m =
+let enforce_clauses ?(entailed=false) cls m =
   (* Adding a clause or raising a value changes nodes: they are looked up again for each clause,
      given by the canonical universes, which do not change until the merges *)
   let add_can_clause (prems, concl) acc =
@@ -2232,6 +2233,9 @@ let enforce_clauses cls m =
   in
   match List.fold_left add_clause (Some (m, [], PSet.empty)) cls with
   | None -> None
+  | Some (m, _, raised) when entailed && PSet.is_empty raised ->
+    (* The clauses were entailed by the model: they create no equality *)
+    Some (m, [])
   | Some (m, added, raised) ->
     let m =
       if PSet.is_empty raised then Some m else
@@ -2717,7 +2721,7 @@ let remove_clause_copies can model =
       prems model)
     can.clauses_bwd model
 
-let set_can (can,k) u model =
+let set_can ?entailed (can,k) u model =
   let u =
     if Int.equal k 0 then u
     else
@@ -2749,20 +2753,20 @@ let set_can (can,k) u model =
   debug_loop_checking_set_can Pp.(fun () ->str "newfwd: " ++ pr_clauses model fwdcls ++
     str"bwdcls: " ++ pr_clauses model (List.map snd bwdcls));
   let newcls = List.filter_map (filter_trivial_clause model) newcls in
-  match enforce_clauses newcls model with
+  match enforce_clauses ?entailed newcls model with
   | Some res -> res
   | None -> raise InconsistentEquality
 
 exception OccurCheck
 exception NotCanonical
 
-let set_can cank u model =
+let set_can ?entailed cank u model =
   if NeList.exists (fun (can', _k') -> fst cank == can') u then raise OccurCheck
   else
     let setidx = Index.find Level.set model.table in
     if Index.equal (fst cank).canon setidx then raise InconsistentEquality
     else
-      let model, equivs = set_can cank u model in
+      let model, equivs = set_can ?entailed cank u model in
       let equivs = unrepr_equivalences model equivs in
       model, equivs
 
@@ -2797,16 +2801,16 @@ type 'a simplification_result =
   E.g. minimizing k when the only constraint is l + 1 <= k + 2 would result in k = l - 1 which is not a valid universe.  *)
 let minimize_can can k model =
   let fwd = can.clauses_fwd in
-  let glb =
-    ForwardClauses.fold (fun ~kprem ~concl ~prems glb ->
+  let glb, multi =
+    ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
       let concl = repr model concl in
-      PartialClausesOf.fold (fun (conclk, premsfwd) glb ->
+      PartialClausesOf.fold (fun (conclk, premsfwd) (glb, multi) ->
         (* premsfwd, can + kprem -> concl + conclk *)
-        if Option.is_empty premsfwd then
-          (concl, (conclk - kprem)) :: glb
-        else glb)
-        prems glb)
-    fwd []
+        match premsfwd with
+        | None -> (concl, (conclk - kprem)) :: glb, multi
+        | Some others -> glb, (concl, conclk, kprem, others) :: multi)
+        prems acc)
+    fwd ([], [])
   in
   let sort (idx, k) (idx', k') =
     match Index.compare idx.canon idx'.canon with
@@ -2820,8 +2824,22 @@ let minimize_can can k model =
     if List.for_all (fun (_, k) -> k >= 0) glb
     then
       let u = NeList.of_list glb in
+      (* The clauses where [can] is the only premise are its lower bounds, which become trivial,
+         while its upper bounds [can + k <= max(prems)] become the clauses [glb + k <= max(prems)],
+         already entailed through [can]. A clause where [can] is one of several premises,
+         [v <= max(can, w)], becomes the stronger [v <= max(glb, w)]: when the model already
+         entails these, setting [can] to its greatest lower bound creates no equality, no need to
+         look for them *)
+      let entailed (concl, conclk, kprem, others) =
+        let substituted = List.map (fun (l, k) -> (l, k + kprem)) glb in
+        let others = List.map (fun (idx, k) -> (repr model idx, k)) (NeList.to_list others) in
+        entails model (NeList.of_list (substituted @ others)) (concl, conclk)
+      in
+      let entailed = List.for_all entailed multi in
+      debug_loop_checking_minimize Pp.(fun () -> str"minimize_can: " ++ int (List.length multi) ++
+        str" clauses with several premises, " ++ (if entailed then str"entailed" else str"not entailed"));
       try
-        let model, equivs = set_can (can,k) u model in
+        let model, equivs = set_can ~entailed (can,k) u model in
         debug_check_invariants model;
         HasSubst (model, equivs, univ_of_can_expr_list model glb)
       with InconsistentEquality | OccurCheck -> CannotSimplify
