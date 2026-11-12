@@ -87,6 +87,14 @@ and quotation_start n = parse
 | "{" { quotation_start (n+1) lexbuf }
 | _ { quotation n 1 lexbuf }
 
+and topgoal stamp = parse
+| eof { raise Unterminated }
+| utf8_extra_byte { incr utf8_adjust; topgoal stamp lexbuf }
+| "]" space* ":" "{" {
+  stamp (utf8_lexeme_start lexbuf + String.length (Lexing.lexeme lexbuf) - 1) Tags.Script.sentence
+}
+| _ { topgoal stamp lexbuf }
+
 (** NB : [mkiter] should be called on increasing offsets *)
 
 and sentence initial stamp = parse
@@ -113,6 +121,10 @@ and sentence initial stamp = parse
       (* The usual "." terminator *)
       stamp (utf8_lexeme_start lexbuf) Tags.Script.sentence;
       sentence true stamp lexbuf
+    }
+  | "[:" {
+      let () = if initial then topgoal stamp lexbuf in
+      sentence initial stamp lexbuf
     }
   | (vernac_control space+)* undotted_sep {
       (* Separators like { or } and bullets * - + are only active
