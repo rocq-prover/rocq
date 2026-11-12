@@ -75,7 +75,9 @@ that are also made equal by the new constraint and are also substituted by [u] i
   @raise InconsistentEquality if setting [l = u] results in an unsatisfiable constraint
   @raise OccurCheck if the universe contains the level, up to equivalence in the graph
   @raise NotCanonical if the given level to set is not canonical *)
-val set : Level.t -> Universe.t -> t -> t * level_equivalences
+val set : ?entailed:bool -> Level.t -> Universe.t -> t -> t * level_equivalences
+(** With [~entailed:true], the clauses of the level, once substituted, are known to be entailed:
+  the search for the equalities they create is skipped *)
 
 (** [clause_count m l] is the number of clauses of the canonical node of [l]
   (0 if [l] is not declared or is not canonical): an estimate of the cost of
@@ -137,6 +139,16 @@ val maximize : Level.t -> t -> t simplification_result
 (** [has_upper_bound l m] holds when a clause of [m] concludes on [l], i.e. bounds it from above
   (also when [l] is not in [m]) *)
 val has_upper_bound : Level.t -> t -> bool
+
+(** [lower_bound l m] is the greatest lower bound of [l] in [m] given by the clauses where [l] is
+  the only premise, if any *)
+val lower_bound : Level.t -> t -> Universe.t option
+
+(** [substitution_entailed subst m] holds when [m] entails every clause of the levels [u] of
+  [subst], once each is substituted by its [v]. Then the constraints on the other universes are
+  the same after the substitution: the models of [m] restricted to them are models of the
+  substituted clauses, and a model of these extends to one of [m], with each [u] set to its [v]. *)
+val substitution_entailed : (Level.t * Level.t) list -> t -> bool
 
 (** [remove_if_entailed c m]: when the clauses of the constraint [c] are local clauses of [m] (see
   [set_local]) that the other clauses entail, [m] without them. As only entailed clauses are

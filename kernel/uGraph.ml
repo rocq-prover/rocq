@@ -175,8 +175,8 @@ let set_locality local l g = { g with graph = G.set_locality local l g.graph }
 exception InconsistentEquality = G.InconsistentEquality
 exception OccurCheck = G.OccurCheck
 
-let set l u g =
-  let g', equivs = G.set l u g.graph in
+let set ?entailed l u g =
+  let g', equivs = G.set ?entailed l u g.graph in
   { g with graph = g' }, equivs
 
 let clause_count g l = G.clause_count g.graph l
@@ -210,6 +210,10 @@ let maximize l g =
   | G.CannotSimplify -> G.CannotSimplify
 
 let has_upper_bound l g = G.has_upper_bound l g.graph
+
+let lower_bound l g = G.lower_bound l g.graph
+
+let substitution_entailed subst g = G.substitution_entailed subst g.graph
 
 let remove_if_entailed c g = Option.map (fun graph -> { g with graph }) (G.remove_if_entailed c g.graph)
 

@@ -2808,7 +2808,7 @@ let clause_count m l =
     | Some can -> ForwardClauses.cardinal can.clauses_fwd + ClausesOf.cardinal can.clauses_bwd
     | None -> 0
 
-let set lvl u model =
+let set ?entailed lvl u model =
   let cank = canonical_repr_level_expr model (lvl, 0) in
   let cank =
     match cank with
@@ -2816,7 +2816,7 @@ let set lvl u model =
     | _ -> raise NotCanonical
   in
   let u = repr_univ model u in
-  set_can cank u model
+  set_can ?entailed cank u model
 
 type level_equivalences = (Level.t * (Level.t * int)) list
 
@@ -2910,6 +2910,58 @@ let has_upper_bound level model =
   match repr model (Index.find level model.table) with
   | exception Not_found -> true
   | can -> not (ClausesOf.is_empty can.clauses_bwd)
+
+let lower_bound level model =
+  match repr model (Index.find level model.table) with
+  | exception Not_found -> None
+  | can ->
+    let glb =
+      ForwardClauses.fold (fun ~kprem ~concl ~prems glb ->
+          let concl = repr model concl in
+          PartialClausesOf.fold (fun (conclk, premsfwd) glb ->
+              if Option.is_empty premsfwd then (concl, conclk - kprem) :: glb else glb)
+            prems glb)
+        can.clauses_fwd []
+    in
+    let sort (idx, k) (idx', k') =
+      match Index.compare idx.canon idx'.canon with 0 -> Int.compare k k' | n -> n
+    in
+    match List.remove_assq can (List.sort_uniq sort glb) with
+    | [] -> None
+    | glb -> Some (univ_of_can_expr_list model glb)
+
+let substitution_entailed subst model =
+  let find l = repr model (Index.find l model.table) in
+  match List.map (fun (u, v) -> find u, find v) subst with
+  | exception Not_found -> false
+  | subst ->
+    let sigma can =
+      match List.find_opt (fun (u, _) -> Index.equal u.canon can.canon) subst with
+      | Some (_, v) -> v
+      | None -> can
+    in
+    let holds prems (concl, k) =
+      let prems = NeList.map (fun (p, kp) -> (sigma p, kp)) prems in
+      entails model prems (sigma concl, k)
+    in
+    let clauses_hold (u, _) =
+      (* The clauses [concl + k <= max(u + kprem, others)] *)
+      ForwardClauses.fold (fun ~kprem ~concl ~prems ok ->
+          ok && PartialClausesOf.fold (fun (conclk, premsfwd) ok ->
+              ok &&
+              let others = match premsfwd with
+                | None -> []
+                | Some others -> List.map (fun (idx, k) -> (repr model idx, k)) (NeList.to_list others)
+              in
+              holds (NeList.of_list ((u, kprem) :: others)) (repr model concl, conclk))
+            prems true)
+        u.clauses_fwd true &&
+      (* The clauses [u + k <= max(prems)] *)
+      ClausesOf.fold (fun _local (k, prems) ok ->
+          ok && holds (NeList.map (fun (idx, kp) -> (repr model idx, kp)) prems) (u, k))
+        u.clauses_bwd true
+    in
+    List.for_all clauses_hold subst
 
 (** [remove_can_clause m cl] removes the local clause [cl], canonical and simplified as by
   [simplify_can_clause], from the backward clauses of its conclusion and the forward clauses of its
