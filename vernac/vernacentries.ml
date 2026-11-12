@@ -1969,6 +1969,14 @@ let () =
   declare_bool_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;
+      optkey   = ["Kernel"; "Conversion"; "Cache"];
+      optread  = (fun () -> (Global.typing_flags ()).Declarations.cache_conversion);
+      optwrite = Global.set_cache_conversion }
+
+let () =
+  declare_bool_option
+    { optstage = Summary.Stage.Interp;
+      optdepr  = None;
       optkey   = ["Kernel"; "Conversion"; "Dep"; "Heuristic"];
       optread  = (fun () -> (Global.typing_flags ()).Declarations.unfold_dep_heuristic);
       optwrite = Global.set_unfold_dep_heuristic }
