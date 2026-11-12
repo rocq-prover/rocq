@@ -265,12 +265,11 @@ Collapsed sorts:
  α63 := Type
 Minimized universes:
  sort_poly_elab:92 := 0
- sort_poly_elab:90 := 0
  sort_poly_elab:89 := sort_poly_elab:91+1
  sort_poly_elab:88 := 0
  sort_poly_elab:87 := sort_poly_elab:91+1
 Normalized constraints:
- {sort_poly_elab:91} |  *)
+ {sort_poly_elab:91 sort_poly_elab:90} |  *)
 zog@{α ; u} :
 forall _ : Univ@{α ; u}, Univ@{α ; u}
 (* α ; u(= in 1st binder, + in type) | *)
@@ -1094,10 +1093,10 @@ Expands to: Inductive sort_poly_elab.Records.R8
 Declared in library sort_poly_elab, line 622, characters 9-11
 R8f1@{α α0 ; u} :
 forall _ : R8@{α α0 ; u}, Univ@{α0 ; u}
-(* α α0 ; u(= in 1st binder, + in term, + in type) |
+(* α α0 ; u(= in 1st binder, = in term, + in type) |
    α -> Type *)
 
-R8f1 is universe polymorphic and cumulative
+R8f1 is universe polymorphic
 R8f1 is a projection of R8
 Arguments R8f1 r
 R8f1 is transparent
@@ -1105,11 +1104,11 @@ Expands to: Constant sort_poly_elab.Records.R8f1
 Declared in library sort_poly_elab, line 623, characters 4-8
 R8f2@{α α0 ; u} :
 forall r : R8@{α α0 ; u}, R8f1@{α α0 ; u} r
-(* α α0 ; u(= in 1st binder, + in term, + (* for typing) in type) |
+(* α α0 ; u(= in 1st binder, = in term, = (* for typing) in type) |
    α -> α0
    α -> Type *)
 
-R8f2 is universe polymorphic and cumulative
+R8f2 is universe polymorphic
 R8f2 is a projection of R8
 Arguments R8f2 r
 R8f2 is transparent
@@ -1309,8 +1308,8 @@ Expands to: Constant sort_poly_elab.Records.R12f2
 Declared in library sort_poly_elab, line 703, characters 4-9
 R13@{α α0 α1 α2 ; u u0} :
 Univ@{α ; max(u+1,u0+1)}
-(* α α0 α1 α2 ; u(+ (= for typing) in term, + in type)
-   u0(+ (= for typing) in term, + in type) |
+(* α α0 α1 α2 ; u(= in term, + in type) u0(+ (= for typing) in term,
+   + in type) |
    α1 -> Type
    α2 -> Type,
    u0 ≤ u *)
@@ -1325,14 +1324,14 @@ Expands to: Inductive sort_poly_elab.Records.R13
 Declared in library sort_poly_elab, line 718, characters 9-12
 R13f1@{α α0 α1 α2 ; u u0} :
 forall _ : R13@{α α0 α1 α2 ; u u0}, Univ@{α0 ; u}
-(* α α0 α1 α2 ; u(= in 1st binder, + in term, + in type) u0(= in 1st binder,
-   + in term) |
+(* α α0 α1 α2 ; u(= in 1st binder, = in term, + in type) u0(= in 1st binder,
+   = in term) |
    α -> Type
    α1 -> Type
    α2 -> Type,
    u0 ≤ u *)
 
-R13f1 is universe polymorphic and cumulative
+R13f1 is universe polymorphic
 R13f1 is a projection of R13
 Arguments R13f1 r
 R13f1 is transparent
@@ -1340,14 +1339,14 @@ Expands to: Constant sort_poly_elab.Records.R13f1
 Declared in library sort_poly_elab, line 719, characters 4-9
 R13f2@{α α0 α1 α2 ; u u0} :
 forall _ : R13@{α α0 α1 α2 ; u u0}, Univ@{α0 ; u0}
-(* α α0 α1 α2 ; u(= in 1st binder, + in term) u0(= in 1st binder, + in term,
+(* α α0 α1 α2 ; u(= in 1st binder, = in term) u0(= in 1st binder, = in term,
    + in type) |
    α -> Type
    α1 -> Type
    α2 -> Type,
    u0 ≤ u *)
 
-R13f2 is universe polymorphic and cumulative
+R13f2 is universe polymorphic
 R13f2 is a projection of R13
 Arguments R13f2 r
 R13f2 is transparent
@@ -1355,14 +1354,14 @@ Expands to: Constant sort_poly_elab.Records.R13f2
 Declared in library sort_poly_elab, line 720, characters 4-9
 R13f3@{α α0 α1 α2 ; u u0} :
 forall _ : R13@{α α0 α1 α2 ; u u0}, bool@{α1 ; }
-(* α α0 α1 α2 ; u(= in 1st binder, + in term) u0(= in 1st binder,
-   + in term) |
+(* α α0 α1 α2 ; u(= in 1st binder, = in term) u0(= in 1st binder,
+   = in term) |
    α -> α1
    α1 -> Type
    α2 -> Type,
    u0 ≤ u *)
 
-R13f3 is universe polymorphic and cumulative
+R13f3 is universe polymorphic
 R13f3 is a projection of R13
 Arguments R13f3 r
 R13f3 is transparent
@@ -1378,8 +1377,8 @@ match b return Univ@{α0 ; u} with
     end
 | false => bool@{α0 ; }
 end
-(* α α0 α1 α2 ; u(= in 1st binder, + in term, + in type) u0(= in 1st binder,
-   + in term, + (* for typing) in type) |
+(* α α0 α1 α2 ; u(= in 1st binder, = in term, = (+ for typing) in type)
+   u0(= in 1st binder, = in term, = (* for typing) in type) |
    α -> α0
    α -> α1
    α -> Type
@@ -1387,7 +1386,7 @@ end
    α2 -> Type,
    u0 ≤ u *)
 
-R13f4 is universe polymorphic and cumulative
+R13f4 is universe polymorphic
 R13f4 is a projection of R13
 Arguments R13f4 r b
 R13f4 is transparent
