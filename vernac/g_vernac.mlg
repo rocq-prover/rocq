@@ -386,7 +386,7 @@ GRAMMAR EXTEND Gram
          ->
          { let open UState in
          { univdecl_qualities = [];
-           univdecl_extensible_qualities = false;
+           univdecl_extensible_qualities = Option.has_some ext;
            univdecl_elim_constraints = elim_constraints @@ fst cs;
            univdecl_instance = l;
            univdecl_extensible_instance = Option.has_some ext;
@@ -427,7 +427,7 @@ GRAMMAR EXTEND Gram
          ->
          { let open UState in
          { univdecl_qualities = [];
-           univdecl_extensible_qualities = false;
+           univdecl_extensible_qualities = Option.has_some ext;
            univdecl_elim_constraints = elim_constraints @@ fst cs;
            univdecl_instance = l;
            univdecl_extensible_instance = Option.has_some ext;
@@ -1325,7 +1325,7 @@ GRAMMAR EXTEND Gram
       | None ->
         {
           qualities = [];
-          ext_ql = false;
+          ext_ql = Option.has_some ext;
           univlevels = l;
           ext_ul = Option.has_some ext;
         }
