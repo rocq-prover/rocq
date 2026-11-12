@@ -69,6 +69,11 @@ val subst_fn : t -> UnivSubst.universe_subst_fn
 val is_flexible : Level.t -> t -> bool
 (** Is a universe level considered flexible? *)
 
+val add_parameter_only_levels : t -> Level.Set.t -> t
+(** [add_parameter_only_levels uctx levels] records the flexible ones among [levels] as universes
+  of a fresh instance which only bound the types of the arguments of a fully applied global:
+  they are set to their lower bound by the minimization (see [UnivMinim.extra]) *)
+
 val is_declared : t -> Level.t -> bool
 (** Is a universe level declared already? *)
 
