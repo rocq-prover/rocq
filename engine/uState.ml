@@ -469,6 +469,12 @@ let ugraph uctx = uctx.universes
 
 let is_flexible l uctx = UGraph.is_flexible uctx.universes l
 
+let add_parameter_only_levels uctx levels =
+  let levels = Level.Set.filter (fun l -> is_flexible l uctx) levels in
+  if Level.Set.is_empty levels then uctx else
+  let parameter_only = Level.Set.union levels uctx.minim_extra.UnivMinim.parameter_only in
+  { uctx with minim_extra = { uctx.minim_extra with UnivMinim.parameter_only } }
+
 let flexible_variables uctx = UGraph.flexible_local_levels uctx.universes
 
 (* The universe variables which are not flexible: the rigid local universes, canonical or

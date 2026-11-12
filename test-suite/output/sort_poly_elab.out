@@ -1137,13 +1137,12 @@ Arguments R9f2 r
 R9f2 is transparent
 Expands to: Constant sort_poly_elab.Records.R9f2
 Declared in library sort_poly_elab, line 644, characters 4-8
-R10@{α α0 α1 α2 ; u u0} :
-forall _ : Univ@{α0 ; u}, Univ@{α ; max(u,u0)}
-(* α α0 α1 α2 ; u(= in 1st binder, + in type) u0*(+ in type) | 
-    *)
+R10@{α α0 α1 α2 ; u} :
+forall _ : Univ@{α0 ; u}, Univ@{α ; u}
+(* α α0 α1 α2 ; u(= in 1st binder, + in type) |  *)
 
 R10 is universe polymorphic and cumulative
-R10@{α α0 α1 α2 ; u u0} may only be eliminated to produce values whose type is in sort quality α,
+R10@{α α0 α1 α2 ; u} may only be eliminated to produce values whose type is in sort quality α,
   unless instantiated such that the qualities α0, α1, α2 and Prop
   are equal to the instantiation of α, or to qualities smaller
   (SProp <= Prop <= Type, and all variables <= Type)
@@ -1151,9 +1150,9 @@ R10@{α α0 α1 α2 ; u u0} may only be eliminated to produce values whose type 
 Arguments R10 A%_type_scope
 Expands to: Inductive sort_poly_elab.Records.R10
 Declared in library sort_poly_elab, line 656, characters 9-12
-R10f1@{α α0 α1 α2 ; u u0} :
-forall (A : Univ@{α0 ; u}) (_ : R10@{α α0 α1 α2 ; u u0} A), A
-(* α α0 α1 α2 ; u(= in 1st binder) u0* | α -> α0 *)
+R10f1@{α α0 α1 α2 ; u} :
+forall (A : Univ@{α0 ; u}) (_ : R10@{α α0 α1 α2 ; u} A), A
+(* α α0 α1 α2 ; u(= in 1st binder) | α -> α0 *)
 
 R10f1 is universe polymorphic and cumulative
 R10f1 is a projection of R10
@@ -1161,12 +1160,11 @@ Arguments R10f1 A%_type_scope r
 R10f1 is transparent
 Expands to: Constant sort_poly_elab.Records.R10f1
 Declared in library sort_poly_elab, line 657, characters 4-9
-R10f2@{α α0 α1 α2 ; u u0} :
-forall (A : Univ@{α0 ; u}) (r : R10@{α α0 α1 α2 ; u u0} A),
-@eq@{α0 α1 ; u0 u} A (R10f1@{α α0 α1 α2 ; u u0} A r)
-  (R10f1@{α α0 α1 α2 ; u u0} A r)
-(* α α0 α1 α2 ; u(= in 1st binder) u0* | α -> α0
-                                         α -> α1 *)
+R10f2@{α α0 α1 α2 ; u} :
+forall (A : Univ@{α0 ; u}) (r : R10@{α α0 α1 α2 ; u} A),
+@eq@{α0 α1 ; 0 u} A (R10f1@{α α0 α1 α2 ; u} A r) (R10f1@{α α0 α1 α2 ; u} A r)
+(* α α0 α1 α2 ; u(= in 1st binder) | α -> α0
+                                     α -> α1 *)
 
 R10f2 is universe polymorphic and cumulative
 R10f2 is a projection of R10
@@ -1174,9 +1172,9 @@ Arguments R10f2 A%_type_scope r
 R10f2 is transparent
 Expands to: Constant sort_poly_elab.Records.R10f2
 Declared in library sort_poly_elab, line 658, characters 4-9
-R10f3@{α α0 α1 α2 ; u u0} :
-forall (A : Univ@{α0 ; u}) (_ : R10@{α α0 α1 α2 ; u u0} A), bool@{α2 ; }
-(* α α0 α1 α2 ; u(= in 1st binder) u0* | α -> α2 *)
+R10f3@{α α0 α1 α2 ; u} :
+forall (A : Univ@{α0 ; u}) (_ : R10@{α α0 α1 α2 ; u} A), bool@{α2 ; }
+(* α α0 α1 α2 ; u(= in 1st binder) | α -> α2 *)
 
 R10f3 is universe polymorphic and cumulative
 R10f3 is a projection of R10
@@ -1211,12 +1209,12 @@ Expands to: Constant sort_poly_elab.Records.R11f1
 Declared in library sort_poly_elab, line 676, characters 4-9
 R11f2@{α α0 α1 α2 α3 α4 α5 ; } :
 forall r : R11@{α α0 α1 α2 α3 α4 α5 ; },
-let r0 : R10@{α0 α1 α2 α3 ; 0 0} bool@{α1 ; } :=
-  Build_R10@{α0 α1 α2 α3 ; 0 0} bool@{α1 ; } true@{α1 ; }
+let r0 : R10@{α0 α1 α2 α3 ; 0} bool@{α1 ; } :=
+  Build_R10@{α0 α1 α2 α3 ; 0} bool@{α1 ; } true@{α1 ; }
     (@eq_refl@{α1 α2 ; 0 0} bool@{α1 ; } true@{α1 ; })
     (R11f1@{α α0 α1 α2 α3 α4 α5 ; } r)
   in
-match R10f3@{α0 α1 α2 α3 ; 0 0} bool@{α1 ; } r0 return Univ@{α4 ; 0} with
+match R10f3@{α0 α1 α2 α3 ; 0} bool@{α1 ; } r0 return Univ@{α4 ; 0} with
 | true => bool@{α4 ; }
 | false => bool@{α4 ; }
 end

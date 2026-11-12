@@ -588,6 +588,9 @@ val universe_rigidity : evar_map -> Univ.Level.t -> rigid
 
 val is_flexible_level : evar_map -> Univ.Level.t -> bool
 
+val add_parameter_only_levels : evar_map -> Univ.Level.Set.t -> evar_map
+(** See [UState.add_parameter_only_levels] *)
+
 val is_declared_level : evar_map -> Univ.Level.t -> bool
 
 val normalize_universe_instance : evar_map -> einstance -> einstance
