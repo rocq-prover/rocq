@@ -322,6 +322,8 @@ end) = struct
               (Some false) env (fst evars) b' in
             let evars, newarg = app_poly env (evars', snd evars) respectful [| ty ; b' ; relty ; arg |] in
               evars, mkProd(na, ty, b), newarg, (ty, Some relty) :: cstrs
+          else if not (Option.is_empty obj) then
+            user_err Pp.(str "Cannot rewrite inside dependent arguments of a function.")
           else
             let ext = Evarutil.push_rel_decl_to_named_context env (goalevars evars) (LocalAssum (na, ty)) ext in
             let (evars, b, arg, cstrs) =
@@ -331,8 +333,7 @@ end) = struct
             let pred = mkLambda (na, ty, b) in
             let liftarg = mkLambda (na, ty, arg) in
             let evars, arg' = app_poly env evars forall_relation [| ty ; pred ; liftarg |] in
-              if Option.is_empty obj then evars, mkProd(na, ty, b), arg', (ty, None) :: cstrs
-              else user_err Pp.(str "build_signature: no constraint can apply on a dependent argument")
+            evars, mkProd(na, ty, b), arg', (ty, None) :: cstrs
         | _, obj :: _ -> anomaly ~label:"build_signature" (Pp.str "not enough products.")
         | _, [] ->
           (match finalcstr with
