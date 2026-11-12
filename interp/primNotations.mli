@@ -119,6 +119,8 @@ type prim_token_interp_info =
   | NumberNotation of number_notation_obj
   | StringNotation of string_notation_obj
 
+val subst_prim_token_interp_info : Mod_subst.substitution -> prim_token_interp_info -> prim_token_interp_info
+
 val do_interp : ?loc:Loc.t -> prim_token_interp_info -> Constrexpr.prim_token -> Glob_term.glob_constr
 
 val do_uninterp : print_float:bool -> prim_token_interp_info -> _ Glob_term.glob_constr_g -> Constrexpr.prim_token option

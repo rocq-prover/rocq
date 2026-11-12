@@ -312,6 +312,7 @@ let cache_prim_token_interpretation infos =
 
 let subst_prim_token_interpretation (subs,infos) =
   { infos with
+    pt_interp_info = PrimNotations.subst_prim_token_interp_info subs infos.pt_interp_info;
     pt_refs = List.map (subst_global_reference subs) infos.pt_refs }
 
 let classify_prim_token_interpretation infos =
