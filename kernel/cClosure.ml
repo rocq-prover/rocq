@@ -2079,7 +2079,8 @@ let rec knr info tab ~pat_state m stk =
     let use_match = red_set info.i_flags fMATCH in
     let use_fix = red_set info.i_flags fFIX in
     begin match [@ocaml.warning "-4"] stk with
-    | Zapp _ :: _ -> assert false (* knh *)
+    | (Zshift _ | Zupdate _ | Zapp _) :: _ ->
+      assert false (* knh / strip_update_shift_absorb_app *)
     | ZcaseT (ci, _, pms, _, br, e) :: s when use_match ->
       (* instance on the case and instance on the constructor are compatible by typing *)
       let (br, e) = get_branch info ci pms c args br e in
