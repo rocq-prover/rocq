@@ -1,8 +1,10 @@
 foo@{u} = nat
      : Type@{u}
-(* u*(+ in type) | u = 0 *)
+(* u*(+ in type) |
+   u = 0 *)
 foo@{u} : Type@{u}
-(* u*(+ in type) | u = 0 *)
+(* u*(+ in type) |
+   u = 0 *)
 
 foo is universe polymorphic and cumulative
 foo is transparent
@@ -12,9 +14,11 @@ foo@{0}
      : Set
 goo@{v} = nat
      : Type@{v}
-(* v*(+ in type) | v ≤ 0 *)
+(* v*(+ in type) |
+   v ≤ 0 *)
 goo@{v} : Type@{v}
-(* v*(+ in type) | v ≤ 0 *)
+(* v*(+ in type) |
+   v ≤ 0 *)
 
 goo is universe polymorphic and cumulative
 goo is transparent
