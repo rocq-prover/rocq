@@ -1,0 +1,9 @@
+File "./output/bug_14454.v", line 4, characters 7-34:
+The command has indeed failed with message:
+Not the right number of induction arguments (expected 1 argument).
+File "./output/bug_14454.v", line 5, characters 7-35:
+The command has indeed failed with message:
+Not the right number of induction arguments (expected 1 argument).
+File "./output/bug_14454.v", line 6, characters 7-36:
+The command has indeed failed with message:
+Not the right number of induction arguments (expected no argument).
