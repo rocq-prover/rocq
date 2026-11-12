@@ -2019,62 +2019,6 @@ let find_to_merge model prems (canv, kv) =
   | [] -> []
   | members -> (canv, kv) :: members
 
-(** [zone_classes model prems (canv, kv)] For a clause [prems -> canv + kv] of [model], computes
-  the classes of equal universes, other than the class of [canv + kv], that the clause can create.
-  They are not necessarily between [canv] and a premise: the clause can make a premise of another
-  clause [c <= max(q, ...)] useless (always below [c]), e.g. [canv] itself, creating equalities
-  through the remaining premises. They are looked for in the zone of the universes below [canv]
-  or [Set], and above a premise, in the graph of clauses following all their premises. Two
-  universes of the zone are candidates if they are in the same strongly connected component,
-  through the clauses and the implicit clauses [Set <= x], and are then checked to be equal in
-  all valuations, as in [check_leq]. This is checked by [-d loop-checking-merged]. *)
-let zone_classes model prems (canv, kv) =
-  (* [Set] is below every universe *)
-  let setcan = repr model (Index.find Level.set model.table) in
-  (* If [Set] is no premise and [canv] only a premise of clauses concluding [Set] (as [Set <= canv]),
-     [canv] and [Set] are the only universes below them. The premises are not among them, nor the
-     universes above the premises, which are premises of clauses not concluding [Set]: the zone is
-     empty *)
-  if ForwardClauses.is_empty setcan.clauses_fwd &&
-     not (ForwardClauses.exists (fun ~kprem:_ ~concl ~prems:_ ->
-         not (Index.equal concl setcan.canon)) canv.clauses_fwd)
-  then [] else
-  (* A single premise concluding no clause is below no universe: the zone has at most this premise *)
-  if (match prems with NeList.Tip (p, _) -> ClausesOf.is_empty p.clauses_bwd | NeList.Cons _ -> false)
-  then [] else
-  let below = reach_all model fold_below (fun _ -> true) [(canv, kv); (setcan, 0)] in
-  let zone = reach_all model fold_above (fun (y, _) -> PMap.mem y.canon below) (NeList.to_list prems) in
-  let zone = PMap.filter (fun idx _ -> PMap.mem idx below) zone in
-  if PMap.cardinal zone <= 1 then [] else
-  (* The universes of the zone above each one, all of them for [Set] *)
-  let up = PMap.mapi (fun idx _ ->
-      if Index.equal idx setcan.canon then zone else
-      let x = repr model idx in
-      let up = reach_all model fold_above (fun (y, _) -> PMap.mem y.canon zone) [(x, 0)] in
-      if PMap.mem setcan.canon up then zone else up) zone
-  in
-  let done_ = ref PSet.empty in
-  PMap.fold (fun idx upx classes ->
-      if PSet.mem idx !done_ then classes else
-      let scc = PMap.filter (fun idy _ -> not (Index.equal idx idy) &&
-                                          PMap.mem idx (PMap.find idy up)) upx in
-      if PMap.is_empty scc then classes else
-      let r = repr model idx in
-      let vr = get_canonical_value model r in
-      let candidates = PMap.fold (fun idy _ acc ->
-          if PSet.mem idy !done_ then acc else
-          let y = repr model idy in
-          (y, get_canonical_value model y - vr) :: acc) scc []
-      in
-      let below_r = entails_from model (r, 0) candidates in
-      let cls = List.fold_right (fun (y, ky) cls ->
-          if below_r (y, ky) && entails model (NeList.tip (y, ky)) (r, 0)
-          then (done_ := PSet.add y.canon !done_; (y, ky) :: cls) else cls) candidates []
-      in
-      done_ := PSet.add idx !done_;
-      match cls with [] -> classes | _ -> ((r, 0) :: cls) :: classes)
-    up []
-
 (** [sccs nodes succ] The strongly connected components with several elements of the graph on
   the indices of [nodes], whose edges from [v] are given by [succ v f], calling [f] on each
   successor in [nodes] (Tarjan's algorithm) *)
@@ -2172,6 +2116,27 @@ let batch_classes model cls =
       in
       group units classes)
     [] candidates
+
+(** [zone_classes model prems (canv, kv)] For a clause [prems -> canv + kv] of [model], computes
+  the classes of equal universes, other than the class of [canv + kv], that the clause can create.
+  They are not necessarily between [canv] and a premise: the clause can make a premise of another
+  clause [c <= max(q, ...)] useless (always below [c]), e.g. [canv] itself, creating equalities
+  through the remaining premises. They are looked for in the zone of the universes below [canv]
+  or [Set], and above a premise, in the graph of clauses following all their premises. Two
+  universes of the zone are candidates if they are in the same strongly connected component,
+  through the clauses and the implicit clauses [Set <= x], and are then checked to be equal in
+  all valuations, as in [check_leq]. This is checked by [-d loop-checking-merged]. *)
+(* The strongly connected components of the zone are those of [batch_classes] for the single clause,
+   computed in linear time. *)
+let zone_classes model prems (canv, _ as v) =
+  let setcan = repr model (Index.find Level.set model.table) in
+  if ForwardClauses.is_empty setcan.clauses_fwd &&
+     not (ForwardClauses.exists (fun ~kprem:_ ~concl ~prems:_ ->
+         not (Index.equal concl setcan.canon)) canv.clauses_fwd)
+  then [] else
+  if (match prems with NeList.Tip (p, _) -> ClausesOf.is_empty p.clauses_bwd | NeList.Cons _ -> false)
+  then [] else
+  batch_classes model [(prems, v)]
 
 (** [simplify_clauses_between model u v] Checks if [v <= u] holds, in which case it
   merges the equivalence classes of universes between [u] and [v]. If [v] is the lub
