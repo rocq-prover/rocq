@@ -234,6 +234,10 @@ let rec stack_args_size = function
 
 let usubs_shft (n,(e,u)) = subs_shft (n, e), u
 
+let usubs_lift (e,u) = subs_lift e, u
+
+let usubs_liftn n (e,u) = subs_liftn n e, u
+
 (* Lifting. Preserves sharing (useful only for cell with norm=Red).
    lft_fconstr always create a new cell, while lift_fconstr avoids it
    when the lift is 0. *)
@@ -254,11 +258,74 @@ let rec lft_fconstr n ft =
 let lift_fconstr k f =
   if Int.equal k 0 then f else lft_fconstr k f
 
+let rec relift_fconstr (n, k as el) v =
+  match v.term with
+  | FRel i ->
+    if i <= k then v else
+    { v with term = FRel (n + i) }
+  | FFlex (RelKey _) ->
+    lft_fconstr n v (* we know we must be beyond k *)
+  | FApp (f,ve) ->
+    { v with term =
+        FApp (relift_fconstr el f,
+              Array.Fun1.map relift_fconstr el ve) }
+  | FCaseT (ci, u, pms, p, c, ve, env) ->
+    let env = lift_subs el env in
+    { v with term = FCaseT (ci, u, pms, p, relift_fconstr el c, ve, env) }
+  | FCaseInvert (ci, u, pms, p, indices, c, ve, env) ->
+    let env = lift_subs el env in
+    let indices = Array.Fun1.map relift_fconstr el indices in
+    { v with term = FCaseInvert (ci, u, pms, p, indices, relift_fconstr el c, ve, env) }
+  | FFix (fx, e) ->
+    let e = lift_subs el e in
+    { v with term = FFix (fx, e) }
+  | FCoFix (cfx, e) ->
+    let e = lift_subs el e in
+    { v with term = FCoFix (cfx, e) }
+  | FProj (p, r, c) ->
+    { v with term =
+      FProj (p, r, relift_fconstr el c) }
+  | FLambda (len, tys, f, e) ->
+    let e = lift_subs el e in
+    { v with term = FLambda (len, tys, f, e) }
+  | FProd (n, t, c, e) ->
+    let e = lift_subs el e in
+    { v with term = FProd (n, relift_fconstr el t, c, e) }
+  | FLetIn (n, b, t, f, e) ->
+    let e = lift_subs el e in
+    { v with term =
+      FLetIn (n, relift_fconstr el b, relift_fconstr el t, f, e) }
+  | FEvar (ev, args, env, repack) ->
+    let env = lift_subs el env in
+    { v with term =
+      FEvar (ev, args, env, repack) }
+  | FLIFT (k', a) ->
+    let () = assert (k' >= k) in
+    { v with term = FLIFT (n + k', a) }
+
+  | FArray (u, t, ty) ->
+    let t = Parray.map (relift_fconstr el) t in
+    let ty = relift_fconstr el ty in
+    { v with term =
+      FArray (u, t, ty) }
+
+  | FCLOS (t,env) ->
+    let env = lift_subs el env in
+    { v with term =
+      FCLOS (t, env) }
+
+  | FFlex (ConstKey _ | VarKey _) | FInd _ | FConstruct _ | FAtom _ | FInt _ | FFloat _ | FString _ -> v
+
+  | FIrrelevant -> v (* Stable under substitution and lifts *)
+  | FLOCKED -> assert (!Flags.in_debugger); v
+
+and lift_subs (n, k) s =
+  usubs_shft (n, usubs_liftn k s)
+
 let clos_rel e i =
   match expand_rel i e with
-    | Inl (n, Regular mt) -> Regular (lift_fconstr n mt)
-    | Inl (_, HigherOrder (0, mt)) -> Regular mt
-    | Inl (_, HigherOrder (nargs, mt)) -> HigherOrder (nargs, mt)
+    | Inl (n, (Regular mt | HigherOrder (0, mt))) -> Regular (lift_fconstr n mt)
+    | Inl (n, HigherOrder (nargs, mt)) -> HigherOrder (nargs, relift_fconstr (n, nargs) mt)
     | Inr (k, None) -> Regular {mark=Ntrl; term= FRel k}
     | Inr (k, Some p) ->
       Regular (lift_fconstr (k-p) {mark=Red;term=FFlex(RelKey p)})
@@ -313,10 +380,6 @@ let usubst_binder e x =
 let mk_lambda env t =
   let (rvars,t') = Term.decompose_lambda t in
   FLambda(List.length rvars, List.rev rvars, t', env)
-
-let usubs_lift (e,u) = subs_lift e, u
-
-let usubs_liftn n (e,u) = subs_liftn n e, u
 
 (* t must be a FLambda and binding list cannot be empty *)
 let destFLambda clos_fun t =
@@ -671,7 +734,7 @@ let term_of_fconstr c = to_constr el_id c
 
 let lift_union k = function
   | Regular v -> Regular (lift_fconstr k v)
-  | HigherOrder (n, v) -> HigherOrder (n+k, v)
+  | HigherOrder (n, v) -> HigherOrder (n, relift_fconstr (k, n) v)
 
 let rec resubst subs v =
   match v.term with
@@ -2170,7 +2233,7 @@ and klt info tab e t = match kind t with
 | Rel i ->
   begin match expand_rel i (fst e) with
   | Inl (n, Regular mt) -> kl info tab @@ lift_fconstr n mt
-  | Inl (_, HigherOrder (nargs, term)) -> assert (Int.equal nargs 0); kl info tab term
+  | Inl (n, HigherOrder (nargs, term)) -> assert (Int.equal nargs 0); kl info tab @@ lift_fconstr n term
   | Inr (k, None) -> if Int.equal k i then t else mkRel k
   | Inr (k, Some p) -> kl info tab @@ lift_fconstr (k-p) {mark=Red;term=FFlex(RelKey p)}
   end
