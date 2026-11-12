@@ -1136,6 +1136,9 @@ let fresh_global ?loc ?(rigid=univ_flexible) ?names env evd gr =
   let (u, ctx) = fresh_instance ?loc ?names env evd gr in
   with_sort_context_set ?loc rigid ~src:UState.Internal evd (mkRef (gr, u), ctx)
 
+let add_parameter_only_levels evd levels =
+  { evd with universes = UState.add_parameter_only_levels evd.universes levels }
+
 let is_flexible_level evd l =
   let uctx = evd.universes in
   UState.is_flexible l uctx
