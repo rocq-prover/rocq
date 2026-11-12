@@ -105,6 +105,9 @@ let update_equivs_bound (us, _, _ as acc) l u equivs =
 (** [partial]: we have type information only, not term information (i.e. Axiom, Definition/Lemma type only) *)
 let simplify_variables solve_flexibles above_prop above_zero partial solve_term flex variances graph =
   let open UVars.Variance in
+  (* A universe is not set to its lower bound when this would constrain the others (see
+     [UGraph.minimize]), unless the universes not declared must all be removed *)
+  let require_entailed = not solve_flexibles in
   debug_each Pp.(fun () -> str"Simplifying variables with " ++ (if partial then str"partial" else str"non-partial") ++ str" information about the definition");
   let allowed_instance ~allow_collapse_to_zero u lbound =
     if Universe.is_type0 lbound then
@@ -113,7 +116,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
     else true
   in
   let minimize ~allow_collapse_to_zero u (flex, variances, graph as acc) =
-    match UGraph.minimize u graph with
+    match UGraph.minimize ~require_entailed u graph with
     | HasSubst (graph, equivs, lbound) ->
       debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
       if not (allowed_instance ~allow_collapse_to_zero u lbound) then acc
@@ -121,7 +124,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
     | NoBound | CannotSimplify -> acc
   in
   let minimize_not_to_set u (flex, variances, graph as acc) =
-    match UGraph.minimize u graph with
+    match UGraph.minimize ~require_entailed u graph with
     | HasSubst (graph, equivs, lbound) ->
       if Universe.exists (fun (l, _) -> Level.is_set l) lbound then acc
       else update_equivs_bound (flex, variances, graph) u lbound equivs
@@ -140,7 +143,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
     | NoBound | CannotSimplify -> acc
   in
   let arbitrary ?(irrelevant=false) ~allow_collapse_to_zero u (flex, variances, graph0 as acc) =
-    match UGraph.minimize u graph0 with
+    match UGraph.minimize ~require_entailed u graph0 with
       | HasSubst (graph, equivs, lbound) ->
         debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
         (* With [Universe Minimization Unbounded], a universe irrelevant to the type and the typing
@@ -225,7 +228,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
     if partial || not (get_unbounded_minimization ()) then acc else
     let simplify_unbounded u (flex, variances, graph as acc) =
       if not (Level.Set.mem u flex) || UGraph.has_upper_bound u graph then acc
-      else match UGraph.minimize u graph with
+      else match UGraph.minimize ~require_entailed u graph with
         | HasSubst (graph', equivs, lbound) ->
           (* Only when the lower bound is a universe level which occurs invariantly itself, e.g. one
              of the binders of the definition: [u] is identified with it. A universe bounded by [Set],
@@ -362,11 +365,12 @@ let new_minimize_weak flex weak (g, variances) =
   type they occur in, still holds of the lower bound). Not with partial information, where the
   rest of the definition may still bound them, nor when the substitution would also set a
   universe which is not one of them. *)
-let minimize_parameter_only partial parameter_only (flex, variances, graph as acc) =
+let minimize_parameter_only solve_flexibles partial parameter_only (flex, variances, graph as acc) =
   if partial then acc else
+  let require_entailed = not solve_flexibles in
   let minimize u (flex, variances, graph as acc) =
     if not (Level.Set.mem u flex) then acc
-    else match UGraph.minimize u graph with
+    else match UGraph.minimize ~require_entailed u graph with
       | HasSubst (graph', equivs, lbound) ->
         (* The universe may have escaped its positions, e.g. into the type of a binder [B : ?T]
            whose type [?T] was solved to [Type@{u}] by [@sig@{u v} B P]: it must also be
@@ -409,7 +413,7 @@ let normalize_context_set ~solve_flexibles ~solve_term ~variances ~partial graph
   let flexible_variables, variances, graph =
     (* debug Pp.(fun () -> str"Model after removal: " ++ UGraph.pr_model graph); *)
     let flexible_variables, variances, graph =
-      minimize_parameter_only partial parameter_only (flexible_variables, variances, graph) in
+      minimize_parameter_only solve_flexibles partial parameter_only (flexible_variables, variances, graph) in
     let flex, variances, graph = simplify_variables solve_flexibles above_prop above_zero partial solve_term flexible_variables variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ Level.Set.pr Level.raw_pr flex);
     new_minimize_weak flex weak (graph, variances)
