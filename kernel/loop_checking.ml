@@ -1932,6 +1932,28 @@ let entails model prems (x, kx) =
   let prems = NeList.map (fun (p, kp) -> (p, kp + s)) prems in
   check_one_clause model prems x (kx + s) || check_one_clause_complete model prems x (kx + s)
 
+(** [entails_from model (p, kp) candidates] decides [x + kx <= p + kp] as [entails] for each
+  [x + kx] of [candidates], propagating the consequences of [p + kp] once for all of them
+  instead of once for each: [x + kx + s <= p + kp + s] is derived when [x] gets a value at
+  least [kx + s] in the model of the premise [p + kp + s], for an [s] making all the increments
+  non-negative. As this is only sound, the other candidates are decided by
+  [check_one_clause_complete], as in [entails]. *)
+let entails_from model (p, kp) candidates =
+  let s = List.fold_left (fun s (_, kx) -> max s (- kx)) (max 0 (- kp)) candidates in
+  let derived =
+    let pmodel, cls = premises_model model (NeList.tip (p, kp + s)) in
+    match check_canset pmodel cls with
+    | Loop -> None
+    | Model (_updates, m) -> Some m
+  in
+  fun (x, kx) ->
+    (x == p && kx <= kp) ||
+    (match derived with
+     | Some m -> (match canonical_value m x with Some v -> kx + s <= v | None -> false)
+     | None -> false) ||
+    let s = max 0 (max (- kp) (- kx)) in
+    check_one_clause_complete model (NeList.tip (p, kp + s)) x (kx + s)
+
 (** [find_to_merge model prems (canv, kv)] For a clause [prems -> canv + kv] of [model], whose
   values make [max(prems)] and [canv + kv] equal, computes the universes [x + kx] such that
   [max(prems) <= x + kx <= canv + kv], which are all equal to [canv + kv]. The result is a list
@@ -1967,12 +1989,14 @@ let find_to_merge model prems (canv, kv) =
     let setcan = repr model (Index.find Level.set model.table) in
     let below = reach_all model fold_below (fun _ -> true) [(canv, kv); (setcan, 0)] in
     let above = reach_all model fold_above (fun (y, _) -> PMap.mem y.canon below) [(canv, kv)] in
-    PMap.fold (fun idx _ acc ->
+    let candidates = PMap.fold (fun idx _ acc ->
         let t = repr model idx in
-        let kt = get_canonical_value model t - value in
-        if entails model (NeList.tip (canv, kv)) (t, kt) && entails model (NeList.tip (t, kt)) (canv, kv)
-        then (t, kt) :: acc else acc)
+        (t, get_canonical_value model t - value) :: acc)
       above []
+    in
+    let below_canv = entails_from model (canv, kv) candidates in
+    List.filter (fun (t, kt) -> below_canv (t, kt) && entails model (NeList.tip (t, kt)) (canv, kv))
+      candidates
   in
   let members = match prems with
     | NeList.Tip (p, _ as pk) ->
@@ -2037,12 +2061,15 @@ let zone_classes model prems (canv, kv) =
       if PMap.is_empty scc then classes else
       let r = repr model idx in
       let vr = get_canonical_value model r in
-      let cls = PMap.fold (fun idy _ cls ->
-          if PSet.mem idy !done_ then cls else
+      let candidates = PMap.fold (fun idy _ acc ->
+          if PSet.mem idy !done_ then acc else
           let y = repr model idy in
-          let ky = get_canonical_value model y - vr in
-          if entails model (NeList.tip (r, 0)) (y, ky) && entails model (NeList.tip (y, ky)) (r, 0)
-          then (done_ := PSet.add idy !done_; (y, ky) :: cls) else cls) scc []
+          (y, get_canonical_value model y - vr) :: acc) scc []
+      in
+      let below_r = entails_from model (r, 0) candidates in
+      let cls = List.fold_right (fun (y, ky) cls ->
+          if below_r (y, ky) && entails model (NeList.tip (y, ky)) (r, 0)
+          then (done_ := PSet.add y.canon !done_; (y, ky) :: cls) else cls) candidates []
       in
       done_ := PSet.add idx !done_;
       match cls with [] -> classes | _ -> ((r, 0) :: cls) :: classes)
@@ -2130,10 +2157,13 @@ let batch_classes model cls =
         | (r, rs) :: units ->
           let vr = value r in
           let rcan = repr model r in
+          let below_r =
+            entails_from model (rcan, 0) (List.map (fun (y, _) -> (repr model y, value y - vr)) units)
+          in
           let eq, units = List.partition (fun (y, _) ->
               let ky = value y - vr in
               let ycan = repr model y in
-              entails model (NeList.tip (rcan, 0)) (ycan, ky) && entails model (NeList.tip (ycan, ky)) (rcan, 0))
+              below_r (ycan, ky) && entails model (NeList.tip (ycan, ky)) (rcan, 0))
               units
           in
           let members = rs @ List.concat_map snd eq in
