@@ -265,12 +265,11 @@ Collapsed sorts:
  α63 := Type
 Minimized universes:
  sort_poly_elab:92 := 0
- sort_poly_elab:90 := 0
  sort_poly_elab:89 := sort_poly_elab:91+1
  sort_poly_elab:88 := 0
  sort_poly_elab:87 := sort_poly_elab:91+1
 Normalized constraints:
- {sort_poly_elab:91} |  *)
+ {sort_poly_elab:91 sort_poly_elab:90} |  *)
 zog@{α ; u} :
 forall _ : Univ@{α ; u}, Univ@{α ; u}
 (* α ; u(= in 1st binder, + in type) | *)
