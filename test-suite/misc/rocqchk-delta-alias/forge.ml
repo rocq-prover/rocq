@@ -7,7 +7,7 @@
      Replace a declaration in B by an incompatible declaration from another
      compiled copy of the same logical library, while retaining the target's
      resolver that aliases B's declaration to A's.
-   ocaml forge.ml parameter LIB.vo OUT.vo
+   ocaml forge.ml parameter|nested|nested-inductive|nested-missing LIB.vo OUT.vo
      Record in a delta resolver of LIB.vo an alias that coqc never writes;
      see the function of that name.
    ocaml forge.ml client CLIENT.vo LIB.vo LIB_DIRPATH OUT.vo
@@ -28,9 +28,11 @@
      (tag 1) [mutual_inductive_body], SFBmodule (tag 3) [module_body] or
      SFBmodtype (tag 4) [module_type_body];
    - constant_body: 2 body, Def (tag 1) [term] for a definition, 3 type;
-     term: App (tag 9) [function; arguments] or Const (tag 10) [(name,
-     instance)], among others; name: Same (tag 0) [kernel name] | Dual (tag
-     1) [user name; canonical name]; kernel name: [module path; label; hash];
+     term: Prod (tag 6) [binder; domain; codomain], App (tag 9) [function;
+     arguments], Const (tag 10) [(name, instance)] or Ind (tag 11) [((name,
+     index), instance)], among others; name, of a constant or an inductive:
+     Same (tag 0) [kernel name] | Dual (tag 1) [user name; canonical name];
+     kernel name: [module path; label; hash];
    - delta resolver: field 2, the canonical names, an Int.Map from a kernel
      name's hash to a map from kernel names to kernel names; both are the
      standard library's maps, Empty (0) | Node [left; key; value; right;
@@ -190,17 +192,20 @@ let rec on name f structure =
 let on_struc f = upd 1 (upd 0 f)
 
 let typ cb = field cb 3
+let definition cb = field (field cb 2) 0
 
-(* [term] with [f] applied to the name of each constant that it names as its
-   head or as an argument of an application, the only places where the
-   files of misc/rocqchk_forged_aliases.sh name the declarations read or
-   renamed here. *)
+(* [term] with [f] applied to the name of each constant or inductive that it
+   names as its head, as an argument of an application or in a product, the
+   only places where the files of misc/rocqchk_forged_aliases.sh name the
+   declarations read or renamed here. *)
 let rec map_names f term =
   if Obj.is_int term then term
   else
     match Obj.tag term with
+    | 6 -> term |> upd 1 (map_names f) |> upd 2 (map_names f)
     | 9 -> term |> upd 0 (map_names f) |> upd 1 (map_array (map_names f))
     | 10 -> upd 0 (upd 0 f) term
+    | 11 -> upd 0 (upd 0 (upd 0 f)) term
     | _ -> term
 
 (* The user name of the one declaration labelled [label] that [term] names. *)
@@ -222,6 +227,7 @@ let rename kn name cb =
   if cb' == cb then failwith "nothing to rename";
   cb'
 
+let same kn = block 0 [| kn |]
 let dual user canonical = block 1 [| user; canonical |]
 
 (* [reso] with the canonical name [canonical] for [user]. The resolvers
@@ -245,6 +251,15 @@ let parameter root =
       |> upd 3 (add_alias m2c m1c))
     root
 
+(* A's resolver gets the alias A.X.l -> A.Y.l, which the resolver of A.X,
+   under which A.X's fields are checked, does not have. In T and in R's
+   signature, e's type names A.Y.l instead of A.X.l. *)
+let nested l root =
+  let r = struc (get "R" root) in
+  let x = named l (typ (get "e" r)) and y = named l (definition (get "c'" r)) in
+  let e_y mb = on_struc (on "e" (rename x (same y))) mb in
+  root |> on "A" (upd 3 (add_alias x y)) |> on "T" e_y |> on "R" e_y
+
 let rec strings l = if Obj.is_int l then [] else string (field l 0) :: strings (field l 1)
 
 (* [deps] with [digest] as the digest of the library [dp]. *)
@@ -264,6 +279,9 @@ let () =
   let forge f = [ "library", marshalled (upd 0 (upd 1 (on_struc f))) ] in
   match List.tl (Array.to_list Sys.argv) with
   | [ "parameter"; src; dst ] -> rewrite src dst (forge parameter)
+  | [ ("nested" | "nested-missing"); src; dst ] ->
+    rewrite src dst (forge (nested "d"))
+  | [ "nested-inductive"; src; dst ] -> rewrite src dst (forge (nested "I"))
   | [ "client"; src; lib; dp; dst ] ->
     let library, _ = find_segment "library" (snd (read_vo lib)) in
     rewrite src dst

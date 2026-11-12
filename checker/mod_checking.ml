@@ -232,6 +232,28 @@ let lookup_module mp env =
 
 let mk_mtb sign delta = Mod_declarations.make_module_type sign delta
 
+(** Substitution uses [res], the resolver of the enclosing module, to which
+    coqc adds that of [mb] ([Safe_typing.end_module]). Check as an alias each
+    name of [mb], outside functors, that [res] resolves differently from the
+    resolver of the module that declares it. *)
+let check_nested_resolver env res mp mb =
+  let rec check_body mp mb = match mod_type mb with
+    | MoreFunctor _ -> ()
+    | NoFunctor struc -> List.iter (check_field mp (mod_delta mb)) struc
+  and check_field mp own (lab, field) =
+    let kn = KerName.make mp lab in
+    let can = Mod_subst.kn_of_delta res kn in
+    let differs = not (KerName.equal can (Mod_subst.kn_of_delta own kn)) in
+    match field with
+    | SFBconst cb ->
+      if differs then Subtyping.check_constant_alias env (Constant.make kn can) cb
+    | SFBmind mib ->
+      if differs then Subtyping.check_inductive_alias env (MutInd.make kn can) mib
+    | SFBmodule mb -> check_body (MPdot (mp, lab)) mb
+    | SFBmodtype _ | SFBrules _ -> ()
+  in
+  check_body mp mb
+
 let rec check_mexpr env mse mp_mse res = match mse with
   | MEident mp ->
     let mb = lookup_module mp env in
@@ -330,7 +352,9 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
   | SFBmodule msb ->
       let mp = MPdot(mp, lab) in
       let st = check_module env st mp msb in
-      Modops.add_module mp msb env, st
+      let env = Modops.add_module mp msb env in
+      let () = check_nested_resolver env res mp msb in
+      env, st
   | SFBmodtype mty ->
       let mp = MPdot (mp, lab) in
       let () = check_module_type env mp mty in

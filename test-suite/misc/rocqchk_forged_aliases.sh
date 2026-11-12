@@ -5,14 +5,20 @@
 # compiled against <case>/donor/Lib.v proves False from it:
 # - parameter: M2.c becomes an alias of M1.c in the type of M2, where both
 #   are declared-only, M1.c := true and M2.c := false.
-# See misc/rocqchk_delta_alias.sh for forged aliases between definitions.
+# - nested: the resolver of A, but not that of A.X, makes A.X.d := false an
+#   alias of A.Y.d := true, and the functor application F A uses it.
+# - nested-inductive: the same between A.X.I, with no constructor, and A.Y.I.
+# - nested-missing: as nested, with A.X before A.Y, so that the alias names
+#   a declaration that is not yet in the environment.
+# See misc/rocqchk_delta_alias.sh for forged aliases between definitions,
+# and coqchk/with_module_resolver.v for honest resolvers that differ.
 
 set -e
 
 . misc/rocqchk-delta-alias/forge-lib.sh
 ROOT=ForgedAliases
 
-for case in parameter; do
+for case in parameter nested nested-inductive nested-missing; do
   C=$D/$case
   LOG=$C/out.log
   build "$C/honest" Lib Client

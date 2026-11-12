@@ -359,7 +359,12 @@ let check_constant_alias env cst cb =
       | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> refuse ()
     in
     let target = Constant.make1 canonical in
-    let target_body = Environ.lookup_constant target env in
+    (* An enclosing module's resolver can name a target that is not, or not
+       yet, in the environment: refuse it instead of failing on an anomaly. *)
+    let target_body = match Environ.lookup_constant_opt target env with
+      | Some target_body -> target_body
+      | None -> refuse ()
+    in
     let target_body =
       match target_body.const_body with
       | Undef _ | OpaqueDef _ ->
@@ -382,6 +387,11 @@ let check_inductive_alias env mind mib =
   if KerName.equal user canonical then ()
   else
     let target = MutInd.make1 canonical in
+    let () =
+      if not (Environ.mem_mind target env) then
+        error_signature_mismatch [] (KerName.label user)
+          (NotEqualInductiveAliases (mind, target))
+    in
     let target_body = Environ.lookup_mind target env in
     let target_mp, target_label = KerName.repr canonical in
     let user_mp = KerName.modpath user in
