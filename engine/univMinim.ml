@@ -273,18 +273,21 @@ type extra = {
   weak_constraints : UPairSet.t;
   above_prop : Level.Set.t;
   above_zero : Level.Set.t;
+  parameter_only : Level.Set.t;
 }
 
 let empty_extra = {
   weak_constraints = UPairSet.empty;
   above_prop = Level.Set.empty;
   above_zero = Level.Set.empty;
+  parameter_only = Level.Set.empty;
 }
 
 let extra_union a b = {
   weak_constraints = UPairSet.union a.weak_constraints b.weak_constraints;
   above_prop = Level.Set.union a.above_prop b.above_prop;
   above_zero = Level.Set.union a.above_zero b.above_zero;
+  parameter_only = Level.Set.union a.parameter_only b.parameter_only;
 }
 
 let nf_extra nf a =
@@ -299,7 +302,8 @@ let remove_from_extra removed a =
   let filter (l, r) = not (mentions_removed l || mentions_removed r) in
   { weak_constraints = UPairSet.filter filter a.weak_constraints;
     above_zero = Level.Set.diff a.above_zero removed;
-    above_prop = Level.Set.diff a.above_prop removed; }
+    above_prop = Level.Set.diff a.above_prop removed;
+    parameter_only = Level.Set.diff a.parameter_only removed; }
 
 (* let pr_universe_set prl s =
   let open Pp in
@@ -352,15 +356,45 @@ let new_minimize_weak flex weak (g, variances) =
         | _ -> acc)
     weak (flex, variances, g)
 
+(** The universes of [parameter_only] are set to their lower bound, [Set] included whatever
+  [Universe Minimization ToSet]: they only bound the types of the arguments of one occurrence of
+  a global, so they cannot make anything less general (an upper bound, e.g. from the sort of the
+  type they occur in, still holds of the lower bound). Not with partial information, where the
+  rest of the definition may still bound them, nor when the substitution would also set a
+  universe which is not one of them. *)
+let minimize_parameter_only partial parameter_only (flex, variances, graph as acc) =
+  if partial then acc else
+  let minimize u (flex, variances, graph as acc) =
+    if not (Level.Set.mem u flex) then acc
+    else match UGraph.minimize u graph with
+      | HasSubst (graph', equivs, lbound) ->
+        (* The universe may have escaped its positions, e.g. into the type of a binder [B : ?T]
+           whose type [?T] was solved to [Type@{u}] by [@sig@{u v} B P]: it must also be
+           irrelevant to the type and typing of the definition *)
+        let parameter_only_level l =
+          (Level.equal l u || Level.Set.mem l parameter_only) &&
+          let _, typev, typingv, _ = variance_info l flex variances in
+          typev == UVars.Variance.Irrelevant && typingv == UVars.Variance.Irrelevant
+        in
+        if parameter_only_level u && List.for_all (fun (l, _) -> parameter_only_level l) equivs then begin
+          debug_each Pp.(fun () -> str"Minimizing parameter-only " ++ Level.raw_pr u ++ str" to " ++ Universe.pr Level.raw_pr lbound);
+          update_equivs_bound (flex, variances, graph') u lbound equivs
+        end
+        else acc
+      | NoBound | CannotSimplify -> acc
+  in
+  Level.Set.fold minimize parameter_only acc
+
 let normalize_context_set ~solve_flexibles ~solve_term ~variances ~partial graph
   ~flexible_variables ?binders
-  {weak_constraints=weak;above_prop; above_zero} =
+  {weak_constraints=weak;above_prop; above_zero; parameter_only} =
   let prl = UnivNames.pr_level_with_global_universes ?binders in
   debug Pp.(fun () -> str "Minimizing context: " ++ UGraph.pr_universes prl (UGraph.repr ~local:true graph) ++ spc () ++
     str"Flexible variables: " ++ Level.Set.pr Level.raw_pr flexible_variables ++ fnl () ++
     str"Variances: " ++ pr_variances prl variances ++ fnl () ++
     str"Above prop: " ++ Level.Set.pr Level.raw_pr above_prop ++ fnl () ++
     str"Above zero: " ++ Level.Set.pr Level.raw_pr above_zero ++ fnl () ++
+    str"Parameter-only: " ++ Level.Set.pr Level.raw_pr parameter_only ++ fnl () ++
     str"Weak constraints " ++
     prlist_with_sep spc (fun (u,v) -> Universe.pr Level.raw_pr u ++ str" ~ " ++ Universe.pr Level.raw_pr v)
      (UPairSet.elements weak) ++ spc () ++
@@ -374,6 +408,8 @@ let normalize_context_set ~solve_flexibles ~solve_term ~variances ~partial graph
   (* Now we construct the instantiation of each variable. *)
   let flexible_variables, variances, graph =
     (* debug Pp.(fun () -> str"Model after removal: " ++ UGraph.pr_model graph); *)
+    let flexible_variables, variances, graph =
+      minimize_parameter_only partial parameter_only (flexible_variables, variances, graph) in
     let flex, variances, graph = simplify_variables solve_flexibles above_prop above_zero partial solve_term flexible_variables variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ Level.Set.pr Level.raw_pr flex);
     new_minimize_weak flex weak (graph, variances)
