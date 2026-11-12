@@ -266,23 +266,27 @@ let universes_of_body_type ~used_univs body typ =
 
 let make_univs_deferred_private_mono ~initial_euctx ?feedback_id ~uctx ~udecl body typ =
   let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body typ in
-  let uctx = UState.constrain_variables (fst (UState.universe_context_set initial_euctx)) uctx in
+  let initial_levels = fst (UState.universe_context_set initial_euctx) in
+  let uctx = UState.constrain_variables initial_levels uctx in
   (* For vi2vo compilation proofs are computed now but we need to
      complement the univ constraints of the typ with the ones of
      the body.  So we keep the two sets distinct. *)
   let uctx_body = UState.restrict uctx used_univs in
-  UState.check_mono_univ_decl uctx_body udecl
+  let uctx_body = UState.check_mono_univ_decl uctx_body udecl in
+  Univ.ContextSet.diff uctx_body (initial_levels, Univ.UnivConstraints.empty)
 
 let make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_univs body typ =
   let utyp = UState.univ_entry ~poly:PolyFlags.default initial_euctx in
   let _, used_univs = universes_of_body_type ~used_univs body typ in
   let ubody =
-    let uctx = UState.constrain_variables (fst (UState.universe_context_set initial_euctx)) uctx in
+    let initial_levels = fst (UState.universe_context_set initial_euctx) in
+    let uctx = UState.constrain_variables initial_levels uctx in
     (* For vi2vo compilation proofs are computed now but we need to
        complement the univ constraints of the typ with the ones of
        the body.  So we keep the two sets distinct. *)
     let uctx_body = UState.restrict uctx used_univs in
-    UState.check_mono_univ_decl uctx_body udecl in
+    let uctx_body = UState.check_mono_univ_decl uctx_body udecl in
+    Univ.ContextSet.diff uctx_body (initial_levels, Univ.UnivConstraints.empty) in
   initial_euctx, utyp, used_univs, Default { body; opaque = Opaque (ubody, eff) }
 
 let make_univs_immediate_private_poly ~poly ~uctx ~udecl ~eff ~used_univs body typ =
@@ -1014,9 +1018,20 @@ let interp_mutual_using env cinfo bodies_types using =
       interp_proof_using_gen f env evd cinfos using)
     using
 
+let remove_declared_universes eff entries =
+  let declared = Safe_typing.universes_of_private (SideEff.get eff) in
+  let map declared (entry, uctx) = match entry.proof_entry_universes with
+  | UState.Monomorphic_entry ctx, binders ->
+    let univs = UState.Monomorphic_entry (Univ.ContextSet.diff ctx declared), binders in
+    Univ.ContextSet.union ctx declared, ({ entry with proof_entry_universes = univs }, uctx)
+  | UState.Polymorphic_entry _, _ -> declared, (entry, uctx)
+  in
+  snd (List.fold_left_map map declared entries)
+
 let declare_possibly_mutual_definitions ~info ~cinfo ~obls ?(is_telescope=false) obj =
   let eff, entries = process_proof ~info ~is_telescope obj in
   let () = export_side_effects eff in
+  let entries = remove_declared_universes eff entries in
   let { Info.hook; scope; clearbody; kind; typing_flags; user_warns; ntns; _ } = info in
   let _, refs = List.fold_left2_map (fun subst CInfo.{name; impargs; loc} (entry, uctx) ->
       (* replacing matters for Derive-like statement but it does not hurt otherwise *)
@@ -2375,7 +2390,7 @@ let finish_proof ~pm proof_obj proof_info =
     let eff, entries = process_proof ~info proof_obj in
     (* FIXME: this is probably not the right place to declare effects *)
     let () = export_side_effects eff in
-    let entries = List.map fst entries in
+    let entries = List.map fst (remove_declared_universes eff entries) in
     finish_proved_equations ~pm ~kind ~hook i entries types sigma
 
 let err_save_forbidden_in_place_of_qed () =

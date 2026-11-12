@@ -932,6 +932,11 @@ let add_constant_aux senv ?hbody (kn, cb) =
   in
   senv''
 
+let undeclared_universes env (levels, csts) =
+  match UGraph.check_declared_universes (Environ.universes env) levels with
+  | Ok () -> (Univ.Level.Set.empty, csts)
+  | Error levels -> (levels, csts)
+
 let inline_side_effects env body side_eff =
   let open Constr in
   (** First step: remove the constants that are still in the environment *)
@@ -998,7 +1003,7 @@ let inline_side_effects env body side_eff =
       else mkLetIn (na, b, ty, accu)
     in
     let body = List.fold_right fold_arg args body in
-    (body, ctx, sigs, len - 1)
+    (body, undeclared_universes env ctx, sigs, len - 1)
 
 let inline_private_constants env ((body, ctx), side_eff) =
   let body, ctx', _, _ = inline_side_effects env body side_eff in
@@ -1128,7 +1133,7 @@ let export_side_effects senv eff =
     let rec recheck_seff seff univs acc env = match seff with
       | [] -> univs, List.rev acc
       | eff :: rest ->
-        let uctx = eff.seff_univs in
+        let uctx = undeclared_universes env eff.seff_univs in
         let env = Environ.push_context_set ~strict:true uctx env in
         let univs = Univ.ContextSet.union uctx univs in
         let env, cb =

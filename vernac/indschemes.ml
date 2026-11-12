@@ -102,8 +102,7 @@ let define ~poly ?loc name sigma c types =
   in
   let info = Declare.Info.make ~poly () in
   let cinfo = Declare.CInfo.make ~name ~typ:types () in
-  let fth_ref = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:c sigma in
-  fth_ref
+  Declare.declare_definition_full ~info:info ~cinfo:cinfo ~opaque:false ~body:c sigma
 
 (* Boolean equality *)
 
@@ -403,9 +402,10 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
     Global.is_polymorphic (Names.GlobRef.IndRef ind)
   in
   let is_mutual = isrec && List.length listdecl > 1 in
-  let declare decl ({CAst.v=fi; loc},dep,ind, sort) =
+  let declare sigma decl ({CAst.v=fi; loc},dep,ind, sort) =
     let decltype = Retyping.get_type_of env sigma decl in
-    let cst = define ?loc ~poly fi sigma decl (Some decltype) in
+    let cst, uctx = define ?loc ~poly fi sigma decl (Some decltype) in
+    let sigma = Evd.set_ustate sigma (UState.demote_global_univs uctx (Evd.ustate sigma)) in
     let kind =
       let open Elimschemes in
       let open UnivGen.QualityOrSet in
@@ -420,13 +420,15 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
           (* currently we don't have standard scheme kinds for this *)
           None
     in
-    match kind with
+    let () = match kind with
     | None -> ()
     | Some kind ->
       (* TODO locality *)
       DeclareScheme.declare_scheme SuperGlobal (Ind_tables.scheme_kind_name kind) (GlobRef.IndRef ind, cst)
+    in
+    sigma
   in
-  let () = List.iter2 declare listdecl l in
+  let _ : Evd.evar_map = List.fold_left2 declare sigma listdecl l in
   let lrecnames = List.map (fun ({CAst.v},_,_,_) -> v) l in
   Declare.fixpoint_message None lrecnames
 
