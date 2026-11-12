@@ -920,7 +920,15 @@ struct
 
   let pr printer ?variances (_, (univs, csts) as uctx) =
     if is_empty uctx then mt() else
-      h (LevelInstance.pr printer ?variances univs ++ str " | ") ++ h (v 0 (PConstraints.pr printer csts))
+    match variances with
+    | None -> h (LevelInstance.pr printer univs ++ str " | ") ++ h (v 0 (PConstraints.pr printer csts))
+    | Some _ ->
+      (* With their variances, the universes do not fit on one line: they are wrapped, and the
+         constraints start below them, one per line *)
+      let csts =
+        if PConstraints.is_empty csts then mt () else cut () ++ v 0 (PConstraints.pr printer csts)
+      in
+      v 0 (hov 0 (LevelInstance.pr printer ?variances univs ++ str " |") ++ csts)
 
   let hcons ({quals = qnames; univs = unames}, (univs, csts)) =
     let hqnames, qnames = Hashcons.hashcons_array Names.Name.hcons qnames in
