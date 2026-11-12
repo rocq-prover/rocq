@@ -6,3 +6,4 @@ Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) : core_scope (default
 Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) : core_scope (default interpretation) (defined in library Corelib.Init.Datatypes, line 262, characters 9-29) (reserved in library Corelib.Init.Notations, line 60, characters 18-38)
 Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) : core_scope (default interpretation) (defined in library Corelib.Init.Datatypes, line 262, characters 9-29) (reserved in library Corelib.Init.Notations, line 60, characters 18-38)
 Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) : core_scope (default interpretation) (defined in library Corelib.Init.Datatypes, line 262, characters 9-29) (reserved in library Corelib.Init.Notations, line 60, characters 18-38)
+Notation "1" := true : foo_scope (defined in library locate, line 32, characters 9-12)

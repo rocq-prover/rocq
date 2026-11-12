@@ -24,3 +24,12 @@ Locate "( t , u )".
 Locate "( t , u , v )".
 
 End N.
+
+Module O.
+
+(* A notation parsed as a number has no grammar rule: was an anomaly *)
+Declare Scope foo_scope.
+Notation "1" := true : foo_scope.
+Locate "1".
+
+End O.
