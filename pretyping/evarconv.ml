@@ -1355,8 +1355,13 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
             (* A projection stuck on an evar is kept folded while the other
                side is unfolded: unlike a projection constant, it has no
                parameters and can only be related to the other side by
-               unifying their records, as [f1] does. *)
-            let stuck (t, sk) = isEvar i t && has_stuck_proj sk in
+               unifying their records, as [f1] does. This only matters
+               for canonical structure inference: a projection which has
+               no canonical instance is reduced as usual. *)
+            let canonical =
+              CSTable.has_canonical_instances env i p c
+              || CSTable.has_canonical_instances env i p' c' in
+            let stuck (t, sk) = canonical && isEvar i t && has_stuck_proj sk in
             if stuck out2 && not (stuck out1) then
               evar_eqappr_x flags env i pbty keys (Some false) orig out1 appr2
             else if stuck out1 && not (stuck out2) then
@@ -1420,7 +1425,9 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
               | _ -> None in
           match as_proj appr1, as_proj appr2 with
           | Some (p, c, sk), Some (p', c', sk')
-            when QProjection.Repr.equal env (Projection.repr p) (Projection.repr p') ->
+            when QProjection.Repr.equal env (Projection.repr p) (Projection.repr p')
+              && (CSTable.has_canonical_instances env i p c
+                  || CSTable.has_canonical_instances env i p' c') ->
             (* The parameters of the projections are the ones of the types
                of the records: they are unified first, as the parameters of
                a projection constant would be. *)
