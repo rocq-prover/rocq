@@ -2829,7 +2829,7 @@ type 'a simplification_result =
   to its greatest lower bound and the new constraints are enough to derive the previous ones on all other universes.
   It returns a lower bound on idx in the original constraints, or None if it cannot be expressed.
   E.g. minimizing k when the only constraint is l + 1 <= k + 2 would result in k = l - 1 which is not a valid universe.  *)
-let minimize_can can k model =
+let minimize_can ?(require_entailed=false) can k model =
   let fwd = can.clauses_fwd in
   let glb, multi =
     ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
@@ -2868,6 +2868,9 @@ let minimize_can can k model =
       let entailed = List.for_all entailed multi in
       debug_loop_checking_minimize Pp.(fun () -> str"minimize_can: " ++ int (List.length multi) ++
         str" clauses with several premises, " ++ (if entailed then str"entailed" else str"not entailed"));
+      (* Without entailment, the substitution strengthens a clause [v <= max(can, w)] into
+         [v <= max(glb, w)]: a constraint on other universes, making them less general *)
+      if require_entailed && not entailed then CannotSimplify else
       try
         let model, equivs = set_can ~entailed (can,k) u model in
         debug_check_invariants model;
@@ -2876,10 +2879,10 @@ let minimize_can can k model =
     else CannotSimplify
 
 
-let minimize level model =
+let minimize ?require_entailed level model =
   match repr model (Index.find level model.table) with
   | exception Not_found -> CannotSimplify
-  | can -> minimize_can can 0 model
+  | can -> minimize_can ?require_entailed can 0 model
 
 let maximize_can can model =
   let bwd = can.clauses_bwd in

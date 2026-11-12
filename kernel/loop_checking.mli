@@ -128,7 +128,10 @@ type 'a simplification_result =
   | NoBound
   | CannotSimplify
 
-val minimize : Level.t -> t -> t simplification_result
+val minimize : ?require_entailed:bool -> Level.t -> t -> t simplification_result
+(** With [~require_entailed:true], only when the clauses where the level is one of several
+  premises still hold, entailed by the others, once it is set to its lower bound: otherwise the
+  substitution would constrain the other universes of these clauses *)
 val maximize : Level.t -> t -> t simplification_result
 
 (** [has_upper_bound l m] holds when a clause of [m] concludes on [l], i.e. bounds it from above
