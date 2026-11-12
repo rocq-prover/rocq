@@ -1241,15 +1241,15 @@ let filter_stack_domain stack_element_specif not_subterm ?evars env p stack =
       | Prod (n, a, c0) ->
         let d = LocalAssum (n, a) in
         let ctx, a = whd_decompose_prod ?evars env a in
-        let env = push_rel_context ctx env in
-        let ty, args = decompose_app_list (whd_all ?evars env a) in
+        let env_a = push_rel_context ctx env in
+        let ty, args = decompose_app_list (whd_all ?evars env_a a) in
         let elt = match kind ty with
         | Ind ind ->
           let spec = stack_element_specif ?evars elt in
-          if has_constant_parameters env absctxlen (k + List.length ctx) ind args then
+          if has_constant_parameters env_a absctxlen (k + List.length ctx) ind args then
             spec
           else
-            lazy (Subterm.prune_path ?evars env (Lazy.force spec) ind args)
+            lazy (Subterm.prune_path ?evars env_a (Lazy.force spec) ind args)
         | _ -> not_subterm
         in
         SArg elt :: filter_stack (push_rel d env) (k + 1) c0 stack'

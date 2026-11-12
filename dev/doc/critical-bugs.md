@@ -538,6 +538,17 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit / GH issue: [#22759](https://github.com/rocq-prover/rocq/pull/22759)
 - risk: needs DB index hacking in local defs preceding fixpoint
 
+#### guard checker computes commutative cuts in the wrong environment and breaks propositional extensionality
+- component: guard checking
+- introduced: 8.8 ([#920](https://github.com/rocq-prover/rocq/pull/920))
+- impacted released versions: from 8.8 although inconsistency with propext was achievable in other ways
+- impacted coqchk versions: Same
+- fixed in: 9.2.1, 9.3.1, 9.4 ([#22763](https://github.com/rocq-prover/rocq/pull/22763))
+- found by: Pierre-Marie Pédrot
+- exploit: test-suite/test-suite/bugs/bug_guard_filter_stack_env.v
+- GH issue number: none
+- risk: requires the use of propext
+
 ### Section system
 
 #### projections are cooked in wrong environment
