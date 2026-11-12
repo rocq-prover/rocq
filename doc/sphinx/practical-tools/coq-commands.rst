@@ -652,7 +652,7 @@ and ``rocq repl``, unless stated otherwise:
 - :n:`-time`: Output timing information for each command to standard output.
 - :n:`-time-file file`: Output timing information for each command to the given file.
 - :n:`-profile file`: Output :ref:`profiling` information to the given file.
-
+- :n:`-profile-lazy` Print profiling information for all invocations of the `lazy` machine when the process exits (similar to :flag:`Lazy Profiling`).
 .. _profiling:
 
 Profiling
