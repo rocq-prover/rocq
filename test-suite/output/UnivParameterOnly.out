@@ -1,7 +1,7 @@
 shift@{u} :
 forall P : nat -> Type@{u},
 (forall n : nat, P n -> P (S n)) -> sig'@{0 u} nat P -> sig'@{0 u} nat P
-(* u(= in 1st binder) |  *)
+(* u(= in 1st binder) | *)
 
 shift is universe polymorphic and cumulative
 Arguments shift (P f)%_function_scope x
@@ -17,7 +17,7 @@ Expands to: Constant UnivParameterOnly.refl_S
 Declared in library UnivParameterOnly, line 16, characters 11-17
 with_hole@{u} :
 forall B : Type@{u}, B -> sig'@{u u} B (fun _ : B => B)
-(* u(= in 1st binder) |  *)
+(* u(= in 1st binder) | *)
 
 with_hole is universe polymorphic and cumulative
 Arguments with_hole B%_type_scope b
@@ -26,8 +26,7 @@ Expands to: Constant UnivParameterOnly.with_hole
 Declared in library UnivParameterOnly, line 20, characters 11-20
 use_crel@{u u0} :
 forall {B : Type@{u}}, crel@{u u0} B -> crel@{u u0} B
-(* u(= in 1st binder) u0(= in 2nd binder, + in type) | 
-    *)
+(* u(= in 1st binder) u0(= in 2nd binder, + in type) | *)
 
 use_crel is universe polymorphic and cumulative
 Arguments use_crel {B}%_type_scope R _ _

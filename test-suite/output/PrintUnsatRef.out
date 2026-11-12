@@ -11,7 +11,8 @@ File "./output/PrintUnsatRef.v", line 11, characters 0-8:
 Warning: This reference relies on unsatisfiable constraints:
 Cannot enforce u+1 ≤ v because v < u [print-unsatisfiable-ref,default]
 x@{} : True
-(*  | u < v *)
+(*  |
+   u < v *)
 
 x is universe polymorphic
 x is transparent
