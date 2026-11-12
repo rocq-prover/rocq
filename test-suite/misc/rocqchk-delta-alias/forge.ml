@@ -7,7 +7,8 @@
      Replace a declaration in B by an incompatible declaration from another
      compiled copy of the same logical library, while retaining the target's
      resolver that aliases B's declaration to A's.
-   ocaml forge.ml parameter|nested|nested-inductive|nested-missing LIB.vo OUT.vo
+   ocaml forge.ml parameter|nested|nested-inductive|nested-missing|label
+                  LIB.vo OUT.vo
      Record in a delta resolver of LIB.vo an alias that coqc never writes;
      see the function of that name.
    ocaml forge.ml client CLIENT.vo LIB.vo LIB_DIRPATH OUT.vo
@@ -188,8 +189,11 @@ let rec on name f structure =
   else upd 1 (on name f) structure
 
 (* [mb], a module or module type that is not a functor, with its structure
-   replaced by [f] of it. *)
+   replaced by [f] of it; the structure of the body of a functor with one
+   parameter, and the functor with that structure replaced by [f] of it. *)
 let on_struc f = upd 1 (upd 0 f)
+let body_struc mb = field (field (field mb 1) 2) 0
+let on_body_struc f = upd 1 (upd 2 (upd 0 f))
 
 let typ cb = field cb 3
 let definition cb = field (field cb 2) 0
@@ -260,6 +264,19 @@ let nested l root =
   let e_y mb = on_struc (on "e" (rename x (same y))) mb in
   root |> on "A" (upd 3 (add_alias x y)) |> on "T" e_y |> on "R" e_y
 
+(* In the body of F (P : S), F.k := P.X.d becomes an alias of P.X.d, from
+   label k to label d: F's resolver gets the alias, and lemma : k = false
+   names F.k with the canonical name P.X.d. *)
+let label root =
+  let body = body_struc (get "F" root) in
+  let fk = named "k" (typ (get "lemma" body)) and pxd = named "d" (definition (get "k" body)) in
+  on "F"
+    (fun mb ->
+      mb
+      |> on_body_struc (on "lemma" (rename fk (dual fk pxd)))
+      |> upd 3 (add_alias fk pxd))
+    root
+
 let rec strings l = if Obj.is_int l then [] else string (field l 0) :: strings (field l 1)
 
 (* [deps] with [digest] as the digest of the library [dp]. *)
@@ -282,6 +299,7 @@ let () =
   | [ ("nested" | "nested-missing"); src; dst ] ->
     rewrite src dst (forge (nested "d"))
   | [ "nested-inductive"; src; dst ] -> rewrite src dst (forge (nested "I"))
+  | [ "label"; src; dst ] -> rewrite src dst (forge label)
   | [ "client"; src; lib; dp; dst ] ->
     let library, _ = find_segment "library" (snd (read_vo lib)) in
     rewrite src dst

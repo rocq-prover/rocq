@@ -343,6 +343,12 @@ let check_constant (cst, ustate) trace env l info1 cb2 subst1 subst2 =
                Anyway [check_conv] will handle that afterwards. *)
             check_conv (NotConvertibleBodyField (Some (env, c1, c2))) cst poly CONV env c1 c2))
 
+(* A resolver relates only names with the same label:
+   [Mod_subst.add_kn_delta_resolver] asserts it when coqc makes an alias, and
+   substitutions keep it. *)
+let same_label user canonical =
+  Id.equal (KerName.label user) (KerName.label canonical)
+
 let check_constant_alias env cst cb =
   let user = Constant.user cst in
   let canonical = Constant.canonical cst in
@@ -351,6 +357,7 @@ let check_constant_alias env cst cb =
     let refuse () =
       error_signature_mismatch [] (KerName.label user) (NotConvertibleBodyField None)
     in
+    let () = if not (same_label user canonical) then refuse () in
     (* Every constant alias that coqc records is on a field that is a [Def]
        after strengthening ([Modops.strengthen_const]), and the copies made
        without strengthening keep that body. *)
@@ -388,11 +395,12 @@ let check_inductive_alias env mind mib =
   else
     let target = MutInd.make1 canonical in
     let () =
-      if not (Environ.mem_mind target env) then
+      if not (same_label user canonical && Environ.mem_mind target env) then
         error_signature_mismatch [] (KerName.label user)
           (NotEqualInductiveAliases (mind, target))
     in
     let target_body = Environ.lookup_mind target env in
+    (* The labels are equal: [add_kn_delta_resolver] below cannot fail. *)
     let target_mp, target_label = KerName.repr canonical in
     let user_mp = KerName.modpath user in
     let target_resolver = empty_delta_resolver target_mp in

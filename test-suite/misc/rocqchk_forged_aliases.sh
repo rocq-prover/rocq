@@ -10,6 +10,8 @@
 # - nested-inductive: the same between A.X.I, with no constructor, and A.Y.I.
 # - nested-missing: as nested, with A.X before A.Y, so that the alias names
 #   a declaration that is not yet in the environment.
+# - label: in a functor F (P : S), F.k := P.X.d becomes an alias of P.X.d,
+#   which F A turns into an alias of A.X.k := true instead of A.X.d := false.
 # See misc/rocqchk_delta_alias.sh for forged aliases between definitions,
 # and coqchk/with_module_resolver.v for honest resolvers that differ.
 
@@ -18,7 +20,7 @@ set -e
 . misc/rocqchk-delta-alias/forge-lib.sh
 ROOT=ForgedAliases
 
-for case in parameter nested nested-inductive nested-missing; do
+for case in parameter nested nested-inductive nested-missing label; do
   C=$D/$case
   LOG=$C/out.log
   build "$C/honest" Lib Client
