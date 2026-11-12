@@ -322,7 +322,12 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
     | Irrelevant -> arbitrary ~allow_collapse_to_zero:true u acc
     | Covariant -> minimize ~allow_collapse_to_zero:true u acc
     | Contravariant -> maximize u acc
-    | Invariant -> acc
+    | Invariant ->
+      (* The universe declaration is closed: the universes it does not declare cannot stay, even
+         when they occur invariantly in the type, and are set to their lower bound if it is not
+         [Set]. Otherwise, e.g. the universe of [B] in [Definition bar@{i} (A : Type@{i}) (B : Type)],
+         the declaration is refused: the type would be less general than the one written. *)
+      minimize_not_to_set u acc
   in
   if solve_flexibles then
     let fold_arbitrary u (flex, variances, graph as acc) =

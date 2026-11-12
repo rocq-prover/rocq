@@ -1177,7 +1177,10 @@ let declare_definition_uinst ~info ~cinfo ~opaque ~obls ~body ?using sigma =
   check_evars_are_solved env sigma body;
   let poly = info.Info.poly in
   debug Pp.(fun () -> str"declare_definition for " ++ Id.print name ++ str", minimizing ");
-  let sigma = UnivVariances.register_universe_variances_of env sigma ?typ body in
+  (* The variances in the type tell the minimization which universes the type mentions: without a
+     given type, those of the inferred one *)
+  let vtyp = match typ with Some t -> t | None -> Retyping.get_type_of env sigma body in
+  let sigma = UnivVariances.register_universe_variances_of env sigma ~typ:vtyp body in
   let sigma = Evd.minimize_universes ~poly sigma in
   let body = EConstr.to_constr sigma body in
   let typ = Option.map (EConstr.to_constr sigma) typ in
