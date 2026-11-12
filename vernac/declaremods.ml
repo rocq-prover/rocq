@@ -1804,8 +1804,10 @@ let debug_print_modtab () = InterpVisitor.debug_print_modtab ()
     objects associated to it. *)
 
 let process_module_binding mbid me =
+  let _ : ModPath.t = Global.start_module (Id.of_string_soft "Printing#") in
   let sp = Libnames.make_path DirPath.empty (MBId.to_id mbid) in
   let mp = MPbound mbid in
+  let _mtb : module_type_body = Global.add_module_parameter mbid me None in
   let sobjs = InterpVisitor.get_module_sobjs false (Global.env()) (default_inline_level ()) me in
   let subst = map_mp (get_module_path me) mp (empty_delta_resolver mp) in
   let sobjs = subst_sobjs subst sobjs in

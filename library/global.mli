@@ -135,8 +135,13 @@ val lookup_module    : ModPath.t -> module_body
 val lookup_modtype   : ModPath.t -> module_type_body
 val exists_objlabel  : Id.t -> bool
 
+val constant_of_kn : ?lax:bool -> KerName.t -> Constant.t
+val mind_of_kn : ?lax:bool -> KerName.t -> MutInd.t
+
 val constant_of_delta_kn : KerName.t -> Constant.t
+[@@deprecated "(9.4) Use [constant_of_kn]"]
 val mind_of_delta_kn : KerName.t -> MutInd.t
+[@@deprecated "(9.4) Use [mind_of_kn]"]
 
 type indirect_accessor = {
   access_proof : Opaqueproof.opaque -> Opaqueproof.opaque_proofterm option;

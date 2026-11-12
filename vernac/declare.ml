@@ -436,7 +436,7 @@ let load_constant i ((sp,kn), obj) =
   let open Summary.Ref in
   if Nametab.exists_cci sp then
     raise (DeclareUniv.AlreadyDeclared (None, Libnames.basename sp));
-  let con = Global.constant_of_delta_kn kn in
+  let con = Global.constant_of_kn kn in
   let gr = GlobRef.ConstRef con in
   Nametab.push ?user_warns:obj.cst_warn (Nametab.Until i) sp gr;
   Decls.add_constant_kind (Global.env ()) con obj.cst_kind;
@@ -452,7 +452,7 @@ let open_constant i ((sp,kn), obj) =
   match obj.cst_locl with
   | Locality.ImportNeedQualified -> ()
   | Locality.ImportDefaultBehavior ->
-    let con = Global.constant_of_delta_kn kn in
+    let con = Global.constant_of_kn kn in
     Nametab.push (Nametab.Exactly i) sp (GlobRef.ConstRef con)
 
 let exists_name id =
@@ -463,7 +463,7 @@ let check_exists id =
     raise (DeclareUniv.AlreadyDeclared (None, id))
 
 let cache_constant ((sp,kn), obj) =
-  let kn = Global.constant_of_delta_kn kn in
+  let kn = Global.constant_of_kn kn in
   let gr = GlobRef.ConstRef kn in
   Nametab.push ?user_warns:obj.cst_warn (Nametab.Until 1) sp gr;
   Decls.add_constant_kind (Global.env ()) kn obj.cst_kind;

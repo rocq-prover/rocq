@@ -803,7 +803,7 @@ let print_full_pure_atomic access env sigma mp lobj =
   let handler =
     DynHandleF.add Declare.Internal.Constant.tag begin fun (id,_) ->
       let kn = KerName.make mp id in
-      let con = Global.constant_of_delta_kn kn in
+      let con = Global.constant_of_kn kn in
       let cb = Global.lookup_constant con in
       let typ = cb.const_type in
       hov 0 (
@@ -830,7 +830,7 @@ let print_full_pure_atomic access env sigma mp lobj =
     end @@
     DynHandleF.add DeclareInd.Internal.objInductive begin fun (id,_) ->
       let kn = KerName.make mp id in
-      let mind = Global.mind_of_delta_kn kn in
+      let mind = Global.mind_of_kn kn in
       let mib = Global.lookup_mind mind in
       Printmod.pr_mutual_inductive_body (Global.env()) mind mib None ++
       fnl () ++ fnl ()

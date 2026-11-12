@@ -28,7 +28,7 @@ type inductive_obj = {
 
 let inductive_names sp kn obj =
   let (dp,_) = Libnames.repr_path sp in
-  let kn = Global.mind_of_delta_kn kn in
+  let kn = Global.mind_of_kn kn in
   let names, _ =
     List.fold_left
       (fun (names, n) ({CAst.v=typename; loc=typeloc}, consnames) ->

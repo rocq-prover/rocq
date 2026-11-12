@@ -356,6 +356,18 @@ let ind_relevance kn env = match Indmap.find_opt kn env.irr_inds with
 | None -> Sorts.Relevant
 | Some r -> r
 
+let constant_of_kn ?(lax=false) env kn =
+  let kn0 = Constant.make1 kn in
+  match Cmap.find_opt kn0 env.env_constants with
+  | Some (_, _, can) -> Constant.make kn can
+  | None -> if lax then raise Not_found else missing_constant kn0
+
+let mind_of_kn ?(lax=false) env kn =
+  let kn0 = MutInd.make1 kn in
+  match Mindmap.find_opt kn0 env.env_inductives with
+  | Some (_, _, can) -> MutInd.make kn can
+  | None -> if lax then raise Not_found else missing_ind kn0
+
 (** {6 Changes of representation of Case nodes} *)
 
 (** Provided:

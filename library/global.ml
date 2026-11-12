@@ -206,11 +206,15 @@ let body_of_constant access cst = body_of_constant_body access (lookup_constant 
 
 (** Operations on kernel names *)
 
+let constant_of_kn ?lax kn = Environ.constant_of_kn ?lax (env()) kn
+
+let mind_of_kn ?lax kn = Environ.mind_of_kn ?lax (env()) kn
+
 let constant_of_delta_kn kn =
-  Safe_typing.constant_of_delta_kn_senv (safe_env ()) kn
+  (Safe_typing.constant_of_delta_kn_senv [@warning "-3"]) (safe_env ()) kn
 
 let mind_of_delta_kn kn =
-  Safe_typing.mind_of_delta_kn_senv (safe_env ()) kn
+  (Safe_typing.mind_of_delta_kn_senv [@warning "-3"]) (safe_env ()) kn
 
 (** Operations on libraries *)
 
