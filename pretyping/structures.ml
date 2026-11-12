@@ -590,6 +590,14 @@ let entries () =
     PatMap.fold (fun pat o acc -> canonical_entry_of_object p pat o :: acc) ol acc)
     !object_table []
 
+let rec has_canonical_instances env sigma p c =
+  let open Summary.Ref in
+  let cst = Environ.projection_repr_constant env (Names.Projection.repr p) in
+  GlobRefMap.mem env (Names.GlobRef.ConstRef cst) !object_table ||
+  match EConstr.kind sigma (fst (EConstr.decompose_app sigma c)) with
+  | Constr.Proj (p, _, c) -> has_canonical_instances env sigma p c
+  | _ -> false
+
 let entries_for env ~projection:p =
   let open Summary.Ref in
   try

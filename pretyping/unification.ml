@@ -859,19 +859,27 @@ let expand_table_key ~metas ts env sigma args = function
   | VarKey id -> (try named_body id env |> Option.map (fun c -> (EConstr.of_constr c, args)) with Not_found -> None)
   | RelKey _ -> None
 
-(* The expansion of a folded primitive projection is its unfolded form, as
-   the expansion of a projection constant is a [match]. The expansion of an
-   unfolded primitive projection is its reduction, when its record reduces
-   to a constructor. *)
+let has_canonical_instances = Structures.CSTable.has_canonical_instances
+
+(* The expansion of a primitive projection is its reduction, when its record
+   reduces to a constructor. A folded primitive projection whose record may
+   matter for canonical structure inference is only unfolded, as the
+   expansion of a projection constant is a [match]: its record is kept, and
+   it is reduced as an unfolded projection, after the other side had a
+   chance to expose the same projection (see [oracle_order]). *)
 let expand_key ~metas ts env sigma args = function
   | Some (IsKey k) -> (expand_table_key ~metas ts env sigma args k)
   | Some (IsProj (p, r, c)) ->
-    if Projection.unfolded p then
+    let reduce () =
       let metas = Meta.meta_handler metas in
+      let p = Projection.unfold p in
       let red = Stack.zip sigma (whd_betaiota_deltazeta_for_iota_state ts ~metas env sigma
                                  (c, [Stack.Proj (p, r)]))
       in if EConstr.eq_constr sigma (EConstr.mkProj (p, r, c)) red then None else Some (red, args)
-    else Some (EConstr.mkProj (Projection.unfold p, r, c), args)
+    in
+    if not (Projection.unfolded p) && has_canonical_instances env sigma p c then
+      Some (EConstr.mkProj (Projection.unfold p, r, c), args)
+    else reduce ()
   | None -> None
 
 let isApp_or_Proj sigma c =
@@ -915,7 +923,7 @@ let translate_key = function
   | IsKey k -> translate_key k
   | IsProj (p, _, _) -> Some (Conv_oracle.EvalProjectionRef (Projection.repr p))
 
-let oracle_order env cf1 cf2 =
+let oracle_order env sigma cf1 cf2 =
   match cf1 with
   | None ->
       (match cf2 with
@@ -926,22 +934,21 @@ let oracle_order env cf1 cf2 =
       | None -> Some true
       | Some k2 ->
         let unfolded = function
-          | IsProj (p, _, _) -> Projection.unfolded p
+          | IsProj (p, _, c) -> Projection.unfolded p && has_canonical_instances env sigma p c
           | IsKey _ -> false in
         match k1, k2 with
-        (* An unfolded primitive projection only reduces by unfolding its
+        (* An unfolded primitive projection whose record may matter for
+           canonical structure inference only reduces by unfolding that
            record: as the [match] a projection constant unfolds to, which
            has no key, it comes after any other key. *)
         | _ when unfolded k1 && not (unfolded k2) -> Some false
         | _ when unfolded k2 && not (unfolded k1) -> Some true
-        (* A folded projection against its compatibility constant: unfold
-           the projection *)
         | IsProj (p, _, _), IsKey (ConstKey (p',_))
           when Environ.QConstant.equal env (Environ.projection_repr_constant env (Projection.repr p)) p' ->
-          Some true
+          Some (not (Projection.unfolded p))
         | IsKey (ConstKey (p,_)), IsProj (p', _, _)
           when Environ.QConstant.equal env p (Environ.projection_repr_constant env (Projection.repr p')) ->
-          Some false
+          Some (Projection.unfolded p')
         | _ ->
           Some (Conv_oracle.oracle_order
                   (Environ.oracle env) false (translate_key k1) (translate_key k2))
@@ -1132,15 +1139,15 @@ type orig_term =
 
 let no_orig = (NoOrig, NoOrig)
 
-let orig_of sigma o c = match o with
+let orig_of env sigma o c = match o with
   | Orig _ | UsedOrig -> o
   | NoOrig ->
     match EConstr.kind sigma (fst (decompose_app sigma c)) with
-    | Proj _ -> Orig c
+    | Proj (p, _, r) when has_canonical_instances env sigma p r -> Orig c
     | _ -> NoOrig
 
-let orig_left sigma (om, on) c = (orig_of sigma om c, on)
-let orig_right sigma (om, on) c = (om, orig_of sigma on c)
+let orig_left env sigma (om, on) c = (orig_of env sigma om c, on)
+let orig_right env sigma (om, on) c = (om, orig_of env sigma on c)
 
 let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n =
   let mk_expand_subst substn =
@@ -1149,7 +1156,8 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
     (substn.subst_metam, metasubst, evarsubst)
   in
   (* [orig] holds, for each side, the term it was before it got reduced or
-     unfolded, if that term was headed by a primitive projection. As in
+     unfolded, if that term was headed by a primitive projection whose
+     record may matter for canonical structure inference. As in
      [Evarconv], when the other side turns out to be flexible (a meta or an
      evar, possibly applied), it is unified with that term rather than with
      its reduct: reducing a projection requires unfolding its record, and
@@ -1505,11 +1513,11 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
     if flags.modulo_betaiota && not (subterm_restriction opt flags) then
       let cM' = do_reduce ~metas flags.modulo_delta curenvnb sigma cM in
         if not (EConstr.eq_constr sigma cM cM') then
-          unirec_rec curenvnb pb opt substn ~orig:(orig_left sigma orig cM) cM' cN
+          unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM) cM' cN
         else
           let cN' = do_reduce ~metas flags.modulo_delta curenvnb sigma cN in
             if not (EConstr.eq_constr sigma cN cN') then
-              unirec_rec curenvnb pb opt substn ~orig:(orig_right sigma orig cN) cM cN'
+              unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM cN'
             else error_cannot_unify (fst curenvnb) sigma (cM,cN)
     else error_cannot_unify (fst curenvnb) sigma (cM,cN)
 
@@ -1564,19 +1572,19 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       | None ->
       let metas = substn.subst_metam in
       let cf1 = key_of curenv sigma opt flags f1 and cf2 = key_of curenv sigma opt flags f2 in
-        match oracle_order curenv cf1 cf2 with
+        match oracle_order curenv sigma cf1 cf2 with
         | None -> error_cannot_unify curenv sigma (cM,cN)
         | Some true ->
             (match expand_key ~metas flags.modulo_delta curenv sigma l1 cf1 with
             | Some c_l1 ->
               let metas = Meta.meta_handler metas in
-                unirec_rec curenvnb pb opt substn ~orig:(orig_left sigma orig cM)
+                unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM)
                   (whd_betaiotazeta ~metas curenv sigma (mkApp c_l1)) cN
             | None ->
                 (match expand_key ~metas flags.modulo_delta curenv sigma l2 cf2 with
                 | Some c_l2 ->
                   let metas = Meta.meta_handler metas in
-                    unirec_rec curenvnb pb opt substn ~orig:(orig_right sigma orig cN) cM
+                    unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM
                       (whd_betaiotazeta ~metas curenv sigma (mkApp c_l2))
                 | None ->
                     error_cannot_unify curenv sigma (cM,cN)))
@@ -1584,13 +1592,13 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
             (match expand_key ~metas flags.modulo_delta curenv sigma l2 cf2 with
             | Some c_l2 ->
               let metas = Meta.meta_handler metas in
-                unirec_rec curenvnb pb opt substn ~orig:(orig_right sigma orig cN) cM
+                unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM
                   (whd_betaiotazeta ~metas curenv sigma (mkApp c_l2))
             | None ->
                 (match expand_key ~metas flags.modulo_delta curenv sigma l1 cf1 with
                 | Some c_l1 ->
                   let metas = Meta.meta_handler metas in
-                    unirec_rec curenvnb pb opt substn ~orig:(orig_left sigma orig cM)
+                    unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM)
                       (whd_betaiotazeta ~metas curenv sigma (mkApp c_l1)) cN
                 | None ->
                     error_cannot_unify curenv sigma (cM,cN)))
