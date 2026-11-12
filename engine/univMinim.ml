@@ -8,6 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open Util
 open Univ
 open InferCumulativity
 
@@ -338,7 +339,7 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
   else acc
 
 module UPairs = OrderedType.UnorderedPair(Universe)
-module UPairSet = Set.Make (UPairs)
+module UPairSet = Stdlib.Set.Make (UPairs)
 
 type extra = {
   weak_constraints : UPairSet.t;
