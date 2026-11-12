@@ -2911,6 +2911,49 @@ let has_upper_bound level model =
   | exception Not_found -> true
   | can -> not (ClausesOf.is_empty can.clauses_bwd)
 
+(** [remove_can_clause m cl] removes the local clause [cl], canonical and simplified as by
+  [simplify_can_clause], from the backward clauses of its conclusion and the forward clauses of its
+  premises, where [add_can_clause_model] added it; [None] if [m] does not have it locally. The
+  values of [m] are still a model of the remaining clauses. *)
+let remove_can_clause m ((prems, (concl, conclk)) : can_clause) =
+  let canl = repr m concl.canon in
+  let canprems = NeList.map (fun (can, k) -> (can.canon, k)) prems in
+  let clof = (conclk, canprems) in
+  let bwd = canl.clauses_bwd in
+  if not (ClausesOf.SWC.mem clof bwd.ClausesOf.local) then None else
+  let bwd = { bwd with ClausesOf.local = ClausesOf.SWC.remove clof bwd.ClausesOf.local } in
+  let m = change_node m { canl with clauses_bwd = bwd } in
+  Some (NeList.fold (fun (prem, kprem) m ->
+      let idx = repr m prem.canon in
+      let fwd = ForwardClauses.remove ~kprem canl.canon (conclk, remove_premise prem.canon canprems)
+          idx.clauses_fwd in
+      if fwd == idx.clauses_fwd then m else change_node m { idx with clauses_fwd = fwd })
+      prems m)
+
+let remove_if_entailed cst m =
+  match clauses_of_constraint m cst with
+  | exception Undeclared _ -> None
+  | cls ->
+    (* As in [enforce_clauses], a conclusion substituted by [max(a, b)] gives a clause for each *)
+    let cls = List.concat_map (fun (prems, concl) ->
+        let prems = canonical_premises_repr m prems in
+        NeList.to_list (NeList.map (fun concl -> (prems, repr_expr m concl))
+                          (canonical_can_premises (canonical_repr m concl)))) cls in
+    let simplify cl = match simplify_can_clause m cl with
+      | Canonical cl -> Some (Some cl)
+      | Trivial -> None
+      | Contradictory -> Some None
+    in
+    let cls = List.filter_map simplify cls in
+    if List.exists Option.is_empty cls then None else
+    let cls = List.map Option.get cls in
+    let removed = List.fold_left (fun m cl -> Option.bind m (fun m -> remove_can_clause m cl))
+        (Some m) cls in
+    Option.bind removed (fun m' ->
+        let refresh (can, k) = (repr m' can.canon, k) in
+        if List.for_all (fun (prems, concl) -> entails m' (NeList.map refresh prems) (refresh concl)) cls
+        then Some m' else None)
+
 let remove_bwd_clauses_from model idx k other =
   let can = repr model idx in
   let bwd = can.clauses_bwd in
