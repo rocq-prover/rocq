@@ -27,7 +27,9 @@ let alpha = ['a'-'z' 'A'-'Z']
 
 let ident = alpha (alpha | number | '_' | "'")*
 
-let undotted_sep = ((number | '[' ident ']') space* ':' space*)? '{' | '}' | '-'+ | '+'+ | '*'+
+let qualid = ident ('.' ident)*
+
+let undotted_sep = ((number | '[' qualid ']') space* ':' space*)? '{' | '}' | '-'+ | '+'+ | '*'+
 
 let vernac_control = "Fail" | "Time" | "Redirect" space+ string | "Timeout" space+ number
 
