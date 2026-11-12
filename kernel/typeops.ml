@@ -551,7 +551,7 @@ let check_fixpoint env lna lar vdef vdeft =
   try
     conv_leq_vecti env vdeft (Array.map (fun ty -> lift lt ty) lar)
   with NotConvertibleVect i ->
-    error_ill_typed_rec_body env i lna (make_judgev vdef vdeft) lar
+    error_ill_typed_rec_body env i lna (make_judgev vdef vdeft) (Array.map (fun ty -> lift lt ty) lar)
 
 (* Global references *)
 
