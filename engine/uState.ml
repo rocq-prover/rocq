@@ -792,9 +792,46 @@ let compute_instance_binders uctx inst =
   in
   {quals = Array.map qmap qinst; univs =  Array.map umap uinst}
 
+(* The constraints of a declaration are instantiated at each of its uses, so we remove the
+   constraints with an algebraic universe that the others entail, e.g. those making equal the
+   maxima of copies of universes, [max(u,v) = max(u',v') = max(u'',v'')], of which the pairwise
+   encoding is quadratic. The graph of the constraints is built once, without the global
+   constraints, which can only entail more, and each candidate is removed from it when the
+   remaining clauses entail it: the remaining constraints have the same models. The candidates
+   with the most levels are tried first, so that a constraint subsumed by a smaller one is the one
+   removed. *)
+let remove_redundant_constraints csts =
+  let size u = List.length (Universe.repr u) in
+  let candidates = UnivConstraints.fold (fun (l, d, r as c) acc ->
+    let n = size l + size r in
+    if d == Le && n > 2 then (n, c) :: acc else acc) csts [] in
+  if List.is_empty candidates then csts
+  else
+    let candidates = List.stable_sort (fun (n, _) (n', _) -> Int.compare n' n) candidates in
+    let levels = UnivConstraints.levels csts in
+    let g = Level.Set.fold (fun v g -> if Level.is_set v then g else
+      UGraph.add_universe v ~strict:false ~rigid:false g) levels (UGraph.set_local UGraph.initial_universes) in
+    match UGraph.merge_constraints csts g with
+    | exception UGraph.UniverseInconsistency _ -> csts
+    | g, _ ->
+      fst (List.fold_left (fun (csts, g) (_, c) ->
+          match UGraph.remove_if_entailed c g with
+          | Some g -> UnivConstraints.remove c csts, g
+          | None -> csts, g) (csts, g) candidates)
+
+let remove_redundant_constraints csts =
+  let csts' = remove_redundant_constraints csts in
+  debug Pp.(fun () ->
+    let n = UnivConstraints.cardinal csts and n' = UnivConstraints.cardinal csts' in
+    if n = n' then mt () else
+      str "Removed " ++ int (n - n') ++ str " redundant constraints out of " ++ int n);
+  csts'
+
 let context uctx =
   let qvars = QState.undefined uctx.sort_variables in
-  UContext.of_context_set (compute_instance_binders uctx) ((qvars, uctx.local), univ_context_set uctx)
+  let levels, csts = univ_context_set uctx in
+  let csts = remove_redundant_constraints csts in
+  UContext.of_context_set (compute_instance_binders uctx) ((qvars, uctx.local), (levels, csts))
 
 type named_universes_entry = universes_entry * UnivNames.universe_binders
 
@@ -1619,7 +1656,7 @@ let check_poly_univ_decl ~cumulative ~kind uctx decl =
   let qvars = QState.undefined uctx.sort_variables in
   let inst = universe_context_inst decl qvars levels uctx.names in
   let nas = compute_instance_binders uctx inst in
-  let univ_csts = if decl.univdecl_extensible_constraints then univ_csts
+  let univ_csts = if decl.univdecl_extensible_constraints then remove_redundant_constraints univ_csts
     else begin
       check_univ_implication uctx
         decl.univdecl_univ_constraints

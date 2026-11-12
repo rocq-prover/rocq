@@ -171,6 +171,10 @@ val maximize : Level.t -> t -> t Loop_checking.simplification_result
 (** [has_upper_bound l g]: some constraint of [g] bounds [l] from above *)
 val has_upper_bound : Level.t -> t -> bool
 
+(** [remove_if_entailed c g]: when the local clauses of [c] (see [set_local]) are entailed by the
+  others in [g], [g] without them *)
+val remove_if_entailed : UnivConstraint.t -> t -> t option
+
 (* Hack for template polymorphism *)
 val remove_set_clauses : Level.t -> t -> t
 
