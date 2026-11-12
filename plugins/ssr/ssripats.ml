@@ -352,8 +352,11 @@ end
 (** [=> [^ seed ]] *********************************************************)
 let tac_intro_seed interp_ipats fix = Goal.enter begin fun gl ->
   isNSEED_CONSUME begin fun seeds ->
-    let seeds =
-      Ssrcommon.option_assert_get seeds Pp.(str"tac_intro_seed: no seed") in
+    let seeds = match seeds with
+      | Some seeds -> seeds
+      | None ->
+        CErrors.user_err
+          Pp.(str "Block intro patterns cannot be used with injection.") in
     let ipats = List.map (function
        | Anonymous ->
            let s = match fix with
