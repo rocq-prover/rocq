@@ -139,8 +139,9 @@ Definition app (f : foo nat -> nat) x := f x.
 
 Goal app (foo_car _) bar = 10.
 Proof.
-unfold app.  (* mkApp should produce a Proj *)
-Fail set x := (foo_car _ _).
+unfold app.  (* mkApp does not produce a Proj *)
+set x := (foo_car _ _).
+match goal with |- x = 10 => idtac end.
 Admitted.
 
 End DesignFlaw.

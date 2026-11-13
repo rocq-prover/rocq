@@ -176,6 +176,40 @@ let define_evar_as_sort env evd (ev,args) =
   let evd' = Evd.define ev (mkSort s) evd in
   Evd.set_leq_sort evd' (ESorts.super evd' s) sort, s
 
+(* Refining an evar to an inductive type applied to evars *)
+
+let define_pure_evar_as_inductive env evd evk ind =
+  let evi = Evd.find_undefined evd evk in
+  let evenv = evar_env env evi in
+  let concl = Reductionops.whd_all evenv evd (Evd.evar_concl evi) in
+  let s = destSort evd concl in
+  let src = subterm_source evk (evar_source evi) in
+  let filter = evar_filter evi in
+  let evd, indu = Evd.fresh_inductive_instance evenv evd ind in
+  let rec instantiate evd args ty =
+    match EConstr.kind evd (Reductionops.whd_all evenv evd ty) with
+    | Prod (_, dom, rng) ->
+      let evd, arg = new_evar evenv evd ~src ~filter ~typeclass_candidate:false dom in
+      instantiate evd (arg :: args) (subst1 arg rng)
+    | Sort s' -> evd, List.rev args, s'
+    | _ -> assert false
+  in
+  let arity = Inductiveops.e_type_of_inductive evenv evd indu in
+  let evd, args, s' = instantiate evd [] arity in
+  let evd = Evd.set_leq_sort evd s' s in
+  let ty = mkApp (mkIndU indu, Array.of_list args) in
+  Evd.define evk ty evd, ty
+
+(* Refine an applied evar to an inductive type applied to evars and returns
+   its instantiation *)
+
+let define_evar_as_inductive env evd (evk,args) ind =
+  let evd, ty = define_pure_evar_as_inductive env evd evk ind in
+  (* Quick way to compute the instantiation of evk with args *)
+  let hd, indargs = decompose_app evd ty in
+  let inst c = mkEvar (fst (destEvar evd c), args) in
+  evd, mkApp (hd, Array.map inst indargs)
+
 (* Unify with unknown array *)
 
 let rec presplit env sigma c =

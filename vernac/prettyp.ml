@@ -1197,6 +1197,8 @@ let print_canonical_projections env sigma grefs =
     QGlobRef.equal env projection gr ||
     begin match value with
       | ValuePattern.Const_cs y -> QGlobRef.equal env y gr
+      | ValuePattern.Proj_cs p ->
+        QGlobRef.equal env (GlobRef.ConstRef (Environ.projection_repr_constant env p)) gr
       | _ -> false
     end ||
     QGlobRef.equal env solution gr

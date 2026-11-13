@@ -161,6 +161,39 @@ type obj_typ = {
 let debug_canonical_structures =
   CDebug.create ~name:"canonical" ()
 
+(** Some extra info for structures which are primitive records *)
+module PrimitiveProjections = struct
+
+type data = Names.Projection.Repr.t
+
+let prim_table =
+  Summary.ref (Cmap.empty : data Cmap.t) ~name:"record-prim-projs"
+
+let register p c =
+  let open Summary.Ref in
+  prim_table := Cmap.add c p !prim_table
+
+let mem c =
+  let open Summary.Ref in
+  Cmap.mem c !prim_table
+
+let find_opt c =
+  let open Summary.Ref in
+  try Some (Cmap.find c !prim_table) with Not_found -> None
+
+let find_opt_with_relevance (c,u) =
+  find_opt c |>
+  Option.map (fun p ->
+      let u = EConstr.Unsafe.to_instance u in
+      p, EConstr.ERelevance.make @@ Relevanceops.relevance_of_projection_repr (Global.env()) (p,u))
+
+let is_transparent_constant ts c =
+  match find_opt c with
+  | None -> TransparentState.is_transparent_constant ts c
+  | Some p -> TransparentState.is_transparent_projection ts p
+
+end
+
 module ValuePattern = struct
 
 type t =
@@ -191,11 +224,25 @@ let canonize env p = match p with
 | Proj_cs p -> Proj_cs (Environ.QProjection.Repr.canonize env p)
 | Prod_cs | Sort_cs _ | Default_cs -> p
 
+(* The application of the compatibility constant of a primitive projection to
+   its parameters and a record is the same value as the projection of that
+   record: both are characterized by [Proj_cs], with the record as first
+   argument. *)
+let of_app patt n args =
+  match patt with
+  | Const_cs (GlobRef.ConstRef c) ->
+    begin match PrimitiveProjections.find_opt c with
+    | Some p when List.length args > Projection.Repr.npars p ->
+      Proj_cs p, n, List.skipn (Projection.Repr.npars p) args
+    | Some _ | None -> patt, n, args
+    end
+  | Const_cs _ | Proj_cs _ | Prod_cs | Sort_cs _ | Default_cs -> patt, n, args
+
 let rec of_constr sigma t =
   match EConstr.kind sigma t with
   | App (f,vargs) ->
     let patt, n, args = of_constr sigma f in
-    patt, n, args @ Array.to_list vargs
+    of_app patt n (args @ Array.to_list vargs)
   | Rel n -> Default_cs, Some n, []
   | Lambda (_, _, b) -> let patt, _, _ = of_constr sigma b in patt, None, []
   | Prod (_,_,_) -> Prod_cs, None, [t]
@@ -247,6 +294,44 @@ let warn_projection_no_head_constant =
           ++ term_pp ++ strbrk " in canonical instance "
           ++ con_pp ++ str " of " ++ proji_sp_pp ++ strbrk ", ignoring it.")
 
+(* [fold_projection env t] folds the application of the compatibility constant
+   of a primitive projection at the head of [t] into that projection, so that
+   the head of a value characterized by [Proj_cs] is always a [Proj] node. *)
+let fold_projection env t =
+  match kind t with
+  | App (f, args) ->
+    begin match kind f with
+    | Const (c, u) ->
+      begin match PrimitiveProjections.find_opt c with
+      | Some p when Array.length args > Projection.Repr.npars p ->
+        let npars = Projection.Repr.npars p in
+        let r = Relevanceops.relevance_of_projection_repr env (p, u) in
+        let hd = mkProj (Projection.make p false, r, args.(npars)) in
+        mkApp (hd, Array.sub args (npars + 1) (Array.length args - npars - 1))
+      | Some _ | None -> t
+      end
+    | _ -> t
+    end
+  | _ -> t
+
+(* [fun r : R params => r.(p)] is the compatibility constant of [p] applied
+   to [params]: as a value, it is keyed by that constant, as the
+   eta-contraction of [fun r => p params r] is for a projection constant. *)
+let eta_contract_projection env t =
+  match kind t with
+  | Lambda (_, ty, b) ->
+    begin match kind b with
+    | Proj (p, _, r) when isRelN 1 r ->
+      let hd, params = decompose_app ty in
+      begin match kind hd with
+      | Ind (ind, u) when Environ.QInd.equal env ind (Projection.inductive p) ->
+        mkApp (mkConstU (Environ.projection_repr_constant env (Projection.repr p), u), params)
+      | _ -> t
+      end
+    | _ -> t
+    end
+  | _ -> t
+
 (* Intended to always succeed *)
 let compute_canonical_projections env sigma ~warn (gref,ind) =
   let o_CTX = Environ.universes_of_global env gref in
@@ -269,6 +354,7 @@ let compute_canonical_projections env sigma ~warn (gref,ind) =
   let lpj = keep_true_projections lpj in
   List.fold_left2 (fun acc (spopt, canonical) raw_t ->
       let t = EConstr.Unsafe.to_constr (shrink_eta sigma (EConstr.of_constr raw_t)) in
+      let t = fold_projection env (eta_contract_projection env t) in
       if canonical
       then
         Option.cata (fun proji_sp ->
@@ -504,6 +590,14 @@ let entries () =
     PatMap.fold (fun pat o acc -> canonical_entry_of_object p pat o :: acc) ol acc)
     !object_table []
 
+let rec has_canonical_instances env sigma p c =
+  let open Summary.Ref in
+  let cst = Environ.projection_repr_constant env (Names.Projection.repr p) in
+  GlobRefMap.mem env (Names.GlobRef.ConstRef cst) !object_table ||
+  match EConstr.kind sigma (fst (EConstr.decompose_app sigma c)) with
+  | Constr.Proj (p, _, c) -> has_canonical_instances env sigma p c
+  | _ -> false
+
 let entries_for env ~projection:p =
   let open Summary.Ref in
   try
@@ -511,37 +605,5 @@ let entries_for env ~projection:p =
     (fun m -> PatMap.fold (fun pat o accu -> canonical_entry_of_object p pat o :: accu) m []) |>
     List.rev
   with Not_found -> []
-
-end
-
-module PrimitiveProjections = struct
-
-type data = Names.Projection.Repr.t
-
-let prim_table =
-  Summary.ref (Cmap.empty : data Cmap.t) ~name:"record-prim-projs"
-
-let register p c =
-  let open Summary.Ref in
-  prim_table := Cmap.add c p !prim_table
-
-let mem c =
-  let open Summary.Ref in
-  Cmap.mem c !prim_table
-
-let find_opt c =
-  let open Summary.Ref in
-  try Some (Cmap.find c !prim_table) with Not_found -> None
-
-let find_opt_with_relevance (c,u) =
-  find_opt c |>
-  Option.map (fun p ->
-      let u = EConstr.Unsafe.to_instance u in
-      p, EConstr.ERelevance.make @@ Relevanceops.relevance_of_projection_repr (Global.env()) (p,u))
-
-let is_transparent_constant ts c =
-  match find_opt c with
-  | None -> TransparentState.is_transparent_constant ts c
-  | Some p -> TransparentState.is_transparent_projection ts p
 
 end

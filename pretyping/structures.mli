@@ -159,6 +159,13 @@ val entries : unit -> entry list
     p as their FieldName *)
 val entries_for : Environ.env -> projection:Names.GlobRef.t -> entry list
 
+(** [has_canonical_instances env sigma p c] tells if canonical structure
+    inference may have to solve a problem on the record [c] of the primitive
+    projection [p]: [p] has canonical instances, or [c] is itself headed by
+    the primitive projection of such a record. Unification keeps [c] folded
+    while it unfolds the other side of a problem only in that case. *)
+val has_canonical_instances : Environ.env -> Evd.evar_map -> Names.Projection.t -> EConstr.t -> bool
+
 end
 
 (** Some extra info for structures which are primitive records *)

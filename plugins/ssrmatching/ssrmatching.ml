@@ -224,6 +224,13 @@ let implicits_for_rewrite_of gr =
 
   let failure_FO () = raise (CErrors.user_err Pp.(mt ()))
 
+(* The folded and unfolded forms of a primitive projection are the same head *)
+let same_proj env p1 p2 =
+  Environ.QProjection.Repr.equal env (Projection.repr p1) (Projection.repr p2)
+
+let is_structure_proj env p =
+  Structures.Structure.is_projection (Environ.projection_repr_constant env (Projection.repr p))
+
 let rec same_hd env ise metas p c =
   match EConstr.kind ise p, EConstr.kind ise c with
   | Const(c1,_), Const(c2,_) when Environ.QConstant.equal env c1 c2 ->
@@ -233,15 +240,19 @@ let rec same_hd env ise metas p c =
   | Construct(c1,_), Construct(c2,_) when Environ.QConstruct.equal env c1 c2 ->
     CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.ConstructRef c1))
   | Const(c1,_), _ when Structures.Structure.is_projection c1 -> CanonicalInfRequired
+  | Proj(p1,_,x), Proj(p2,_,y) when same_proj env p1 p2 ->
+    let metas, ise = unif_FO_skip_impl env ise metas x y in
+    CompareArgs (ise,metas,[])
+  | Proj(p1,_,_), _ when is_structure_proj env p1 -> CanonicalInfRequired
   | _, Const(c2,i) when Structures.Structure.is_projection c2 ->
       let b = Environ.constant_value_in env (c2,EConstr.EInstance.kind ise i) in
       CanonicalRedRequired (ise, EConstr.of_constr b, Structures.Structure.projection_nparams env c2)
+  | _, Proj(p2,r,y) when not (Projection.unfolded p2) && is_structure_proj env p2 ->
+      (* The unfolding of a primitive projection is its unfolded form *)
+      CanonicalRedRequired (ise, EConstr.mkProj (Projection.unfold p2, r, y), -1)
   | Rel c1,Rel c2 when c1 == c2 -> CompareArgs (ise,metas,[])
   | Var c1,Var c2 when Id.equal c1 c2 ->
     CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.VarRef c1))
-  | Proj(p1,_,x), Proj(p2,_,y) when Environ.QProjection.equal env p1 p2 ->
-    let metas, ise = unif_FO_skip_impl env ise metas x y in
-    CompareArgs (ise,metas,[])
   | _ -> Different
 and unif_FO_skip_impl env ise metas p c =
   match EConstr.kind ise p, EConstr.kind ise c with
@@ -260,9 +271,12 @@ and unif_FO_skip_impl env ise metas p c =
       pp(lazy(str "HO-FO" ++ pr_econstr_env env ise hd ++ str " = " ++ pr_econstr_env env ise rhs));
       let metas, ise = unif_FO_skip_impl env ise metas hd rhs in
       unif_FO_skip_impl3 env ise metas (Array.to_list args1) (Array.to_list rest) [] *)
-  | Proj(p1,_,x), Proj(p2,_,y) when Environ.QProjection.equal env p1 p2 ->
+  | Proj(p1,_,x), Proj(p2,_,y) when same_proj env p1 p2 ->
     unif_FO_skip_impl3 env ise metas [x] [y] []
-  | App(hd1,args1), App(hd2,args2) when not @@ EConstr.isMeta ise hd1 ->
+  | (App _ | Proj _), (App _ | Proj _) when not @@ EConstr.isMeta ise (fst (EConstr.decompose_app ise p)) ->
+    (* A primitive projection [r.(p)] is the application of [p] to [r] *)
+    let hd1, args1 = EConstr.decompose_app ise p in
+    let hd2, args2 = EConstr.decompose_app ise c in
     begin match same_hd env ise metas hd1 hd2 with
     | CanonicalRedRequired(ise,proj,narg) when Array.length args2 > narg ->
         pp(lazy(str "Red in " ++ pr_econstr_env env ise c));
@@ -749,17 +763,21 @@ let nb_cs_proj_args env ise pc f u =
           fnl () ++ field "stored key arg count" (int n)))
     in
     n in
-  let nargs_of_proj t = match EConstr.kind ise t with
-      | App(_,args) -> Array.length args
-      | Proj _ -> 0 (* if splay_app calls expand_projection, this has to be
-                       the number of arguments including the projected *)
-      | _ -> assert false in
   try match EConstr.kind ise f with
   | Prod _ -> na Prod_cs
   | Sort s -> na (Sort_cs (ESorts.quality_or_set ise s))
-  | Const (c',_) when Environ.QConstant.equal env c' pc -> nargs_of_proj u.up_f
-  | Proj (c',_,_) when Environ.QConstant.equal env ((Environ.projection_repr_constant env (Projection.repr c'))) pc -> nargs_of_proj u.up_f
-  | Proj (c',_,_) -> let _ = na (Proj_cs (Names.Projection.repr c')) in 0
+  (* The projection itself: its parameters and the record are arguments of
+     the constant but not of the primitive projection *)
+  | Const (c',_) when Environ.QConstant.equal env c' pc -> proj_nparams env pc
+  | Proj (c',_,_) when Environ.QConstant.equal env ((Environ.projection_repr_constant env (Projection.repr c'))) pc -> 0
+  (* A value which is a primitive projection: the first argument of the key
+     is the record, which is not an argument of [f] ... *)
+  | Proj (c',_,_) -> na (Proj_cs (Names.Projection.repr c')) - 1
+  (* ... unless [f] is the compatibility constant of the projection, which is
+     also applied to the parameters of the record *)
+  | Const (c',_) when PrimitiveProjections.mem c' ->
+    let p = Option.get (PrimitiveProjections.find_opt c') in
+    na (Proj_cs p) + Names.Projection.Repr.npars p
   | Var _ | Ind _ | Construct _ | Const _ -> na (Const_cs (fst @@ destRef ise f))
   | _ -> -1
   with Not_found -> -1
@@ -808,9 +826,22 @@ let eq_prim_proj env sigma c t = match EConstr.kind sigma t with
   | Proj(p,_,_) -> Environ.QConstant.equal env ((Environ.projection_repr_constant env (Projection.repr p))) c
   | _ -> false
 
+(* The parameters and the record of a projection are arguments of its constant
+   but not of the primitive projection: [proj_nargs env sigma pc f] is the
+   number of such arguments of the head [f] of an application of [pc] *)
+let proj_nargs env sigma pc f = match EConstr.kind sigma f with
+  | Proj _ -> 0
+  | _ -> proj_nparams env pc
+
 let filter_upat_FO env sigma i0 f n u fpats =
   let open EConstr in
   let np = nb_args sigma (snd u.up_FO) in
+  let np = match u.up_k with
+  | KpatProj pc when isRefX env sigma (ConstRef pc) f || eq_prim_proj env sigma pc f ->
+    (* The pattern and [f] may be different forms of the projection *)
+    let fp, _ = decompose_app sigma u.up_f in
+    np - proj_nargs env sigma pc fp + proj_nargs env sigma pc f
+  | _ -> np in
   if n < np then fpats else
   let ok = match u.up_k with
   | KpatConst -> eq_constr_nounivs sigma u.up_f f
@@ -965,17 +996,24 @@ let match_upats_HO ~on_instance upats env sigma0 ise c =
             ise' pb b
         | KpatFlex | KpatProj _ ->
           let fa = mkSubApp f (i - Array.length u.up_a) a in
-          let ise =
-            match EConstr.kind ise f, EConstr.kind ise u.up_f with
-            | Proj _, _ | _, Proj _ ->
-               (* with primitive projections we "lose" parameters so we unify
-                * the type of the arguments to retrieve that information *)
-               let tuf = Retyping.get_type_of ~lax:true env ise u.up_f in
-               let tfa = Retyping.get_type_of ~lax:true env ise fa in
-               unif_HO env ise tuf tfa
-            | _ -> ise in
           pp(lazy(str"FLEX " ++ pr_econstr_env env ise u.up_f ++ str" = " ++ pr_econstr_env env ise fa));
-          unif_HO env ise u.up_f fa
+          begin match EConstr.kind ise f, EConstr.kind ise u.up_f with
+          | Proj _, _ | _, Proj _ ->
+            (* with primitive projections we "lose" parameters so we unify
+             * the type of the arguments to retrieve that information. The
+             * terms are tried first: canonical structure inference may be
+             * what determines the parameters. *)
+            let unif_types ise =
+              let tuf = Retyping.get_type_of ~lax:true env ise u.up_f in
+              let tfa = Retyping.get_type_of ~lax:true env ise fa in
+              unif_HO env ise tuf tfa in
+            begin
+              try unif_types (unif_HO env ise u.up_f fa)
+              with e when CErrors.noncritical e ->
+                unif_HO env (unif_types ise) u.up_f fa
+            end
+          | _ -> unif_HO env ise u.up_f fa
+          end
         | _ -> unif_HO env ise u.up_f f in
         let ise'' = unif_HO_args env ise' u.up_a (i - Array.length u.up_a) a in
         let lhs = mkSubApp f i a in
