@@ -197,7 +197,10 @@ let pr_impred_qvars (qvars : impred_qvars) =
     let elems = Sorts.QVar.Set.elements qvars in
     if List.is_empty elems then str"impredicative"
     else str"(im)predicative depending on " ++ prlist_with_sep spc Sorts.QVar.raw_pr elems
-  in Pp.(pr_opt pr_pred qvars)
+  in
+  match qvars with
+  | None -> Pp.mt ()
+  | Some qvars -> pr_pred qvars
 
 let impred_qvars_of_quality q =
   let open Quality in

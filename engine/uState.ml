@@ -364,6 +364,11 @@ let collapse ?(except=QSet.empty) ~only_above_prop m =
           | None -> if not only_above_prop then Option.get (set q qtype m) else m)
     m.qmap m
 
+(* The value of a quality under the definitions *)
+let value m = function
+  | QVar q -> repr q m
+  | QConstant _ | QGlobal _ as q -> q
+
 let pr prqvar local_name ({ qmap; elims } as m) =
   let open Pp in
   (* Print the "body" of the QVar, e.g. "α1 := Type", "α2 >= Prop" *)
@@ -387,8 +392,12 @@ let pr prqvar local_name ({ qmap; elims } as m) =
   | Some qid -> str " (named " ++ Id.print qid ++ str ")"
   in
   let prqvar_full (q1, q2) = QVar.raw_pr q1 ++ prbody q1 q2 ++ prqvar_name q1 in
+  (* The equivalences [q <-> q'] of the elimination graph between qualities
+     with the same value under the definitions (e.g. [α <-> Type] for
+     [α := Type]) are implied by the definitions *)
+  let skip_alias q q' = Quality.equal (value m q) (value m q') in
   hov 0 (prlist_with_sep fnl prqvar_full (QMap.bindings qmap) ++
-    str " |=" ++ brk (1, 2) ++ hov 0 (QGraph.pr_qualities prqvar elims))
+    str " |=" ++ brk (1, 2) ++ hov 0 (QGraph.pr_qualities ~skip_alias prqvar elims))
 
 let elims m = m.elims
 
@@ -597,9 +606,14 @@ let pr ?(local=false) ctx =
   if is_empty ctx then mt ()
   else
     let _, cstrs, eqs = UGraph.constraints_of_universes ~only_local:local ctx.universes in
-    let preq (localeq, univ) =
-      str " = " ++ Univ.Universe.pr prl univ ++
-      (match localeq with Loop_checking.Local -> str "(local)" | _ -> str "(global)") ++ spc ()
+    (* All the defined variables on one line, breaking only between two
+       definitions (unless one does not fit on a line) *)
+    let preq (l, (localeq, univ)) =
+      let pr = prl l ++ str " = " ++ Univ.Universe.pr prl univ ++
+        (match localeq with Loop_checking.Local -> str " (local)" | _ -> str " (global)")
+      in
+      let flat = unbreakable pr in
+      if Unicode.utf8_length (string_of_ppcmds flat) <= 70 then flat else hov 2 pr
     in
     (* The flexible variables are printed with a ? *)
     let prvar l = if is_flexible l ctx then str "?" ++ prl l else prl l in
@@ -607,13 +621,13 @@ let pr ?(local=false) ctx =
       (str"UNIVERSE VARIABLES:" ++ brk(0,1) ++
        h (Level.Set.pr prvar (UGraph.local_levels ctx.universes)) ++ fnl () ++
        str"DEFINED LOCAL VARIABLES:" ++ brk(0,1) ++
-       h (Level.Map.pr prl preq eqs) ++ fnl () ++
+       hov 0 (prlist_with_sep pr_comma preq (Level.Map.bindings eqs)) ++ fnl () ++
        str"UNIVERSES:"++brk(0,1)++
-       h (Univ.UnivConstraints.pr prl cstrs) ++ fnl() ++
+       Univ.UnivConstraints.pr_grouped prl cstrs ++ fnl() ++
        str"SORTS:"++brk(0,1)++
        h (pr_sort_opt_subst ctx) ++ fnl() ++
        (pr_opt (fun variances -> str"VARIANCES:"++brk(0,1)++
-       h (InferCumulativity.pr_variances Univ.Level.raw_pr variances) ++ fnl ()) ctx.variances) ++
+       InferCumulativity.pr_variances prl variances ++ fnl ()) ctx.variances) ++
        str "WEAK CONSTRAINTS:"++brk(0,1)++
        h (pr_weak prl ctx) ++ fnl ())
 

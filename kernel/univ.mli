@@ -238,6 +238,17 @@ module UnivConstraints : sig
 
   val pr : (Level.t -> Pp.t) -> t -> Pp.t
 
+  (** [pr_group lhs rhs] prints a group of constraints with the same
+      left-hand side [lhs]: [lhs] followed by one line per right-hand side
+      in [rhs] (each one starting with its relation), aligned under the
+      relation of the first one ([u ≤ v], then [< w] under [≤]).
+      When [lhs] is long, the right-hand sides are put on the next lines,
+      indented by 2. *)
+  val pr_group : Pp.t -> Pp.t list -> Pp.t
+
+  (** Prints the constraints grouped by left-hand side, using [pr_group]. *)
+  val pr_grouped : (Level.t -> Pp.t) -> t -> Pp.t
+
   val hcons : t Hashcons.f
 
   val levels : ?init:Level.Set.t -> t -> Level.Set.t
