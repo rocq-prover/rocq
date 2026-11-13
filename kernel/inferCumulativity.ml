@@ -83,12 +83,12 @@ let of_variance_occurrences ~infer_in_type (vs : (Level.t * UVars.VarianceOccurr
   Array.fold_left (fun vs (l, vocc) ->
     Level.Map.add l (Option.cata (make_checked_occ ~infer_in_type) default_occ vocc) vs) Level.Map.empty vs
 
-let pr_variance_occurrence (occ : infer_variance_occurrence) =
+let pr_variance_occurrence_items (occ : infer_variance_occurrence) =
   let open Pp in
   let pr_binders is_fix (m, (v, bs)) =
     if List.is_empty bs then [] else
     [pr_mode m ++ str":" ++ pr_opt VariancePair.pr v ++ spc () ++ str "in" ++ spc () ++
-      prlist_with_sep pr_comma (fun i -> pr_nth (succ i)) bs ++ (if is_fix then str" fix " else mt()) ++ str (String.plural (List.length bs) " binder")] in
+      prlist_with_sep pr_comma (fun i -> pr_nth (succ i)) bs ++ (if is_fix then str" fix" else mt()) ++ str (String.plural (List.length bs) " binder")] in
   let pr_term (m, v) = match v with
     | None -> []
     | Some v -> [pr_mode m ++ str": " ++ VariancePair.pr v ++ str" in term"]
@@ -103,10 +103,14 @@ let pr_variance_occurrence (occ : infer_variance_occurrence) =
     | Some _ as x -> [UVars.pr_impred_qvars x]
     | None -> []
   in
-  let variances = pr_binders false occ.infer_binders @ pr_binders true occ.infer_topfix_binders
-    @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_impred in
-    if List.is_empty variances then mt ()
-    else hov 0 (str": " ++ prlist_with_sep pr_comma identity variances)
+  pr_binders false occ.infer_binders @ pr_binders true occ.infer_topfix_binders
+  @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_impred
+
+let pr_variance_occurrence occ =
+  let open Pp in
+  match pr_variance_occurrence_items occ with
+  | [] -> mt ()
+  | variances -> hov 0 (str": " ++ prlist_with_sep pr_comma identity variances)
 
 let make_checked_occ (variance, position) =
   let open Position in
@@ -129,8 +133,20 @@ let make_checked_occ (variance, position) =
 let empty_variances = Univ.Level.Map.empty
 let is_empty_variances = Univ.Level.Map.is_empty
 
+(* All the variances on one line (breaking only when too long), separated by
+   semicolons as the occurrences themselves are separated by commas. A line
+   break happens only between the variances of two variables, unless the
+   variance of one variable does not fit on a line. *)
 let pr_variances prl variances =
-  Univ.Level.Map.pr prl pr_variance_occurrence variances
+  let open Pp in
+  let pr (l, occ) = match pr_variance_occurrence_items occ with
+    | [] -> prl l
+    | items ->
+      let pr = prl l ++ str ": " ++ prlist_with_sep pr_comma identity items in
+      let flat = unbreakable pr in
+      if Unicode.utf8_length (string_of_ppcmds flat) <= 70 then flat else hov 2 pr
+  in
+  hov 0 (prlist_with_sep (fun () -> str ";" ++ spc ()) pr (Univ.Level.Map.bindings variances))
 
 let mode_sup x y =
   match x, y with
