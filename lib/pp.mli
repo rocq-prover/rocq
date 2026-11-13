@@ -228,3 +228,10 @@ val pp_as_format : ?with_tags:bool -> t -> string * string list
 
 (** Combine nested Ppcmd_glues *)
 val flatten : t -> t
+
+(** [unbreakable pp] prints [pp] on one line like [h pp] (its breaks are
+    printed as spaces), but without opening any box. Unlike [h], it can be
+    used for the items of a box filled with many of them: Format forces a line
+    break when a box is opened beyond its maximal indentation, so items in [h]
+    boxes would make the lines break early. *)
+val unbreakable : t -> t

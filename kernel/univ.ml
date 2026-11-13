@@ -583,6 +583,34 @@ struct
   let pr prl c =
     v 0 (prlist_with_sep spc (UnivConstraint.pr prl) (elements c))
 
+  let pr_group lhs rhs =
+    let rhs = v 0 (prlist_with_sep cut identity rhs) in
+    (* A box opened beyond the maximal indentation forces a line break: put
+       the right-hand sides of a long left-hand side on the next lines *)
+    if Unicode.utf8_length (string_of_ppcmds lhs) <= 40 then lhs ++ str " " ++ rhs
+    else v 2 (lhs ++ cut () ++ rhs)
+
+  let pr_grouped prl c =
+    (* [l + k ≤ v] with [k > 0] is printed [l + (k - 1) < v] *)
+    let split (u, op, v) = match op, Universe.repr u with
+      | UnivConstraint.Le, [(l, k)] when k > 0 -> Universe.maken l (k - 1), (2, v)
+      | UnivConstraint.Le, _ -> u, (1, v)
+      | UnivConstraint.Eq, _ -> u, (0, v)
+    in
+    let l = CList.map split (elements c) in
+    let cmp (u, (r, v)) (u', (r', v')) =
+      let c = Universe.compare u u' in
+      if c <> 0 then c else
+      let c = Int.compare r r' in
+      if c <> 0 then c else Universe.compare v v'
+    in
+    let l = CList.factorize_left Universe.equal (CList.sort cmp l) in
+    let pr_rhs (r, v) =
+      str (match r with 0 -> "= " | 1 -> "≤ " | _ -> "< ") ++ Universe.pr prl v
+    in
+    v 0 (prlist_with_sep cut (fun (u, rhs) ->
+        pr_group (Universe.pr prl u) (CList.map pr_rhs rhs)) l)
+
   module Hconstraints = CSet.Hashcons(UnivConstraint)(struct
       type t = UnivConstraint.t
       let hcons = UnivConstraint.hcons
