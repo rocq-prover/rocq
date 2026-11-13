@@ -810,7 +810,7 @@ let rec compile_lam env cenv lam sz cont =
     else comp_args (compile_lam env) cenv args sz cont
 
   | Lparray (args, def) ->
-    let v, cont = match as_value 0 args with
+    let v, cont = match as_value ~share:true 0 args with
     | None ->
       (* build the ocaml array *)
       unsafe_mkPArray args def, cont
@@ -924,9 +924,9 @@ let skip_suffix l =
   in
   match aux l with None -> [] | Some l -> l
 
-let compile ~uinstance env sigma c =
+let compile ~share ~uinstance env sigma c =
   Label.reset_label_counter ();
-  let lam = lambda_of_constr env sigma c in
+  let lam = lambda_of_constr ~share env sigma c in
   let params, body = decompose_Llam lam in
   let arity = Array.length params in
   let mask =
@@ -978,9 +978,9 @@ let warn_compile_error =
   CWarnings.create ~name:"bytecode-compiler-failed-compilation" ~category:CWarnings.CoreCategories.bytecode_compiler
     Vmerrors.pr_error
 
-let compile ~fail_on_error ~uinstance env sigma c =
+let compile ~share ~fail_on_error ~uinstance env sigma c =
   if not (typing_flags env).enable_VM then None else
-  try NewProfile.profile "vm_compile" (fun () -> Some (compile ~uinstance env sigma c)) ()
+  try NewProfile.profile "vm_compile" (fun () -> Some (compile ~share ~uinstance env sigma c)) ()
   with Vmerrors.CompileError msg as exn ->
     let exn = Exninfo.capture exn in
     if fail_on_error then
@@ -1011,12 +1011,12 @@ let compile_constant_body ~fail_on_error env univs = function
       | Some kn -> BCalias kn
       | None ->
         let uinstance = Bound instance_size in
-        match compile ~fail_on_error ~uinstance env (empty_evars env) body with
+        match compile ~share:true ~fail_on_error ~uinstance env (empty_evars env) body with
         | None -> BCuncompiled
         | Some (mask, code, patch) -> BCdefined (mask, code, patch)
 
-let compile ~fail_on_error env sigma c =
-  compile ~fail_on_error ~uinstance:Global env sigma c
+let compile ~share ~fail_on_error env sigma c =
+  compile ~share ~fail_on_error ~uinstance:Global env sigma c
 
 (* Shortcut of the previous function used during module strengthening *)
 

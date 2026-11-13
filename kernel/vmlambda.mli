@@ -15,9 +15,9 @@ type lval
 type lambda = lval Genlambda.lambda
 
 val get_lval : lval -> structured_values
-val as_value : int -> lambda array -> lval option
+val as_value : share:bool -> int -> lambda array -> lval option
 
-val lambda_of_constr : env -> Genlambda.evars -> Constr.t -> lambda
+val lambda_of_constr : share:bool -> env -> Genlambda.evars -> Constr.t -> lambda
 
 (** Dump the VM lambda code after compilation (for debugging purposes) *)
 val dump_lambda_flag : CDebug.flag
