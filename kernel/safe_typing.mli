@@ -108,11 +108,13 @@ val add_private_constant :
 type opaque_certificate
 
 (** Check that the provided proof is correct for the corresponding handle. This
-    does not modify the environment. Call {!fill_opaque} below for that. *)
-val check_opaque : safe_environment -> Opaqueproof.opaque_handle ->
+    does not modify the environment. Call {!fill_opaque} below for that. With
+    [~admit:true], the proof is not typechecked; its section variables are
+    still checked. *)
+val check_opaque : admit:bool -> safe_environment -> Opaqueproof.opaque_handle ->
   private_constants Entries.proof_output -> opaque_certificate
 
-(** Given an already checked proof for an opaque hole, actually fill it with the
+(** Given a certificate for an opaque hole, actually fill it with the
     proof. This might fail if the current set of global universes is
     inconsistent with the one at the time of the call to {!check_opaque}.
     Precondition: the underlying handle must exist and must not have been
@@ -123,9 +125,9 @@ val fill_opaque : opaque_certificate -> safe_transformer0
     in the opaque table and throws an anomaly otherwise. *)
 val is_filled_opaque : Opaqueproof.opaque_handle -> safe_environment -> bool
 
-(** Get the proof term that was checked by the kernel. *)
+(** Get the proof term of the certificate, and whether it was admitted. *)
 val repr_certificate : opaque_certificate ->
-  Constr.t * Univ.ContextSet.t Opaqueproof.delayed_universes
+  Constr.t * Univ.ContextSet.t Opaqueproof.delayed_universes * bool
 
 (** {5 Rewrite rules} *)
 
