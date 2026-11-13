@@ -1,6 +1,7 @@
 (* Forge the .vo files of misc/rocqchk_delta_alias.sh,
    misc/rocqchk_forged_aliases.sh, misc/rocqchk_register_type.sh,
-   misc/rocqchk_primitive_operator.sh and misc/rocqchk_copied_body.sh.
+   misc/rocqchk_primitive_operator.sh, misc/rocqchk_repeated_label.sh and
+   misc/rocqchk_copied_body.sh.
    The code is deliberately independent of Rocq's OCaml libraries: this is
    an untrusted file producer, not another path through the kernel API.
 
@@ -25,6 +26,19 @@
      CANONICAL are full names, such as RegisterType.Lib.M.int, of constants
      that the type or the definition of a constant at the top of LIB.vo
      names.
+   ocaml forge.ml repeat-parameter LIB.vo OUT.vo LABEL
+     Insert before the constant LABEL of LIB.vo a parameter with the same
+     label and the same type, a second field with that label, which coqc
+     never writes.
+   ocaml forge.ml relabel LIB.vo OUT.vo FROM TO
+     Give the field FROM of LIB.vo the label TO. A module or a module type
+     also gets the root of its delta resolver renamed, from the path that
+     ends in FROM to the one that ends in TO. An inductive block also gets
+     the name of the inductive block TO in its constructor types and its
+     automaton, where it holds its own name. Its type name stays FROM.
+   ocaml forge.ml rename-constructor LIB.vo OUT.vo BLOCK FROM TO
+     Give the constructor FROM of the inductive block BLOCK of LIB.vo the
+     name TO.
    ocaml forge.ml copy-body LIB.vo OUT.vo MODULE FROM INTO
      Give the constant INTO of the module MODULE of LIB.vo the body of the
      constant FROM of the same module. In a copy that an Include makes,
@@ -43,8 +57,8 @@
      the retroknowledge, a list of actions, among them Register_type (tag
      1) [primitive type, PT_int63 being 0; name]; summary segment: field 1,
      the same dependencies;
-   - module_body: 1 signature, 3 delta resolver;
-     module_type_body: 1 signature; signature: NoFunctor (tag 0) [structure]
+   - module_body and module_type_body: 1 signature, 3 delta resolver;
+     signature: NoFunctor (tag 0) [structure]
      | MoreFunctor (tag 1) [parameter; parameter's type; signature];
      structure: a list of (label, field), a field being SFBconst (tag 0)
      [constant_body], SFBmind (tag 1) [mutual_inductive_body], SFBmodule
@@ -59,10 +73,16 @@
      Same (tag 0) [kernel name] | Dual (tag 1) [user name; canonical name];
      kernel name: [module path; label; hash]; module path: MPfile (tag 0)
      [dirpath] or MPdot (tag 2) [module path; label], among others;
-   - delta resolver: field 2, the canonical names, an Int.Map from a kernel
-     name's hash to a map from kernel names to kernel names; both are the
-     standard library's maps, Empty (0) | Node [left; key; value; right;
-     height]. *)
+   - mutual_inductive_body: 0 packets, an array of one_inductive_body,
+     whose field 5 is the array of the names of its constructors and
+     field 13 the automaton of the recursive arguments, [initial state;
+     states], a state being (label, transitions); the initial state of
+     the first packet has the label Mrec (tag 0) [RecArgInd (tag 0)
+     [(name, 0)]], with the name of the block;
+   - delta resolver: field 0, its root, a module path, and field 2, the
+     canonical names, an Int.Map from a kernel name's hash to a map from
+     kernel names to kernel names; both are the standard library's maps,
+     Empty (0) | Node [left; key; value; right; height]. *)
 
 type segment = {
   name : string;
@@ -366,6 +386,83 @@ let register name canonical lib =
   in
   upd 6 (fun retro -> block 0 [| block 1 [| Obj.repr 0; cst |]; retro |]) lib
 
+(* The structure [root] with a parameter inserted before its constant
+   [label]: a copy of the constant with the label [label] and the body
+   Undef None, of a parameter that is not inlined. *)
+let repeat_parameter label root =
+  let rec insert cell =
+    if Obj.is_int cell then failwith ("missing structure field " ^ label)
+    else
+      let item = field cell 0 in
+      if String.equal (string (field item 0)) label then begin
+        let decl = field item 1 in
+        if Obj.tag decl <> 0 then failwith (label ^ " is not a constant");
+        let parameter = upd 2 (fun _ -> block 0 [| Obj.repr 0 |]) (field decl 0) in
+        block 0 [| block 0 [| field item 0; block 0 [| parameter |] |]; cell |]
+      end
+      else upd 1 insert cell
+  in
+  insert root
+
+(* The kernel name of the inductive block [mib], from the label of the
+   initial state of the automaton of its first packet. *)
+let mind_name mib =
+  let automaton = field (field (field mib 0) 0) 13 in
+  let label = field (field (field automaton 1) (Obj.obj (field automaton 0))) 0 in
+  field (field (field (field label 0) 0) 0) 0
+
+(* [v] with each value equal to [old] replaced by [into]. Strings and the
+   other blocks that hold no values are left as they are. *)
+let rec replace old into v =
+  if Obj.is_int v || Obj.tag v >= Obj.no_scan_tag then v
+  else if compare v old = 0 then into
+  else map_array (replace old into) v
+
+(* The structure [root] with its field [from] labelled [into]. The root of
+   the delta resolver of a module or a module type is the module's path,
+   and becomes the path that ends in [into]. An inductive block holds its
+   own name, in its constructor types and its automaton, and that name
+   becomes the name of the inductive block [into]. *)
+let relabel from into root =
+  let rename_root mp =
+    if Obj.tag mp <> 2 || not (String.equal (string (field mp 1)) from) then
+      failwith ("the root of the delta resolver of " ^ from ^ " is " ^ mp_to_string mp);
+    block 2 [| field mp 0; Obj.repr into |]
+  in
+  let rename_mind mib =
+    let target = find_field into root in
+    if Obj.tag target <> 1 then failwith (into ^ " is not an inductive block");
+    replace (mind_name mib) (mind_name (field target 0)) mib
+  in
+  let rec go cell =
+    if Obj.is_int cell then failwith ("missing structure field " ^ from)
+    else
+      let item = field cell 0 in
+      if String.equal (string (field item 0)) from then
+        let decl = field item 1 in
+        let decl =
+          match Obj.tag decl with
+          | 1 -> upd 0 rename_mind decl
+          | 3 | 4 -> upd 0 (upd 3 (upd 0 rename_root)) decl
+          | _ -> decl
+        in
+        upd 0 (fun _ -> block 0 [| Obj.repr into; decl |]) cell
+      else upd 1 go cell
+  in
+  go root
+
+(* The structure [root] with the constructor [from] of its inductive block
+   [ind] named [into]. *)
+let rename_constructor ind from into root =
+  if Obj.tag (find_field ind root) <> 1 then failwith (ind ^ " is not an inductive block");
+  let rename name = if String.equal (string name) from then Obj.repr into else name in
+  on ind
+    (fun mib ->
+      let mib' = upd 0 (map_array (upd 5 (map_array rename))) mib in
+      if mib' == mib then failwith ("no constructor " ^ from ^ " in " ^ ind);
+      mib')
+    root
+
 (* [deps] with [digest] as the digest of the library [dp]. *)
 let set_digest dp digest deps =
   let set dep =
@@ -399,6 +496,10 @@ let () =
     rewrite src dst [ "library", marshalled (upd 0 (register name None)) ]
   | [ "register"; src; dst; name; canonical ] ->
     rewrite src dst [ "library", marshalled (upd 0 (register name (Some canonical))) ]
+  | [ "repeat-parameter"; src; dst; label ] -> rewrite src dst (forge (repeat_parameter label))
+  | [ "relabel"; src; dst; from; into ] -> rewrite src dst (forge (relabel from into))
+  | [ "rename-constructor"; src; dst; ind; from; into ] ->
+    rewrite src dst (forge (rename_constructor ind from into))
   | [ "copy-body"; src; dst; m; from; into ] ->
     rewrite src dst (forge (copy_body m from into))
   | [ "client"; src; lib; dp; dst ] ->
