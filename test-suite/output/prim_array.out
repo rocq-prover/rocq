@@ -4,21 +4,20 @@
      : array nat
 [| | 0 : nat |]@{prim_array:26}
      : array@{prim_array:26} nat
-(* {prim_array:26 prim_array:25} | Set <= prim_array:25
-                                   Set <= prim_array:26
+(* {prim_array:26 prim_array:25} | 
 Minimized universes:
- prim_array:26 := Set
- prim_array:25 := Set
+ prim_array:26 := 0
+ prim_array:25 := 0
 Normalized constraints:
   *)
 [| bool; list nat | nat : Set |]@{prim_array:29}
      : array@{prim_array:29} Set
 (* {prim_array:29 prim_array:28 prim_array:27} |
-     Set < prim_array:27
-     Set < prim_array:29
-     Set <= prim_array:28
+     0 < prim_array:27
+     0 < prim_array:29
 Minimized universes:
- prim_array:28 := Set
- prim_array:27 := Set+1
+ prim_array:29 := 1
+ prim_array:28 := 0
+ prim_array:27 := 1
 Normalized constraints:
- {prim_array:29} | Set < prim_array:29 *)
+  *)

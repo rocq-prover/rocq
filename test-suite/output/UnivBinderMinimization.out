@@ -1,0 +1,41 @@
+hyp@{p q u} :
+forall P : Type@{p} -> Type@{q}, P (WrapI@{u} nat) -> P (WrapI@{u} nat)
+(* p(= in 1st binder) q(= in 1st binder) u(= (* for typing) in 2nd binder,
+   = (* for typing) in type) |
+   u ≤ p *)
+
+hyp is universe polymorphic and cumulative
+Arguments hyp P%_function_scope H
+hyp is transparent
+Expands to: Constant UnivBinderMinimization.hyp
+Declared in library UnivBinderMinimization, line 14, characters 13-16
+binder@{p q u} :
+forall P : Type@{p} -> Type@{q}, P (WrapI@{u} nat) -> P (WrapI@{u} nat)
+(* p(= in 1st binder) q(= in 1st binder) u(= (* for typing) in 2nd binder,
+   = (* for typing) in type) |
+   u ≤ p *)
+
+binder is universe polymorphic and cumulative
+Arguments binder P%_function_scope H
+binder is transparent
+Expands to: Constant UnivBinderMinimization.binder
+Declared in library UnivBinderMinimization, line 22, characters 13-19
+ax@{u u0 u1} :
+forall P : Type@{u} -> Type@{u0}, P (WrapI@{u1} nat)
+(* u(= in 1st binder, = in term) u0(= in 1st binder, = in term) u1(= in term,
+   = (* for typing) in type) |
+   u1 ≤ u *)
+
+ax is universe polymorphic
+Arguments ax P%_function_scope
+Expands to: Constant UnivBinderMinimization.ax
+Declared in library UnivBinderMinimization, line 27, characters 6-8
+hyp_set@{p q} :
+forall P : Type@{p} -> Type@{q}, P (WrapI@{0} nat) -> P (WrapI@{0} nat)
+(* p(= in 1st binder) q(= in 1st binder) | *)
+
+hyp_set is universe polymorphic and cumulative
+Arguments hyp_set P%_function_scope H
+hyp_set is transparent
+Expands to: Constant UnivBinderMinimization.hyp_set
+Declared in library UnivBinderMinimization, line 36, characters 13-20

@@ -292,14 +292,13 @@ sort: [
 | "Prop"
 | "SProp"
 | "Type"
+| "Type" "@{" OPT [ qualid ";" ] universe_opt "}"
+| "Univ" "@{" OPT [ [ qualid | "_" ] ";" ] universe_opt "}"
 | "Univ"
-| "Type" "@{" OPT [ qualid ";" ] universe "}"
-| "Univ" "@{" OPT [ [ qualid | "_" ] ";" ] universe "}"
 ]
 
 universe: [
 | "max" "(" LIST1 universe_expr SEP "," ")"
-| "_"
 | universe_expr
 ]
 
@@ -315,17 +314,17 @@ universe_name: [
 ]
 
 univ_annot: [
-| "@{" LIST0 univ_level_or_quality OPT "+" OPT [ ";" LIST0 univ_level_or_quality OPT "+" ] "}"
+| "@{" LIST0 univ_or_quality OPT "+" OPT [ ";" LIST0 univ_or_quality OPT "+" ] "}"
 ]
 
-univ_level_or_quality: [
+univ_or_quality: [
 | "0"
 | "Set"
 | "SProp"
 | "Prop"
 | "Type"
 | "_"
-| qualid
+| universe
 ]
 
 sort_quality_var: [
@@ -335,16 +334,18 @@ sort_quality_var: [
 | qualid
 ]
 
-univ_decl: [
-| "@{" OPT [ LIST0 ident OPT "+" ";" ] LIST0 ident OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
+universe_opt: [
+| universe
+| "*"
+| "_"
 ]
 
-cumul_univ_decl: [
-| "@{" OPT [ LIST0 ident OPT "+" ";" ] LIST0 ( OPT [ "+" | "=" | "*" ] ident ) OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
+univ_decl: [
+| "@{" OPT [ LIST0 ident OPT "+" ";" ] LIST0 ( OPT [ "+" | "-" | "=" | "*" ] ident ) OPT "+" OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
 ]
 
 sort_constraint: [
-| universe_name [ "<" | "=" | "<=" ] universe_name
+| universe [ "<" | "=" | "<=" ] universe
 | sort_quality_var "->" sort_quality_var
 ]
 
@@ -592,7 +593,7 @@ field_val: [
 ]
 
 inductive_definition: [
-| ident OPT cumul_univ_decl LIST0 binder OPT [ "|" LIST0 binder ] OPT [ ":" type ] ":=" OPT [ OPT "|" LIST1 constructor SEP "|" ] OPT decl_notations
+| ident_decl LIST0 binder OPT [ "|" LIST0 binder ] OPT [ ":" type ] ":=" OPT [ OPT "|" LIST1 constructor SEP "|" ] OPT decl_notations
 ]
 
 constructor: [
@@ -877,7 +878,7 @@ command: [
 | "Unfocused"
 | "Show" OPT [ qualid | natural ]
 | "Show" "Existentials"
-| "Show" "Universes"
+| "Show" OPT "Global" "Universes"
 | "Show" "Conjectures"
 | "Show" "Proof" OPT ( "Diffs" OPT "removed" )
 | "Show" "Diffs" ident
@@ -978,6 +979,7 @@ command: [
 | "Sort" LIST1 ident
 | "Sorts" LIST1 ident
 | "Constraint" LIST1 sort_constraint SEP ","
+| "Cumulativity" "Transparent" qualid
 | "Rewrite" [ "Rule" | "Rules" ] ident ":=" OPT "|" LIST1 rewrite_rule SEP "|"
 | "CoInductive" inductive_definition LIST0 ( "with" inductive_definition )
 | "CoInductive" record_definition LIST0 ( "with" record_definition )
@@ -1029,6 +1031,7 @@ command: [
 | [ "Enable" | "Disable" ] "Notation" OPT [ string | qualid LIST0 ident ] OPT ( ":=" one_term ) OPT ( "(" LIST1 enable_notation_flag SEP "," ")" ) OPT [ ":" scope_name | ":" "no" "scope" ]
 | "Eval" red_expr "in" term
 | "Compute" term
+| "Check" "Constraint" LIST1 sort_constraint SEP ","
 | "Check" term
 | "About" LIST1 [ reference OPT univ_name_list ] SEP ","
 | "SearchPattern" one_pattern OPT ( [ "inside" | "in" | "outside" ] LIST1 qualid )
