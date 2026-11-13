@@ -50,7 +50,8 @@ let scope_class_of_qualid qid =
 (** Standard attributes for definition-like commands. *)
 module DefAttributes = struct
   type t = {
-    hooks : Declare.Hook.t list ;
+    hooks : Declare.Hook.t list;
+    sealed : bool;
     scope : definition_scope;
     locality : bool option;
     poly : PolyFlags.t;
@@ -118,16 +119,34 @@ module DefAttributes = struct
 
   let clearbody = bool_attribute ~name:"clearbody"
 
+  let sealed_core = attribute_of_list
+      ["sealed", single_key_parser ~name:"sealed" ~key:"sealed" true;
+       "defined", single_key_parser ~name:"defined" ~key:"defined" false]
+
+  let sealed = Attributes.Notations.map (Option.default false) sealed_core
+
+  let reject_sealed = sealed_core >>= function
+    | None -> return false
+    | Some sealed ->
+      let term = if sealed then "Qed" else "Defined" in
+      let sealed = if sealed then "sealed" else "defined" in
+      CErrors.user_err Pp.(fmt "Attribute %s is not supported by this command when it opens a proof.@ Terminate the proof with %s instead." sealed term)
+
   (* [XXX] EJGA: coercion is unused here *)
-  let def_attributes_gen ?(coercion=false) ?(discharge=NoDischarge,"","") () =
+  let def_attributes_gen ?(coercion=false) ?(discharge=NoDischarge,"","") ?mayseal () =
     let discharge, deprecated_thing, replacement = discharge in
     let clearbody = match discharge with DoDischarge -> clearbody | NoDischarge -> return None in
     (* It is important because it prevents early evaluation of [active_hooks ()] *)
     return () >>= fun () ->
-    (locality ++ user_warns_with_use_globref_instead ++ poly PolyFlags.Definition ++ program ++
-               canonical_instance ++ typing_flags ++ using ++
-               reversible ++ clearbody ++ active_hooks ()) >>=
-    fun (((((((((locality, user_warns), poly), program),
+    let sealed = match mayseal with
+      | None -> return false
+      | Some mayseal -> if mayseal then sealed else reject_sealed
+    in
+    (locality ++ sealed ++ user_warns_with_use_globref_instead ++
+     poly PolyFlags.Definition ++ program ++
+     canonical_instance ++ typing_flags ++ using ++
+     reversible ++ clearbody ++ active_hooks ()) >>=
+    fun ((((((((((locality, sealed), user_warns), poly), program),
            canonical_instance), typing_flags), using),
            reversible), clearbody), hooks) ->
       let using = Option.map Proof_using.using_from_string using in
@@ -136,17 +155,19 @@ module DefAttributes = struct
         then CErrors.user_err Pp.(str "Cannot use attribute clearbody outside sections.")
       in
       let scope = scope_of_locality locality discharge deprecated_thing replacement in
-      return { hooks; scope; locality; poly; program; user_warns; canonical_instance; typing_flags; using; reversible; clearbody }
+      return { hooks; scope; sealed; locality; poly; program;
+               user_warns; canonical_instance; typing_flags;
+               using; reversible; clearbody }
 
-  let parse ?coercion ?discharge f (* : DefAttributes.t  *) =
-    Attributes.parse (def_attributes_gen ?coercion ?discharge ()) f
+  let parse ?coercion ?discharge ?mayseal f (* : DefAttributes.t  *) =
+    Attributes.parse (def_attributes_gen ?coercion ?discharge ?mayseal ()) f
 
   let def_attributes = def_attributes_gen ()
 
 end
 
-let with_def_attributes ?coercion ?discharge ~atts f =
-  let atts = DefAttributes.parse ?coercion ?discharge atts in
+let with_def_attributes ?coercion ?discharge ?mayseal ~atts f =
+  let atts = DefAttributes.parse ?coercion ?discharge ?mayseal atts in
   if atts.DefAttributes.program then Declare.Obls.check_program_libraries ();
   f ~atts
 
@@ -926,7 +947,7 @@ let vernac_definition_refine ~atts (discharge, kind) (lid, udecl) bl red_option 
 
 let vernac_definition ~atts ~pm (discharge, kind) (lid, udecl) bl red_option c typ_opt =
   let DefAttributes.{
-    scope; locality=local; poly; program=program_mode; hooks;
+    scope; sealed; locality=local; poly; program=program_mode; hooks;
     user_warns; typing_flags; using; clearbody; canonical_instance; reversible;
     } = atts
   in
@@ -940,12 +961,12 @@ let vernac_definition ~atts ~pm (discharge, kind) (lid, udecl) bl red_option c t
       Some (snd (Redexpr.interp_redexp_no_ltac env sigma r)) in
   if program_mode then
     let kind = Decls.IsDefinition kind in
-    ComDefinition.do_definition_program ?loc:lid.loc ~pm ~name
+    ComDefinition.do_definition_program ?loc:lid.loc ~pm ~name ~sealed
       ?clearbody ~poly ?typing_flags ~scope ~kind
       ?user_warns ?using udecl bl red_option c typ_opt ?hook
   else
     let () =
-      ComDefinition.do_definition ~name ?loc:lid.loc
+      ComDefinition.do_definition ~name ~sealed ?loc:lid.loc
         ?clearbody ~poly ?typing_flags ~scope ~kind
         ?user_warns ?using udecl bl red_option c typ_opt ?hook in
     pm
@@ -975,7 +996,7 @@ let vernac_start_proof ~atts kind l =
     let fix = List.map (fun ((fname, univs), (binders, rtype)) ->
         { fname; binders; rtype; body_def = None; univs; notations = []}) l in
     let pm, proof =
-      ComFixpoint.do_mutually_recursive ~refine:false ~program_mode ~use_inference_hook:program_mode
+      ComFixpoint.do_mutually_recursive ~sealed:false ~refine:false ~program_mode ~use_inference_hook:program_mode
         ?hook ~scope ?clearbody ~kind:(Decls.IsProof kind) ~poly ?typing_flags
         ?user_warns ?using (CUnknownRecOrder, fix) in
     assert (Option.is_empty pm);
@@ -1367,7 +1388,10 @@ let with_obligations program_mode f pm =
     pm, proof
 
 let vernac_fixpoint ~atts ~refine ~pm (rec_order,fixl) =
-  let DefAttributes.{ scope; poly; typing_flags; program=program_mode; clearbody; using; user_warns; } = atts in
+  let DefAttributes.{
+      scope; poly; sealed; typing_flags; program=program_mode;
+      clearbody; using; user_warns; } = atts
+  in
   if Dumpglob.dump () then
     List.iter (fun { fname } -> Dumpglob.dump_definition fname false "def") fixl;
   List.iter (fun { fname } -> check_name_freshness scope fname) fixl;
@@ -1377,11 +1401,11 @@ let vernac_fixpoint ~atts ~refine ~pm (rec_order,fixl) =
       let opens = List.exists (fun { body_def } -> Option.is_empty body_def) fixl in
       if opens then CErrors.user_err Pp.(str"Program Fixpoint requires a body.") in
   with_obligations program_mode
-    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition Fixpoint) ~poly ?typing_flags ?user_warns ?using (CFixRecOrder rec_order, fixl))
+    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~sealed ~refine ~scope ?clearbody ~kind:(IsDefinition Fixpoint) ~poly ?typing_flags ?user_warns ?using (CFixRecOrder rec_order, fixl))
     pm
 
 let vernac_cofixpoint ~pm ~refine ~atts cofixl =
-  let DefAttributes.{ scope; poly; typing_flags; program=program_mode; clearbody; using; user_warns; } = atts in
+  let DefAttributes.{ scope; poly; sealed; typing_flags; program=program_mode; clearbody; using; user_warns; } = atts in
   if Dumpglob.dump () then
     List.iter (fun { fname } -> Dumpglob.dump_definition fname false "def") cofixl;
   List.iter (fun { fname } -> check_name_freshness scope fname) cofixl;
@@ -1391,7 +1415,7 @@ let vernac_cofixpoint ~pm ~refine ~atts cofixl =
       if opens then
         CErrors.user_err Pp.(str"Program CoFixpoint requires a body.") in
   with_obligations program_mode
-    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition CoFixpoint) ~poly ?typing_flags ?user_warns ?using (CCoFixRecOrder, cofixl))
+    (fun pm -> ComFixpoint.do_mutually_recursive ~sealed ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition CoFixpoint) ~poly ?typing_flags ?user_warns ?using (CCoFixRecOrder, cofixl))
     pm
 
 let vernac_scheme atts l =
@@ -1760,10 +1784,10 @@ let vernac_identity_coercion ~atts id qids qidt =
 
 let vernac_instance_program ~atts ~pm name bl t props info =
   Dumpglob.dump_constraint (fst name) false "inst";
-  let locality, poly =
-    Attributes.(parse (Notations.(hint_locality ++ poly PolyFlags.Definition))) atts
+  let (locality, poly), sealed =
+    Attributes.(parse (Notations.(hint_locality ++ poly PolyFlags.Definition ++ DefAttributes.sealed))) atts
   in
-  let pm, _id = Classes.new_instance_program ~pm ~locality ~poly name bl t props info in
+  let pm, _id = Classes.new_instance_program ~sealed ~pm ~locality ~poly name bl t props info in
   pm
 
 let vernac_instance_interactive ~atts name bl t info props =
@@ -1777,11 +1801,11 @@ let vernac_instance_interactive ~atts name bl t info props =
 
 let vernac_instance ~atts name bl t props info =
   Dumpglob.dump_constraint (fst name) false "inst";
-  let locality, poly =
-    Attributes.(parse (Notations.(hint_locality ++ poly PolyFlags.Definition))) atts
+  let (locality, poly), sealed =
+    Attributes.(parse (Notations.(hint_locality ++ poly PolyFlags.Definition ++ DefAttributes.sealed))) atts
   in
   let _id : lident =
-    Classes.new_instance ~locality ~poly name bl t props info in
+    Classes.new_instance ~locality ~poly ~sealed name bl t props info in
   ()
 
 let vernac_declare_instance ~atts id bl inst pri =
@@ -2793,20 +2817,21 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let atts, refine = Attributes.(parse_with_extra Classes.refine_att) atts in
     if refine then
       vtopenproof(fun () ->
-        with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+        with_def_attributes ~coercion ~mayseal:false ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
          vernac_definition_refine dkind lid bl red_option c typ)
     else
       vtmodifyprogram (fun ~pm ->
-        with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+        with_def_attributes ~mayseal:true ~coercion
+          ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
         vernac_definition ~pm dkind lid bl red_option c typ)
   | VernacDefinition ((discharge,kind as dkind),lid,ProveBody(bl,typ)) ->
     let coercion = match kind with Decls.Coercion -> true | _ -> false in
     vtopenproof(fun () ->
-      with_def_attributes ~coercion ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
+      with_def_attributes ~coercion ~mayseal:false ~discharge:(discharge, "\"Let\"", "\"#[local] Definition\"") ~atts
        vernac_definition_interactive dkind lid bl typ)
 
   | VernacStartTheoremProof (k,l) ->
-    vtopenproof(fun () -> with_def_attributes ~atts vernac_start_proof k l)
+    vtopenproof(fun () -> with_def_attributes ~atts ~mayseal:false vernac_start_proof k l)
   | VernacExactProof c ->
     vtcloseproof ~check_late_init:false (fun ~lemma ->
         unsupported_attributes atts;
@@ -2836,12 +2861,12 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let discharge = discharge, "\"Let Fixpoint\"", "\"#[local] Fixpoint\"" in
     (if opens then
       vtopenproof (fun () ->
-        let pm, proof = with_def_attributes ~discharge ~atts (vernac_fixpoint ~refine ~pm:None) l in
+        let pm, proof = with_def_attributes ~mayseal:false ~discharge ~atts (vernac_fixpoint ~refine ~pm:None) l in
         assert (Option.is_empty pm);
         Option.get proof)
     else
       vtmodifyprogram (fun ~pm ->
-        let pm, proof = with_def_attributes ~discharge ~atts (vernac_fixpoint ~refine ~pm:(Some pm)) l in
+        let pm, proof = with_def_attributes ~mayseal:true ~discharge ~atts (vernac_fixpoint ~refine ~pm:(Some pm)) l in
         assert (Option.is_empty proof);
         Option.get pm))
 
@@ -2851,12 +2876,12 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     let discharge = discharge,  "\"Let CoFixpoint\"", "\"#[local] CoFixpoint\"" in
     (if opens then
       vtopenproof (fun () ->
-        let pm, proof = with_def_attributes ~discharge ~atts (vernac_cofixpoint ~refine ~pm:None) l in
+        let pm, proof = with_def_attributes ~discharge ~atts ~mayseal:false (vernac_cofixpoint ~refine ~pm:None) l in
         assert (Option.is_empty pm);
         Option.get proof)
     else
       vtmodifyprogram (fun ~pm ->
-        let pm, proof = with_def_attributes ~discharge ~atts (vernac_cofixpoint ~refine ~pm:(Some pm)) l in
+        let pm, proof = with_def_attributes ~discharge ~atts ~mayseal:true (vernac_cofixpoint ~refine ~pm:(Some pm)) l in
         assert (Option.is_empty proof);
         Option.get pm))
 
