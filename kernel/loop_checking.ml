@@ -1487,6 +1487,35 @@ let remove_premise idx prems =
         | Some l'' -> Some (if l'' == l' then l else NeList.Cons (prem, l''))
   in aux prems
 
+(** [subsumed ~alive cl] holds when a clause of the conclusion of the canonical clause [cl] whose
+  premises are all [alive] implies [cl]: [concl + k' <= max(P')] implies [concl + k <= max(P)]
+  when each premise [u + j'] of [P'] has a premise [u + j] in [P] with [j' - k' <= j - k].
+  Such a clause has a premise of [P]: the candidates are looked up in the forward clauses of the
+  premises of [cl] rather than in the backward clauses of [concl], which can be many more
+  (e.g. [Set + 0 <= max(u)] for every universe [u]). *)
+let subsumed ~alive ((prems, (concl, k)) : can_clause) =
+  let shift_in_prems u =
+    NeList.fold (fun (can, j) acc -> if Index.equal can.canon u then Some j else acc) prems None
+  in
+  let implied (u, j') k' =
+    alive u &&
+    match shift_in_prems u with
+    | Some j -> j' - k' <= j - k
+    | None -> false
+  in
+  (* [can + j', others -> concl + k'] for the premise [can + j] of [cl] *)
+  NeList.exists (fun (can, j) ->
+      alive can.canon &&
+      ForwardClauses.IntMap.exists (fun j' byconcl ->
+          match ForwardClauses.PMap.find_opt concl.canon byconcl with
+          | None -> false
+          | Some pcls ->
+            PartialClausesOf.exists (fun (k', others) ->
+                j' - k' <= j - k && Option.cata (Premises.for_all (fun p -> implied p k')) true others)
+              pcls)
+        can.clauses_fwd)
+    prems
+
 (** [add_can_clause_model m cl] adds the clause [cl] to [m].
   @requires the premises of [cl] are sorted according to the order on their [canon]
   indices, mentioning each universe once, as produced by [simplify_can_clause]. *)
@@ -2261,6 +2290,11 @@ let enforce_clauses ?(entailed=false) cls m =
       match simplify_can_clause m (canonical_premises_repr m prems, repr_expr m concl) with
       | Trivial -> acc
       | Contradictory -> None
+      | Canonical (NeList.Cons _, _ as cl) when subsumed ~alive:(fun _ -> true) cl ->
+        (* A clause with several premises implied by a clause of its conclusion, e.g.
+           [u <= max(v, w)] once [u <= v] holds: it creates no equality and raises no value, and
+           would only make the graph of clauses following all their premises larger *)
+        acc
       | Canonical cl ->
         match add_can_clause_model m cl with
         | None -> acc (* The clause was already present in the model *)
@@ -3190,22 +3224,6 @@ let interp_univ model l =
 let is_trivial setidx u k v k' =
   (Index.equal u v && k >= k') ||
   (Index.equal v setidx && k >= k')
-
-(** [subsumed ~alive cl] holds when a clause of the conclusion of the canonical clause [cl] whose
-  premises are all [alive] implies [cl]: [concl + k' <= max(P')] implies [concl + k <= max(P)]
-  when each premise [u + j'] of [P'] has a premise [u + j] in [P] with [j' - k' <= j - k]. *)
-let subsumed ~alive ((prems, (concl, k)) : can_clause) =
-  let shift_in_prems u =
-    NeList.fold (fun (can, j) acc -> if Index.equal can.canon u then Some j else acc) prems None
-  in
-  let implies (k', prems') =
-    Premises.for_all (fun (u, j') -> alive u &&
-      match shift_in_prems u with
-      | Some j -> j' - k' <= j - k
-      | None -> false) prems'
-  in
-  try ClausesOf.iter (fun cl -> if implies cl then raise_notrace Exit) concl.clauses_bwd; false
-  with Exit -> true
 
 (** [eliminate_can ~alive ~skip_set model idx] adds to [model] the resolvents on the canonical
   universe [idx] of its clauses: each pair of clauses [premsbwd -> idx + cank] and
