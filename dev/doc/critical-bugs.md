@@ -125,6 +125,8 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
     - [Deserialization](#deserialization)
       - [deserialization of .vo data not properly checked](#deserialization-of-vo-data-not-properly-checked)
       - [rocqchk trusts the serialized VM bytecode segment](#rocqchk-trusts-the-serialized-vm-bytecode-segment)
+      - [rocqchk trusts the serialized registration of a primitive type](#rocqchk-trusts-the-serialized-registration-of-a-primitive-type)
+      - [rocqchk does not check the type of a primitive operator](#rocqchk-does-not-check-the-type-of-a-primitive-operator)
   - [Probably non exploitable fixed bugs](#probably-non-exploitable-fixed-bugs)
       - [bug in 31bit arithmetic](#bug-in-31bit-arithmetic)
 
@@ -1448,6 +1450,41 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
     no axioms reported
 - risk: proof of False accepted by rocqchk, but only with the non-default
     -bytecode-compiler yes on a crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk trusts the serialized registration of a primitive type
+
+- component: rocqchk, primitive types
+- introduced: V8.10 (rocq-prover/rocq#6914, primitive integers)
+- impacted released versions: V8.10-V9.3 (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: Gaëtan Gilbert (rocq-prover/rocq#12439); exploit by AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#12439
+- exploit: test-suite/misc/rocqchk_register_type.sh, case donor: a crafted
+  .vo registers a definition int : Set := Empty_set as the int63 primitive
+  type and gives a parameter zero : int the body of the literal 0, so that
+  match zero return False with end is a closed proof of False; the cases
+  sealed, functor and dual register instead a definition through the
+  parameter of its sealed module's type, a parameter that only the type of
+  a functor application declares, and a parameter under the canonical name
+  of a definition
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk does not check the type of a primitive operator
+
+- component: rocqchk, primitive operators
+- introduced: V8.10 (rocq-prover/rocq#6914, primitive integers)
+- impacted released versions: V8.10-V9.3 (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: Gaëtan Gilbert (rocq-prover/rocq#12439); exploit by AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#12439
+- exploit: test-suite/misc/rocqchk_primitive_operator.sh: a crafted .vo
+  gives an axiom bogus : False the body #int63_head0, whose type is
+  int -> int, and rocqchk accepted bogus as a closed proof of False
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
 
 There were otherwise several bugs in beta-releases, from memory, bugs with beta versions of primitive projections or template polymorphism or native compilation or guard (e7fc96366, 2a4d714a1).
 
