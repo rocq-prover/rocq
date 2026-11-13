@@ -24,3 +24,11 @@ Goal (wrap3I tt false) = (wrap3I tt true) -> False.
 Proof.
   congruence.
 Qed.
+
+Inductive wrap4 : Type :=
+  wrap4I (n : nat) : (fun _ => bool) n -> wrap4.
+
+Goal (wrap4I 0 false) = (wrap4I 0 true) -> False.
+Proof.
+  congruence.
+Qed.
