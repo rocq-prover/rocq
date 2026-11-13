@@ -177,6 +177,10 @@ let decl_constant name univs c =
   let open Constr in
   let vars = CVars.universes_of_constr c in
   let univs = UState.restrict_universe_context univs vars in
+  let univs = match UGraph.check_declared_universes (Environ.universes (Global.env ())) (fst univs) with
+  | Ok () -> (Univ.Level.Set.empty, snd univs)
+  | Error undeclared -> (undeclared, snd univs)
+  in
   let () = Global.push_context_set univs in
   let types = (Typeops.infer (Global.env ()) c).uj_type in
   let univs = UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders in
