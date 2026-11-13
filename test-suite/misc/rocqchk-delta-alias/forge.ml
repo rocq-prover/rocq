@@ -1,7 +1,8 @@
 (* Forge the .vo files of misc/rocqchk_delta_alias.sh,
-   misc/rocqchk_forged_aliases.sh and misc/rocqchk_register_type.sh. The
-   code is deliberately independent of Rocq's OCaml libraries: this is an
-   untrusted file producer, not another path through the kernel API.
+   misc/rocqchk_forged_aliases.sh, misc/rocqchk_register_type.sh and
+   misc/rocqchk_primitive_operator.sh. The code is deliberately independent
+   of Rocq's OCaml libraries: this is an untrusted file producer, not
+   another path through the kernel API.
 
    ocaml forge.ml FILE.vo DONOR.vo constant|inductive
      Replace a declaration in B by an incompatible declaration from another
@@ -13,6 +14,9 @@
      see the function of that name.
    ocaml forge.ml int0 LIB.vo OUT.vo LABEL
      Give the parameter LABEL of LIB.vo the body Int 0, the int63 literal 0.
+   ocaml forge.ml head0 LIB.vo OUT.vo LABEL
+     Give the parameter LABEL of LIB.vo the body #int63_head0, the primitive
+     operator Int63head0.
    ocaml forge.ml register LIB.vo OUT.vo NAME [CANONICAL]
      Register the constant NAME as the int63 primitive type, with the
      canonical name CANONICAL if it is given, which coqc does only for a
@@ -39,9 +43,10 @@
      structure: a list of (label, field), a field being SFBconst (tag 0)
      [constant_body], SFBmind (tag 1) [mutual_inductive_body], SFBmodule
      (tag 3) [module_body] or SFBmodtype (tag 4) [module_type_body];
-   - constant_body: 2 body, Undef (tag 0) [inline] for a parameter and Def
-     (tag 1) [term] for a definition, 3 type; term: Prod (tag 6) [binder;
-     domain; codomain], App (tag 9) [function; arguments], Const (tag 10)
+   - constant_body: 2 body, Undef (tag 0) [inline] for a parameter, Def
+     (tag 1) [term] for a definition and Primitive (tag 3) [operator,
+     Int63head0 being 0], 3 type; term: Prod (tag 6) [binder; domain;
+     codomain], App (tag 9) [function; arguments], Const (tag 10)
      [(name, instance)], Ind (tag 11) [((name, index), instance)] or Int
      (tag 17) [63-bit integer, an int on a 64-bit platform and an Int64.t
      on a 32-bit one], among others; name, of a constant or an inductive:
@@ -306,6 +311,9 @@ let set_body label body root =
 (* The definition Int 0, of the int63 literal 0. *)
 let int0 = block 1 [| block 17 [| if Sys.word_size = 64 then Obj.repr 0 else Obj.repr 0L |] |]
 
+(* The body #int63_head0. *)
+let head0 = block 3 [| Obj.repr 0 |]
+
 let rec mp_to_string mp =
   match Obj.tag mp with
   | 0 -> String.concat "." (List.rev (strings (field mp 0)))
@@ -374,6 +382,7 @@ let () =
   | [ "nested-inductive"; src; dst ] -> rewrite src dst (forge (nested "I"))
   | [ "label"; src; dst ] -> rewrite src dst (forge label)
   | [ "int0"; src; dst; label ] -> rewrite src dst (forge (set_body label int0))
+  | [ "head0"; src; dst; label ] -> rewrite src dst (forge (set_body label head0))
   | [ "register"; src; dst; name ] ->
     rewrite src dst [ "library", marshalled (upd 0 (register name None)) ]
   | [ "register"; src; dst; name; canonical ] ->
