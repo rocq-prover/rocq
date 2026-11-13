@@ -775,6 +775,42 @@ let eq_constr sigma c1 c2 =
   in
   eq_constr 0 c1 c2
 
+let eq_constr_mod_unfolding env sigma c1 c2 =
+  let kind c = kind sigma c in
+  let eq_inst _ i1 i2 = EInstance.equal sigma i1 i2 in
+  let eq_sorts s1 s2 = ESorts.equal sigma s1 s2 in
+  let eq_existential eq e1 e2 = eq_existential sigma (eq 0) e1 e2 in
+  let lookup = lookup_constant env sigma in
+  let rec eq_constr nargs c1 c2 =
+    let next () = compare_gen kind eq_inst eq_sorts (eq_existential eq_constr) eq_constr nargs c1 c2 in
+    match kind c1, kind c2 with
+    | Const (c1,u1), Const (c2,u2) ->
+      (Constant.CanOrd.equal c1 c2 && eq_inst (Some (GlobRef.ConstRef c1, nargs)) u1 u2) ||
+      (let constant = lookup c1 in
+        match constant.const_body with
+        | Declarations.Def c1 ->
+          (let constant = lookup c2 in
+            match constant.const_body with
+            | Declarations.Def c2 ->
+              eq_constr nargs (of_constr c1) (of_constr c2)
+            | _ -> next ())
+        | _ -> next ())
+    | Const (c1,_), _ ->
+      (let constant = lookup c1 in
+        match constant.const_body with
+        | Declarations.Def c ->
+          eq_constr nargs (of_constr c) c2
+        | _ -> next ())
+    | _, Const (c2,_) ->
+      (let constant = lookup c2 in
+        match constant.const_body with
+        | Declarations.Def c ->
+          eq_constr nargs c1 (of_constr c)
+        | _ -> next ())
+    | _, _ -> next ()
+  in
+  eq_constr 0 c1 c2
+
 let eq_constr_nounivs sigma c1 c2 =
   let kind c = kind sigma c in
   let eq_existential eq e1 e2 = eq_existential sigma (eq 0) e1 e2 in
