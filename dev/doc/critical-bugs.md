@@ -62,6 +62,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [rocqchk accepts a forged alias between declared-only fields](#rocqchk-accepts-a-forged-alias-between-declared-only-fields)
       - [rocqchk does not check the canonical names a module gives its submodules' fields](#rocqchk-does-not-check-the-canonical-names-a-module-gives-its-submodules-fields)
       - [rocqchk accepts a forged alias that changes the label of a name](#rocqchk-accepts-a-forged-alias-that-changes-the-label-of-a-name)
+      - [rocqchk accepts a structure that uses a label twice](#rocqchk-accepts-a-structure-that-uses-a-label-twice)
     - [Incorrect subtyping of inductives with letins in constructor types](#incorrect-subtyping-of-inductives-with-letins-in-constructor-types)
     - [Including functor application generates garbage delta-resolvers](#including-functor-application-generates-garbage-delta-resolvers)
       - [Subtyping of inductive types ignores uniform parameters making it inconsistent with propext](#subtyping-of-inductive-types-ignores-uniform-parameters-making-it-inconsistent-with-propext)
@@ -731,6 +732,23 @@ and lack of checking of relevance marks on constants in coqchk
   F never names, so that F's lemma : k = false states A.X.k = false
 - risk: proof of False accepted by rocqchk, with no axioms reported, on a
   crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk accepts a structure that uses a label twice
+
+- component: rocqchk, modules
+- introduced: unknown
+- impacted released versions: unknown (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#XXXXX
+- exploit: test-suite/misc/rocqchk_repeated_label.sh: a crafted .vo has
+  Axiom ax : False, then proof : False := ax, then ax : unit := tt; the
+  environment keeps the last field labelled ax, so a client proves False
+  with proof. On master 21891774, rocqchk accepts the forged files, and
+  with -o it still lists ax as an axiom
+- risk: proof of False accepted by rocqchk on a crafted .vo (files
+  produced by `rocq compile` are fine)
 
 ### Incorrect subtyping of inductives with letins in constructor types
 - component: subtyping, inductive declarations
