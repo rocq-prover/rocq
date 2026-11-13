@@ -749,10 +749,16 @@ value rocq_interprete
         } else {
           mlsize_t num_args, i;
           num_args = 1 + rocq_extra_args; /* arg1 + extra args */
-          Rocq_alloc_small(accu, num_args + 3, Closure_tag);
+          if (num_args + 3 <= Max_young_wosize) {
+            Rocq_alloc_small(accu, num_args + 3, Closure_tag);
+            Field(accu, 2) = rocq_env;
+            for (i = 0; i < num_args; i++) Field(accu, i + 3) = sp[i];
+          } else {
+            accu = caml_alloc_shr(num_args + 3, Closure_tag);
+            caml_initialize(&Field(accu, 2), rocq_env);
+            for (i = 0; i < num_args; i++) caml_initialize(&Field(accu, i + 3), sp[i]);
+          }
           Field(accu, 1) = Val_int(2);
-          Field(accu, 2) = rocq_env;
-          for (i = 0; i < num_args; i++) Field(accu, i + 3) = sp[i];
           Code_val(accu) = pc - 3; /* Point to the preceding RESTART instr. */
           sp += num_args;
           pc = LoadRA(sp[0]);
@@ -774,11 +780,17 @@ value rocq_interprete
             /* Partial application */
             mlsize_t num_args, i;
             num_args = 1 + rocq_extra_args; /* arg1 + extra args */
-            Rocq_alloc_small(accu, num_args + 3, Closure_tag);
+            if (num_args + 3 <= Max_young_wosize) {
+              Rocq_alloc_small(accu, num_args + 3, Closure_tag);
+              Field(accu, 2) = rocq_env;
+              for (i = 0; i < num_args; i++) Field(accu, i + 3) = sp[i];
+            } else {
+              accu = caml_alloc_shr(num_args + 3, Closure_tag);
+              caml_initialize(&Field(accu, 2), rocq_env);
+              for (i = 0; i < num_args; i++) caml_initialize(&Field(accu, i + 3), sp[i]);
+            }
             Code_val(accu) = pc - 3; /* Point to the preceding RESTART instr. */
             Field(accu, 1) = Val_int(2);
-            Field(accu, 2) = rocq_env;
-            for (i = 0; i < num_args; i++) Field(accu, i + 3) = sp[i];
             sp += num_args;
             pc = LoadRA(sp[0]);
             rocq_env = sp[1];
@@ -789,11 +801,17 @@ value rocq_interprete
             mlsize_t num_args, sz, i;
             value block;
             /* Construction of fixpoint applied to its [rec_pos-1] first arguments */
-            Rocq_alloc_small(accu, rec_pos + 3, Closure_tag);
+            if (rec_pos + 3 <= Max_young_wosize) {
+              Rocq_alloc_small(accu, rec_pos + 3, Closure_tag);
+              Field(accu, 2) = rocq_env; // We store the fixpoint in the first field
+              for (i = 0; i < rec_pos; i++) Field(accu, i + 3) = *sp++; // Storing args
+            } else {
+              accu = caml_alloc_shr(rec_pos + 3, Closure_tag);
+              caml_initialize(&Field(accu, 2), rocq_env);
+              for (i = 0; i < rec_pos; i++) caml_initialize(&Field(accu, i + 3), *sp++);
+            }
             Code_val(accu) = pc; /* Point to the next RESTART instr. */
             Field(accu, 1) = Val_int(2);
-            Field(accu, 2) = rocq_env; // We store the fixpoint in the first field
-            for (i = 0; i < rec_pos; i++) Field(accu, i + 3) = *sp++; // Storing args
             /* Construction of the atom */
             Rocq_alloc_small(block, 2, ATOM_FIX_TAG);
             Field(block, 0) = *sp++;
@@ -831,14 +849,22 @@ value rocq_interprete
         print_instr("CLOSURE");
         print_int(nvars);
         if (nvars > 0) *--sp = accu;
-        Rocq_alloc_small(accu, 2 + nvars, Closure_tag);
+        if (2 + nvars <= Max_young_wosize) {
+          Rocq_alloc_small(accu, 2 + nvars, Closure_tag);
+          for (i = 0; i < nvars; i++) {
+            print_lint(sp[i]);
+            Field(accu, i + 2) = sp[i];
+          }
+        } else {
+          accu = caml_alloc_shr(2 + nvars, Closure_tag);
+          for (i = 0; i < nvars; i++) {
+            print_lint(sp[i]);
+            caml_initialize(&Field(accu, i + 2), sp[i]);
+          }
+        }
         Field(accu, 1) = Val_int(2);
         Code_val(accu) = pc + *pc;
         pc++;
-        for (i = 0; i < nvars; i++) {
-          print_lint(sp[i]);
-          Field(accu, i + 2) = sp[i];
-        }
         sp += nvars;
         Next;
       }
@@ -852,14 +878,23 @@ value rocq_interprete
         print_instr("CLOSUREREC");
         if (nvars > 0) *--sp = accu;
         /* construction du vecteur de type */
-        Rocq_alloc_small(accu, nfuncs, Abstract_tag);
+        if (nfuncs <= Max_young_wosize) {
+          Rocq_alloc_small(accu, nfuncs, Abstract_tag);
+        } else {
+          accu = caml_alloc_shr(nfuncs, Abstract_tag);
+        }
         for(i = 0; i < nfuncs; i++) {
           Field(accu,i) = (value)(pc+pc[i]);
         }
         pc += nfuncs;
         *--sp=accu;
-        Rocq_alloc_small(accu, nfuncs * 3 + nvars, Closure_tag);
-        Field(accu, nfuncs * 3 + nvars - 1) = *sp++;
+        if (nfuncs * 3 + nvars <= Max_young_wosize) {
+          Rocq_alloc_small(accu, nfuncs * 3 + nvars, Closure_tag);
+          Field(accu, nfuncs * 3 + nvars - 1) = *sp++;
+        } else {
+          accu = caml_alloc_shr(nfuncs * 3 + nvars, Closure_tag);
+          caml_initialize(&Field(accu, nfuncs * 3 + nvars - 1), *sp++);
+        }
         p = (value *) &Field(accu, 0);
         *p++ = (value) (pc + pc[0]);
         *p++ = Val_int(nfuncs * 3 - 1);
@@ -868,7 +903,11 @@ value rocq_interprete
           *p++ = (value) (pc + pc[i]);
           *p++ = Val_int((nfuncs - i) * 3 - 1);
         }
-        for (i = 0; i < nvars; i++) *p++ = *sp++;
+        if (nfuncs * 3 + nvars <= Max_young_wosize) {
+          for (i = 0; i < nvars; i++) *p++ = *sp++;
+        } else {
+          for (i = 0; i < nvars; i++) caml_initialize(p++, *sp++);
+        }
         pc += nfuncs;
         accu = accu + start * 3 * sizeof(value);
         Next;
@@ -883,7 +922,11 @@ value rocq_interprete
         print_instr("CLOSURECOFIX");
         if (nvars > 0) *--sp = accu;
         /* construction du vecteur de type */
-        Rocq_alloc_small(accu, nfunc, Abstract_tag);
+        if (nfunc <= Max_young_wosize) {
+          Rocq_alloc_small(accu, nfunc, Abstract_tag);
+        } else {
+          accu = caml_alloc_shr(nfunc, Abstract_tag);
+        }
         for(i = 0; i < nfunc; i++) {
           Field(accu,i) = (value)(pc+pc[i]);
         }
@@ -904,12 +947,19 @@ value rocq_interprete
         size = nfunc + nvars + 3;
         for (i=0; i < nfunc; i++) {
           value block;
-          Rocq_alloc_small(accu, size, Closure_tag);
+          if (size <= Max_young_wosize) {
+            Rocq_alloc_small(accu, size, Closure_tag);
+            for (j = 0; j < nfunc; ++j) Field(accu, j + 2) = p[j];
+            Field(accu, size - 1) = p[nfunc];
+            for (j = nfunc + 1; j <= nfunc + nvars; ++j) Field(accu, j + 1) = p[j];
+          } else {
+            accu = caml_alloc_shr(size, Closure_tag);
+            for (j = 0; j < nfunc; ++j) caml_initialize(&Field(accu, j + 2), p[j]);
+            caml_initialize(&Field(accu, size - 1), p[nfunc]);
+            for (j = nfunc + 1; j <= nfunc + nvars; ++j) caml_initialize(&Field(accu, j + 1), p[j]);
+          }
           Code_val(accu) = pc+pc[i];
           Field(accu, 1) = Val_int(2);
-          for (j = 0; j < nfunc; ++j) Field(accu, j + 2) = p[j];
-          Field(accu, size - 1) = p[nfunc];
-          for (j = nfunc + 1; j <= nfunc + nvars; ++j) Field(accu, j + 1) = p[j];
           Rocq_alloc_small(block, 1, ATOM_COFIX_TAG);
           Field(block, 0) = accu;
           /* update the accumulate block */
