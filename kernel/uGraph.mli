@@ -213,7 +213,11 @@ val repr : ?local:bool -> t -> node Level.Map.t
 
 (** {6 Pretty-printing of universes. } *)
 
-val pr_universes : (Level.t -> Pp.t) -> node Level.Map.t -> Pp.t
+val pr_universes : ?pr_source:(UnivConstraint.t -> Pp.t) ->
+  (Level.t -> Pp.t) -> node Level.Map.t -> Pp.t
+(** Constraints grouped by left-hand side, see [UnivConstraints.pr_group].
+    [pr_source] prints an explanation of a constraint (starting with a break),
+    by default nothing. *)
 
 val explain_universe_inconsistency : Sorts.printer -> univ_inconsistency -> Pp.t
 

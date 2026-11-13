@@ -747,38 +747,9 @@ let pr_source_path prl u src =
     let u, src = to_source_path u src in
     spc() ++ surround (str"because" ++ spc() ++ prl u ++ prlist_with_sep mt pr_one src)
 
-let pr_pmap sep pr map =
-  let cmp (u,_) (v,_) = Univ.Level.compare u v in
-  Pp.prlist_with_sep sep pr (List.sort cmp (Univ.Level.Map.bindings map))
-
-
-let pr_arc srcs prl = let open Pp in
-let open Univ in
-function
-| u, UGraph.Node l ->
-  if CList.is_empty l then mt ()
-  else
-    (* In increasing order *)
-    let l = List.sort (fun (i, _) (i', _) -> Int.compare i i') l in
-    let l = CList.factorize_left Int.equal l in
-    let pr_cstrs (i, l) =
-      let ui = Universe.of_expr (u, i) in
-      let l = List.sort Universe.compare l in
-      let k, is_lt = if i >= 1 then pred i, true else 0, false in
-      let u' = (u, k) in
-      let prv v =
-        let src = find_source (ui, Univ.UnivConstraint.Le, v) srcs in
-        str (if is_lt then "< " else "≤ ") ++ Universe.pr prl v ++ pr_source_path (Universe.pr prl) ui src
-      in
-      LevelExpr.pr prl u' ++ spc () ++ v 0 (prlist_with_sep spc prv l)
-    in
-    prlist_with_sep spc pr_cstrs l ++ fnl ()
-| u, UGraph.Alias v ->
-  let uu = Universe.make u in
-  let src = find_source (uu,Eq,v) srcs in
-  prl u  ++ str " = " ++ Universe.pr prl v ++ pr_source_path (Universe.pr prl) uu src ++ fnl  ()
-
-let pr_universes srcs prl g = pr_pmap Pp.mt (pr_arc srcs prl) g
+let pr_universes srcs prl g =
+  let pr_source (u, k, v) = pr_source_path (Univ.Universe.pr prl) u (find_source (u, k, v) srcs) in
+  UGraph.pr_universes ~pr_source prl g
 
 let print_universes { sort; subgraph; with_sources; file; } =
   let univ = Global.universes () in
