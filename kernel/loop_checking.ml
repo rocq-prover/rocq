@@ -1954,6 +1954,28 @@ let entails_from model (p, kp) candidates =
     let s = max 0 (max (- kp) (- kx)) in
     check_one_clause_complete model (NeList.tip (p, kp + s)) x (kx + s)
 
+(** [witness_models model rcan (y0, d0)] The models of [model] where [r] and [y0 + d0] are not
+  equal: its extensions by the negations [r + 1 <= y0 + d0] and [y0 + d0 + 1 <= r] of the two
+  halves of [r = y0 + d0] (as in [check_one_clause_complete]). There are none when they are equal
+  in all the valuations of [model]. *)
+let witness_models model rcan (y0, d0) =
+  let y0can = repr model y0 in
+  let s = max 0 (- d0) in
+  List.filter_map (fun cl -> infer_clause_extension cl model)
+    [ (NeList.tip (y0can, d0 + s), (rcan, 1 + s));
+      (NeList.tip (rcan, s), (y0can, d0 + 1 + s)) ]
+
+(** [same_differences model witnesses x y] Two universes equal in all the valuations of [model]
+  have the same difference of values in all its models: [x] and [y] can only be equal if their
+  difference in each of the models [witnesses] of [model] is the one in [model]. *)
+let same_differences model witnesses x y =
+  let value m idx = canonical_value m (repr m idx) in
+  let d = get_canonical_value model (repr model y) - get_canonical_value model (repr model x) in
+  List.for_all (fun m' ->
+      match value m' y, value m' x with
+      | Some vy, Some vx -> Int.equal (vy - vx) d
+      | _ -> true) witnesses
+
 (** [find_to_merge model prems (canv, kv)] For a clause [prems -> canv + kv] of [model], whose
   values make [max(prems)] and [canv + kv] equal, computes the universes [x + kx] such that
   [max(prems) <= x + kx <= canv + kv], which are all equal to [canv + kv]. The result is a list
@@ -1993,6 +2015,16 @@ let find_to_merge model prems (canv, kv) =
         let t = repr model idx in
         (t, get_canonical_value model t - value) :: acc)
       above []
+    in
+    (* [canv + kv = t + kt] iff [canv = t + (kt - kv)]. The models where [canv] and the first
+       other candidate are not equal refute at once the equality of the candidates whose difference
+       with [canv] they change, see [batch_classes]. *)
+    let candidates =
+      match List.find_opt (fun (t, _) -> t != canv) candidates with
+      | None -> candidates
+      | Some (t0, kt0) ->
+        let witnesses = witness_models model canv (t0.canon, kt0 - kv) in
+        List.filter (fun (t, _) -> same_differences model witnesses canv.canon t.canon) candidates
     in
     let below_canv = entails_from model (canv, kv) candidates in
     List.filter (fun (t, kt) -> below_canv (t, kt) && entails model (NeList.tip (t, kt)) (canv, kv))
@@ -2048,33 +2080,6 @@ let sccs nodes succ =
   PMap.iter (fun v _ -> if not (PMap.mem v !index) then visit v) nodes;
   !result
 
-(** [refuted_by_witnesses model r units] Two universes equal in all the valuations of [model] have
-  the same difference of values in all its models. Two models where [r] and the first universe [y0] of
-  [units] are not equal, extensions of [model] by the negations [r + 1 <= y0 + d0] and
-  [y0 + d0 + 1 <= r] of the two halves of [r = y0 + d0] (as in [check_one_clause_complete]), refute
-  at once the equality of [r] and the universes of [units] whose difference with [r] changes, which
-  would otherwise each be refuted by the complete checks of [entails]. *)
-let refuted_by_witnesses model rcan units =
-  match units with
-  | [] -> (fun _ -> false)
-  | (y0, _) :: _ ->
-    let value m idx = canonical_value m (repr m idx) in
-    let vr = get_canonical_value model rcan in
-    let y0can = repr model y0 in
-    let d0 = get_canonical_value model y0can - vr in
-    let s = max 0 (- d0) in
-    let witness cl = infer_clause_extension cl model in
-    let witnesses = List.filter_map witness
-        [ (NeList.tip (y0can, d0 + s), (rcan, 1 + s));
-          (NeList.tip (rcan, s), (y0can, d0 + 1 + s)) ]
-    in
-    fun y ->
-      let d = get_canonical_value model (repr model y) - vr in
-      List.exists (fun m' ->
-          match value m' y, value m' rcan.canon with
-          | Some vy, Some vr' -> not (Int.equal (vy - vr') d)
-          | _ -> false) witnesses
-
 (** [batch_classes model cls] For clauses [cls] of [model], computes the classes of equal
   universes that they can create, all at once, as [find_to_merge] and [zone_classes] do for a
   single clause. The universes made equal are in the zone of the universes below a conclusion
@@ -2082,7 +2087,11 @@ let refuted_by_witnesses model rcan units =
   their premises: two universes of the zone are candidates if they are in the same strongly
   connected component, through the clauses and the implicit clauses [Set <= x]. The universes
   in a cycle of tight clauses with a single premise are equal, as in [find_to_merge]; the other
-  candidates are checked to be equal in all valuations, as in [zone_classes]. *)
+  candidates are checked to be equal in all valuations, as in [zone_classes]. The candidates of a
+  component are grouped with the first one [r] of them, then with the first one of the remaining
+  ones, and so on: the models of [witness_models] where [r] and a candidate are not equal refute
+  at once the equality of all the universes whose differences of values they change, for the
+  following groups too, so that most of the candidates are not checked by [entails]. *)
 let batch_classes model cls =
   let setcan = repr model (Index.find Level.set model.table) in
   let setidx = setcan.canon in
@@ -2123,27 +2132,37 @@ let batch_classes model cls =
           | None -> (u :: order, PMap.add u [x] members)) ([], PMap.empty) scc
       in
       let units = List.rev_map (fun u -> (u, PMap.find u members)) order in
-      let rec group units classes = match units with
+      (* [witnesses] are models of [model], kept from one group to the next *)
+      let rec group witnesses units classes = match units with
         | [] -> classes
         | (r, rs) :: units ->
           let vr = value r in
           let rcan = repr model r in
-          let below_r =
-            entails_from model (rcan, 0) (List.map (fun (y, _) -> (repr model y, value y - vr)) units)
-          in
-          let refuted = refuted_by_witnesses model rcan units in
-          let eq, units = List.partition (fun (y, _) ->
-              let ky = value y - vr in
-              let ycan = repr model y in
-              not (refuted y) &&
-              below_r (ycan, ky) && entails model (NeList.tip (ycan, ky)) (rcan, 0))
-              units
+          let eq, units, witnesses =
+            match List.find_opt (fun (y, _) -> same_differences model witnesses r y) units with
+            | None -> [], units, witnesses
+            | Some (y0, _) ->
+              let witnesses = witness_models model rcan (y0, value y0 - vr) @ witnesses in
+              let candidate (y, _) = same_differences model witnesses r y in
+              let below_r =
+                entails_from model (rcan, 0)
+                  (List.filter_map (fun (y, _ as u) ->
+                       if candidate u then Some (repr model y, value y - vr) else None) units)
+              in
+              let eq, units = List.partition (fun (y, _ as u) ->
+                  let ky = value y - vr in
+                  let ycan = repr model y in
+                  candidate u &&
+                  below_r (ycan, ky) && entails model (NeList.tip (ycan, ky)) (rcan, 0))
+                  units
+              in
+              eq, units, witnesses
           in
           let members = rs @ List.concat_map snd eq in
           let cls = List.map (fun x -> (repr model x, value x - vr)) members in
-          group units (match cls with [] | [_] -> classes | _ -> cls :: classes)
+          group witnesses units (match cls with [] | [_] -> classes | _ -> cls :: classes)
       in
-      group units classes)
+      group [] units classes)
     [] candidates
 
 (** [zone_classes model prems (canv, kv)] For a clause [prems -> canv + kv] of [model], computes
