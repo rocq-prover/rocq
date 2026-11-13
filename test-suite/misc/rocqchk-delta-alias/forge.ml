@@ -1,8 +1,8 @@
 (* Forge the .vo files of misc/rocqchk_delta_alias.sh,
-   misc/rocqchk_forged_aliases.sh, misc/rocqchk_register_type.sh and
-   misc/rocqchk_primitive_operator.sh. The code is deliberately independent
-   of Rocq's OCaml libraries: this is an untrusted file producer, not
-   another path through the kernel API.
+   misc/rocqchk_forged_aliases.sh, misc/rocqchk_register_type.sh,
+   misc/rocqchk_primitive_operator.sh and misc/rocqchk_repeated_label.sh.
+   The code is deliberately independent of Rocq's OCaml libraries: this is
+   an untrusted file producer, not another path through the kernel API.
 
    ocaml forge.ml FILE.vo DONOR.vo constant|inductive
      Replace a declaration in B by an incompatible declaration from another
@@ -24,6 +24,14 @@
      CANONICAL are full names, such as RegisterType.Lib.M.int, of constants
      that the type or the definition of a constant at the top of LIB.vo
      names.
+   ocaml forge.ml repeat-parameter LIB.vo OUT.vo LABEL
+     Insert before the constant LABEL of LIB.vo a parameter with the same
+     label and the same type, a second field with that label, which coqc
+     never writes.
+   ocaml forge.ml relabel LIB.vo OUT.vo FROM TO
+     Give the field FROM of LIB.vo the label TO. A module or a module type
+     also gets the root of its delta resolver renamed, from the path that
+     ends in FROM to the one that ends in TO.
    ocaml forge.ml client CLIENT.vo LIB.vo LIB_DIRPATH OUT.vo
      Record the digest of LIB.vo as that of the dependency LIB_DIRPATH of
      CLIENT.vo, so that a client compiled against another library loads
@@ -37,8 +45,8 @@
      the retroknowledge, a list of actions, among them Register_type (tag
      1) [primitive type, PT_int63 being 0; name]; summary segment: field 1,
      the same dependencies;
-   - module_body: 1 signature, 3 delta resolver;
-     module_type_body: 1 signature; signature: NoFunctor (tag 0) [structure]
+   - module_body and module_type_body: 1 signature, 3 delta resolver;
+     signature: NoFunctor (tag 0) [structure]
      | MoreFunctor (tag 1) [parameter; parameter's type; signature];
      structure: a list of (label, field), a field being SFBconst (tag 0)
      [constant_body], SFBmind (tag 1) [mutual_inductive_body], SFBmodule
@@ -53,10 +61,10 @@
      Same (tag 0) [kernel name] | Dual (tag 1) [user name; canonical name];
      kernel name: [module path; label; hash]; module path: MPfile (tag 0)
      [dirpath] or MPdot (tag 2) [module path; label], among others;
-   - delta resolver: field 2, the canonical names, an Int.Map from a kernel
-     name's hash to a map from kernel names to kernel names; both are the
-     standard library's maps, Empty (0) | Node [left; key; value; right;
-     height]. *)
+   - delta resolver: field 0, its root, a module path, and field 2, the
+     canonical names, an Int.Map from a kernel name's hash to a map from
+     kernel names to kernel names; both are the standard library's maps,
+     Empty (0) | Node [left; key; value; right; height]. *)
 
 type segment = {
   name : string;
@@ -360,6 +368,48 @@ let register name canonical lib =
   in
   upd 6 (fun retro -> block 0 [| block 1 [| Obj.repr 0; cst |]; retro |]) lib
 
+(* The structure [root] with a parameter inserted before its constant
+   [label]: a copy of the constant with the label [label] and the body
+   Undef None, of a parameter that is not inlined. *)
+let repeat_parameter label root =
+  let rec insert cell =
+    if Obj.is_int cell then failwith ("missing structure field " ^ label)
+    else
+      let item = field cell 0 in
+      if String.equal (string (field item 0)) label then begin
+        let decl = field item 1 in
+        if Obj.tag decl <> 0 then failwith (label ^ " is not a constant");
+        let parameter = upd 2 (fun _ -> block 0 [| Obj.repr 0 |]) (field decl 0) in
+        block 0 [| block 0 [| field item 0; block 0 [| parameter |] |]; cell |]
+      end
+      else upd 1 insert cell
+  in
+  insert root
+
+(* The structure [root] with its field [from] labelled [into]. The root of
+   the delta resolver of a module or a module type is the module's path,
+   and becomes the path that ends in [into]. *)
+let relabel from into root =
+  let rename_root mp =
+    if Obj.tag mp <> 2 || not (String.equal (string (field mp 1)) from) then
+      failwith ("the root of the delta resolver of " ^ from ^ " is " ^ mp_to_string mp);
+    block 2 [| field mp 0; Obj.repr into |]
+  in
+  let rec go cell =
+    if Obj.is_int cell then failwith ("missing structure field " ^ from)
+    else
+      let item = field cell 0 in
+      if String.equal (string (field item 0)) from then
+        let decl = field item 1 in
+        let decl =
+          if Obj.tag decl = 3 || Obj.tag decl = 4 then upd 0 (upd 3 (upd 0 rename_root)) decl
+          else decl
+        in
+        upd 0 (fun _ -> block 0 [| Obj.repr into; decl |]) cell
+      else upd 1 go cell
+  in
+  go root
+
 (* [deps] with [digest] as the digest of the library [dp]. *)
 let set_digest dp digest deps =
   let set dep =
@@ -387,6 +437,8 @@ let () =
     rewrite src dst [ "library", marshalled (upd 0 (register name None)) ]
   | [ "register"; src; dst; name; canonical ] ->
     rewrite src dst [ "library", marshalled (upd 0 (register name (Some canonical))) ]
+  | [ "repeat-parameter"; src; dst; label ] -> rewrite src dst (forge (repeat_parameter label))
+  | [ "relabel"; src; dst; from; into ] -> rewrite src dst (forge (relabel from into))
   | [ "client"; src; lib; dp; dst ] ->
     let library, _ = find_segment "library" (snd (read_vo lib)) in
     rewrite src dst

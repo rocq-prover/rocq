@@ -346,6 +346,34 @@ let rec check_mexpression env sign mbtyp mp_mse res = match sign with
     MoreFunctor(arg_id,mtb,body), delta
   | MENoFunctor me -> check_mexpr env me mp_mse res
 
+(* coqc gives a label to at most one field of a structure in each of two
+   namespaces, the objects and the modules ([Safe_typing.add_field]). *)
+let check_labels mp struc =
+  let refuse l kinds =
+    CErrors.user_err
+      (ModPath.print mp ++ str " declares the label " ++ Id.print l ++
+       str " twice among its " ++ str kinds ++ str ".")
+  in
+  let add_object l objects =
+    if Id.Set.mem l objects then
+      refuse l "constants, inductive types, constructors and rewrite rules"
+    else Id.Set.add l objects
+  in
+  let fold (objects, modules) (l, field) = match field with
+    | SFBconst _ | SFBrules _ -> add_object l objects, modules
+    | SFBmind mib ->
+      (* The environment keys the block by its label, so count it too. *)
+      let labels = Id.Set.add l (Safe_typing.labels_of_mib mib) in
+      Id.Set.fold add_object labels objects, modules
+    | SFBmodule _ | SFBmodtype _ ->
+      if Id.Set.mem l modules then refuse l "modules and module types";
+      objects, Id.Set.add l modules
+  in
+  let (_ : Id.Set.t * Id.Set.t) =
+    List.fold_left fold (Id.Set.empty, Id.Set.empty) struc
+  in
+  ()
+
 (* Also returns the registrations in force after the module, which coqc
    keeps ([Safe_typing.end_module]). *)
 let rec check_module env st mp (mb : Mod_declarations.module_body) =
@@ -447,6 +475,7 @@ and check_signature : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolver -> 
       in
       Environ.retroknowledge env, st
   | NoFunctor struc ->
+      let () = check_labels mp_mse struc in
       let env, st = List.fold_left (fun (env, st) (lab,mb) ->
         check_structure_field env st mp_mse lab res mb) (env, st) struc
       in
