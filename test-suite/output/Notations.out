@@ -124,29 +124,31 @@ where
 ?T :
   [x : list ?T  x1 : list ?T  x0 := x1 : list ?T |- Type] (x, x1,
   x0 cannot be used)
-Univ@{α94 ; Notations:142}
-     : Type@{Notations:142+1}
-(* {α94}; {Notations:142} | 
+Univ@{α94 ; Notations:141}
+     : Type@{Notations:141+1}
+(* {α94}; {Notations:141} | 
 Collapsed sorts:
  α94 := Type
 Normalized constraints:
- {Notations:142} |  *)
+ {Notations:141} |  *)
 Type@{u}
      : Type@{u+1}
 Type@{u}
      : Type@{u+1}
 Prop
-     : Type@{Set+1}
+     : Type@{1}
+(* {Notations:142} | 
+Minimized universes:
+ Notations:142 := 0
+Normalized constraints:
+  *)
+Prop
+     : Type@{1}
+Type@{Notations:143}
+     : Type@{Notations:143+1}
 (* {Notations:143} | 
 Normalized constraints:
  {Notations:143} |  *)
-Prop
-     : Type@{Set+1}
-Type@{Notations:144}
-     : Type@{Notations:144+1}
-(* {Notations:144} | 
-Normalized constraints:
- {Notations:144} |  *)
 File "./output/Notations.v", line 238, characters 11-13:
 The command has indeed failed with message:
 Cannot change sort quality of abbreviation s'

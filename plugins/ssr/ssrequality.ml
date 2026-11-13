@@ -560,8 +560,7 @@ let lz_setoid_relation =
   | Some (env', srel) when env' == env -> srel
   | _ ->
     let srel =
-       try Some (UnivGen.constr_of_monomorphic_global (Global.env ()) @@
-                 Rocqlib.lib_ref "rewrite.prop.RewriteRelation")
+       try Some (Rocqlib.lib_ref "rewrite.prop.RewriteRelation")
        with e when CErrors.noncritical e -> None in
     last_srel := Some (env, srel); srel
 
@@ -734,6 +733,7 @@ let rwrxtac ?under ?map_redex occ rdx_pat dir rule =
       (fun e us c _ i -> find_R ~k:(fun _ us _ _ h -> EConstr.mkRel h, us) e us c i),
       fun cl -> let rdx,d,r = end_R () in closed0_check env0 sigma0 cl rdx; (d,r),rdx
   | Some (_, e) ->
+      debug_ssr Pp.(fun () -> str"rwxtac: rdx_pat = Some _");
       let r = ref None in
       (fun env us c _ h ->
         let us = match !r with

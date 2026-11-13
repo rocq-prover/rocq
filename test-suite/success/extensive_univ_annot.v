@@ -92,15 +92,15 @@ Inductive or_sortpoly@{+;+}
   | or_introl_sortpoly : A -> or_sortpoly A B
   | or_intror_sortpoly : B -> or_sortpoly A B.
 
-Definition or' : Prop -> Prop -> Prop := or_sortpoly@{Prop Prop Prop;_ _ _}.
+Definition or' : Prop -> Prop -> Prop := or_sortpoly@{Prop Prop Prop;_ _}.
 Definition or_introl' : forall A B : Prop, A -> or' A B
-  := or_introl_sortpoly@{Prop Prop Prop;_ _ _}.
+  := or_introl_sortpoly@{Prop Prop Prop;_ _}.
 Definition or_intror' : forall A B : Prop, B -> or' A B
-  := or_intror_sortpoly@{Prop Prop Prop;_ _ _}.
+  := or_intror_sortpoly@{Prop Prop Prop;_ _}.
 
 Definition iff_sortpoly@{sa sb s;la lb l u}
   (A : Univ@{sa;la}) (B : Univ@{sb;lb}) : Univ@{s;l} :=
-  and_sortpoly@{sb sa s;u u l} (A -> B) (B -> A).
+  and_sortpoly@{sb sa s;u u} (A -> B) (B -> A).
 Definition iff' : Prop -> Prop -> Prop :=
   iff_sortpoly@{Prop Prop Prop;_ _ _ _}.
 

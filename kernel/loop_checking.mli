@@ -1,0 +1,241 @@
+(************************************************************************)
+(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*  v      *         Copyright INRIA, CNRS and contributors             *)
+(* <O___,, * (see version control and CREDITS file for authors & dates) *)
+(*   \VV/  **************************************************************)
+(*    //   *    This file is distributed under the terms of the         *)
+(*         *     GNU Lesser General Public License Version 2.1          *)
+(*         *     (see LICENSE file for the text of the license)         *)
+(************************************************************************)
+
+(** Graphs representing strict orders *)
+
+open Univ
+
+type locality =
+  | Global
+  | Local
+
+type t
+
+val set_local : t -> t
+
+val empty : t
+
+exception AlreadyDeclared
+val add : ?rigid:bool -> Level.t -> t -> t
+(** All points must be pre-declared through this function before
+    they can be mentioned in the others. NB: use [rigid] to
+    prefer to keep the node canonical if it is made equal to another *)
+
+exception Undeclared of Level.t
+(** This exception can be raised by any of the functions below taking a Level.t/Universe.t input
+  that contains an undeclared level. *)
+
+val is_declared : t -> Level.t -> bool
+(** Check if a level was previously delared in the graph *)
+
+val check_declared : t -> Level.Set.t -> (unit, Univ.Level.Set.t) result
+(** Check if a set of levels are declared and return the undeclared ones on error. *)
+
+type 'a check_function = t -> 'a -> 'a -> bool
+
+val check_eq : Universe.t check_function
+val check_leq : Universe.t check_function
+
+type level_equivalences = (Level.t * (Level.t * int)) list
+
+val enforce_eq : Universe.t -> Universe.t -> t -> (t * level_equivalences) option
+val enforce_leq : Universe.t -> Universe.t -> t -> (t * level_equivalences) option
+val enforce_lt : Universe.t -> Universe.t -> t -> (t * level_equivalences) option
+val enforce_constraint : UnivConstraint.t -> t -> (t * level_equivalences) option
+
+val enforce_constraints : UnivConstraint.t list -> t -> (t * level_equivalences) option
+(** Enforces the constraints all at once: their clauses are added to the model, then a model is
+  inferred, and only then are the equalities they create merged. This is more efficient than
+  enforcing them one at a time. *)
+
+val localize : UnivConstraint.t list -> t -> t
+(** [localize csts m] makes the clauses of [csts] that are global clauses of [m] local, e.g. the
+  constraints of side effects that are inlined instead of declared. *)
+
+(** Normalize a level to its canonical representative.
+  This uses the internally maintained substitution from levels to universes.
+  @return A canonical universe: each level in the universe is canonical w.r.t. the given model. *)
+val normalize : t -> Level.t -> Universe.t option
+
+exception InconsistentEquality
+exception OccurCheck
+exception NotCanonical
+
+(** [set idx u model] substitutes universe [u] for all occurrences of [idx] in model, resulting
+in a set of constraints that no longer mentions [idx]. This is a stronger than [enforce_eq idx u],
+as the [idx] universe is dropped from the constraints altogether. Returns a list of universes
+that are also made equal by the new constraint and are also substituted by [u] in the resulting graph.
+  @raise InconsistentEquality if setting [l = u] results in an unsatisfiable constraint
+  @raise OccurCheck if the universe contains the level, up to equivalence in the graph
+  @raise NotCanonical if the given level to set is not canonical *)
+val set : ?entailed:bool -> Level.t -> Universe.t -> t -> t * level_equivalences
+(** With [~entailed:true], the clauses of the level, once substituted, are known to be entailed:
+  the search for the equalities they create is skipped *)
+
+(** [clause_count m l] is the number of clauses of the canonical node of [l]
+  (0 if [l] is not declared or is not canonical): an estimate of the cost of
+  [set l _ m], which moves all of them. *)
+val clause_count : t -> Level.t -> int
+
+type extended_constraint_type =
+  | ULe | ULt | UEq
+
+type explanation =
+  | Chain of Universe.t * (extended_constraint_type * Universe.t) list
+  (** [Chain (u0, [(r1, u1); ...; (rn, un)])] is [u0 r1 u1 ... rn un] *)
+  | Constraints of (Universe.t * extended_constraint_type * Universe.t) list
+  (** Constraints of the graph which are together inconsistent with the enforced one *)
+
+val get_explanation : UnivConstraint.t -> t -> explanation
+(** Assuming that the corresponding call to [enforce_*] returned [None], this
+    will give a trace for the failure: a chain of inequalities refuting the constraint
+    when there is one, otherwise a minimal set of constraints inconsistent with it. *)
+
+type 'a constraint_fold = UnivConstraint.t -> 'a -> 'a
+
+(** [constraints_of graph ?only_local fold acc = (levels, acc', equivs)]
+
+  Computes the constraints modeled by the graph.
+  If [only_local] is [true] (default is [false]), [levels] is the set of universes that were declared locally
+  (since the last and only possible [set_local] call on the graph).
+  The [Le] constraints are passed to a folding function starting with [acc] whose result is returned as [acc'].
+  Finally [equivs] contains a level substitution corresponding to [Eq] constraints. *)
+val constraints_of : t -> ?only_local:bool -> 'a constraint_fold -> 'a ->
+  Level.Set.t * 'a * (locality * Universe.t) Level.Map.t
+
+val constraints_for : kept:Level.Set.t -> t -> 'a constraint_fold -> 'a -> 'a
+
+val domain : t -> Level.Set.t
+(** Return the set of registered universe variables *)
+
+val variables : local:bool -> with_subst:bool -> t -> Level.Set.t
+(** Computes the set of registered variables, optionally restricted to local ones, and
+  optionally including the substituted variables. *)
+
+val subst : local:bool -> t -> (locality * Universe.t) Level.Map.t
+(** Substitution from (local) levels to universes.
+   N.B.: slighty expensive to compute, better use [normalize] below. *)
+
+(* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
+
+type 'a simplification_result =
+  | HasSubst of 'a * level_equivalences * Universe.t
+  | NoBound
+  | CannotSimplify
+
+val minimize : ?require_entailed:bool -> Level.t -> t -> t simplification_result
+(** With [~require_entailed:true], only when the clauses where the level is one of several
+  premises still hold, entailed by the others, once it is set to its lower bound: otherwise the
+  substitution would constrain the other universes of these clauses *)
+val maximize : Level.t -> t -> t simplification_result
+
+(** [has_upper_bound l m] holds when a clause of [m] concludes on [l], i.e. bounds it from above
+  (also when [l] is not in [m]) *)
+val has_upper_bound : Level.t -> t -> bool
+
+(** [lower_bound l m] is the greatest lower bound of [l] in [m] given by the clauses where [l] is
+  the only premise, if any *)
+val lower_bound : Level.t -> t -> Universe.t option
+
+(** [substitution_entailed subst m] holds when [m] entails every clause of the levels [u] of
+  [subst], once each is substituted by its [v]. Then the constraints on the other universes are
+  the same after the substitution: the models of [m] restricted to them are models of the
+  substituted clauses, and a model of these extends to one of [m], with each [u] set to its [v]. *)
+val substitution_entailed : (Level.t * Level.t) list -> t -> bool
+
+(** [remove_if_entailed c m]: when the clauses of the constraint [c] are local clauses of [m] (see
+  [set_local]) that the other clauses entail, [m] without them. As only entailed clauses are
+  removed, the result has the same models. *)
+val remove_if_entailed : UnivConstraint.t -> t -> t option
+
+(** {5 High-level representation} *)
+
+type node =
+| Alias of Universe.t
+| Node of (int * Universe.t) list (** Nodes [(k_i, u_i); ...] s.t. u + k_i <= u_i *)
+
+type model_repr = node Level.Map.t
+
+(** Get a representation of the model, optionally selecting only local universes and constraints. *)
+val model_repr : local:bool -> t -> model_repr
+
+(* Print the model. Optionally print only the local universes and constraints. *)
+val pr_model : ?local:bool -> t -> Pp.t
+
+val valuation : t -> int Level.Map.t
+
+(** {5 Local / global and flexible / rigid universes}
+
+  A graph extending a global one (see [set_local]) distinguishes the universes, clauses and
+  equations added since, which are local, from the global ones. A universe is also rigid or
+  flexible (see [add]): only the non-rigid aliases are substituted in terms. *)
+
+(** [set_locality local l m] makes the universe [l], canonical or substituted, local or
+  global. The equation of a substituted universe made local is local too. *)
+val set_locality : locality -> Level.t -> t -> t
+
+val enforce_global_constraints : UnivConstraint.t list -> t -> (t * level_equivalences) option
+(** As [enforce_constraints], but the constraints are global even in a local graph (see
+  [set_local]): they supersede the same local ones. *)
+
+val switch_locality : Level.t -> t -> t
+(** Flips the locality of a canonical universe. *)
+
+val is_local : t -> Level.t -> bool
+(** Whether a universe, canonical or substituted, is local. *)
+
+type local_status = NotLocal | LocalNode | LocalAlias
+
+(** [local_status m l] tells if [l] is a local canonical universe, or an alias whose
+  equation is local, as considered by [constraints_of ~only_local:true]. *)
+val local_status : t -> Level.t -> local_status
+
+(** As [normalize], but only for the non-rigid levels (see [add]): a rigid level stays as it
+  is, even when it is equal to another universe. *)
+val normalize_flexible : t -> Level.t -> Universe.t option
+
+(** [alias_rigidity m l] is [Some rigid] when [l] is substituted, [rigid] telling whether [l]
+  was rigid, and [None] when [l] is canonical or undeclared. *)
+val alias_rigidity : t -> Level.t -> bool option
+
+(** The flexible universes are the local canonical universes which are not rigid (see [add]):
+  the unification variables of the elaborator. A substituted universe is not flexible. *)
+val is_flexible : t -> Level.t -> bool
+val flexible_local_levels : t -> Level.Set.t
+
+(** [set_rigid rigid l m] makes the universe [l] rigid or flexible. For a substituted universe,
+  this tells whether it is substituted in terms (see [normalize_flexible]). *)
+val set_rigid : bool -> Level.t -> t -> t
+
+(** The universes of the context of the elaborator: the local canonical universes and the local
+  rigid substituted ones, which stay in the terms. The local non-rigid substituted universes are
+  substituted in terms, so they are not part of it. *)
+val is_context_level : t -> Level.t -> bool
+val local_levels : t -> Level.Set.t
+
+(** The rigid universes of the context: [local_levels] but the flexible universes (see
+  [is_flexible]) *)
+val rigid_local_levels : t -> Level.Set.t
+
+(** {5 Internal functions, used by [UGraph]} *)
+
+module Internal :
+sig
+  val check_invariants : required_canonical:(Level.t -> bool) -> t -> unit
+
+  val remove : Level.Set.t -> t -> t
+  (** [remove l m] removes the [l] universes from [m], keeping the constraints between the
+    other universes that they entail, see [UGraph.remove].
+    This is not very efficient, so avoid using it if possible.
+  *)
+
+  (* Hack for template-polymorphism. [remove_set_clauses u m] removes all [u -> Set+0] clauses from the model  *)
+  val remove_set_clauses : Level.t -> t -> t
+end

@@ -170,7 +170,8 @@ DELETE: [
 | test_leftsquarebracket_equal
 | test_sort_qvar
 | test_ltac2_ident
-| test_semicolon_cumul_univ_decl
+| test_semicolon_univ_decl
+| test_level_expr
 | test_univ_cst
 ]
 
@@ -328,12 +329,12 @@ scope_delimiter: [
 ]
 
 sort: [
-| REPLACE "Type" "@{" reference ";" universe "}"
-| WITH "Type" "@{" OPT [ qualid ";" ] universe "}"
-| DELETE "Type" "@{" universe "}"
-| REPLACE "Univ" "@{" reference ";" universe "}"
-| WITH "Univ" "@{" OPT [ [ qualid | "_" ] ";" ] universe "}"
-| DELETE "Univ" "@{" OPT [ "_" ";" ] universe "}"
+| REPLACE "Type" "@{" reference ";" universe_opt "}"
+| WITH "Type" "@{" OPT [ qualid ";" ] universe_opt "}"
+| DELETE "Type" "@{" universe_opt "}"
+| REPLACE "Univ" "@{" reference ";" universe_opt "}"
+| WITH "Univ" "@{" OPT [ [ qualid | "_" ] ";" ] universe_opt "}"
+| DELETE "Univ" "@{" OPT [ "_" ";" ] universe_opt "}"
 ]
 
 term100: [
@@ -555,7 +556,7 @@ record_definition: [
 
 (* No mixed inductive-record definitions, opt_coercion is meaningless for Inductive *)
 inductive_definition: [
-| cumul_ident_decl binders OPT [ "|" binders ] OPT [ ":" type ] ":=" OPT [ OPT "|" LIST1 constructor SEP "|" ] decl_notations
+| ident_decl binders OPT [ "|" binders ] OPT [ ":" type ] ":=" OPT [ OPT "|" LIST1 constructor SEP "|" ] decl_notations
 ]
 
 (* No mutual recursion, no inductive classes, type must be a sort *)
@@ -641,21 +642,15 @@ inline: [
 | DELETE "Inline"
 ]
 
-univ_level_or_quality: [
+univ_or_quality: [
 | REPLACE NUMBER "0"
 | WITH "0"
 ]
 
 univ_decl: [
-| REPLACE "@{" LIST0 identref OPT "+" ";" LIST0 identref OPT "+" univ_decl_constraints
-| WITH    "@{" OPT [ LIST0 identref OPT "+" ";" ] LIST0 identref  OPT "+"  OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
-| DELETE "@{" LIST0 identref OPT "+" univ_decl_constraints
-]
-
-cumul_univ_decl: [
-| REPLACE "@{" LIST0 identref OPT "+" ";" LIST0 variance_identref OPT "+" univ_decl_constraints
+| REPLACE "@{" LIST0 identref OPT "+" ";" variances_opt OPT "+" univ_decl_constraints
 | WITH "@{" OPT [ LIST0 identref OPT "+" ";" ] LIST0 variance_identref    OPT "+"   OPT [ "|" LIST0 sort_constraint SEP "," OPT "+" ] "}"
-| DELETE "@{" LIST0 variance_identref OPT "+" univ_decl_constraints
+| DELETE "@{" variances_opt OPT "+" univ_decl_constraints
 ]
 
 of_type: [
@@ -1347,6 +1342,9 @@ command: [
 | WITH "Show" "Ltac" "Profile" OPT [ "CutOff" integer | string ]
 | DELETE "Show" "Ltac" "Profile" string
 | DELETE "Show" "Proof"  (* combined with Show Proof Diffs in vernac_toplevel *)
+| REPLACE "Show" "Local" "Universes"
+| WITH "Show" OPT "Local" "Universes"
+| DELETE "Show" "Universes"
 | REPLACE "Solve" "All" "Obligations" withtac
 | WITH "Solve" "All" "Obligations" OPT ( "with" tactic )
 | REPLACE "Solve" "Obligations" "of" identref withtac
@@ -1536,6 +1534,8 @@ query_command: [
 | WITH "Compute" lconstr
 | REPLACE "Check" lconstr "."
 | WITH "Check" lconstr
+| REPLACE "Check" "Constraint" LIST1 sort_constraint SEP "," "."
+| WITH "Check" "Constraint" LIST1 sort_constraint SEP ","
 | REPLACE "About" LIST1 [ smart_global OPT univ_name_list ] SEP "," "."
 | WITH "About" LIST1 [ smart_global OPT univ_name_list ] SEP ","
 | REPLACE "SearchPattern" constr_pattern in_or_out_modules "."
@@ -2426,9 +2426,9 @@ SPLICE: [
 | firstorder_rhs
 | firstorder_using
 | ref_or_pattern_occ
-| cumul_ident_decl
 | variance
 | variance_identref
+| variances_opt
 | rewriter
 | clause_dft_all
 | or_and_intropattern_loc

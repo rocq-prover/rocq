@@ -1,21 +1,41 @@
+UNIVERSE VARIABLES:
+ {?ssr_multirule_universes:41 i}
+DEFINED LOCAL VARIABLES:
+ ssr_multirule_universes:39 = i (local),
+ ssr_multirule_universes:32 = i (local),
+ ssr_multirule_universes:31 = i (local),
+ ssr_multirule_universes:30 = i (local)
 UNIVERSES:
- {ssr_multirule_universes:42 i} |
-   i <= eq_ind_r.u0
-   ssr_multirule_universes:42 = i
-ALGEBRAIC UNIVERSES:
- {}
-FLEXIBLE UNIVERSES:
- ssr_multirule_universes:42 := i
- ssr_multirule_universes:35 := i
- ssr_multirule_universes:34 := i
- ssr_multirule_universes:33 := i
+ 0 ≤ i
+   ≤ ssr_multirule_universes:41
+   < sig.u0
+   < sig2.u0
+   < sigT.u0
+   < sigT.u1
+   < eq.u0
+   < option.u0
+   < sigT2.u0
+   < sigT2.u1
+   < sigT2.u2
+   < sum.u0
+   < sum.u1
+   < prod.u0
+   < prod.u1
+   < list.u0
+   < sumor.u0
+ i ≤ ssr_multirule_universes:41
 SORTS:
   |= Prop -> SProp
      Type -> Prop
           -> SProp
      
+
+VARIANCES:
+ ssr_multirule_universes:41;
+ i: infer: = in 1st binder, infer: = (* for typing) in term,
+   infer: = (* for typing) in type, predicative
 WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {i} | i <= eq_ind_r.u0
+ {i} | 
