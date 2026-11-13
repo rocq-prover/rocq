@@ -1411,6 +1411,14 @@ let make_scheme evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet
     in
     (body, typ, univs, opaque) :: other_result
 
+let demote_declared_univs sigma =
+  let univs, _ = Evd.universe_context_set sigma in
+  let declared = match UGraph.check_declared_universes (Environ.universes (Global.env ())) univs with
+  | Ok () -> univs
+  | Error undeclared -> Univ.Level.Set.diff univs undeclared
+  in
+  Evd.set_ustate sigma (UState.demote_global_univs (declared, Univ.UnivConstraints.empty) (Evd.ustate sigma))
+
 (* [derive_correctness funs graphs] create correctness and completeness
    lemmas for each function in [funs] w.r.t. [graphs]
 *)
@@ -1485,6 +1493,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
             Declare.Proof.save_regular ~proof:lemma
               ~opaque:Vernacexpr.Transparent ~idopt:None
           in
+          evd := demote_declared_univs !evd;
           let finfo =
             match find_Function_infos (fst f_as_constant) with
             | None -> raise Not_found
@@ -1534,6 +1543,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
         prove_fun_complete funs_constr mib.Declarations.mind_packets schemes
           lemmas_types_infos
       in
+      let sigma = ref sigma in
       Array.iteri
         (fun i f_as_constant ->
           let f_id = Constant.label (fst f_as_constant) in
@@ -1545,7 +1555,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
           let cinfo =
             Declare.CInfo.make ~name:lem_id ~typ:(fst lemmas_types_infos.(i)) ()
           in
-          let lemma = Declare.Proof.start ~cinfo sigma ~info in
+          let lemma = Declare.Proof.start ~cinfo !sigma ~info in
           let lemma =
             fst
               (Declare.Proof.by (Global.env ())
@@ -1558,6 +1568,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
             Declare.Proof.save_regular ~proof:lemma
               ~opaque:Vernacexpr.Transparent ~idopt:None
           in
+          sigma := demote_declared_univs !sigma;
           let finfo =
             match find_Function_infos (fst f_as_constant) with
             | None -> raise Not_found
