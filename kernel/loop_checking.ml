@@ -2395,12 +2395,43 @@ let enforce_eq u v m = enforce u UnivConstraint.Eq v m
 let enforce_leq u v m = enforce u UnivConstraint.Le v m
 let enforce_lt u v m = enforce_leq (Universe.addn u 1) v m
 
+(** [unbounded_above model prems concl] holds when no premise of [prems], nor [Set], is above
+  [concl] in the graph of clauses following all their premises, among at most [max_above]
+  universes. Then [concl + k <= max(prems)] is not entailed: raising the universes above [concl],
+  [concl] included, by the same large amount gives a model of the clauses (the clauses of these
+  universes only mention universes above them, the other clauses get greater premises) where
+  [concl + k] is above [max(prems)]. This refutes at once the clauses whose premises have a large
+  graph below them, e.g. global universes of the Corelib, where [check_one_clause] and
+  [check_one_clause_complete] would explore all of it. *)
+let max_above = 1024
+
+let unbounded_above model prems concl =
+  let setidx = Index.find Level.set model.table in
+  let target idx = Index.equal idx setidx || NeList.exists (fun (p, _) -> Index.equal p.canon idx) prems in
+  let exception Unknown in
+  let rec aux todo seen n =
+    match todo with
+    | [] -> true
+    | x :: todo ->
+      let todo, seen, n = ClausesOf.fold (fun _local (_, qs) acc ->
+          NeList.fold (fun (q, _) (todo, seen, n as acc) ->
+              if Index.Set.mem q seen then acc
+              else if target q || n >= max_above then raise_notrace Unknown
+              else (q :: todo, Index.Set.add q seen, n + 1)) qs acc)
+          (repr model x).clauses_bwd (todo, seen, n)
+      in
+      aux todo seen n
+  in
+  not (target concl.canon) &&
+  try aux [concl.canon] (Index.Set.singleton concl.canon) 0 with Unknown -> false
+
 let check_leq_can canu canv model =
   match simplify_can_clause model (canv, canu) with
   | Trivial -> true
   | Contradictory -> false
   | Canonical (prems, (concl, k)) ->
-    check_one_clause model prems concl k || check_one_clause_complete model prems concl k
+    not (unbounded_above model prems concl) &&
+    (check_one_clause model prems concl k || check_one_clause_complete model prems concl k)
 
 let rec check_leq_premises m (u, v) =
   let canv = canonical_premises_repr m v in
