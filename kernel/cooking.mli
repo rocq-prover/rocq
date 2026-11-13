@@ -48,6 +48,8 @@ val make_cooking_info : recursive:MutInd.t option -> expand_info ->
 
 val names_info : cooking_info -> Id.Set.t
 
+val discharges_inductive : cooking_info -> bool
+
 val universe_context_of_cooking_info : cooking_info -> UVars.AbstractContext.t
 
 val instance_of_cooking_info : cooking_info -> Constr.t array
@@ -61,6 +63,11 @@ val rel_context_of_cooking_cache : cooking_cache -> rel_context
 val abstract_as_type : cooking_cache -> types -> types
 
 val abstract_as_body : cooking_cache -> constr -> constr
+
+val expand_subterm : cooking_cache -> int -> constr -> constr
+(** What [abstract_as_body] does to a subterm of the body that is under the
+    given number of its binders; the result is under the same binders, and
+    the ones [abstract_as_body] adds. *)
 
 val abstract_as_sort : cooking_cache -> Sorts.t -> Sorts.t
 
