@@ -46,11 +46,12 @@ The `if g is c then t else e` syntax is syntactic sugar for `match g
 with c => t | _ => e end`.
 
 For the ``bool`` type (i.e., what is registered as `core.bool.type`), it is possible
-to use a ``if … then … else`` notation. For instance, the definitions
+to use the `if g then t else e` syntax as syntactic sugar for
+`if g : bool is true then t else e`. For instance, the definitions
 
 .. rocqtop:: all
 
-   Definition not (b:bool) :=
+   Definition not b :=
    match b with
    | true => false
    | false => true
@@ -58,19 +59,19 @@ to use a ``if … then … else`` notation. For instance, the definitions
 
 .. rocqtop:: reset all
 
-   Definition not (b:bool) := if b is true then false else true.
+   Definition not b := if b is true then false else true.
 
 can be alternatively written
 
 .. rocqtop:: reset all
 
-   Definition not (b:bool) := if b then false else true.
+   Definition not b := if b then false else true.
 
 See also :ref:`SSReflect documentation <pattern_conditional_ssr>` for more examples.
 
 .. deprecated:: 9.3
 
-   More generally, for an inductive type with constructors :n:`@ident__1`
+   More generally, for an inductive type with two constructors :n:`@ident__1`
    and :n:`@ident__2`, the following terms are equal:
 
    :n:`if @term__0 {? {? as @name } return @term } then @term__1 else @term__2`
@@ -87,14 +88,20 @@ See also :ref:`SSReflect documentation <pattern_conditional_ssr>` for more examp
          | right _ => false
          end).
 
-   Notice that the printing uses the :g:`if` syntax because :g:`sumbool` is
-   declared as such (see :ref:`controlling-match-pp`).
-
-   .. warn:: The "if <c> then _" syntax for non boolean guard is deprecated. Use "if <c> is <first_constructor> then _" instead.
+   .. warn:: The "if <c> then _" syntax for non boolean guard is deprecated. Use "if <c> is <first_constructor> then _" instead (since Rocq 9.3) or add a coercion from <type> to bool (since Rocq 9.4).
       :name: non-boolean-if
 
       The "if _ then _ else" syntax is reserved for the special
       ``bool`` type, use an explicit ``is`` for other inductive types.
+
+   .. flag:: Old IfThen Without Bool Coercion
+
+      Default is off. This flag can be used to ease the deprecation
+      process by preventing old ``if g then t else e`` on a non
+      boolean inductive type to be first attempted to be elaborated as
+      ``if g : bool is true then t else e``.
+
+      .. deprecated:: 9.4
 
 .. _irrefutable-patterns:
 

@@ -746,6 +746,11 @@ let pretype_instance self ~flags env sigma loc hyps evk update =
   check_instance subst inst;
   sigma, List.map snd subst
 
+let { Goptions.get = old_if_wo_bool_coercion } =
+  Goptions.declare_bool_option_and_ref
+    ~depr:(Deprecation.make ~since:"9.4" ())
+    ~key:["Old"; "IfThen"; "Without"; "Bool"; "Coercion"] ~value:false ()
+
 module Default =
 struct
 
@@ -1423,7 +1428,7 @@ struct
     Cases.compile_cases ?loc ~program_mode:flags.program_mode sty (pretype, sigma) tycon env (po,tml,eqns)
 
   let warn_nonbool_if =
-    let quickfix ~loc:_ (cloc, ctor) =
+    let quickfix ~loc:_ (cloc, _, ctor) =
       match cloc with
       | None -> []
       | Some cloc ->
@@ -1433,16 +1438,26 @@ struct
     in
     CWarnings.create ~name:"non-boolean-if" ~category:Deprecation.Version.v9_3
       ~quickfix
-      (fun (_,ctor) ->
+      (fun (_, ind, ctor) ->
          str "The \"if <c> then _\" syntax for non boolean guard is deprecated." ++ spc() ++
-         fmt "Use \"if <c> is %t then _\" instead."
-           (fun () -> Nametab.pr_global_env Id.Set.empty (ConstructRef ctor)))
+         fmt "Use \"if <c> is %t then _\" instead (since Rocq 9.3) \
+              or add a coercion from %t to bool (since Rocq 9.4)."
+           (fun () -> Nametab.pr_global_env Id.Set.empty (ConstructRef ctor))
+           (fun () -> Nametab.pr_global_env Id.Set.empty (IndRef ind)))
 
   let pretype_if self (c, (na, po), b1, b2) =
     fun ?loc ~flags tycon env sigma ->
     let open Context.Rel.Declaration in
     let pretype tycon env sigma c = eval_pretyper self ~flags tycon env sigma c in
-    let sigma, cj = pretype empty_tycon env sigma c in
+    let sigma, cj =
+      let pe = pretype empty_tycon env sigma in
+      if old_if_wo_bool_coercion () then pe c else
+      match Rocqlib.lib_ref_opt "core.bool.type" with None -> pe c | Some bool ->
+      let bool_tycon = mk_tycon (mkRef (bool, EInstance.empty)) in
+      try pretype bool_tycon env sigma c with PretypeError _ ->
+        (* for backward compatibility, we keep the old syntax for now
+           when no coercion to bool can be found *)
+        pe c in
     let (IndType (indf,realargs)) as indty =
       try find_rectype !!env sigma cj.uj_type
       with Not_found ->
@@ -1460,7 +1475,7 @@ struct
         | Some bool -> GlobRef.CanOrd.equal (IndRef ind) bool in
       if not (indf_is "bool" || indf_is "sumbool" || indf_is "sumor") then
         let cloc = loc_of_glob_constr c in
-        warn_nonbool_if ?loc (cloc, fst cstrs.(0).cs_cstr) in
+        warn_nonbool_if ?loc (cloc, ind, fst cstrs.(0).cs_cstr) in
     let arsgn, indr =
       let arsgn = get_arity !!env indf in
       (* Make dependencies from arity signature impossible *)
