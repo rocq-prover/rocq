@@ -3291,10 +3291,24 @@ let closure succs seeds =
       aux todo visited
   in aux (PSet.elements seeds) seeds
 
+(** [has_negative_cycle nodes edges] holds when the graph on [nodes] whose edges [(u, v, w)] of
+  weight [w] go from [u] to [v] has a cycle of negative weight, i.e. when the difference
+  constraints [pi(v) <= pi(u) + w] have no solution (Bellman-Ford). *)
+let has_negative_cycle nodes edges =
+  let dist = ref (List.fold_left (fun m i -> PMap.add i 0 m) PMap.empty nodes) in
+  let relax () = List.fold_left (fun changed (u, v, w) ->
+      let du = PMap.find u !dist in
+      if du + w < PMap.find v !dist then (dist := PMap.add v (du + w) !dist; true) else changed)
+      false edges
+  in
+  let n = List.length nodes in
+  let rec loop i = i > n || (relax () && loop (i + 1)) in
+  loop 0
+
 (** [spanned_subgraph ~skip_set model kept] is the set of universes of the subgraph spanned
   by the canonical universes [kept]: those above some kept universe through clauses whose
-  premises are all below some kept universe. Only these universes can appear in the derivation
-  of a clause between kept universes.
+  premises are all bounded, i.e. below some kept universe (see [bounded] below). Only these
+  universes can appear in the derivation of a clause between kept universes.
   If [skip_set], the always valid clauses [Set + k <= max(..., u + k', ...)] with [k' >= k]
   are ignored. *)
 let spanned_subgraph ~skip_set model kept =
@@ -3302,19 +3316,82 @@ let spanned_subgraph ~skip_set model kept =
   let trivial concl k prems =
     skip_set && Premises.exists (fun (u, ku) -> is_trivial setidx u ku concl k) prems
   in
-  (* The universes below some kept universe [v]: [u + k <= max(..., v + k', ...)] or
-     [u + k <= max(..., u' + k', ...)] with [u'] below [v]. All the premises of a clause need not
-     be below a kept universe: e.g. from [x + 1 <= max(p, b)] and [p + 1 <= max(x, b')], [x] is
-     bounded by [b] and [b'], [x + 2 <= max(b + 1, b')], while none of these clauses has all its
-     premises bounded. *)
-  let below = closure (fun idx f acc ->
-      ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
-        if PartialClausesOf.exists (fun (conclk, others) ->
-            not (trivial concl conclk (fwd_premises idx kprem others))) prems
-        then f concl acc else acc)
-        (repr model idx).clauses_fwd acc)
+  let iter_fwd idx f =
+    ForwardClauses.fold (fun ~kprem ~concl ~prems () ->
+      PartialClausesOf.iter (fun (conclk, others) ->
+        let prems = fwd_premises idx kprem others in
+        if not (trivial concl conclk prems) then f concl prems) prems)
+      (repr model idx).clauses_fwd ()
+  in
+  (* [maybe]: the universes [u] with [u + k <= max(..., v + k', ...)] for [v] kept or in [maybe].
+     The other universes, the clauses of which all have their premises among them, can be
+     raised together arbitrarily: they are unbounded and do not occur in the derivations of the
+     clauses between kept universes. *)
+  let maybe = closure (fun idx f acc ->
+      let acc = ref acc in
+      iter_fwd idx (fun concl _ -> acc := f concl !acc);
+      !acc)
       kept
   in
+  (* [horn seeds]: the universes [u] with [u + k <= max(P)] for [P] in [seeds] or [horn seeds] *)
+  let horn seeds =
+    let rec aux todo set = match todo with
+      | [] -> set
+      | idx :: todo ->
+        let todo = ref todo and set = ref set in
+        iter_fwd idx (fun concl prems ->
+            if not (PSet.mem concl !set) && Premises.for_all (fun (u, _) -> PSet.mem u !set) prems
+            then (set := PSet.add concl !set; todo := concl :: !todo));
+        aux !todo !set
+    in aux (PSet.elements seeds) seeds
+  in
+  (* The universes of [maybe] are bounded through the clauses following all their premises
+     ([horn]), and also through cycles of clauses with several premises: e.g. from
+     [x + 1 <= max(p, b)] and [p + 1 <= max(x, b')], [x] is bounded by [b] and [b'],
+     [x + 2 <= max(b + 1, b')], while none of these clauses has all its premises bounded.
+     Let [free = maybe \ bounded], for [bounded] closed by [horn]. Each clause [c + k <= max(P)]
+     of a universe [c] of [free] whose premises are in [maybe] has a premise in [free]: consider
+     the graph of the edges [c -> u] for these premises [u] in [free]. The clauses with a premise
+     in a later strongly connected component than [c] hold when the later components are raised
+     more. A component [S] can be raised as a block, in an order of the components ending with the
+     universes outside of [maybe], when the potentials [pi(c) + k <= pi(u) + j] have a solution
+     for one premise [u + j] in [S] of each clause [c + k <= max(P)] of [S] whose premises in
+     [free] are all in [S]. We check it for the premise of least [k - j], and otherwise consider
+     [S] bounded too. *)
+  let rec refine bounded =
+    let free = PSet.filter (fun idx -> not (PSet.mem idx bounded)) maybe in
+    let clauses_in_maybe c f =
+      ClausesOf.iter (fun (k, prems) ->
+          if not (trivial c k prems) && Premises.for_all (fun (u, _) -> PSet.mem u maybe) prems
+          then f k prems)
+        (repr model c).clauses_bwd
+    in
+    let nodes = PSet.fold (fun idx m -> PMap.add idx () m) free PMap.empty in
+    let succ c f = clauses_in_maybe c (fun _ prems ->
+        NeList.iter (fun (u, _) -> if PSet.mem u free then f u) prems)
+    in
+    let bounded_scc scc =
+      let ins = List.fold_left (fun s idx -> PSet.add idx s) PSet.empty scc in
+      let edges = List.fold_left (fun edges c ->
+          let edges = ref edges in
+          clauses_in_maybe c (fun k prems ->
+              if NeList.for_all (fun (u, _) -> not (PSet.mem u free) || PSet.mem u ins) prems then
+                let best = NeList.fold (fun (u, j) best ->
+                    if not (PSet.mem u ins) then best else match best with
+                      | Some (_, w) when w >= j - k -> best
+                      | _ -> Some (u, j - k)) prems None
+                in
+                Option.iter (fun (u, w) -> edges := (u, c, w) :: !edges) best);
+          !edges) [] scc
+      in
+      has_negative_cycle scc edges
+    in
+    match List.filter bounded_scc (sccs nodes succ) with
+    | [] -> bounded
+    | sccs ->
+      refine (horn (List.fold_left (List.fold_left (fun b idx -> PSet.add idx b)) bounded sccs))
+  in
+  let below = refine (horn kept) in
   closure (fun idx f acc ->
       ClausesOf.fold (fun _local (k, prems) acc ->
         if trivial idx k prems || not (Premises.for_all (fun (u, _) -> PSet.mem u below) prems) then acc
