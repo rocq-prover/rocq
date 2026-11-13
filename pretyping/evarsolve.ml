@@ -1829,7 +1829,7 @@ and evar_define unify flags ?(choose=false) ?(imitate_defs=true) env evd pbty (e
     if occur_meta evd' body then raise MetaOccurInBodyInternal;
     (* invert_definition may have instantiate some evars of rhs with evk *)
     (* so we recheck acyclicity *)
-    if occur_evar_upto_types evd' evk body then raise (OccurCheckIn (evd',body));
+    if occur_evar_upto_types evd' evk body then raise (OccurCheckIn (evd',rhs));
     if Evd.is_defined evd' evk then add_conv_oriented_pb (pbty,env,mkEvar ev,rhs) evd' else
     (* needed only if an inferred type *)
     let evd', body = refresh_universes pbty env evd' body in
