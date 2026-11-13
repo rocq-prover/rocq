@@ -1,3 +1,4 @@
+Unset Proof Using Clear Unused.
 Section S.
   Context {A} (x y:A).
 
