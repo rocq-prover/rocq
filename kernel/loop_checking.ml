@@ -3141,6 +3141,49 @@ let is_trivial setidx u k v k' =
   (Index.equal u v && k >= k') ||
   (Index.equal v setidx && k >= k')
 
+(** [subsumed ~alive cl] holds when a clause of the conclusion of the canonical clause [cl] whose
+  premises are all [alive] implies [cl]: [concl + k' <= max(P')] implies [concl + k <= max(P)]
+  when each premise [u + j'] of [P'] has a premise [u + j] in [P] with [j' - k' <= j - k].
+  Such a clause has a premise of [P]: the candidates are looked up in the forward clauses of the
+  premises of [cl] rather than in the backward clauses of [concl], which can be many more
+  (e.g. [Set + 0 <= max(u)] for every universe [u]).
+  @requires the premises of [cl] are sorted according to the order on their [canon] indices, as
+  produced by [simplify_can_clause], like the other premises of the forward clauses (see
+  [check_invariants]): the premises of [P'] are then looked up in a single walk of [P]. *)
+let subsumed ~alive ((prems, (concl, k)) : can_clause) =
+  (* [covered d others prems] holds when each premise [u + j'] of [others] is [alive] and has a
+     premise [u + j] in [prems] with [j' + d <= j] *)
+  let rec covered d others prems =
+    let (u, j'), others = match others with
+      | NeList.Tip p -> p, None
+      | NeList.Cons (p, others) -> p, Some others
+    in
+    let rec seek prems =
+      let (can, j), prems = match prems with
+        | NeList.Tip p -> p, None
+        | NeList.Cons (p, prems) -> p, Some prems
+      in
+      let c = Index.compare can.canon u in
+      if c < 0 then Option.cata seek false prems
+      else Int.equal c 0 && j' + d <= j && alive u &&
+        match others with
+        | None -> true
+        | Some others -> Option.cata (covered d others) false prems
+    in
+    seek prems
+  in
+  (* [can + j', others -> concl + k'] for the premise [can + j] of [cl] *)
+  NeList.exists (fun (can, j) ->
+      alive can.canon &&
+      ForwardClauses.IntMap.exists (fun j' byconcl ->
+          match ForwardClauses.PMap.find_opt concl.canon byconcl with
+          | None -> false
+          | Some pcls ->
+            PartialClausesOf.exists (fun (k', others) ->
+                j' - k' <= j - k && Option.cata (fun others -> covered (k - k') others prems) true others)
+              pcls)
+        can.clauses_fwd)
+    prems
 
 (** [eliminate_can ~alive ~skip_set model idx] adds to [model] the resolvents on the canonical
   universe [idx] of its clauses: each pair of clauses [premsbwd -> idx + cank] and
@@ -3187,6 +3230,7 @@ let eliminate_can ~alive ~skip_set model idx =
         | Trivial -> model
         | Contradictory -> assert false
         | Canonical cl ->
+          if subsumed ~alive cl then model else
           match add_can_clause_model model cl with
           | Some (_, m) -> m
           | None -> model)
@@ -3219,7 +3263,10 @@ let spanned_subgraph ~skip_set model kept =
     skip_set && Premises.exists (fun (u, ku) -> is_trivial setidx u ku concl k) prems
   in
   (* The universes below some kept universe [v]: [u + k <= max(..., v + k', ...)] or
-     [u + k <= max(..., u' + k', ...)] with [u'] below [v] *)
+     [u + k <= max(..., u' + k', ...)] with [u'] below [v]. All the premises of a clause need not
+     be below a kept universe: e.g. from [x + 1 <= max(p, b)] and [p + 1 <= max(x, b')], [x] is
+     bounded by [b] and [b'], [x + 2 <= max(b + 1, b')], while none of these clauses has all its
+     premises bounded. *)
   let below = closure (fun idx f acc ->
       ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
         if PartialClausesOf.exists (fun (conclk, others) ->
