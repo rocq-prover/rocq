@@ -898,9 +898,14 @@ let eq_invert eq iv1 iv2 =
 let eq_under_context eq (_nas1, p1) (_nas2, p2) =
   eq p1 p2
 
+let eq_cast k1 k2 = match k1, k2 with
+| VMcast, VMcast -> true
+| NATIVEcast, NATIVEcast -> true
+| DEFAULTcast, DEFAULTcast -> true
+| (VMcast | NATIVEcast | DEFAULTcast), _ -> false
+
 let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq leq nargs t1 t2 =
-  match kind_nocast_gen kind1 t1, kind_nocast_gen kind2 t2 with
-  | Cast _, _ | _, Cast _ -> assert false (* kind_nocast *)
+  match kind1 t1, kind2 t2 with
   | Rel n1, Rel n2 -> Int.equal n1 n2
   | Meta m1, Meta m2 -> Int.equal m1 m2
   | Var id1, Var id2 -> Id.equal id1 id2
@@ -908,6 +913,8 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
   | Float f1, Float f2 -> Float64.equal f1 f2
   | String s1, String s2 -> Pstring.equal s1 s2
   | Sort s1, Sort s2 -> leq_sorts s1 s2
+  | Cast (c1, k1, t1), Cast (c2, k2, t2) ->
+    leq nargs c1 c2 && eq_cast k1 k2 && leq 0 t1 t2
   | Prod (_,t1,c1), Prod (_,t2,c2) -> eq 0 t1 t2 && leq 0 c1 c2
   | Lambda (_,t1,c1), Lambda (_,t2,c2) -> eq 0 t1 t2 && eq 0 c1 c2
   | LetIn (_,b1,t1,c1), LetIn (_,b2,t2,c2) -> eq 0 b1 b2 && eq 0 t1 t2 && leq nargs c1 c2
@@ -940,7 +947,7 @@ let compare_head_gen_leq_with kind1 kind2 leq_universes leq_sorts eq_evars eq le
     leq_universes None u1 u2 &&
     Array.equal_norefl (eq 0) t1 t2 &&
     eq 0 def1 def2 && eq 0 ty1 ty2
-  | (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _
+  | (Rel _ | Meta _ | Var _ | Sort _ | Cast _ | Prod _ | Lambda _ | LetIn _ | App _
     | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
     | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
 
