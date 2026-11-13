@@ -555,6 +555,8 @@ Rocq to declare additional sorts or universe levels if needed for
 the object being declared.
 In :n:`@univ_annot`, the :g:`+` sign lets Rocq fill out the rest of the
 instance annotation with underscores.
+In both cases, if no :g:`;` is provided, then the presence or absence of
+:g:`+` applies to both qualities and universe levels.
 
 .. cmd:: Universe {+ @ident }
          Universes {+ @ident }

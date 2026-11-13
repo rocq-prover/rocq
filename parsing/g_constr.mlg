@@ -365,7 +365,7 @@ GRAMMAR EXTEND Gram
           "}" ->
         {
           let (qual_list, qual_ext), (univ_list, univ_ext) = match optional_snd_instance with
-            | None -> ([], None), (List.map (force_univ_level ~loc) l, ext)
+            | None -> ([], ext), (List.map (force_univ_level ~loc) l, ext)
             | Some (l', ext') ->
               (List.map (force_quality ~loc) l, ext), (List.map (force_univ_level ~loc) l', ext')
           in
