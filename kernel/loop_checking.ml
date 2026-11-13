@@ -3135,6 +3135,21 @@ let is_trivial setidx u k v k' =
   (Index.equal u v && k >= k') ||
   (Index.equal v setidx && k >= k')
 
+(** [subsumed ~alive cl] holds when a clause of the conclusion of the canonical clause [cl] whose
+  premises are all [alive] implies [cl]: [concl + k' <= max(P')] implies [concl + k <= max(P)]
+  when each premise [u + j'] of [P'] has a premise [u + j] in [P] with [j' - k' <= j - k]. *)
+let subsumed ~alive ((prems, (concl, k)) : can_clause) =
+  let shift_in_prems u =
+    NeList.fold (fun (can, j) acc -> if Index.equal can.canon u then Some j else acc) prems None
+  in
+  let implies (k', prems') =
+    Premises.for_all (fun (u, j') -> alive u &&
+      match shift_in_prems u with
+      | Some j -> j' - k' <= j - k
+      | None -> false) prems'
+  in
+  try ClausesOf.iter (fun cl -> if implies cl then raise_notrace Exit) concl.clauses_bwd; false
+  with Exit -> true
 
 (** [eliminate_can ~alive ~skip_set model idx] adds to [model] the resolvents on the canonical
   universe [idx] of its clauses: each pair of clauses [premsbwd -> idx + cank] and
@@ -3181,6 +3196,7 @@ let eliminate_can ~alive ~skip_set model idx =
         | Trivial -> model
         | Contradictory -> assert false
         | Canonical cl ->
+          if subsumed ~alive cl then model else
           match add_can_clause_model model cl with
           | Some (_, m) -> m
           | None -> model)
@@ -3213,7 +3229,10 @@ let spanned_subgraph ~skip_set model kept =
     skip_set && Premises.exists (fun (u, ku) -> is_trivial setidx u ku concl k) prems
   in
   (* The universes below some kept universe [v]: [u + k <= max(..., v + k', ...)] or
-     [u + k <= max(..., u' + k', ...)] with [u'] below [v] *)
+     [u + k <= max(..., u' + k', ...)] with [u'] below [v]. All the premises of a clause need not
+     be below a kept universe: e.g. from [x + 1 <= max(p, b)] and [p + 1 <= max(x, b')], [x] is
+     bounded by [b] and [b'], [x + 2 <= max(b + 1, b')], while none of these clauses has all its
+     premises bounded. *)
   let below = closure (fun idx f acc ->
       ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
         if PartialClausesOf.exists (fun (conclk, others) ->
