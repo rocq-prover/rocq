@@ -1,7 +1,7 @@
-(* Forge the .vo files of misc/rocqchk_delta_alias.sh and
-   misc/rocqchk_forged_aliases.sh. The code is deliberately independent of
-   Rocq's OCaml libraries: this is an untrusted file producer, not another
-   path through the kernel API.
+(* Forge the .vo files of misc/rocqchk_delta_alias.sh,
+   misc/rocqchk_forged_aliases.sh and misc/rocqchk_register_type.sh. The
+   code is deliberately independent of Rocq's OCaml libraries: this is an
+   untrusted file producer, not another path through the kernel API.
 
    ocaml forge.ml FILE.vo DONOR.vo constant|inductive
      Replace a declaration in B by an incompatible declaration from another
@@ -11,6 +11,15 @@
                   LIB.vo OUT.vo
      Record in a delta resolver of LIB.vo an alias that coqc never writes;
      see the function of that name.
+   ocaml forge.ml int0 LIB.vo OUT.vo LABEL
+     Give the parameter LABEL of LIB.vo the body Int 0, the int63 literal 0.
+   ocaml forge.ml register LIB.vo OUT.vo NAME [CANONICAL]
+     Register the constant NAME as the int63 primitive type, with the
+     canonical name CANONICAL if it is given, which coqc does only for a
+     parameter that Primitive declares, under its own name. NAME and
+     CANONICAL are full names, such as RegisterType.Lib.M.int, of constants
+     that the type or the definition of a constant at the top of LIB.vo
+     names.
    ocaml forge.ml client CLIENT.vo LIB.vo LIB_DIRPATH OUT.vo
      Record the digest of LIB.vo as that of the dependency LIB_DIRPATH of
      CLIENT.vo, so that a client compiled against another library loads
@@ -18,22 +27,27 @@
 
    The values read and written are laid out as in checker/values.ml:
    - library segment: (compiled_library, _, _); compiled_library fields 1,
-     the root module_body, and 4, the dependencies, an array of (dirpath,
+     the root module_body, 4, the dependencies, an array of (dirpath,
      vodigest), a dirpath being a list of identifiers, innermost first, and
-     a vodigest Dvo_or_vi (tag 0) [digest of the library segment]; summary
-     segment: field 1, the same dependencies;
-   - module_body: 1 signature, 3 delta resolver; module_type_body: 1
-     signature; signature: NoFunctor (tag 0) [structure] | MoreFunctor (tag
-     1) [parameter; parameter's type; signature]; structure: a list of
-     (label, field), a field being SFBconst (tag 0) [constant_body], SFBmind
-     (tag 1) [mutual_inductive_body], SFBmodule (tag 3) [module_body] or
-     SFBmodtype (tag 4) [module_type_body];
-   - constant_body: 2 body, Def (tag 1) [term] for a definition, 3 type;
-     term: Prod (tag 6) [binder; domain; codomain], App (tag 9) [function;
-     arguments], Const (tag 10) [(name, instance)] or Ind (tag 11) [((name,
-     index), instance)], among others; name, of a constant or an inductive:
+     a vodigest Dvo_or_vi (tag 0) [digest of the library segment], and 6,
+     the retroknowledge, a list of actions, among them Register_type (tag
+     1) [primitive type, PT_int63 being 0; name]; summary segment: field 1,
+     the same dependencies;
+   - module_body: 1 signature, 3 delta resolver;
+     module_type_body: 1 signature; signature: NoFunctor (tag 0) [structure]
+     | MoreFunctor (tag 1) [parameter; parameter's type; signature];
+     structure: a list of (label, field), a field being SFBconst (tag 0)
+     [constant_body], SFBmind (tag 1) [mutual_inductive_body], SFBmodule
+     (tag 3) [module_body] or SFBmodtype (tag 4) [module_type_body];
+   - constant_body: 2 body, Undef (tag 0) [inline] for a parameter and Def
+     (tag 1) [term] for a definition, 3 type; term: Prod (tag 6) [binder;
+     domain; codomain], App (tag 9) [function; arguments], Const (tag 10)
+     [(name, instance)], Ind (tag 11) [((name, index), instance)] or Int
+     (tag 17) [63-bit integer, an int on a 64-bit platform and an Int64.t
+     on a 32-bit one], among others; name, of a constant or an inductive:
      Same (tag 0) [kernel name] | Dual (tag 1) [user name; canonical name];
-     kernel name: [module path; label; hash];
+     kernel name: [module path; label; hash]; module path: MPfile (tag 0)
+     [dirpath] or MPdot (tag 2) [module path; label], among others;
    - delta resolver: field 2, the canonical names, an Int.Map from a kernel
      name's hash to a map from kernel names to kernel names; both are the
      standard library's maps, Empty (0) | Node [left; key; value; right;
@@ -279,6 +293,65 @@ let label root =
 
 let rec strings l = if Obj.is_int l then [] else string (field l 0) :: strings (field l 1)
 
+(* The structure [root] with the body of its parameter [label] replaced by
+   [body]. *)
+let set_body label body root =
+  on label
+    (fun cb ->
+      let old = field cb 2 in
+      if Obj.is_int old || Obj.tag old <> 0 then failwith (label ^ " is not a parameter");
+      upd 2 (fun _ -> body) cb)
+    root
+
+(* The definition Int 0, of the int63 literal 0. *)
+let int0 = block 1 [| block 17 [| if Sys.word_size = 64 then Obj.repr 0 else Obj.repr 0L |] |]
+
+let rec mp_to_string mp =
+  match Obj.tag mp with
+  | 0 -> String.concat "." (List.rev (strings (field mp 0)))
+  | 2 -> mp_to_string (field mp 0) ^ "." ^ string (field mp 1)
+  | _ -> failwith "unexpected module path"
+
+(* The kernel name of the constant [name] that the type or the definition of
+   a constant of the structure [root] names. It is taken from the file, hash
+   included, never rebuilt. *)
+let find_constant name root =
+  let found = ref None in
+  let note c =
+    let kn = field c 0 in
+    if String.equal (mp_to_string (field kn 0) ^ "." ^ string (field kn 1)) name then
+      found := Some kn;
+    c
+  in
+  let rec loop cell =
+    if Obj.is_block cell then begin
+      let decl = field (field cell 0) 1 in
+      if Obj.tag decl = 0 then begin
+        let cb = field decl 0 in
+        ignore (map_names note (typ cb));
+        let body = field cb 2 in
+        if Obj.is_block body && Obj.tag body = 1 then ignore (map_names note (field body 0))
+      end;
+      loop (field cell 1)
+    end
+  in
+  loop root;
+  match !found with
+  | Some kn -> kn
+  | None -> failwith ("no constant names " ^ name)
+
+(* The compiled library [lib] with the constant [name] registered as the
+   int63 type, Register_type [PT_int63; name], with the canonical name
+   [canonical] if it is given. *)
+let register name canonical lib =
+  let root = struc (field lib 1) in
+  let user = find_constant name root in
+  let cst = match canonical with
+    | None -> same user
+    | Some c -> dual user (find_constant c root)
+  in
+  upd 6 (fun retro -> block 0 [| block 1 [| Obj.repr 0; cst |]; retro |]) lib
+
 (* [deps] with [digest] as the digest of the library [dp]. *)
 let set_digest dp digest deps =
   let set dep =
@@ -300,6 +373,11 @@ let () =
     rewrite src dst (forge (nested "d"))
   | [ "nested-inductive"; src; dst ] -> rewrite src dst (forge (nested "I"))
   | [ "label"; src; dst ] -> rewrite src dst (forge label)
+  | [ "int0"; src; dst; label ] -> rewrite src dst (forge (set_body label int0))
+  | [ "register"; src; dst; name ] ->
+    rewrite src dst [ "library", marshalled (upd 0 (register name None)) ]
+  | [ "register"; src; dst; name; canonical ] ->
+    rewrite src dst [ "library", marshalled (upd 0 (register name (Some canonical))) ]
   | [ "client"; src; lib; dp; dst ] ->
     let library, _ = find_segment "library" (snd (read_vo lib)) in
     rewrite src dst
