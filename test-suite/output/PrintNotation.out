@@ -1,37 +1,7 @@
 Notation "_ $ _" at level 123 with arguments constr at next level, constr
 at next level, no associativity.
-File "./output/PrintNotation.v", line 8, characters 9-14:
-Warning: In term, tolerating this expression at a higher level than expected
-by the notation continuing on the right (which is not left-associative). This
-tolerance will be eventually removed. Insert parentheses or try to lower the
-level at which the top symbol of this expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Quickfix:
-Replace File "./output/PrintNotation.v", line 8, characters 9-9 with (
-Replace File "./output/PrintNotation.v", line 8, characters 14-14 with )
-bar (bar ?f ?f0) ?f1
-     : foo
-where
-?f : [ |- foo]
-?f0 : [ |- foo]
-?f1 : [ |- foo]
 Notation "_ $ _" at level 123 with arguments constr at next level, constr
 at next level, no associativity.
-File "./output/PrintNotation.v", line 17, characters 9-14:
-Warning: In term, tolerating this expression at a higher level than expected
-by the notation continuing on the right (which is not left-associative). This
-tolerance will be eventually removed. Insert parentheses or try to lower the
-level at which the top symbol of this expression is parsed.
-[level-tolerance,deprecated-since-9.2,deprecated,parsing,default]
-Quickfix:
-Replace File "./output/PrintNotation.v", line 17, characters 9-9 with (
-Replace File "./output/PrintNotation.v", line 17, characters 14-14 with )
-bar (bar ?f ?f0) ?f1
-     : foo
-where
-?f : [ |- foo]
-?f0 : [ |- foo]
-?f1 : [ |- foo]
 Notation "_ $ _" at level 123 with arguments constr at level 123, constr
 at next level, left associativity.
 bar (bar ?f ?f0) ?f1

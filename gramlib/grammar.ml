@@ -140,7 +140,6 @@ module type ExtS = sig
     type t = {
       estate : EState.t;
       kwstate : keyword_state;
-      recover : bool;
       has_non_assoc : bool;
     }
   end
@@ -273,14 +272,12 @@ and GState : sig
   type t = {
     estate : EState.t;
     kwstate : L.keyword_state;
-    recover : bool;
     has_non_assoc : bool;
   }
 end = struct
   type t = {
     estate : EState.t;
     kwstate : L.keyword_state;
-    recover : bool;
     has_non_assoc : bool;
   }
 end
@@ -1039,35 +1036,6 @@ let level_number entry lab =
     Dlevels elev -> lookup 0 elev
   | Dparser _ -> raise Not_found
 
-let rec top_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> (s, norec, a) ty_symbol parser_v =
-  fun entry ->
-  function
-    Sself -> Ok (Snterm entry)
-  | Snext -> Ok (Snterm entry)
-  | Snterml (e, _) -> Ok (Snterm e)
-  | Slist1sep (s, sep) -> let+ s = top_symb entry s in Slist1sep (s, sep)
-  | _ -> Error ()
-
-let entry_of_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> a ty_entry parser_v =
-  fun entry ->
-  function
-    Sself -> Ok entry
-  | Snext -> Ok entry
-  | Snterm e -> Ok e
-  | Snterml (e, _) -> Ok e
-  | _ -> Error ()
-
-let top_tree : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> (s, tr, a) ty_tree parser_v =
-  fun entry ->
-  function
-  | Node (MayRec3, {node = s; brother = bro; son = son}) ->
-    let+ s' = top_symb entry s in
-    Node (MayRec3, {node = s'; brother = bro; son = son})
-  | Node (NoRec3, {node = s; brother = bro; son = son}) ->
-    let+ s' = top_symb entry s in
-    Node (NoRec3, {node = s'; brother = bro; son = son})
-  | LocAct _ | DeadEnd -> Error ()
-
 let locate_pos = LStream.current
 
 let interval_loc bpos epos =
@@ -1081,38 +1049,6 @@ let interval_loc bpos epos =
     let next = LStream.pos_next bpos in
     let last = LStream.pos_current epos in
     Loc.merge next last
-
-let warn_tolerance =
-  CWarnings.(create_in (create_warning ~name:"level-tolerance"
-                          ~from:[CoreCategories.parsing; Deprecation.Version.v9_2] ())
-    ~quickfix:(fun ~loc (_, _, qf) -> qf)
-    Pp.(fun (e, msg, _) ->
-        strbrk "In " ++ str e ++ str ", tolerating this expression at" ++
-        strbrk " a higher level than expected " ++ strbrk msg ++ str "." ++
-        strbrk " This tolerance will be eventually removed." ++
-        strbrk " Insert parentheses or try to lower the level at which the top symbol of this expression is parsed."))
-
-let warn_recover_qf ename bp ?ep strm__ msg =
-  let has_ep = Option.has_some ep in
-  let ep = Option.default (locate_pos strm__) ep in
-  let loc = interval_loc bp ep in
-  let qf =
-    let paren_enames = ["term"; "pattern"; "ltac_expr"] in
-    if not (has_ep && List.mem ename paren_enames) then [] else
-      let qf le s = Quickfix.make ~loc:(le loc 0 0) (Pp.str s) in
-      [qf Loc.sub "("; qf Loc.after ")"] in
-  warn_tolerance ~loc (ename, msg, qf)
-
-let warn_recover ename bp ?ep strm__ =
-  warn_recover_qf ename bp ?ep strm__ "by the notation started on the left"
-
-let warn_recover_continuation ename bp ep strm__ strict =
-  let msg = "by the notation continuing on the right"
-    ^ if not strict then "" else " (which is not left-associative)" in
-  warn_recover_qf ename bp ~ep strm__ msg
-
-let warn_recover_last_start ename bp ep strm__ =
-  warn_recover_qf ename bp ~ep strm__ "(there is no next level of last level)"
 
 let empty_entry ename levn strm =
   raise (ParseError ("entry [" ^ ename ^ "] is empty"))
@@ -1180,47 +1116,13 @@ and parser_cont : type s tr tr' a r.
   | Ok v -> Ok (v a0)
   | Error () ->
     let fail a = raise (ParseError (tree_failed entry a s son)) in
-    let or_fail a x = match x with Ok x -> x | Error () -> fail a in
-    (* Recover from a success on [s] with result [a] followed by a
-        failure on [son] in a rule of the form [a = s; son] *)
     (* Discard the rule if what has been consumed before failing is
        the empty sequence (due to some OPT or LIST0); example:
        « OPT "!"; ident » fails to see an ident and the OPT was resolved
        into the empty sequence, with application e.g. to being able to
        safely write « LIST1 [ OPT "!"; id = ident -> id] ». *)
     if LStream.count strm__ == LStream.pos_offset bp then Error ()
-    else if not gstate.recover then fail a0
-    else
-      (* Try to replay the son with the top occurrence of NEXT (by
-         default at level nlevn) and trailing SELF (by default at alevn)
-         replaced with self at top level;
-         This allows for instance to recover from a failure on the
-         second SELF of « SELF; "\/"; SELF » by doing as if it were
-         « SELF; "\/"; same-entry-at-top-level » with application e.g. to
-         accept "A \/ forall x, x = x" w/o requiring the expected
-         parentheses as in "A \/ (forall x, x = x)". *)
-      match let* top = top_tree entry son in parser_of_tree entry nlevn alevn top gstate strm__ with
-      | Ok a ->
-        warn_recover entry.ename bp strm__;
-        Ok (a a0)
-      | Error () ->
-        (* In case of success on just SELF, NEXT or an explicit call to
-           a subentry followed by a failure on the rest (son), retry
-           parsing as if this entry had been called at its toplevel;
-           example: « "{"; entry-at-some-level; "}" » fails on "}" and
-           is retried with « "{"; same-entry-at-top-level; "}" », allowing
-           e.g. to parse « {1 + 1} » while « {(1 + 1)} » would
-           have been expected according to the level. *)
-        let p1 = parser_of_tree entry nlevn alevn son in
-        let a =
-          let* s' = entry_of_symb entry s in
-          continue_parser_of_entry gstate s' None 0 bp a0 strm__
-        in
-        let ep = locate_pos strm__ in
-        let a = or_fail a0 a in
-        let act = or_fail a (p1 gstate strm__) in
-        warn_recover entry.ename bp ~ep strm__;
-        Ok (act a)
+    else fail a0
 
 (** [parser_of_token_list] attempts to look-ahead an arbitrary-long
 finite sequence of tokens. E.g., in
@@ -1262,16 +1164,6 @@ and parser_of_token_list : type s tr lt r.
        fun gstate last_a strm ->
          for _i = 1 to n do LStream.junk gstate.kwstate strm done;
          let v = ps gstate strm in
-         let v =
-           if not gstate.recover then v else
-             v <+> fun () ->
-               (* Tolerance: retry w/o granting the level constraint (see recover) *)
-               let bp = locate_pos strm in
-               let* top = top_tree entry tree in
-               let+ a = parser_of_tree entry nlevn alevn top gstate strm in
-               warn_recover entry.ename bp strm;
-               a
-         in
          match v with
          | Ok v -> Ok v
          | Error () -> raise (TokenListFailed (entry, last_a, (Stoken last_tok), tree))
@@ -1327,24 +1219,7 @@ and parser_of_symbol : type s tr a.
       let rec kont gstate al (strm__ : _ LStream.t) =
         match pt gstate strm__ with
         | Ok v ->
-          let* a =
-            match ps gstate strm__ with
-            | Ok a -> Ok a
-            | Error () ->
-              if not gstate.recover then Error () else
-                let bp = locate_pos strm__ in
-                let a =
-                  match
-                    let* top = top_symb entry symb in
-                    parser_of_symbol entry 0 top gstate strm__
-                  with
-                  | Ok a -> a
-                  | Error () ->
-                    raise (ParseError (symb_failed entry v sep symb))
-                in
-                let () = warn_recover entry.ename bp strm__ in
-                Ok a
-          in
+          let* a = ps gstate strm__ in
           kont gstate (a::al) strm__
         | Error () -> Ok al
       in
@@ -1437,18 +1312,13 @@ let rec start_parser_of_levels entry clevn =
           match levs with
             [] ->
               (fun gstate levn strm ->
-                (* Recovery here means that a grammar entry e: [[ "x"; a = e | "y" ]]
-                   works even though it should be: e: [RIGHTA[ "x"; a = e | "y" ]] *)
-                if not gstate.recover && levn > clevn then Error ()
+                if levn > clevn then Error ()
                 else
                  let (strm__ : _ LStream.t) = strm in
                  let bp = locate_pos strm__ in
                  let* act = p2 gstate strm__ in
                  let ep = locate_pos strm__ in
                  let a = act (interval_loc bp ep) in
-                 let () = if levn > clevn then
-                     warn_recover_last_start entry.ename bp ep strm__
-                 in
                  continue_parser_of_entry gstate entry (Some clevn) levn bp a strm)
           | _ ->
               fun gstate levn strm ->
@@ -1487,20 +1357,17 @@ let rec continue_parser_of_levels entry clevn =
           let alevn = if self_on_the_right lev.assoc then clevn else succ clevn in
           let p2 = parser_of_tree entry (succ clevn) alevn tree in
           fun gstate levfrom levn bp a strm ->
-            let tolerance = match levfrom with
-              | Some levfrom when levfrom = clevn && not (self_on_the_left lev.assoc) -> Some true
-              | Some levfrom when levfrom < clevn -> Some false
-              | _ -> None
-            in
+            let levfrom_below_clevn levfrom =
+              levfrom < clevn
+              || levfrom = clevn && not (self_on_the_left lev.assoc) in
             (* Apply the lsuffix continuation if the level is in the interval [levn;levfrom] *)
             if levn > clevn then
               (* Skip rules before [levn] *)
               p1 gstate levfrom levn bp a strm
-            else if (not gstate.recover && Option.has_some tolerance) then
+            else if Option.cata levfrom_below_clevn false levfrom then
               Error ()
             else
               let (strm__ : _ LStream.t) = strm in
-              let ep = locate_pos strm__ in
               let+ c = p1 gstate levfrom levn bp a strm__ <+> fun () ->
                   let* act = p2 gstate strm__ in
                   let ep = locate_pos strm__ in
@@ -1512,7 +1379,6 @@ let rec continue_parser_of_levels entry clevn =
                       continue_parser_of_entry gstate entry (Some (clevn-1)) levn bp a strm
                   else
                     continue_parser_of_entry gstate entry (Some clevn) levn bp a strm in
-              let () = Option.iter (warn_recover_continuation entry.ename bp ep strm__) tolerance in
               c
 
 (* Don't use Lazy because if it gets interrupted it is unrecoverable *)
