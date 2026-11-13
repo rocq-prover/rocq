@@ -19,6 +19,13 @@ build() {
   done
 }
 
+# compile <dir> <file>...: build, and make <dir>/forged an empty directory.
+compile() {
+  rm -rf "$1/forged"
+  build "$@"
+  mkdir "$1/forged"
+}
+
 # chk <dir> <library>...: rocqchk on $ROOT.<library>... in <dir>.
 chk() {
   local dir=$1 libs=() l
