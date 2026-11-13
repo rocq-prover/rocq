@@ -255,7 +255,12 @@ let pr_pmap sep pr map =
   let cmp (u,_) (v,_) = Level.compare u v in
   Pp.prlist_with_sep sep pr (List.sort cmp (Level.Map.bindings map))
 
-let pr_arc prl = let open Pp in
+(* The constraints [u + i ≤ v] of a node [u] are grouped by their left-hand
+   side, [u + i] for [i = 0] and [u + (i - 1) <] for [i ≥ 1] (so that the
+   constraints [u ≤ v] and [u < v] share the left-hand side [u]), and printed
+   with [UnivConstraints.pr_group]. [pr_source] prints the explanation of a
+   constraint, indented on the next line. *)
+let pr_arc ?(pr_source = fun _ -> Pp.mt ()) prl = let open Pp in
   function
   | u, G.Node l ->
     if CList.is_empty l then mt ()
@@ -263,16 +268,23 @@ let pr_arc prl = let open Pp in
       (* In increasing order *)
       let l = List.sort (fun (i, _) (i', _) -> Int.compare i i') l in
       let l = CList.factorize_left Int.equal l in
-      let pr_cstrs (i, l) =
-        let l = List.sort Universe.compare l in
-        let k, is_lt = if i >= 1 then pred i, true else 0, false in
-        let u = (u, k) in
-        LevelExpr.pr prl u ++ str " " ++ v 0
-        (prlist_with_sep spc (fun v -> str (if is_lt then "< " else "≤ ") ++ Universe.pr prl v) l)
+      let l = List.map (fun (i, l) -> (if i >= 1 then pred i else 0), (i, l)) l in
+      let l = CList.factorize_left Int.equal l in
+      let pr_group (k, l) =
+        let prv (i, w) =
+          v 2 (str (if i >= 1 then "< " else "≤ ") ++ Universe.pr prl w ++
+               pr_source (Universe.of_expr (u, i), UnivConstraint.Le, w))
+        in
+        let rhs = List.concat_map (fun (i, l) ->
+            List.map (fun w -> prv (i, w)) (List.sort Universe.compare l)) l
+        in
+        UnivConstraints.pr_group (LevelExpr.pr prl (u, k)) rhs
       in
-      prlist_with_sep fnl pr_cstrs l ++ fnl ()
+      v 0 (prlist_with_sep cut pr_group l) ++ fnl ()
   | u, G.Alias u' ->
-    prl u  ++ str " = " ++ Universe.pr prl u' ++ fnl  ()
+    UnivConstraints.pr_group (prl u)
+      [v 2 (str "= " ++ Universe.pr prl u' ++ pr_source (Universe.make u, UnivConstraint.Eq, u'))] ++
+    fnl ()
 
 type node = G.node =
 | Alias of Universe.t
@@ -280,7 +292,7 @@ type node = G.node =
 
 let repr ?(local=false) g = G.model_repr ~local g.graph
 
-let pr_universes prl g = pr_pmap Pp.mt (pr_arc prl) g
+let pr_universes ?pr_source prl g = pr_pmap Pp.mt (pr_arc ?pr_source prl) g
 
 let pr ?(local=false) prl g = pr_universes prl (repr ~local g)
 

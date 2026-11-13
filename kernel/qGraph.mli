@@ -105,7 +105,9 @@ val is_empty : t -> bool
 
 val constraints_for : kept:Quality.Set.t -> t -> ElimConstraints.t
 
-val pr_qualities : Quality.printer -> t -> Pp.t
+val pr_qualities : ?skip_alias:(Quality.t -> Quality.t -> bool) -> Quality.printer -> t -> Pp.t
+(** [skip_alias q q'] tells not to print the equivalence [q <-> q'] (default:
+    print all of them) *)
 
 val explain_quality_inconsistency : Quality.printer -> explanation option -> Pp.t
 

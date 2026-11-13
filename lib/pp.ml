@@ -438,6 +438,15 @@ let rec flatten pp =
   | Ppcmd_tag (tag, pp) -> Ppcmd_tag (tag, flatten pp)
   | p -> p
 
+let rec unbreakable pp =
+  match pp with
+  | Ppcmd_glue l -> Ppcmd_glue (List.map unbreakable l)
+  | Ppcmd_box (_, pp) -> unbreakable pp
+  | Ppcmd_tag (tag, pp) -> Ppcmd_tag (tag, unbreakable pp)
+  | Ppcmd_print_break (n, _) -> Ppcmd_string (String.make n ' ')
+  | Ppcmd_empty | Ppcmd_string _ | Ppcmd_sized_string _
+  | Ppcmd_force_newline | Ppcmd_comment _ -> pp
+
 type container =
   | CBox of block_type
   | CTag of pp_tag
