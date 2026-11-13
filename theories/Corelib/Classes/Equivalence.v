@@ -31,6 +31,7 @@ Local Obligation Tactic := try solve [simpl_relation].
 Local Open Scope signature_scope.
 
 Definition equiv `{Equivalence A R} : relation A := R.
+#[global] Instance equiv_pars : Params (@equiv) 3 := {}.
 
 (** Overloaded notations for setoid equivalence and inequivalence.
     Not to be confused with [eq] and [=]. *)
@@ -46,6 +47,7 @@ Local Open Scope equiv_scope.
 (** Overloading for [PER]. *)
 
 Definition pequiv `{PER A R} : relation A := R.
+#[global] Instance pequiv_pars : Params (@pequiv) 3 := {}.
 
 (** Overloaded notation for partial equivalence. *)
 

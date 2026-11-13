@@ -481,6 +481,16 @@ Class PartialApplication.
 
 CoInductive normalization_done : Prop := did_normalization.
 
+#[global] Instance eq_pars : Params (@eq) 1 := {}.
+#[global] Instance iffT_pars : Params (@iffT) 0 := {}.
+#[global] Instance arrow_pars : Params (@arrow) 0 := {}.
+#[global] Instance flip_pars : Params (@flip) 4 := {}.
+#[global] Instance id_pars : Params (@id) 1 := {}.
+#[global] Instance compose_pars : Params (@compose) 3 := {}.
+#[global] Instance complement_pars : Params (@complement) 1 := {}.
+#[global] Instance respectful_pars : Params (@respectful) 2 := {}.
+#[global] Instance Proper_pars : Params (@Proper) 1 := {}.
+
 Ltac partial_application_tactic :=
   let rec do_partial_apps H m cont := 
     match m with
