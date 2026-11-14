@@ -170,8 +170,6 @@ let checked_appvect env sigma f args =
   let sigma, j = judge_of_apply env sigma (mk f) (Array.map mk args) in
   sigma, j.uj_val
 
-let () = Hook.set Evarsolve.checked_appvect_hook checked_appvect
-
 let checked_applist env sigma f args = checked_appvect env sigma f (Array.of_list args)
 
 let check_branch_types env sigma (ind,u) cj (lfj,explft) =
@@ -766,6 +764,11 @@ let add_judgment env c j =
 
 end
 
+type execute_state = {
+  table : HTConstr.table;
+  check_evars : bool;
+}
+
 let rec execute_node tbl env sigma n =
   match HTConstr.find_judgment env n with
   | Some j -> sigma, j
@@ -782,12 +785,14 @@ and execute_node_core tbl env sigma n =
     | Evar _ ->
         let cstr = whd_evar sigma cstr in
         begin match EConstr.kind sigma cstr with
+        | Evar ev when not tbl.check_evars ->
+          sigma, { uj_val = cstr; uj_type = EConstr.existential_type sigma ev }
         | Evar ev ->
           let ty = EConstr.existential_type sigma ev in
-          let sigma, jty = execute_node tbl env sigma (HTConstr.make tbl (EConstr.Unsafe.to_constr ty)) in
+          let sigma, jty = execute_node tbl env sigma (HTConstr.make tbl.table (EConstr.Unsafe.to_constr ty)) in
           let sigma, jty = assumption_of_judgment env sigma jty in
           sigma, { uj_val = cstr; uj_type = jty }
-        | _ -> execute_node tbl env sigma (HTConstr.make tbl (EConstr.Unsafe.to_constr cstr))
+        | _ -> execute_node tbl env sigma (HTConstr.make tbl.table (EConstr.Unsafe.to_constr cstr))
         end
 
     | Rel n ->
@@ -819,7 +824,7 @@ and execute_node_core tbl env sigma n =
                     case_iv, proj c,
                     Array.map (fun (nas, b) -> (Array.map EConstr.of_binder_annot nas, proj b)) lf) in
         let (ci, _, _, ((pctx, _), rp), _, _, lfctx) = EConstr.annotate_case env sigma case in
-        let wrap ctx body = List.fold_left (fun body decl -> HTConstr.make_binder tbl decl body) body ctx in
+        let wrap ctx body = List.fold_left (fun body decl -> HTConstr.make_binder tbl.table decl body) body ctx in
         let pn = wrap pctx p in
         let lfn = Array.map2 (fun (ctx, _) (_, b) -> wrap ctx b) lfctx lf in
         let sigma, cj = execute_node tbl env sigma c in
@@ -828,8 +833,8 @@ and execute_node_core tbl env sigma n =
         let sigma = match iv with
           | NoInvert -> sigma
           | CaseInvert { indices } ->
-            let ind = HTConstr.make tbl (Constr.mkIndU (ci.ci_ind, u)) in
-            let t = HTConstr.make_app tbl ind (Array.append pms indices) in
+            let ind = HTConstr.make tbl.table (Constr.mkIndU (ci.ci_ind, u)) in
+            let t = HTConstr.make_app tbl.table ind (Array.append pms indices) in
             let sigma, tj = execute_node tbl env sigma t in
             let sigma, tj = type_judgment env sigma tj in
             let sigma = check_actual_type env sigma cj tj.utj_val in
@@ -928,13 +933,14 @@ and execute_recdef tbl env sigma (names,lar,vdef) =
 
 and execute_nodes tbl env = Array.fold_left_map (execute_node tbl env)
 
-let execute env sigma c =
-  let tbl = HTConstr.empty_table () in
-  execute_node tbl env sigma (HTConstr.make tbl (EConstr.Unsafe.to_constr c))
+
+let execute ?(check_evars=true) env sigma c =
+  let tbl = { table = HTConstr.empty_table (); check_evars } in
+  execute_node tbl env sigma (HTConstr.make tbl.table (EConstr.Unsafe.to_constr c))
 
 let execute_array env sigma v =
-  let tbl = HTConstr.empty_table () in
-  execute_nodes tbl env sigma (Array.map (fun c -> HTConstr.make tbl (EConstr.Unsafe.to_constr c)) v)
+  let tbl = { table = HTConstr.empty_table (); check_evars = true } in
+  execute_nodes tbl env sigma (Array.map (fun c -> HTConstr.make tbl.table (EConstr.Unsafe.to_constr c)) v)
 
 let check env sigma c t =
   let sigma, j = execute env sigma c in
@@ -955,6 +961,10 @@ let type_of ?(refresh=false) env sigma c =
     if refresh then
       Evarsolve.refresh_universes ~onlyalg:true (Some false) env sigma j.uj_type
     else sigma, j.uj_type
+
+let () = Hook.set Evarsolve.type_of_hook (fun env sigma c ->
+  let sigma, j = execute ~check_evars:false env sigma c in
+  sigma, j.uj_type)
 
 let solve_evars env sigma c =
   let sigma, j = execute env sigma c in
