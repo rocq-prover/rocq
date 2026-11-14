@@ -27,6 +27,7 @@ let alias_of_pat pat = DAst.with_val (function
 let set_pat_alias id = DAst.map (function
   | PatVar Anonymous -> PatVar (Name id)
   | PatCstr (cstr,patl,Anonymous) -> PatCstr (cstr,patl,Name id)
+  | PatVar (Name id') | PatCstr (_,_,Name id') as pat when Id.equal id id' -> pat
   | pat -> assert false)
 
 let cases_predicate_names tml =
