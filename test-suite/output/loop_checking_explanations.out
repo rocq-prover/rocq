@@ -24,9 +24,7 @@ Universe inconsistency. Cannot enforce w ≤ x because x ≤ max(
 y, z), y < w, z < w.
 File "./output/loop_checking_explanations.v", line 22, characters 0-35:
 The command has indeed failed with message:
-Universe inconsistency. Cannot enforce h ≤ e because e < max(
-f, g), f < max(e, g), g ≤ h.
+Universe inconsistency. Cannot enforce h ≤ e because e < g ≤ h.
 File "./output/loop_checking_explanations.v", line 26, characters 0-42:
 The command has indeed failed with message:
-Universe inconsistency. Cannot enforce n+1 ≤ max(o, m) because m < max(
-n, o), o ≤ max(m, n).
+Universe inconsistency. Cannot enforce n+1 ≤ max(o, m) because m < n, o ≤ n.
