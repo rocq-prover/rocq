@@ -498,12 +498,12 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
   let n = List.length evs in
   let r_n' = abs_cterm env sigma0 n r_n in
   let r' = EConstr.Vars.subst_var sigma pattern_id r_n' in
-  let sigma, rdxt = Typing.type_of env sigma rdx in
+  let rdxt = Retyping.get_type_of env sigma rdx in
   let () = debug_ssr (fun () -> Pp.(str"r@rwcltac=" ++ pr_econstr_env env sigma r)) in
   let cvtac, rwtac, sigma0 =
     if EConstr.Vars.closed0 sigma0 r' then
       let c_eq = Rocqlib.(lib_ref "core.eq.type") in
-      let sigma, c_ty = Typing.type_of env sigma r in
+      let c_ty = Retyping.get_type_of env sigma r in
       let () = debug_ssr (fun () -> Pp.(str"c_ty@rwcltac=" ++ pr_econstr_env env sigma c_ty)) in
       let open EConstr in
       match kind_of_type sigma (Reductionops.whd_all env sigma c_ty) with
@@ -513,8 +513,8 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
           let c_sort = Retyping.get_sort_of env sigma a.(0) in
           pirrel_rewrite ?under ?map_redex cl rdx a.(0) c_sort new_rdx dir (sigma, r) c_ty e e_sort, Tacticals.tclIDTAC, sigma0
       | _ ->
+          (* convert_concl will check well-typedness of cl' *)
           let cl' = EConstr.mkApp (EConstr.mkNamedLambda sigma (make_annot pattern_id ERelevance.relevant) rdxt cl, [|rdx|]) in
-          let sigma, _ = Typing.type_of env sigma cl' in
           (* [sigma] is an extension of [sigma0] *)
           let sigma0 = Evd.set_ustate sigma0 (Evd.ustate sigma) in
           convert_concl ~check:true cl', rewritetac ?under dir r', sigma0
