@@ -1,0 +1,47 @@
+0 < t
+  < d1
+  < d2
+  < u0
+t ≤ d1
+d2 < d1
+u0 ≤ d1
+
+0 < t'
+  < e1
+  < e2
+  < v0
+t' ≤ e1
+e2 < e1
+v0 ≤ e1
+
+0 < a
+  < b
+  < x
+  < y
+a ≤ y
+b ≤ y
+x ≤ y
+
+0 < c
+  < p
+  < q
+c < q
+p ≤ c
+
+0 < g
+  < p'
+  < q'
+  < s
+  < w
+g ≤ q'
+p' ≤ max(s, w)
+s ≤ q'
+w ≤ q'
+
+0 < h
+  < i
+  < j
+  < l
+h ≤ max(j, l)
+i ≤ max(j, l)
+
