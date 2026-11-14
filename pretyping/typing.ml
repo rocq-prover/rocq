@@ -542,18 +542,251 @@ let check_binder_relevance env sigma s decl =
     in
     sigma, set_annot { (get_annot decl) with binder_relevance = rs } decl
 
-(* cstr must be in n.f. w.r.t. evars and execute returns a judgement
-   where both the term and type are in n.f. *)
-let rec execute env sigma cstr =
-  let cstr = whd_evar sigma cstr in
-  match EConstr.kind sigma cstr with
+module HConstr :
+sig
+  type t
+  type table
+  val empty_table : unit -> table
+  val make : table -> Constr.t -> t
+  val make_app : table -> t -> t array -> t
+  val make_binder : table -> rel_declaration -> t -> t
+  val proj : t -> EConstr.t
+  val kind : t -> (t, t, Sorts.t, UVars.Instance.t, Sorts.relevance) Constr.kind_of_term
+  val find_judgment : env -> t -> unsafe_judgment option
+  val add_judgment : env -> t -> unsafe_judgment -> unit
+end =
+struct
+
+type t = {
+  proj : Constr.t;
+  self : (t, t, Sorts.t, UVars.Instance.t, Sorts.relevance) Constr.kind_of_term;
+  data : int;
+  hash : int;
+  mutable memo : (Constr.rel_context * unsafe_judgment) option;
+}
+
+type kind = (t, t, Sorts.t, UVars.Instance.t, Sorts.relevance) Constr.kind_of_term
+
+let eq_annot na1 na2 = Context.eq_annot Names.Name.equal Sorts.relevance_equal na1 na2
+
+let eq_ci ci1 ci2 =
+  Names.Ind.UserOrd.equal ci1.ci_ind ci2.ci_ind &&
+  Int.equal ci1.ci_npar ci2.ci_npar &&
+  Array.equal Int.equal ci1.ci_cstr_ndecls ci2.ci_cstr_ndecls &&
+  Array.equal Int.equal ci1.ci_cstr_nargs ci2.ci_cstr_nargs &&
+  ci1.ci_pp_info.style == ci2.ci_pp_info.style
+
+let eq_kind (k1 : kind) (k2 : kind) = match k1, k2 with
+| Rel n1, Rel n2 -> Int.equal n1 n2
+| Meta m1, Meta m2 -> Int.equal m1 m2
+| Var id1, Var id2 -> Names.Id.equal id1 id2
+| Int i1, Int i2 -> Uint63.equal i1 i2
+| Float f1, Float f2 -> Float64.equal f1 f2
+| String s1, String s2 -> Pstring.equal s1 s2
+| Sort s1, Sort s2 -> Sorts.equal s1 s2
+| Cast (c1, k1, t1), Cast (c2, k2, t2) ->
+  c1 == c2 && Glob_ops.cast_kind_eq k1 k2 && t1 == t2
+| Prod (na1, t1, c1), Prod (na2, t2, c2) ->
+  eq_annot na1 na2 && t1 == t2 && c1 == c2
+| Lambda (na1, t1, c1), Lambda (na2, t2, c2) ->
+  eq_annot na1 na2 && t1 == t2 && c1 == c2
+| LetIn (na1, b1, t1, c1), LetIn (na2, b2, t2, c2) ->
+  eq_annot na1 na2 && b1 == b2 && t1 == t2 && c1 == c2
+| App (f1, al1), App (f2, al2) ->
+  f1 == f2 && Array.equal (==) al1 al2
+| Proj (p1, r1, c1), Proj (p2, r2, c2) ->
+  Names.Projection.UserOrd.equal p1 p2 && Sorts.relevance_equal r1 r2 && c1 == c2
+| Evar (e1, l1), Evar (e2, l2) ->
+  Evar.equal e1 e2 && SList.equal (==) l1 l2
+| Const (c1, u1), Const (c2, u2) ->
+  Names.Constant.UserOrd.equal c1 c2 && UVars.Instance.equal u1 u2
+| Ind (c1, u1), Ind (c2, u2) ->
+  Names.Ind.UserOrd.equal c1 c2 && UVars.Instance.equal u1 u2
+| Construct (c1, u1), Construct (c2, u2) ->
+  Names.Construct.UserOrd.equal c1 c2 && UVars.Instance.equal u1 u2
+| Case (ci1, u1, pms1, ((nas1, p1), r1), iv1, c1, bl1),
+  Case (ci2, u2, pms2, ((nas2, p2), r2), iv2, c2, bl2) ->
+  eq_ci ci1 ci2 && UVars.Instance.equal u1 u2 && Array.equal (==) pms1 pms2 &&
+  Array.equal eq_annot nas1 nas2 && p1 == p2 && Sorts.relevance_equal r1 r2 &&
+  begin match iv1, iv2 with
+  | NoInvert, NoInvert -> true
+  | CaseInvert { indices = i1 }, CaseInvert { indices = i2 } -> Array.equal (==) i1 i2
+  | (NoInvert | CaseInvert _), _ -> false
+  end &&
+  c1 == c2 &&
+  Array.equal (fun (nas1, b1) (nas2, b2) -> Array.equal eq_annot nas1 nas2 && b1 == b2) bl1 bl2
+| Fix ((ln1, i1), (na1, tl1, bl1)), Fix ((ln2, i2), (na2, tl2, bl2)) ->
+  Int.equal i1 i2 && Array.equal Int.equal ln1 ln2 && Array.equal eq_annot na1 na2 &&
+  Array.equal (==) tl1 tl2 && Array.equal (==) bl1 bl2
+| CoFix (i1, (na1, tl1, bl1)), CoFix (i2, (na2, tl2, bl2)) ->
+  Int.equal i1 i2 && Array.equal eq_annot na1 na2 &&
+  Array.equal (==) tl1 tl2 && Array.equal (==) bl1 bl2
+| Array (u1, t1, def1, ty1), Array (u2, t2, def2, ty2) ->
+  UVars.Instance.equal u1 u2 && Array.equal (==) t1 t2 && def1 == def2 && ty1 == ty2
+| (Rel _ | Meta _ | Var _ | Sort _ | Prod _ | Lambda _ | LetIn _ | App _ | Cast _
+  | Proj _ | Evar _ | Const _ | Ind _ | Construct _ | Case _ | Fix _
+  | CoFix _ | Int _ | Float _ | String _ | Array _), _ -> false
+
+let fold_kind f accu (k : kind) = match k with
+| Rel _ | Meta _ | Var _ | Sort _ | Const _ | Ind _ | Construct _
+| Int _ | Float _ | String _ -> accu
+| Cast (c, _, t) -> f (f accu c) t
+| Prod (_, t, c) | Lambda (_, t, c) -> f (f accu t) c
+| LetIn (_, b, t, c) -> f (f (f accu b) t) c
+| App (h, al) -> Array.fold_left f (f accu h) al
+| Proj (_, _, c) -> f accu c
+| Evar (_, al) -> SList.Skip.fold f accu al
+| Case (_, _, pms, ((_, p), _), iv, c, bl) ->
+  let accu = Array.fold_left f accu pms in
+  let accu = f accu p in
+  let accu = match iv with NoInvert -> accu | CaseInvert { indices } -> Array.fold_left f accu indices in
+  let accu = f accu c in
+  Array.fold_left (fun accu (_, b) -> f accu b) accu bl
+| Fix (_, (_, tl, bl)) | CoFix (_, (_, tl, bl)) ->
+  Array.fold_left f (Array.fold_left f accu tl) bl
+| Array (_, t, def, ty) -> f (f (Array.fold_left f accu t) def) ty
+
+module Self =
+struct
+  type nonrec t = t
+  let hash c = c.hash
+  let equal c1 c2 = eq_kind c1.self c2.self
+end
+
+module Table = Hashtbl.Make(Self)
+
+type table = t Table.t
+
+let empty_table () = Table.create 17
+
+let hash_kind proj (k : kind) =
+  let base = match k with
+  | Rel _ | Meta _ | Var _ | Sort _ | Const _ | Ind _ | Construct _
+  | Int _ | Float _ | String _ -> Termops.ConstrData.hash proj
+  | Evar (e, _) -> Hashset.Combine.combine 3 (Evar.hash e)
+  | Cast _ -> 5 | Prod _ -> 6 | Lambda _ -> 7 | LetIn _ -> 8 | App _ -> 9
+  | Case _ -> 13 | Fix _ -> 14 | CoFix _ -> 15 | Proj _ -> 16 | Array _ -> 20
+  in
+  fold_kind (fun accu c -> Hashset.Combine.combine accu c.hash) base k
+
+let max (i : int) (j : int) = if i < j then j else i
+let liftn k (i : int) = if i <= k then 0 else i - k
+let max_data accu c = max accu c.data
+let max_array v = Array.fold_left max_data 0 v
+
+let data_kind (k : kind) = match k with
+| Rel n -> n
+| Prod (_, t, c) | Lambda (_, t, c) -> max t.data (liftn 1 c.data)
+| LetIn (_, b, t, c) -> max b.data (max t.data (liftn 1 c.data))
+| Case (_, _, pms, ((nas, p), _), iv, c, bl) ->
+  let ivd = match iv with NoInvert -> 0 | CaseInvert { indices } -> max_array indices in
+  let bld = Array.fold_left (fun accu (nas, b) -> max accu (liftn (Array.length nas) b.data)) 0 bl in
+  max (max_array pms) (max (liftn (Array.length nas) p.data) (max ivd (max c.data bld)))
+| Fix (_, (nas, tl, bl)) | CoFix (_, (nas, tl, bl)) ->
+  max (max_array tl) (liftn (Array.length nas) (max_array bl))
+| Meta _ | Var _ | Sort _ | Const _ | Ind _ | Construct _ | Int _ | Float _ | String _
+| Evar _ | Cast _ | App _ | Proj _ | Array _ ->
+  fold_kind max_data 0 k
+
+let node table proj self =
+  let ans = { proj; self; data = data_kind self; hash = hash_kind proj self; memo = None } in
+  match Table.find_opt table ans with
+  | Some ans -> ans
+  | None ->
+    let () = Table.add table ans ans in
+    ans
+
+let rec make table c =
+  let mk c = make table c in
+  let self : kind = match Constr.kind c with
+  | Rel n -> Rel n
+  | Meta m -> Meta m
+  | Var id -> Var id
+  | Sort s -> Sort s
+  | Const c -> Const c
+  | Ind ind -> Ind ind
+  | Construct cstr -> Construct cstr
+  | Int i -> Int i
+  | Float f -> Float f
+  | String s -> String s
+  | Cast (c, k, t) -> Cast (mk c, k, mk t)
+  | Prod (na, t, c) -> Prod (na, mk t, mk c)
+  | Lambda (na, t, c) -> Lambda (na, mk t, mk c)
+  | LetIn (na, b, t, c) -> LetIn (na, mk b, mk t, mk c)
+  | App (f, al) -> App (mk f, Array.map mk al)
+  | Proj (p, r, c) -> Proj (p, r, mk c)
+  | Evar (e, al) -> Evar (e, SList.Skip.map mk al)
+  | Case (ci, u, pms, ((nas, p), r), iv, c, bl) ->
+    let iv = match iv with
+    | NoInvert -> NoInvert
+    | CaseInvert { indices } -> CaseInvert { indices = Array.map mk indices }
+    in
+    Case (ci, u, Array.map mk pms, ((nas, mk p), r), iv, mk c, Array.map (fun (nas, b) -> (nas, mk b)) bl)
+  | Fix (fi, (nas, tl, bl)) -> Fix (fi, (nas, Array.map mk tl, Array.map mk bl))
+  | CoFix (i, (nas, tl, bl)) -> CoFix (i, (nas, Array.map mk tl, Array.map mk bl))
+  | Array (u, t, def, ty) -> Array (u, Array.map mk t, mk def, mk ty)
+  in
+  node table c self
+
+let make_app table f args =
+  if Array.is_empty args then f
+  else
+    let proj = Constr.mkApp (f.proj, Array.map (fun c -> c.proj) args) in
+    let self = match f.self with
+    | App (h, al) -> App (h, Array.append al args)
+    | _ -> App (f, args)
+    in
+    node table proj self
+
+let make_binder table decl body =
+  let to_annot na = Context.map_annot_relevance_het EConstr.Unsafe.to_relevance na in
+  match decl with
+  | LocalAssum (na, t) ->
+    let na = to_annot na in
+    let t = EConstr.Unsafe.to_constr t in
+    node table (Constr.mkLambda (na, t, body.proj)) (Lambda (na, make table t, body))
+  | LocalDef (na, b, t) ->
+    let na = to_annot na in
+    let b = EConstr.Unsafe.to_constr b in
+    let t = EConstr.Unsafe.to_constr t in
+    node table (Constr.mkLetIn (na, b, t, body.proj)) (LetIn (na, make table b, make table t, body))
+
+let proj c = EConstr.of_constr c.proj
+let kind c = c.self
+
+let find_judgment env c = match c.memo with
+| None -> None
+| Some (ctx, j) ->
+  if Int.equal c.data 0 || ctx == Environ.rel_context env then Some j else None
+
+let add_judgment env c j =
+  c.memo <- Some (Environ.rel_context env, j)
+
+end
+
+let rec execute_node tbl env sigma n =
+  match HConstr.find_judgment env n with
+  | Some j -> sigma, j
+  | None ->
+    let sigma, j = execute_node_core tbl env sigma n in
+    let () = HConstr.add_judgment env n j in
+    sigma, j
+
+and execute_node_core tbl env sigma n =
+  let cstr = HConstr.proj n in
+  match HConstr.kind n with
     | Meta n -> assert false (* Typing should always be performed on meta-free terms *)
 
-    | Evar ev ->
-        let ty = EConstr.existential_type sigma ev in
-        let sigma, jty = execute env sigma ty in
-        let sigma, jty = assumption_of_judgment env sigma jty in
-        sigma, { uj_val = cstr; uj_type = jty }
+    | Evar _ ->
+        let cstr = whd_evar sigma cstr in
+        begin match EConstr.kind sigma cstr with
+        | Evar ev ->
+          let ty = EConstr.existential_type sigma ev in
+          let sigma, jty = execute_node tbl env sigma (HConstr.make tbl (EConstr.Unsafe.to_constr ty)) in
+          let sigma, jty = assumption_of_judgment env sigma jty in
+          sigma, { uj_val = cstr; uj_type = jty }
+        | _ -> execute_node tbl env sigma (HConstr.make tbl (EConstr.Unsafe.to_constr cstr))
+        end
 
     | Rel n ->
         sigma, judge_of_relative env n
@@ -561,93 +794,107 @@ let rec execute env sigma cstr =
     | Var id ->
         sigma, judge_of_variable env id
 
-    | Const c ->
-        let sigma, ty = type_of_constant env sigma c in
+    | Const (c, u) ->
+        let sigma, ty = type_of_constant env sigma (c, EInstance.make u) in
         sigma, make_judge cstr ty
 
-    | Ind ind ->
-        let sigma, ty = type_of_inductive env sigma ind in
+    | Ind (ind, u) ->
+        let sigma, ty = type_of_inductive env sigma (ind, EInstance.make u) in
         sigma, make_judge cstr ty
 
-    | Construct ctor ->
-        let sigma, ty = type_of_constructor env sigma ctor in
+    | Construct (ctor, u) ->
+        let sigma, ty = type_of_constructor env sigma (ctor, EInstance.make u) in
         sigma, make_judge cstr ty
 
-    | Case (ci, u, pms, p, iv, c, lf) ->
-        let case = (ci, u, pms, p, iv, c, lf) in
-        let (ci, (p,rp), iv, c, lf) = EConstr.expand_case env sigma case in
-        let sigma, cj = execute env sigma c in
-        let sigma, pj = execute env sigma p in
-        let sigma, lfj = execute_array env sigma lf in
+    | Case (ci, u, pms, ((nas, p), r), iv, c, lf) ->
+        let proj = HConstr.proj in
+        let case_iv = match iv with
+          | NoInvert -> NoInvert
+          | CaseInvert { indices } -> CaseInvert { indices = Array.map proj indices }
+        in
+        let case = (ci, EInstance.make u, Array.map proj pms,
+                    ((Array.map EConstr.of_binder_annot nas, proj p), ERelevance.make r),
+                    case_iv, proj c,
+                    Array.map (fun (nas, b) -> (Array.map EConstr.of_binder_annot nas, proj b)) lf) in
+        let (ci, _, _, ((pctx, _), rp), _, _, lfctx) = EConstr.annotate_case env sigma case in
+        let wrap ctx body = List.fold_left (fun body decl -> HConstr.make_binder tbl decl body) body ctx in
+        let pn = wrap pctx p in
+        let lfn = Array.map2 (fun (ctx, _) (_, b) -> wrap ctx b) lfctx lf in
+        let sigma, cj = execute_node tbl env sigma c in
+        let sigma, pj = execute_node tbl env sigma pn in
+        let sigma, lfj = execute_nodes tbl env sigma lfn in
         let sigma = match iv with
           | NoInvert -> sigma
-          | CaseInvert {indices} ->
-            let args = Array.append pms indices in
-            let t = mkApp (mkIndU (ci.ci_ind,u), args) in
-            let sigma, tj = execute env sigma t in
+          | CaseInvert { indices } ->
+            let ind = HConstr.make tbl (Constr.mkIndU (ci.ci_ind, u)) in
+            let t = HConstr.make_app tbl ind (Array.append pms indices) in
+            let sigma, tj = execute_node tbl env sigma t in
             let sigma, tj = type_judgment env sigma tj in
             let sigma = check_actual_type env sigma cj tj.utj_val in
             sigma
         in
-        judge_of_case env sigma case ci (pj,rp) iv cj lfj
+        judge_of_case env sigma case ci (pj,rp) case_iv cj lfj
 
     | Fix ((vn,i as vni),recdef) ->
-        let sigma, (_,tys,_ as recdef') = execute_recdef env sigma recdef in
+        let sigma, (_,tys,_ as recdef') = execute_recdef tbl env sigma recdef in
         let fix = (vni,recdef') in
         let sigma = check_fix env sigma fix in
         sigma, make_judge (mkFix fix) tys.(i)
 
     | CoFix (i,recdef) ->
-        let sigma, (_,tys,_ as recdef') = execute_recdef env sigma recdef in
+        let sigma, (_,tys,_ as recdef') = execute_recdef tbl env sigma recdef in
         let cofix = (i,recdef') in
         check_cofix env sigma cofix;
         sigma, make_judge (mkCoFix cofix) tys.(i)
 
     | Sort s ->
-      let s = ESorts.kind sigma s in
+      let s = ESorts.kind sigma (ESorts.make s) in
       if not (Environ.sprop_allowed env) && Sorts.is_sprop s then
         error_not_allowed_sprop env sigma
       else sigma, judge_of_sort s
 
     | Proj (p, _, c) ->
-      let sigma, cj = execute env sigma c in
+      let sigma, cj = execute_node tbl env sigma c in
       judge_of_projection env sigma p cj
 
     | App (f,args) ->
-        let sigma, fj = execute env sigma f in
-        let sigma, jl = execute_array env sigma args in
+        let sigma, fj = execute_node tbl env sigma f in
+        let sigma, jl = execute_nodes tbl env sigma args in
         judge_of_apply env sigma fj jl
 
     | Lambda (name,c1,c2) ->
-        let sigma, j = execute env sigma c1 in
+        let name = EConstr.of_binder_annot name in
+        let sigma, j = execute_node tbl env sigma c1 in
         let sigma, var = type_judgment env sigma j in
         let sigma, decl = check_binder_relevance env sigma var.utj_type (LocalAssum (name, var.utj_val)) in
         let env1 = push_rel decl env in
-        let sigma, j' = execute env1 sigma c2 in
+        let sigma, j' = execute_node tbl env1 sigma c2 in
         sigma, judge_of_abstraction env1 sigma name.binder_name var j'
 
     | Prod (name,c1,c2) ->
-        let sigma, j = execute env sigma c1 in
+        let name = EConstr.of_binder_annot name in
+        let sigma, j = execute_node tbl env sigma c1 in
         let sigma, varj = type_judgment env sigma j in
         let sigma, decl = check_binder_relevance env sigma varj.utj_type (LocalAssum (name, varj.utj_val)) in
         let env1 = push_rel decl env in
-        let sigma, j' = execute env1 sigma c2 in
+        let sigma, j' = execute_node tbl env1 sigma c2 in
         let sigma, varj' = type_judgment env1 sigma j' in
         sigma, judge_of_product env sigma name.binder_name varj varj'
 
      | LetIn (name,c1,c2,c3) ->
-        let sigma, j1 = execute env sigma c1 in
-        let sigma, j2 = execute env sigma c2 in
+        let name = EConstr.of_binder_annot name in
+        let sigma, j1 = execute_node tbl env sigma c1 in
+        let sigma, j2 = execute_node tbl env sigma c2 in
         let sigma, j2 = type_judgment env sigma j2 in
         let sigma, _ =  judge_of_cast env sigma j1 DEFAULTcast j2 in
         let sigma, decl = check_binder_relevance env sigma j2.utj_type (LocalDef (name, j1.uj_val, j2.utj_val)) in
         let env1 = push_rel decl env in
-        let sigma, j3 = execute env1 sigma c3 in
+        let sigma, j3 = execute_node tbl env1 sigma c3 in
         sigma, judge_of_letin env sigma name.binder_name j1 j2 j3
 
     | Cast (c,k,t) ->
-        let sigma, cj = execute env sigma c in
-        let sigma, tj = execute env sigma t in
+        let sigma, cj = execute_node tbl env sigma c in
+        let sigma, tj = execute_node tbl env sigma t in
         let sigma, tj = type_judgment env sigma tj in
         judge_of_cast env sigma cj k tj
 
@@ -661,22 +908,31 @@ let rec execute env sigma cstr =
         sigma, judge_of_string env s
 
     | Array(u,t,def,ty) ->
-      let sigma, tyj = execute env sigma ty in
+      let sigma, tyj = execute_node tbl env sigma ty in
       let sigma, tyj = type_judgment env sigma tyj in
-      let sigma, defj = execute env sigma def in
-      let sigma, tj = execute_array env sigma t in
-      judge_of_array env sigma (EInstance.kind sigma u) tj defj tyj
+      let sigma, defj = execute_node tbl env sigma def in
+      let sigma, tj = execute_nodes tbl env sigma t in
+      judge_of_array env sigma (EInstance.kind sigma (EInstance.make u)) tj defj tyj
 
-and execute_recdef env sigma (names,lar,vdef) =
-  let sigma, larj = execute_array env sigma lar in
+and execute_recdef tbl env sigma (names,lar,vdef) =
+  let names = Array.map EConstr.of_binder_annot names in
+  let sigma, larj = execute_nodes tbl env sigma lar in
   let sigma, lara = Array.fold_left_map (assumption_of_judgment env) sigma larj in
-  let env1 = push_rec_types (names,lara,vdef) env in
-  let sigma, vdefj = execute_array env1 sigma vdef in
+  let env1 = push_rec_types (names,lara,Array.map HConstr.proj vdef) env in
+  let sigma, vdefj = execute_nodes tbl env1 sigma vdef in
   let vdefv = Array.map j_val vdefj in
   let sigma = check_type_fixpoint env1 sigma names lara vdefj in
   sigma, (names,lara,vdefv)
 
-and execute_array env = Array.fold_left_map (execute env)
+and execute_nodes tbl env = Array.fold_left_map (execute_node tbl env)
+
+let execute env sigma c =
+  let tbl = HConstr.empty_table () in
+  execute_node tbl env sigma (HConstr.make tbl (EConstr.Unsafe.to_constr c))
+
+let execute_array env sigma v =
+  let tbl = HConstr.empty_table () in
+  execute_nodes tbl env sigma (Array.map (fun c -> HConstr.make tbl (EConstr.Unsafe.to_constr c)) v)
 
 let check env sigma c t =
   let sigma, j = execute env sigma c in
