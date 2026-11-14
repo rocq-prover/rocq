@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import gitlab
 import datetime
 import dateparser
