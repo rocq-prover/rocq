@@ -547,6 +547,7 @@ struct
   type args = EConstr.t array
   type evd = evar_map
   type uinstance = EConstr.EInstance.t
+  type lft = unit
 
   let get = Array.get
 
@@ -567,8 +568,12 @@ struct
 
   let get_parray evd e =
     match EConstr.kind evd e with
-    | Array(_u,t,def,_ty) -> Parray.of_array t def
+    | Array(_u,t,def,_ty) -> (), Parray.of_array t def
     | _ -> raise Primred.NativeDestKO
+
+  let trivial_lift () = true
+
+  let lift () v = v
 
   let mkInt env i =
     mkInt i

@@ -816,14 +816,16 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
       let cuniv = convert_branches mind mip l2r infos e1 e2 el1 el2 u1 u2 pms1 pms2 br1 br2 cuniv in
       convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
 
-    | FArray (u1,t1,ty1), FArray (u2,t2,ty2) ->
+    | FArray (u1,t1,ty1,alft1), FArray (u2,t2,ty2,alft2) ->
       let len = Parray.length_int t1 in
       if not (Int.equal len (Parray.length_int t2)) then raise NotConvertible;
       let cuniv = fail_check infos @@ convert_instances_cumul CONV [|UVars.Variance.Irrelevant|] u1 u2 cuniv in
       let el1 = el_stack lft1 v1 in
       let el2 = el_stack lft2 v2 in
-      let cuniv = ccnv CONV l2r infos el1 el2 ty1 ty2 cuniv in
-      let cuniv = Parray.fold_left2 (fun u v1 v2 -> ccnv CONV l2r infos el1 el2 v1 v2 u) cuniv t1 t2 in
+      let cuniv = ccnv CONV l2r infos el1 el2 (lift_fconstr alft1 ty1) (lift_fconstr alft2 ty2) cuniv in
+      let cuniv = Parray.fold_left2 (fun u v1 v2 ->
+          ccnv CONV l2r infos el1 el2 (lift_fconstr alft1 v1) (lift_fconstr alft2 v2) u) cuniv t1 t2
+      in
       convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
 
     | (FRel n1, FIrrelevant) ->

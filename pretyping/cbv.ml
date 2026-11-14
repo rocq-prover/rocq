@@ -250,6 +250,7 @@ module VNativeEntries =
     type args = cbv_value array
     type evd = unit
     type uinstance = UVars.Instance.t
+    type lft = unit
 
     let get = Array.get
 
@@ -279,8 +280,12 @@ module VNativeEntries =
 
     let get_parray () e =
       match e with
-      | ARRAY(_u,t,_ty) -> t
+      | ARRAY(_u,t,_ty) -> (), t
       | _ -> raise Primred.NativeDestKO
+
+    let trivial_lift () = true
+
+    let lift () v = v
 
     let mkInt env i = VAL(0, mkInt i)
 
