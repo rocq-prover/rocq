@@ -488,6 +488,10 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
   let env = Proofview.Goal.env gl in
   let sigma0 = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
+  let () =
+    if not (EConstr.Vars.closed0 sigma rdx) then
+      errorstrm Pp.(str "The rewrite redex mentions variables bound in the goal")
+  in
   let sigma = resolve_typeclasses ~where:r ~fail:false env sigma in
   let r_n, evs, ucst = abs_evars env sigma0 (sigma, r) in
   let sigma0 = Evd.set_ustate sigma0 ucst in
