@@ -408,6 +408,7 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
   let open Tacticals in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
+  let concl = Proofview.Goal.concl gl in
   let beta = Reductionops.clos_norm_flags RedFlags.beta env sigma in
   let sigma, new_rdx = map_redex env sigma ~before:rdx ~after:new_rdx in
   (* The resulting goal *)
@@ -429,7 +430,7 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_so
         let penv = EConstr.push_rel (LocalAssum (id, rdx_ty)) env in
         let pred = Vars.subst_var sigma pattern_id pred in
         let sigma, predty , p_sort =
-          let sigma, predty = Typing.type_of penv sigma pred in
+          let sigma, predty = Typing.recheck_against penv sigma (Vars.lift 1 concl) pred in
           let p_sort = Retyping.get_sort_of penv sigma pred in
           sigma, predty, p_sort in
         let (sigma, elim), _ = Equality.lookup_eq_eliminator_with_error env sigma eq ~dep:false ~inccl:true ~l2r:(dir = L2R) ~c_sort ~e_sort ~p_sort in
@@ -488,18 +489,22 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
   let env = Proofview.Goal.env gl in
   let sigma0 = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
+  let () =
+    if not (EConstr.Vars.closed0 sigma rdx) then
+      errorstrm Pp.(str "The rewrite redex mentions variables bound in the goal")
+  in
   let sigma = resolve_typeclasses ~where:r ~fail:false env sigma in
   let r_n, evs, ucst = abs_evars env sigma0 (sigma, r) in
   let sigma0 = Evd.set_ustate sigma0 ucst in
   let n = List.length evs in
   let r_n' = abs_cterm env sigma0 n r_n in
   let r' = EConstr.Vars.subst_var sigma pattern_id r_n' in
-  let sigma, rdxt = Typing.type_of env sigma rdx in
+  let rdxt = Retyping.get_type_of env sigma rdx in
   let () = debug_ssr (fun () -> Pp.(str"r@rwcltac=" ++ pr_econstr_env env sigma r)) in
   let cvtac, rwtac, sigma0 =
     if EConstr.Vars.closed0 sigma0 r' then
       let c_eq = Rocqlib.(lib_ref "core.eq.type") in
-      let sigma, c_ty = Typing.type_of env sigma r in
+      let c_ty = Retyping.get_type_of env sigma r in
       let () = debug_ssr (fun () -> Pp.(str"c_ty@rwcltac=" ++ pr_econstr_env env sigma c_ty)) in
       let open EConstr in
       match kind_of_type sigma (Reductionops.whd_all env sigma c_ty) with
@@ -509,8 +514,8 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
           let c_sort = Retyping.get_sort_of env sigma a.(0) in
           pirrel_rewrite ?under ?map_redex cl rdx a.(0) c_sort new_rdx dir (sigma, r) c_ty e e_sort, Tacticals.tclIDTAC, sigma0
       | _ ->
+          (* convert_concl will check well-typedness of cl' *)
           let cl' = EConstr.mkApp (EConstr.mkNamedLambda sigma (make_annot pattern_id ERelevance.relevant) rdxt cl, [|rdx|]) in
-          let sigma, _ = Typing.type_of env sigma cl' in
           (* [sigma] is an extension of [sigma0] *)
           let sigma0 = Evd.set_ustate sigma0 (Evd.ustate sigma) in
           convert_concl ~check:true cl', rewritetac ?under dir r', sigma0
