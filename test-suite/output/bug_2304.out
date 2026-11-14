@@ -1,4 +1,8 @@
-File "./output/bug_2304.v", line 3, characters 21-22:
+File "./output/bug_2304.v", line 3, characters 28-32:
 The command has indeed failed with message:
-Could not find an instance for "A unit".
-
+In environment
+x : a tt
+The term "@a x" has type "A x -> x -> Type" while it is expected to have type
+ "?A0"
+(unable to find a well-typed instantiation for "?A0" of type 
+"Type").
