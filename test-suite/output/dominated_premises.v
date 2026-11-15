@@ -49,3 +49,42 @@ Universes k0 m0 n0.
 Constraint k0 <= max(m0, n0).
 Constraint k0 <= m0, m0 <= n0.
 Print Universes Subgraph (k0 m0 n0).
+
+(* The new clause is not on the premise itself: c1 <= max(p1, q1) and p1 <= z1, then z1 <= q1
+   makes p1 <= q1, found going down from z1 *)
+Universes c1 p1 q1 z1.
+Constraint c1 <= max(p1, q1).
+Constraint p1 <= z1.
+Constraint z1 <= q1.
+Print Universes Subgraph (c1 p1 q1 z1).
+
+(* Through a longer chain, with many universes below z2 and few above: the clause is found going
+   up from z2, through its other premise q2 *)
+Universes c2 p2 q2 y2 z2 a2 b2 r2.
+Constraint c2 <= max(p2, q2).
+Constraint p2 <= y2, y2 <= z2.
+Constraint a2 <= p2, b2 <= p2, r2 <= a2.
+Constraint z2 <= q2.
+Print Universes Subgraph (c2 p2 q2 y2 z2).
+
+(* After a merge: p3 = r3 with r3 <= q3 makes p3 <= q3 *)
+Universes c3 p3 q3 r3.
+Constraint c3 <= max(p3, q3).
+Constraint r3 <= q3.
+Constraint p3 = r3.
+Print Universes Subgraph (c3 p3 q3 r3).
+
+(* After a merge of the conclusion: c4 = w4 with p4 <= w4 makes p4 <= c4, below c4 + 1 *)
+Universes c4 p4 q4 w4.
+Constraint c4 < max(p4, q4).
+Constraint p4 <= w4.
+Constraint c4 = w4.
+Print Universes Subgraph (c4 p4 q4 w4).
+
+(* Two clauses below the new one: with p5 <= q5, c5 <= max(p5, q5) is c5 <= q5, and then
+   e5 <= max(c5, q5+1) is e5 <= q5+1 *)
+Universes c5 e5 p5 q5.
+Constraint e5 <= max(c5, q5+1).
+Constraint c5 <= max(p5, q5).
+Constraint p5 <= q5.
+Print Universes Subgraph (c5 e5 p5 q5).
