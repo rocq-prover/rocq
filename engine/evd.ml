@@ -254,8 +254,8 @@ let evar_relevance evi = evi.evar_relevance
 
 let evar_hyps evi = evi.evar_hyps
 
-let evar_filtered_hyps evi = match Filter.repr (evar_filter evi) with
-| None -> evar_hyps evi
+let filter_hyps filter hyps = match Filter.repr filter with
+| None -> hyps
 | Some filter ->
   let rec make_hyps filter ctxt = match filter, match_named_context_val ctxt with
   | [], None -> empty_named_context_val
@@ -265,7 +265,9 @@ let evar_filtered_hyps evi = match Filter.repr (evar_filter evi) with
     push_named_context_val status decl hyps
   | _ -> instance_mismatch ()
   in
-  make_hyps filter (evar_hyps evi)
+  make_hyps filter hyps
+
+let evar_filtered_hyps evi = filter_hyps (evar_filter evi) (evar_hyps evi)
 
 let evar_env env evi =
   Environ.reset_with_named_context evi.evar_hyps env
@@ -1377,10 +1379,10 @@ let new_pure_evar ?(src=default_source) ?(filter = Filter.identity) ~relevance
   ?(abstract_arguments = Abstraction.identity) ?candidates
   ?name ?parent ?(typeclass_candidate = false) ?(rrpat = false) sign evd typ =
   let evi = {
-    evar_hyps = sign;
+    evar_hyps = filter_hyps filter sign;
     evar_concl = Undefined typ;
     evar_body = Evar_empty;
-    evar_filter = filter;
+    evar_filter = Filter.identity;
     evar_abstract_arguments = Undefined abstract_arguments;
     evar_source = src;
     evar_candidates = Undefined candidates;
@@ -1441,10 +1443,11 @@ let define_with_evar evk body evd =
 let restrict evk filter ?candidates ?src evd =
   let evk' = new_untyped_evar () in
   let evar_info = EvMap.find evk evd.undf_evars in
-  let len = Environ.nb_named evar_info.evar_hyps in
-  let id_inst = Filter.filter_slist filter (SList.defaultn len SList.empty) in
+  let () = assert (Filter.equal evar_info.evar_filter Filter.identity) in
+  let evar_hyps = filter_hyps filter evar_info.evar_hyps in
+  let id_inst = SList.defaultn (Environ.nb_named evar_hyps) SList.empty in
   let evar_info' =
-    { evar_info with evar_filter = filter;
+    { evar_info with evar_hyps;
       evar_candidates = Undefined candidates;
       evar_source = (match src with None -> evar_info.evar_source | Some src -> src);
     } in

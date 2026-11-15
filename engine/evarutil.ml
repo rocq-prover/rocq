@@ -398,6 +398,39 @@ let next_evar_name naming = match naming with
 | IntroFresh id -> Some (id, true)
 | IntroIdentifier id -> Some (id, false)
 
+let prune_dependents sigma needed f ctxt =
+  let rec prune = function
+  | [], [] -> Id.Set.empty, []
+  | b :: f, decl :: ctxt ->
+    let dropped, f = prune (f, ctxt) in
+    let id = NamedDecl.get_id decl in
+    let mentions_dropped () =
+      NamedDecl.fold_constr (fun c acc -> acc || not (Id.Set.is_empty (Id.Set.inter (collect_vars sigma c) dropped))) decl false
+    in
+    let keep = b && (Id.Set.mem id needed || not (mentions_dropped ())) in
+    (if keep then dropped else Id.Set.add id dropped), keep :: f
+  | _ -> assert false
+  in
+  snd (prune (f, ctxt))
+
+let close_filter sigma sign typ filter = match Filter.repr filter with
+| None -> filter
+| Some f ->
+  let ctxt = EConstr.named_context_of_val sign in
+  let rec needed_closure needed = function
+  | [] -> needed
+  | decl :: ctxt ->
+    let needed =
+      if Id.Set.mem (NamedDecl.get_id decl) needed then
+        NamedDecl.fold_constr (fun c vars -> Id.Set.union (collect_vars sigma c) vars) decl needed
+      else needed
+    in
+    needed_closure needed ctxt
+  in
+  let needed = needed_closure (collect_vars sigma typ) ctxt in
+  let f = List.map2 (fun b decl -> b || Id.Set.mem (NamedDecl.get_id decl) needed) f ctxt in
+  Filter.make (prune_dependents sigma needed f ctxt)
+
 (* [new_evar] declares a new existential in an env env with type typ *)
 (* Converting the env into the sign of the evar to define *)
 let new_evar ?src ?filter ?relevance ?abstract_arguments ?candidates ?(naming = IntroAnonymous) ?parent ?typeclass_candidate
@@ -406,6 +439,7 @@ let new_evar ?src ?filter ?relevance ?abstract_arguments ?candidates ?(naming = 
   let sign,typ',instance,subst = push_rel_context_to_named_context env evd typ in
   let map c = csubst_subst evd subst c in
   let candidates = Option.map (fun l -> List.map map l) candidates in
+  let filter = Option.map (close_filter evd sign typ') filter in
   let instance =
     match filter with
     | None -> instance

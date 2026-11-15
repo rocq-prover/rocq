@@ -1205,7 +1205,9 @@ let closure_of_filter ~can_drop evd evk = function
                   not (can_drop || isRel evd c || isVar evd c)
     in
     let needed =
-      if keep then Id.Set.union needed (vars_of_kept_def decl)
+      if Id.Set.mem (get_id decl) needed then
+        fold_constr (fun c vars -> Id.Set.union (collect_vars evd c) vars) decl needed
+      else if keep then Id.Set.union needed (vars_of_kept_def decl)
       else needed
     in
     keep :: close needed filter ctxt
@@ -1215,7 +1217,18 @@ let closure_of_filter ~can_drop evd evk = function
     Option.default (List.map (fun _ -> true) ctxt) (Filter.repr filter)
   in
   let needed = collect_vars evd (evar_concl evi) in
+  let rec needed_closure needed = function
+  | [] -> needed
+  | decl :: ctxt ->
+    let needed =
+      if Id.Set.mem (get_id decl) needed then
+        fold_constr (fun c vars -> Id.Set.union (collect_vars evd c) vars) decl needed
+      else needed
+    in
+    needed_closure needed ctxt
+  in
   let newfilter = close needed filter ctxt in
+  let newfilter = Evarutil.prune_dependents evd (needed_closure needed ctxt) newfilter ctxt in
   (* Now ensure that restriction is at least what it was originally. *)
   let newfilter = match Filter.repr (evar_filter evi) with
   | None -> newfilter

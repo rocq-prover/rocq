@@ -203,6 +203,8 @@ exception ClearDependencyError of Id.t * clear_dependency_error * GlobRef.t opti
     @raise ClearDependencyError NoCandidatesLeft if the filter turns the candidates
     into an empty list. *)
 
+val prune_dependents : evar_map -> Id.Set.t -> bool list -> EConstr.named_context -> bool list
+
 val restrict_evar : evar_map -> Evar.t -> Filter.t ->
   constr list option -> evar_map * Evar.t
 
