@@ -20,6 +20,11 @@ type t
 
 val set_local : t -> t
 
+val keep_redundant_premises : t -> t
+(** The clauses with several premises are kept as enforced, instead of dropping the premises that
+  the other clauses make redundant: then the clauses of the graph are the ones of the enforced
+  constraints, which [remove_if_entailed] needs, as a simplified clause depends on other ones. *)
+
 val empty : t
 
 exception AlreadyDeclared
@@ -152,7 +157,12 @@ val substitution_entailed : (Level.t * Level.t) list -> t -> bool
 
 (** [remove_if_entailed c m]: when the clauses of the constraint [c] are local clauses of [m] (see
   [set_local]) that the other clauses entail, [m] without them. As only entailed clauses are
-  removed, the result has the same models. *)
+  removed, the result has the same models.
+  NB: the clauses of [m] are the ones of the enforced constraints only when no premise was
+  dropped (see [keep_redundant_premises]) and the universes made equal are the ones of the
+  enforced equalities. Otherwise, the clauses of [c] may be entailed by the other clauses of [m]
+  but not by the other enforced constraints: e.g. [u <= max(v, w)] becomes [u <= w] because of
+  [v <= w], which it then entails along with [u <= v]. *)
 val remove_if_entailed : UnivConstraint.t -> t -> t option
 
 (** {5 High-level representation} *)

@@ -740,9 +740,13 @@ type model = {
   locals : Index.Set.t; (* Contains the canonical nodes which are local or have local clauses, and maybe
     other indices: they are checked again when used *)
   local_eqs : Index.Set.t; (* Contains the substituted levels whose substitution is local *)
+  drop_redundant_premises : bool; (* Whether the redundant premises of the clauses with several
+    premises are dropped, see [simplify_premises] *)
   table : Index.table }
 
 let set_local m = { m with locality = Local }
+
+let keep_redundant_premises m = { m with drop_redundant_premises = false }
 
 let empty_model = {
   locality = Global;
@@ -753,6 +757,7 @@ let empty_model = {
   canonical = 0;
   locals = Index.Set.empty;
   local_eqs = Index.Set.empty;
+  drop_redundant_premises = true;
   table = Index.empty
 }
 
@@ -821,6 +826,7 @@ let enter_equiv m u local v =
     values = Option.map (PMap.remove u) m.values;
     locals = m.locals;
     local_eqs = (match m.locality with Local -> Index.Set.add u m.local_eqs | Global -> m.local_eqs);
+    drop_redundant_premises = m.drop_redundant_premises;
     table = m.table }
 
 let change_node m n =
@@ -2472,6 +2478,7 @@ let enforce_clauses ?(entailed=false) cls m =
        when [t <= v] holds, and then of the clauses which the new ones can simplify *)
     let m, added = match m with
       | None -> None, added
+      | Some m when not m.drop_redundant_premises -> Some m, added
       | Some m ->
         let m, added' = simplify_new_premises m added in
         let m, added'' = resimplify_premises m (added' @ added) in
@@ -2660,7 +2667,8 @@ let enforce_constraint (u, k, v) (m : t) = enforce u k v m
 
 exception AlreadyDeclared
 
-let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; values; canonical; locals; local_eqs } =
+let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; values; canonical; locals; local_eqs;
+    drop_redundant_premises } =
   let idx, table =
     if Index.mem u table then
       let idx = Index.find u table in
@@ -2672,7 +2680,8 @@ let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; va
     clauses_fwd = ForwardClauses.empty; clauses_bwd = ClausesOf.empty } in
   let entries = PMap.add idx can entries in
   let locals = match locality with Local -> Index.Set.add idx locals | Global -> locals in
-  idx, { locality; entries; subst; subst_deps; table; values; canonical = canonical + 1; locals; local_eqs }
+  idx, { locality; entries; subst; subst_deps; table; values; canonical = canonical + 1; locals; local_eqs;
+    drop_redundant_premises }
 
 let add ?rigid u model =
   let _idx, model = add_model ?rigid u model in

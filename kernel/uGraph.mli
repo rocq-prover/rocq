@@ -39,6 +39,9 @@ type locality = Loop_checking.locality =
    and they can be retrieved using the only_local/local options of accessort functions below. *)
 val set_local : t -> t
 
+val keep_redundant_premises : t -> t
+(** See [Loop_checking.keep_redundant_premises] *)
+
 (** Check equality of instances w.r.t. a universe graph *)
 val check_eq_instances : (Sorts.Quality.t -> Sorts.Quality.t -> bool) -> t -> Instance.t -> Instance.t -> bool
 
