@@ -1290,7 +1290,7 @@ let abstract_type sigma gl =
   let open EConstr in
   let genv = Global.env () in
   let evi = Evd.find_undefined sigma gl in
-  let env = Evd.evar_filtered_env genv evi in
+  let env = Evd.evar_env genv evi in
   let is_proof_var decl =
     try ignore (Environ.lookup_named (Context.Named.Declaration.get_id decl) genv); false
     with Not_found -> true in

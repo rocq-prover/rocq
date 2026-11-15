@@ -144,15 +144,13 @@ match evar_ident evk sigma with
 | Some id ->
   str "?" ++ Libnames.pr_path id
 
-let pr_decl env sigma (decl,ok) =
+let pr_decl env sigma decl =
   let open NamedDecl in
   let print_constr = Internal.print_kconstr in
   match decl with
-  | LocalAssum ({binder_name=id},_) ->
-    if ok then Id.print id else (str "{" ++ Id.print id ++ str "}")
+  | LocalAssum ({binder_name=id},_) -> Id.print id
   | LocalDef ({binder_name=id},c,_) ->
-    str (if ok then "(" else "{") ++ Id.print id ++ str ":=" ++
-    print_constr env sigma c ++ str (if ok then ")" else "}")
+    str "(" ++ Id.print id ++ str ":=" ++ print_constr env sigma c ++ str ")"
 
 let pr_evar_source env sigma = function
   | Evar_kinds.NamedHole id -> Id.print id
@@ -191,14 +189,7 @@ let pr_evar_source env sigma = function
 let pr_evar_info (type a) env sigma (evi : a Evd.evar_info) =
   let open Evd in
   let print_constr = Internal.print_kconstr in
-  let phyps =
-    try
-      let decls = match Filter.repr (evar_filter evi) with
-      | None -> List.map (fun c -> (c, true)) (evar_context evi)
-      | Some filter -> List.combine (evar_context evi) filter
-      in
-      prlist_with_sep spc (pr_decl env sigma) (List.rev decls)
-    with Invalid_argument _ -> str "Ill-formed filtered context" in
+  let phyps = prlist_with_sep spc (pr_decl env sigma) (List.rev (evar_context evi)) in
   let pb =
     match Evd.evar_body evi with
       | Evar_empty -> print_constr env sigma (Evd.evar_concl evi)

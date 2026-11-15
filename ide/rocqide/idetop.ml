@@ -197,7 +197,7 @@ let concl_next_tac =
 
 let process_goal short sigma g =
   let evi = Evd.find_undefined sigma g in
-  let env = Evd.evar_filtered_env (Global.env ()) evi in
+  let env = Evd.evar_env (Global.env ()) evi in
   let name = if Vernacgoal.print_goal_name sigma g then Some (Termops.evar_string env sigma g) else None in
   let ccl =
     pr_letype_env ~goal_concl_style:true env sigma (Evd.evar_concl evi)
@@ -300,7 +300,7 @@ let hints () =
     match goals with
     | [] -> None
     | g :: _ ->
-      let env = Evd.evar_filtered_env (Global.env ()) (Evd.find_undefined sigma g) in
+      let env = Evd.evar_env (Global.env ()) (Evd.find_undefined sigma g) in
       let get_hint_hyp env _ d accu = hyp_next_tac sigma env d :: accu in
       let hint_hyps = List.rev (Environ.fold_named_context get_hint_hyp env ~init: []) in
       Some (hint_hyps, concl_next_tac)

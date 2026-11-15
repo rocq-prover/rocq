@@ -20,7 +20,6 @@ open Ppconstr
 open Declarations
 
 module RelDecl = Context.Rel.Declaration
-module NamedDecl = Context.Named.Declaration
 module CompactedDecl = Ppconstr.CompactedDecl
 
 let () =
@@ -565,15 +564,6 @@ let pr_transparent_state ts =
 let pr_evgl_sign ?(flags=current_combined()) env sigma (evi : undefined evar_info) =
   let env = evar_env env evi in
   let ps = pr_named_context_of ~flags env sigma in
-  let _, l = match Filter.repr (evar_filter evi) with
-  | None -> [], []
-  | Some f -> List.filter2 (fun b c -> not b) f (evar_context evi)
-  in
-  let ids = List.rev_map NamedDecl.get_id l in
-  let warn =
-    if List.is_empty ids then mt () else
-      (str " (" ++ prlist_with_sep pr_comma pr_id ids ++ str " cannot be used)")
-  in
   let concl = Evd.evar_concl evi in
   let pc = pr_leconstr_env ~flags env sigma concl in
   let candidates =
@@ -585,7 +575,7 @@ let pr_evgl_sign ?(flags=current_combined()) env sigma (evi : undefined evar_inf
     end
   in
   hov 0 (str"[" ++ ps ++ spc () ++ str"|- "  ++ pc ++ str"]" ++
-           candidates ++ warn)
+           candidates)
 
 (* Print an existential variable *)
 
@@ -882,7 +872,7 @@ struct
 
 let goal_repr sigma g =
   let EvarInfo evi = Evd.find sigma g in
-  let env = Evd.evar_filtered_env (Global.env ()) evi in
+  let env = Evd.evar_env (Global.env ()) evi in
   let concl = match Evd.evar_body evi with
   | Evd.Evar_empty -> Evd.evar_concl evi
   | Evd.Evar_defined b -> Retyping.get_type_of env sigma b

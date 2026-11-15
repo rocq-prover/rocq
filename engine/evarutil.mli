@@ -91,7 +91,10 @@ type undefined_evars_cache
 
 val create_undefined_evars_cache : unit -> undefined_evars_cache
 
+val undefined_evars_of_evar_info : ?cache:undefined_evars_cache -> evar_map -> 'a evar_info -> Evar.Set.t
+
 val filtered_undefined_evars_of_evar_info : ?cache:undefined_evars_cache -> evar_map -> 'a evar_info -> Evar.Set.t
+[@@ocaml.deprecated "(9.4) Use [undefined_evars_of_evar_info]."]
 
 (** [occur_evar_upto sigma k c] returns [true] if [k] appears in
     [c]. It looks up recursively in [sigma] for the value of existential
@@ -204,6 +207,13 @@ exception ClearDependencyError of Id.t * clear_dependency_error * GlobRef.t opti
     into an empty list. *)
 
 val prune_dependents : evar_map -> Id.Set.t -> bool list -> EConstr.named_context -> bool list
+(** [prune_dependents sigma needed f ctx] additionally drops from the mask [f]
+    over [ctx] the declarations that mention a dropped one, unless they
+    belong to [needed]. *)
+
+val close_filter : evar_map -> named_context_val -> types -> Filter.t -> Filter.t
+(** [close_filter sigma sign t f] refines [f] so that the filtered context
+    is well-formed and [t] is well-scoped in it. *)
 
 val restrict_evar : evar_map -> Evar.t -> Filter.t ->
   constr list option -> evar_map * Evar.t

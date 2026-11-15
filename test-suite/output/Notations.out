@@ -121,9 +121,7 @@ match x with
 end
      : list ?T -> option (list ?T)
 where
-?T :
-  [x : list ?T  x1 : list ?T  x0 := x1 : list ?T |- Type] (x, x1,
-  x0 cannot be used)
+?T : [ |- Type]
 Univ@{α94 ; Notations:142}
      : Type@{Notations:142+1}
 (* {α94}; {Notations:142} | 

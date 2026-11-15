@@ -82,20 +82,19 @@ let define_pure_evar_as_product env evd na evk =
   let evksrc = evar_source evi in
   let src = subterm_source evk ~where:Domain evksrc in
   let evd1,(dom,u1) =
-    new_type_evar evenv evd univ_flexible_alg ~src ~filter:(evar_filter evi)
+    new_type_evar evenv evd univ_flexible_alg ~src
   in
   let rdom = ESorts.relevance_of_sort u1 in
   let evd2,rng =
     let newenv = push_named ProofVar (LocalAssum (make_annot id rdom, dom)) evenv in
     let src = subterm_source evk ~where:Codomain evksrc in
-    let filter = Filter.extend 1 (evar_filter evi) in
       if Environ.is_impredicative_sort env (ESorts.kind evd1 s) then
        (* Impredicative product, conclusion must fall in [Prop]. *)
-        new_evar newenv evd1 concl ~src ~filter
+        new_evar newenv evd1 concl ~src
       else
         let status = univ_flexible_alg in
         let evd3, (rng, srng) =
-          new_type_evar newenv evd1 status ~src ~filter
+          new_type_evar newenv evd1 status ~src
         in
         let prods = Typeops.sort_of_product env (ESorts.kind evd3 u1) (ESorts.kind evd3 srng) in
         let evd3 = Evd.set_leq_sort evd3 (ESorts.make prods) s in
@@ -140,12 +139,11 @@ let define_pure_evar_as_lambda env evd name evk =
       (Reductionops.whd_evar evd dom)) na
   in
   let newenv = push_named ProofVar (LocalAssum (id, dom)) evenv in
-  let filter = Filter.extend 1 (evar_filter evi) in
   let src = subterm_source evk ~where:Body (evar_source evi) in
   let abstract_arguments = Abstraction.abstract_last (Evd.evar_abstract_arguments evi) in
   let evty = subst1 (mkVar id.binder_name) rng in
   let typeclass_candidate = Typeclasses.is_maybe_class_type newenv evd1 evty in
-  let evd2,body = new_evar ~typeclass_candidate newenv evd1 ~src evty ~filter ~abstract_arguments in
+  let evd2,body = new_evar ~typeclass_candidate newenv evd1 ~src evty ~abstract_arguments in
   let lam = mkLambda (map_annot Name.mk_name id, dom, subst_var evd2 id.binder_name body) in
   Evd.define evk lam evd2, lam
 
@@ -194,7 +192,7 @@ let define_pure_evar_as_array env sigma evk =
   let src = subterm_source evk ~where:Domain evksrc in
   let sigma, u = new_univ_level_variable univ_flexible sigma in
   let s' = ESorts.make @@ Sorts.sort_of_univ @@ Univ.Universe.make u in
-  let sigma, ty = new_evar evenv sigma ~typeclass_candidate:false ~src ~filter:(evar_filter evi) (mkSort s') in
+  let sigma, ty = new_evar evenv sigma ~typeclass_candidate:false ~src (mkSort s') in
   let concl = Reductionops.whd_all evenv sigma (Evd.evar_concl evi) in
   let s = destSort sigma concl in
   (* array@{u} ty : Type@{u} <= Type@{s} *)

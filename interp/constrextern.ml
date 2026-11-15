@@ -1453,7 +1453,7 @@ let rec glob_of_pat
   | PEvar (evk,l) ->
       let filter (id, pat) = match pat with PVar id' -> Id.equal id id' | _ -> true in
       let EvarInfo evi = Evd.find sigma evk in
-      let hyps = Evd.evar_filtered_context evi in
+      let hyps = Evd.evar_context evi in
       let map decl pat = NamedDecl.get_id decl, pat in
       let l = List.filter filter @@ List.map2 map hyps l in
       let id = match Evd.evar_ident evk sigma with

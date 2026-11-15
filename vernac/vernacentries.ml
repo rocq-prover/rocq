@@ -200,7 +200,7 @@ let show_intro ~proof all =
   let Proof.{goals;sigma} = Proof.data proof in
   if not (List.is_empty goals) then begin
     let evi = Evd.find_undefined sigma (List.hd goals) in
-    let env = Evd.evar_filtered_env (Global.env ()) evi in
+    let env = Evd.evar_env (Global.env ()) evi in
     let l,_= decompose_prod_decls sigma (Termops.strip_outer_cast sigma (Evd.evar_concl evi)) in
     if all then
       let lid = Tactics.find_intro_names env sigma l in
@@ -2251,7 +2251,7 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
                       (str "No such goal: " ++ int n ++ str ".")
          | Some goal -> goal), qualid_basename qid
       | _ , _ -> raise (NoHyp None) in
-    let hyps = Evd.evar_filtered_hyps (Evd.find_undefined sigma ev) in
+    let hyps = Evd.evar_hyps (Evd.find_undefined sigma ev) in
     let decl = try EConstr.lookup_named_val id hyps with Not_found -> raise (NoHyp (Some id)) in
     let is_secvar = Termops.is_section_variable_sign hyps id in
     let natureofid = match is_secvar, decl with

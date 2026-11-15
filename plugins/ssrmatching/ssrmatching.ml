@@ -667,7 +667,7 @@ let evars_for_FO ~hack ~rigid env (ise0:evar_map) c0 =
   | Evar (k, a) ->
     if rigid k then map !sigma put c else
     let evi = Evd.find_undefined !sigma k in
-    let dc = List.firstn (max 0 (SList.length a - nenv)) (evar_filtered_context evi) in
+    let dc = List.firstn (max 0 (SList.length a - nenv)) (evar_context evi) in
     let abs_dc (d, c) = function
     | Context.Named.Declaration.LocalDef (x, b, t) ->
         d, mkNamedLetIn !sigma x (put b) (put t) c
@@ -1462,7 +1462,7 @@ let interp_term env sigma = function
 let thin id sigma goal =
   let ids = Id.Set.singleton id in
   let evi = Evd.find_undefined sigma goal in
-  let env = Evd.evar_filtered_env (Global.env ()) evi in
+  let env = Evd.evar_env (Global.env ()) evi in
   let cl = Evd.evar_concl evi in
   let relevance = Evd.evar_relevance evi in
   let ans =

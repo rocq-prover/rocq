@@ -684,7 +684,7 @@ let shelve_goals l =
     [sigma]. *)
 let depends_on sigma src tgt =
   let evi = Evd.find_undefined sigma tgt in
-  Evar.Set.mem src (Evd.evars_of_filtered_evar_info sigma (Evarutil.nf_evar_info sigma evi))
+  Evar.Set.mem src (Evd.evars_of_evar_info sigma (Evarutil.nf_evar_info sigma evi))
 
 let unifiable_delayed g l =
   CList.exists (fun (tgt, lazy evs) -> not (Evar.equal g tgt) && Evar.Set.mem g evs) l
@@ -696,7 +696,7 @@ let free_evars sigma l =
      the body of the evar_info [evi]. Note: since we want to use it on goals,
      the body is actually supposed to be empty. *)
     let EvarInfo evi = Evd.find sigma ev in
-    let fevs = lazy (Evarutil.filtered_undefined_evars_of_evar_info ~cache sigma evi) in
+    let fevs = lazy (Evarutil.undefined_evars_of_evar_info ~cache sigma evi) in
     (ev, fevs)
   in
   List.map map l
@@ -709,7 +709,7 @@ let free_evars_with_state sigma l =
      the body is actually supposed to be empty. *)
     let ev = drop_state ev in
     let EvarInfo evi = Evd.find sigma ev in
-    let fevs = lazy (Evarutil.filtered_undefined_evars_of_evar_info ~cache sigma evi) in
+    let fevs = lazy (Evarutil.undefined_evars_of_evar_info ~cache sigma evi) in
     (ev, fevs)
   in
   List.map map l
@@ -1187,7 +1187,7 @@ module Goal = struct
     Evd.evar_relevance (Evd.find_undefined sigma self)
 
   let gmake_with info env sigma goal state =
-    { env = Environ.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
+    { env = Environ.reset_with_named_context (Evd.evar_hyps info) env ;
       sigma = sigma ;
       concl = Evd.evar_concl info;
       state = state ;
@@ -1241,7 +1241,7 @@ module Goal = struct
           let goal = drop_state goal in
           let EvarInfo info = Evd.find sigma goal in
           let goal = {
-            env = Environ.reset_with_named_context (Evd.evar_filtered_hyps info) env ;
+            env = Environ.reset_with_named_context (Evd.evar_hyps info) env ;
             sigma = sigma ;
             concl = Evd.evar_concl oinfo;
             state = state;

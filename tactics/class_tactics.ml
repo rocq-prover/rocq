@@ -118,7 +118,7 @@ let set_typeclasses_strategy = function
 
 let pr_ev evs ev =
   let evi = Evd.find_undefined evs ev in
-  let env = Evd.evar_filtered_env (Global.env ()) evi in
+  let env = Evd.evar_env (Global.env ()) evi in
   Printer.pr_econstr_env env evs (Evd.evar_concl evi)
 
 let pr_ev_with_id evs ev =
@@ -438,7 +438,7 @@ let top_sort evm undefs =
   let tosee = ref undefs in
   let cache = Evarutil.create_undefined_evars_cache () in
   let rec visit ev evi =
-    let evs = Evarutil.filtered_undefined_evars_of_evar_info ~cache evm evi in
+    let evs = Evarutil.undefined_evars_of_evar_info ~cache evm evi in
       tosee := Evar.Set.remove ev !tosee;
       Evar.Set.iter (fun ev ->
         if Evar.Set.mem ev !tosee then
@@ -1174,7 +1174,7 @@ let evar_dependencies pred evm p =
   Evd.fold_undefined
     (fun ev evi _ ->
       if Evd.is_typeclass_evar evm ev && pred evm ev evi then
-        let evars = Evar.Set.add ev (Evarutil.filtered_undefined_evars_of_evar_info ~cache evm evi)
+        let evars = Evar.Set.add ev (Evarutil.undefined_evars_of_evar_info ~cache evm evi)
         in Intpart.union_set evars p
       else ())
     evm ()
