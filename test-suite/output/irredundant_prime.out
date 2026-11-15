@@ -1,0 +1,47 @@
+0 < p
+  < x
+  < c
+  < v
+  < a1
+  < b1
+  < c1
+  < a2
+  < b2
+  < c2
+  < d2
+  < a3
+  < b3
+  < c3
+  < e3
+  < a4
+  < b4
+  < c4
+  < d4
+  < a5
+  < b5
+  < c5
+  < d5
+  < c6
+  < q6
+  < r6
+  < a7
+  < b7
+  < c7
+p ≤ x
+x ≤ v
+c ≤ v
+c1 ≤ a1
+c2 ≤ d2
+d2 ≤ a2
+c3 ≤ max(a3, b3)
+c4 ≤ d4
+d4 ≤ max(a4, b4)
+c5 ≤ max(b5, d5)
+d5 ≤ max(a5, b5)
+c6 ≤ q6
+p6 = r6
+r6 ≤ q6
+a7 ≤ b7
+   ≤ c7
+b7 ≤ c7
+
