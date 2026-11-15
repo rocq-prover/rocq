@@ -742,7 +742,13 @@ type model = {
   local_eqs : Index.Set.t; (* Contains the substituted levels whose substitution is local *)
   drop_redundant_premises : bool; (* Whether the redundant premises of the clauses with several
     premises are dropped, see [simplify_premises] *)
+  witnesses : witness list; (* Models of the clauses, which refute candidate redundant premises,
+    see [drop_entailed_premises] *)
   table : Index.table }
+
+(** A witness is a model of the clauses: the values of [wmodel], a model of the clauses when it
+  was found, and [wext] for the universes which got clauses since (see [extend_witness]) *)
+and witness = { wmodel : model; wext : int PMap.t }
 
 let set_local m = { m with locality = Local }
 
@@ -758,6 +764,7 @@ let empty_model = {
   locals = Index.Set.empty;
   local_eqs = Index.Set.empty;
   drop_redundant_premises = true;
+  witnesses = [];
   table = Index.empty
 }
 
@@ -827,6 +834,7 @@ let enter_equiv m u local v =
     locals = m.locals;
     local_eqs = (match m.locality with Local -> Index.Set.add u m.local_eqs | Global -> m.local_eqs);
     drop_redundant_premises = m.drop_redundant_premises;
+    witnesses = m.witnesses;
     table = m.table }
 
 let change_node m n =
@@ -1930,16 +1938,19 @@ let check_one_clause model prems concl k =
   it does not find [u < v]. As in MetaRocq's [check_clause] (Deciders.v), the clause holds
   iff its negation [max(prems) < concl + k], i.e. the clauses [p + kp + 1 <= concl + k] for
   each premise [p + kp], has no model with [model]. *)
-let check_one_clause_complete model prems concl k =
+let check_one_clause_complete_witness model prems concl k =
   let rec aux m = function
-    | [] -> false (* A model of the negation *)
+    | [] -> Some m (* A model of the negation *)
     | (p, kp) :: prems ->
       let cl = (NeList.tip (refresh_can_expr m (concl, k)), refresh_can_expr m (p, kp + 1)) in
       match infer_clause_extension cl m with
-      | None -> true
+      | None -> None
       | Some m -> aux m prems
   in
   aux model (NeList.to_list prems)
+
+let check_one_clause_complete model prems concl k =
+  Option.is_empty (check_one_clause_complete_witness model prems concl k)
 
 (** [fold_above model (can, k) f acc] folds [f] over the universes above [can + k] through its
   clauses [can + c <= max(prems)]: [f ~single (q, kq + k - c)] for each premise [q + kq], where
@@ -1990,12 +2001,14 @@ let entails model prems (x, kx) =
 
 (** [entails_complete model prems (x, kx)] is [entails] with [check_one_clause_complete] only:
   starting from the values of [model], it is cheaper when the clause does not hold, while
-  [check_one_clause] propagates the consequences of the premises from scratch *)
+  [check_one_clause] propagates the consequences of the premises from scratch. @return [None]
+  when [x + kx <= max(prems)] is entailed, and otherwise a model of the clauses of [model] where it
+  does not hold *)
 let entails_complete model prems (x, kx) =
-  NeList.exists (fun (p, kp) -> p == x && kx <= kp) prems ||
+  if NeList.exists (fun (p, kp) -> p == x && kx <= kp) prems then None else
   let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- kx)) in
   let prems = NeList.map (fun (p, kp) -> (p, kp + s)) prems in
-  check_one_clause_complete model prems x (kx + s)
+  check_one_clause_complete_witness model prems x (kx + s)
 
 (** [entails_from model (p, kp) candidates] decides [x + kx <= p + kp] as [entails] for each
   [x + kx] of [candidates], propagating the consequences of [p + kp] once for all of them
@@ -2329,11 +2342,106 @@ let holds_in_values m (p, a) q =
   let value (can, j) = get_canonical_value m can - j in
   get_canonical_value m p >= a + List.fold_left (fun acc x -> min acc (value x)) max_int q
 
+(** {6 Witnesses}
+
+  A candidate redundant premise is refuted by any model of the clauses where it is not below the
+  other premises or the conclusion: the values of [m], and the models found by the complete checks
+  which refuted earlier candidates ([m.witnesses]). These remain models of the clauses when clauses
+  are removed, substituted by equivalent ones, or merged by the equalities they entail. When
+  clauses are added, the witnesses are checked against them ([filter_witnesses]). *)
+
+(** At most this many witnesses are kept, the most recent ones *)
+let max_witnesses = 8
+
+(** [witness_value w idx] The value of the canonical universe [idx] in [w], if it has one *)
+let witness_value w idx =
+  match PMap.find_opt idx w.wext with
+  | Some _ as v -> v
+  | None ->
+    match PMap.find_opt idx w.wmodel.entries with
+    | Some can -> canonical_value w.wmodel can
+    | None -> None
+
+(** [witness_holds w (p, a) q] Whether [p + a <= max(q)] holds in [w], as [holds_in_values]: [None]
+  if a universe has no value in [w] *)
+let witness_holds w ((p : canonical_node), a) q =
+  match witness_value w p.canon with
+  | None -> None
+  | Some vp ->
+    let rec min_value acc = function
+      | [] -> Some acc
+      | ((can : canonical_node), j) :: q ->
+        match witness_value w can.canon with
+        | None -> None
+        | Some v -> min_value (min acc (v - j)) q
+    in
+    Option.map (fun v -> vp >= a + v) (min_value max_int q)
+
+(** [refuted_by ws x q] Some witness of [ws] refutes [x <= max(q)] *)
+let refuted_by ws x q = List.exists (fun w -> witness_holds w x q = Some false) ws
+
+let rec firstn n = function
+  | [] -> []
+  | x :: l -> if n <= 0 then [] else x :: firstn (n - 1) l
+
+let add_witnesses ws m =
+  if CList.is_empty ws then m else { m with witnesses = firstn max_witnesses (ws @ m.witnesses) }
+
+(** [extend_witness w cls] [w] extended to the universes of the clauses [cls], just added, which
+  have no value in it: they are new, and get the least values making [cls] hold, from [0] (the
+  value of a new universe). @return [None] if [cls] do not hold in such an extension *)
+let extend_witness w (cls : can_clause list) =
+  let ext = ref w.wext and fresh = ref Index.Set.empty in
+  let value idx =
+    match witness_value { w with wext = !ext } idx with
+    | Some v -> v
+    | None -> fresh := Index.Set.add idx !fresh; ext := PMap.add idx 0 !ext; 0
+  in
+  let rec pass n =
+    if n < 0 then None else
+    let changed = ref false in
+    let ok = List.for_all (fun (prems, ((c : canonical_node), k)) ->
+        let needed = k + NeList.fold (fun ((p : canonical_node), kp) acc -> min acc (value p.canon - kp))
+            prems max_int in
+        value c.canon >= needed ||
+        (Index.Set.mem c.canon !fresh && (ext := PMap.add c.canon needed !ext; changed := true; true)))
+        cls
+    in
+    if not ok then None else if !changed then pass (n - 1) else Some { w with wext = !ext }
+  in
+  pass (2 * List.length cls + 2)
+
+(** [filter_witnesses m cls] The witnesses of [m] extended to the clauses [cls], just added, when
+  they hold in them *)
+let filter_witnesses m cls =
+  if CList.is_empty m.witnesses || CList.is_empty cls then m else
+  { m with witnesses = List.filter_map (fun w -> extend_witness w cls) m.witnesses }
+
+(** [debug_check_witnesses m] The witnesses of [m] are models of its clauses *)
+let debug_check_witnesses m =
+  if CDebug.get_flag debug_loop_checking_invariants_flag then
+    List.iteri (fun i w ->
+        PMap.iter (fun _ (can : canonical_node) ->
+            ClausesOf.fold (fun _local (k, prems) () ->
+                let prems = NeList.to_list (NeList.map (fun (q, kq) -> (repr m q, kq)) prems) in
+                match witness_holds w (can, k) prems with
+                | Some true -> ()
+                | Some false | None as r ->
+                  CErrors.anomaly Pp.(str "Witness " ++ int i ++ str " is not a model of " ++
+                    pr_clause (pr_can_expr m) (NeList.of_list prems, (can, k)) ++
+                    str (if Option.is_empty r then " (no value)" else "")))
+              can.clauses_bwd ())
+          m.entries)
+      m.witnesses
+
 (** [may_drop_premises m (prems, (concl, k))] Some premise [p + a] has [p + a <= max(prems \ {p},
-  concl + k - 1)] in the values of [m]: otherwise, none is redundant in a model of the clauses *)
+  concl + k - 1)] in the values of [m] and its witnesses: otherwise, none is redundant in a model of
+  the clauses *)
 let may_drop_premises m ((prems, (concl, k)) : can_clause) =
   let l = NeList.to_list prems in
-  List.exists (fun x -> holds_in_values m x ((concl, k - 1) :: List.filter (fun y -> y != x) l)) l
+  List.exists (fun x ->
+      let q = (concl, k - 1) :: List.filter (fun y -> y != x) l in
+      holds_in_values m x q && not (refuted_by m.witnesses x q)) l
 
 (** [drop_entailed_premises m (prems, (concl, k))] For a canonical clause [concl + k <= max(prems)],
   [m] being a model of its other clauses: drops, one at a time, the premises [p + a] with
@@ -2341,14 +2449,22 @@ let may_drop_premises m ((prems, (concl, k)) : can_clause) =
   them, either [p + a] is below another premise, or below [concl + k], which the clause then bounds
   by the other premises: the clause is equivalent to the one on the other premises, e.g.
   [u <= max(t, v)] to [u <= v] when [t <= v], or [u + 1 <= max(u, v)] to [u + 1 <= v]. The values of
-  [m] refute most candidates; the other ones are decided by [entails]. *)
-let drop_entailed_premises m ((prems, (concl, k) as cl) : can_clause) : can_clause =
+  [m] and its witnesses refute most candidates; the other ones are decided by [entails_complete].
+  @return the clause and the models of the clauses of [m] found by the refuting checks *)
+let drop_entailed_premises m ((prems, (concl, k) as cl) : can_clause) : can_clause * witness list =
   match prems with
-  | NeList.Tip _ -> cl
+  | NeList.Tip _ -> cl, []
   | NeList.Cons _ ->
+    let found = ref [] in
     let redundant (p, a) others =
       let q = List.sort (fun (x, _) (y, _) -> Index.compare x.canon y.canon) ((concl, k - 1) :: others) in
-      holds_in_values m (p, a) q && entails_complete m (NeList.of_list q) (p, a)
+      holds_in_values m (p, a) q && not (refuted_by !found (p, a) q) &&
+      not (refuted_by m.witnesses (p, a) q) &&
+      match entails_complete m (NeList.of_list q) (p, a) with
+      | None -> true
+      | Some w ->
+        found := { wmodel = { w with witnesses = [] }; wext = PMap.empty } :: !found;
+        false
     in
     let rec filter kept = function
       | [] -> List.rev kept
@@ -2356,9 +2472,11 @@ let drop_entailed_premises m ((prems, (concl, k) as cl) : can_clause) : can_clau
         if redundant x (List.rev_append kept rest) then filter kept rest else filter (x :: kept) rest
     in
     let l = NeList.to_list prems in
-    match filter [] l with
-    | [] -> cl (* All the premises are below [concl + k]: the clause is contradictory *)
-    | l' -> if List.compare_lengths l l' = 0 then cl else (NeList.of_list l', (concl, k))
+    let cl = match filter [] l with
+      | [] -> cl (* All the premises are below [concl + k]: the clause is contradictory *)
+      | l' -> if List.compare_lengths l l' = 0 then cl else (NeList.of_list l', (concl, k))
+    in
+    cl, !found
 
 (** [simplify_premises m cl] replaces the clause [cl] of [m], a model of its clauses, by
   [drop_entailed_premises] in the model without it, with the same locality. [entails] sees all the
@@ -2374,16 +2492,24 @@ let simplify_premises m cl =
     if locality == Global && not (Index.Set.is_empty m.locals) then None else
     let refresh (can, k) = (repr m' can.canon, k) in
     let cl = (NeList.map refresh (fst cl), refresh (snd cl)) in
-    let cl' = drop_entailed_premises m' cl in
-    if cl' == cl then None else
+    let cl', found = drop_entailed_premises m' cl in
+    (* [found] are models of the clauses of [m'], i.e. but [cl]: they are witnesses when the clause
+       which replaces [cl] holds in them *)
+    let with_witnesses m kept =
+      let holds (prems, (c, k)) w = witness_holds w (c, k) (NeList.to_list prems) = Some true in
+      add_witnesses (match kept with None -> found | Some cl -> List.filter (holds cl) found) m
+    in
+    if cl' == cl then
+      if CList.is_empty found then None else Some (with_witnesses m (Some cl), None)
+    else
     (* The simplified clause is often entailed by the other ones, e.g. [u <= max(t, v)] is [u <= v]
        with [u <= t] and [t <= v]: it is then removed. Otherwise it would be a new bound of the
        universes which the clause with several premises was not, e.g. a lower bound of [v] for
        [minimize], below another one, which changes the minimization *)
-    if entails m' (fst cl') (snd cl') then Some ({ m' with locality = m.locality }, None) else
+    if entails m' (fst cl') (snd cl') then Some (with_witnesses { m' with locality = m.locality } None, None) else
     match add_can_clause_model { m' with locality } cl' with
-    | None -> Some ({ m' with locality = m.locality }, None)
-    | Some (cl', m'') -> Some ({ m'' with locality = m.locality }, Some cl')
+    | None -> Some (with_witnesses { m' with locality = m.locality } (Some cl'), None)
+    | Some (cl', m'') -> Some (with_witnesses { m'' with locality = m.locality } (Some cl'), Some cl')
 
 (** [simplify_new_premises m cls] [simplify_premises] for the clauses of [cls] with several premises,
   just added to [m], a model of its clauses. @return the model and the new clauses *)
@@ -2473,9 +2599,9 @@ let enforce_clauses ?(entailed=false) cls m =
   in
   match List.fold_left add_clause (Some (m, [], PSet.empty)) cls with
   | None -> None
-  | Some (m, _, raised) when entailed && PSet.is_empty raised ->
+  | Some (m, added, raised) when entailed && PSet.is_empty raised ->
     (* The clauses were entailed by the model: they create no equality *)
-    Some (m, [])
+    Some (filter_witnesses m added, [])
   | Some (m, added, raised) ->
     let m =
       if PSet.is_empty raised then Some m else
@@ -2495,8 +2621,11 @@ let enforce_clauses ?(entailed=false) cls m =
       | None -> None, added
       | Some m when not m.drop_redundant_premises -> Some m, added
       | Some m ->
+        let m = filter_witnesses m added in
+        debug_check_witnesses m;
         let m, added' = simplify_new_premises m added in
         let m, added'' = resimplify_premises m (added' @ added) in
+        debug_check_witnesses m;
         Some m, added'' @ added' @ added
     in
     let merge (m, equivs) (prems, concl) =
@@ -2683,7 +2812,7 @@ let enforce_constraint (u, k, v) (m : t) = enforce u k v m
 exception AlreadyDeclared
 
 let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; values; canonical; locals; local_eqs;
-    drop_redundant_premises } =
+    drop_redundant_premises; witnesses } =
   let idx, table =
     if Index.mem u table then
       let idx = Index.find u table in
@@ -2696,7 +2825,7 @@ let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; va
   let entries = PMap.add idx can entries in
   let locals = match locality with Local -> Index.Set.add idx locals | Global -> locals in
   idx, { locality; entries; subst; subst_deps; table; values; canonical = canonical + 1; locals; local_eqs;
-    drop_redundant_premises }
+    drop_redundant_premises; witnesses }
 
 let add ?rigid u model =
   let _idx, model = add_model ?rigid u model in
