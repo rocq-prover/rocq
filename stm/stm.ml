@@ -827,6 +827,7 @@ module State : sig
     ?redefine:bool -> ?cache:bool ->
     ?feedback_processed:bool -> (unit -> unit) -> Stateid.t -> unit
 
+  val prune_batch_cache : unit -> unit
   val install_cached : Stateid.t -> unit
   (* val install_parsing_state : Stateid.t -> unit *)
   val is_cached : ?cache:bool -> Stateid.t -> bool
@@ -867,8 +868,27 @@ end = struct (* {{{ *)
     | Full of Vernacstate.t
     | ProofOnly of Stateid.t * Vernacstate.Stm.pstate
 
+  let batch_cached = ref []
+
   let cache_state id =
+    if not (VCS.is_interactive ()) then batch_cached := id :: !batch_cached;
     VCS.set_state id (FullState (Vernacstate.freeze_full_state ()))
+
+  let prune_batch_cache () =
+    let keep = List.fold_left (fun acc b ->
+        let { VCS.root; pos } = VCS.get_branch b in
+        Stateid.Set.add root (Stateid.Set.add pos acc))
+        (Stateid.Set.of_list [Stateid.initial; !cur_id]) (VCS.branches ()) in
+    batch_cached := List.filter (fun id ->
+        Stateid.Set.mem id keep ||
+        begin
+          (try match VCS.get_info id with
+             | { state = FullState s } as info ->
+               info.state <- ParsingState Vernacstate.(Synterp.parsing s.synterp)
+             | _ -> ()
+           with VCS.Expired -> ());
+          false
+        end) !batch_cached
 
   let freeze_invalid id iexn =
     let ps = VCS.get_parsing_state id in
@@ -2294,6 +2314,9 @@ let observe ~doc id =
   let vcs = VCS.backup () in
   try
     Reach.known_state ~doc ~cache:(VCS.is_interactive ()) id;
+    if not (VCS.is_interactive ()) && (cur_opt()).async_proofs_mode = APoff
+       && (cur_opt()).async_proofs_cache <> Some Force
+    then State.prune_batch_cache ();
     VCS.print ()
   with e ->
     let e = Exninfo.capture e in
