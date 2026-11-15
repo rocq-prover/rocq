@@ -279,7 +279,7 @@ LICENSE                     @rocq-prover/contributing-process-maintainers
 
 /dev/tools/                 @rocq-prover/dev-tools-maintainers
 
-/dev/tools/make_git_revision.sh @rocq-prover/build-maintainers
+/tools/make_git_revision.ml @rocq-prover/build-maintainers
 
 .gitattributes              @rocq-prover/dev-tools-maintainers
 .gitignore                  @rocq-prover/dev-tools-maintainers
