@@ -42,3 +42,10 @@ Universes h i j l.
 Constraint i <= max(j, l).
 Constraint h <= max(i, j, l).
 Print Universes Subgraph (h i j l).
+
+(* The simplified clause is removed when the other ones entail it: k0 <= max(m0, n0) is k0 <= n0 once
+   m0 <= n0, which k0 <= m0 entails *)
+Universes k0 m0 n0.
+Constraint k0 <= max(m0, n0).
+Constraint k0 <= m0, m0 <= n0.
+Print Universes Subgraph (k0 m0 n0).

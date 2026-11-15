@@ -2354,8 +2354,9 @@ let drop_entailed_premises m ((prems, (concl, k) as cl) : can_clause) : can_clau
 (** [simplify_premises m cl] replaces the clause [cl] of [m], a model of its clauses, by
   [drop_entailed_premises] in the model without it, with the same locality. [entails] sees all the
   clauses of [m]: a global clause is only simplified in a model without local clauses, so that it
-  only depends on global ones. @return [None] if [m] does not have [cl] or it is unchanged, and
-  otherwise the model with the new clause if it was not there already *)
+  only depends on global ones. The simplified clause is removed when the other clauses entail it.
+  @return [None] if [m] does not have [cl] or it is unchanged, and otherwise the model with the new
+  clause if it was not there already and is not entailed *)
 let simplify_premises m cl =
   if not (may_drop_premises m cl) then None else
   match remove_any_can_clause m cl with
@@ -2366,6 +2367,11 @@ let simplify_premises m cl =
     let cl = (NeList.map refresh (fst cl), refresh (snd cl)) in
     let cl' = drop_entailed_premises m' cl in
     if cl' == cl then None else
+    (* The simplified clause is often entailed by the other ones, e.g. [u <= max(t, v)] is [u <= v]
+       with [u <= t] and [t <= v]: it is then removed. Otherwise it would be a new bound of the
+       universes which the clause with several premises was not, e.g. a lower bound of [v] for
+       [minimize], below another one, which changes the minimization *)
+    if entails m' (fst cl') (snd cl') then Some ({ m' with locality = m.locality }, None) else
     match add_can_clause_model { m' with locality } cl' with
     | None -> Some ({ m' with locality = m.locality }, None)
     | Some (cl', m'') -> Some ({ m'' with locality = m.locality }, Some cl')

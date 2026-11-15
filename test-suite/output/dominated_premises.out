@@ -45,3 +45,9 @@ w ≤ q'
 h ≤ max(j, l)
 i ≤ max(j, l)
 
+0 < k0
+  < m0
+  < n0
+k0 ≤ m0
+m0 ≤ n0
+
