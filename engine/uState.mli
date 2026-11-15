@@ -95,6 +95,11 @@ val constraints : t -> PConstraints.t
 val context : t -> UVars.UContext.t
 (** Shorthand for {!context_set} with {!Context_set.to_context}. *)
 
+val remove_redundant_constraints : UnivConstraints.t -> UnivConstraints.t
+(** Removes some of the constraints with an algebraic universe that the other ones entail, e.g.
+  the pairwise encoding of [max(u,v) = max(u',v') = max(u'',v'')]: the result has the same
+  models. It is applied to the constraints of the declarations with extensible constraints. *)
+
 type named_universes_entry = universes_entry * UnivNames.universe_binders
 
 val univ_entry : poly:PolyFlags.t -> ?variances:Entries.variance_declaration_entry -> t -> named_universes_entry

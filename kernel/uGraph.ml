@@ -75,6 +75,9 @@ let initial_universes =
 let set_local g =
   { g with graph = G.set_local g.graph }
 
+let keep_redundant_premises g =
+  { g with graph = G.keep_redundant_premises g.graph }
+
 type level_equivalences = (Level.t * (Level.t * int)) list
 
 let enforce_constraint (u,d,v) g =

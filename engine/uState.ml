@@ -813,7 +813,12 @@ let compute_instance_binders uctx inst =
    constraints, which can only entail more, and each candidate is removed from it when the
    remaining clauses entail it: the remaining constraints have the same models. The candidates
    with the most levels are tried first, so that a constraint subsumed by a smaller one is the one
-   removed. *)
+   removed.
+   This needs the clauses of the graph to be the ones of the constraints: the graph keeps the
+   premises that the other clauses make redundant (see [UGraph.keep_redundant_premises]), and
+   the universes it makes equal must be made equal by the equalities of [csts], which are never
+   removed. Otherwise a merge may come from a candidate, e.g. [u = v] from [max(u, w) <= v] and
+   [v <= u], and then entail it: the constraints are kept as they are. *)
 let remove_redundant_constraints csts =
   let size u = List.length (Universe.repr u) in
   let candidates = UnivConstraints.fold (fun (l, d, r as c) acc ->
@@ -823,10 +828,27 @@ let remove_redundant_constraints csts =
   else
     let candidates = List.stable_sort (fun (n, _) (n', _) -> Int.compare n' n) candidates in
     let levels = UnivConstraints.levels csts in
-    let g = Level.Set.fold (fun v g -> if Level.is_set v then g else
-      UGraph.add_universe v ~strict:false ~rigid:false g) levels (UGraph.set_local UGraph.initial_universes) in
-    match UGraph.merge_constraints csts g with
+    let graph csts =
+      let g = UGraph.keep_redundant_premises (UGraph.set_local UGraph.initial_universes) in
+      let g = Level.Set.fold (fun v g -> if Level.is_set v then g else
+        UGraph.add_universe v ~strict:false ~rigid:false g) levels g in
+      UGraph.merge_constraints csts g
+    in
+    let equalities_entailed equivs =
+      CList.is_empty equivs ||
+      let eqs = UnivConstraints.filter (fun (_, d, _) -> d == Eq) csts in
+      match graph eqs with
+      | exception UGraph.UniverseInconsistency _ -> false
+      | geqs, _ ->
+        List.for_all (fun (l, (l', k)) ->
+            let u = Universe.make l and u' = Universe.make l' in
+            let c = if k >= 0 then (u, UnivConstraint.Eq, Universe.addn u' k)
+              else (Universe.addn u (-k), UnivConstraint.Eq, u') in
+            UGraph.check_constraint geqs c) equivs
+    in
+    match graph csts with
     | exception UGraph.UniverseInconsistency _ -> csts
+    | _, equivs when not (equalities_entailed equivs) -> csts
     | g, _ ->
       fst (List.fold_left (fun (csts, g) (_, c) ->
           match UGraph.remove_if_entailed c g with
