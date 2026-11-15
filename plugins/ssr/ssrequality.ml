@@ -262,6 +262,11 @@ let strip_unfold_term _ ((sigma, t) as p) kt = match EConstr.kind sigma t with
 let same_proj env sigma t1 t2 =
   match EConstr.kind sigma t1, EConstr.kind sigma t2 with
   | Proj(c1,_,_), Proj(c2, _, _) -> Environ.QProjection.equal env c1 c2
+  | Proj(c1,_,_), Const (c2, _) ->
+    begin match Structures.PrimitiveProjections.find_opt c2 with
+    | Some p2 -> Environ.QProjection.Repr.equal env (Names.Projection.repr c1) p2
+    | None -> false
+    end
   | _ -> false
 
 let classify_pattern p = match p with
@@ -280,8 +285,22 @@ let unfoldintac occ rdx t (kt,_) =
   let easy = occ = None && rdx = None in
   let red_flags = if easy then RedFlags.betaiotazeta else RedFlags.betaiota in
   let beta env = Reductionops.clos_norm_flags red_flags env sigma0 in
-  let unfold, conclude = match classify_pattern rdx with
-  | None ->
+  let prim_proj = match EConstr.kind sigma t with
+  | Const (c, _) when const -> Structures.PrimitiveProjections.find_opt c
+  | _ -> None
+  in
+  let unfold, conclude = match classify_pattern rdx, prim_proj with
+  | None, Some p ->
+    (* A [Const] pattern never matches [Proj] nodes, so unfold directly. *)
+    let occs = match occ with
+    | None | Some (false, []) -> AllOccurrences
+    | Some (false, l) -> OnlyOccurrences l
+    | Some (true, []) -> NoOccurrences
+    | Some (true, l) -> AllOccurrencesBut l
+    in
+    (fun env us c _ _ -> Tacred.unfoldn [occs, Evaluable.EvalProjectionRef p] env sigma0 c, us),
+    ignore
+  | None, None ->
     let rigid ev = Evd.mem sigma0 ev in
     let u = mk_tpattern env0 ~rigid t L2R t (empty_tpatterns (Evd.create_evar_defs sigma)) in
     let find_T, end_T = mk_tpattern_matcher ~raise_NoMatch:true sigma0 occ u in
@@ -293,7 +312,7 @@ let unfoldintac occ rdx t (kt,_) =
     (fun () -> try ignore @@ end_T () with
       | NoMatch when easy -> ()
       | NoMatch -> anomaly "unfoldintac")
-  | Some _ ->
+  | Some _, _ ->
     (fun env us (c as orig_c) _ h ->
       if const then
         let rec aux c =
