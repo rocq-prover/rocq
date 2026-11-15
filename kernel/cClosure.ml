@@ -304,11 +304,14 @@ let rec relift_fconstr (n, k as el) v =
     let () = assert (k' >= k) in
     { v with term = FLIFT (n + k', a) }
 
-  | FArray (u, t, ty) ->
-    let t = Parray.map (relift_fconstr el) t in
-    let ty = relift_fconstr el ty in
-    { v with term =
-      FArray (u, t, ty) }
+  | FArray (u, t, ty, lft) ->
+    if lft >= k then { v with term = FArray (u, t, ty, lft + n) }
+    else
+      let el = (n, k - lft) in
+      let t = Parray.map (relift_fconstr el) t in
+      let ty = relift_fconstr el ty in
+      { v with term =
+        FArray (u, t, ty, lft) }
 
   | FCLOS (t,env) ->
     let env = lift_subs el env in
