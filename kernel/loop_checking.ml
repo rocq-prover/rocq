@@ -720,7 +720,10 @@ type canonical_node =
     rigid : bool; (* Prefer to maintain this canonical node when equating it with another *)
     value : int;
     clauses_bwd : ClausesOf.t; (* premises -> canon + k *)
-    clauses_fwd : ForwardClauses.t (* canon + k, ... ->  concl + k' *) }
+    clauses_fwd : ForwardClauses.t; (* canon + k, ... ->  concl + k' *)
+    mp_below : bool (* A premise of a clause with several premises may be below this universe (or
+      be it): when not, no clause with several premises has a premise below it. This is an
+      over-approximation, kept by [flag_mp_below], see [affected_clauses]. *) }
 
 (* The substitution of a level [u], which is no longer a canonical node *)
 type alias = {
@@ -741,9 +744,9 @@ type model = {
     other indices: they are checked again when used *)
   local_eqs : Index.Set.t; (* Contains the substituted levels whose substitution is local *)
   drop_redundant_premises : bool; (* Whether the redundant premises of the clauses with several
-    premises are dropped, see [simplify_premises] *)
+    premises are dropped, see [restore_invariants] *)
   witnesses : witness list; (* Models of the clauses, which refute candidate redundant premises,
-    see [drop_entailed_premises] *)
+    see [prime_premises] *)
   table : Index.table }
 
 (** A witness is a model of the clauses: the values of [wmodel], a model of the clauses when it
@@ -843,6 +846,27 @@ let change_node m n =
     else m.locals
   in
   { m with entries = PMap.set n.canon n m.entries; locals }
+
+(** [multi prems] The premises [prems] are several *)
+let multi = function NeList.Cons _ -> true | NeList.Tip _ -> false
+
+(** [flag_mp_below ?force m idxs] sets [mp_below] on the canonical universes [idxs] and on the
+  universes above them, through the premises of their clauses, stopping at the flagged ones (but
+  for [idxs] with [force]: their clauses may have changed) *)
+let flag_mp_below ?(force=false) m idxs =
+  let rec aux m = function
+    | [] -> m
+    | (idx, force) :: todo ->
+      let n = PMap.find idx m.entries in
+      if n.mp_below && not force then aux m todo else
+      let m = if n.mp_below then m else { m with entries = PMap.set idx { n with mp_below = true } m.entries } in
+      let todo = ClausesOf.fold (fun _ (_, prems) todo ->
+          NeList.fold (fun (q, _) todo -> (q, false) :: todo) prems todo)
+          n.clauses_bwd todo
+      in
+      aux m todo
+  in
+  aux m (List.map (fun idx -> (idx, force)) idxs)
 
 exception Undeclared of Level.t
 
@@ -1055,6 +1079,13 @@ let check_invariants ~(required_canonical:Level.t -> bool) model =
     if (can.local == Local || ClausesOf.has_local can.clauses_bwd) && not (Index.Set.mem idx model.locals) then
       CErrors.user_err Pp.(pr_raw_index_point model idx ++ str" is local or has local clauses but is not in the local nodes");
     (* assert (PMap.mem idx model.values); *)
+    if not can.mp_below then
+      ForwardClauses.fold (fun ~kprem:_ ~concl ~prems () ->
+        PartialClausesOf.iter (fun (_, others) ->
+          if Option.has_some others || (repr model concl).mp_below then
+            CErrors.user_err Pp.(pr_raw_index_point model can.canon ++
+              str" is a premise of a clause with several premises, or of a clause of a universe flagged by mp_below, but is not flagged"))
+          prems) can.clauses_fwd ();
     ForwardClauses.fold (fun ~kprem ~concl ~prems () ->
       PartialClausesOf.iter (fun (kconcl, others) ->
         (* can + kprem, others -> concl + kconcl *)
@@ -1556,7 +1587,12 @@ let add_can_clause_model m ((prems, (canl, conclk)) : can_clause) : (can_clause 
       if idx0 != idx' then ((idx', kprem), change_node entries idx')
       else (prem, entries))
       prems m'
-  in Some ((prems', refresh_can_expr m' (canl', conclk)), m')
+  in
+  (* The premises of a clause with several premises, or of a clause of a flagged universe, are
+     flagged *)
+  if not (multi prems || canl'.mp_below) then Some ((prems', refresh_can_expr m' (canl', conclk)), m') else
+  let m' = flag_mp_below m' (NeList.to_list (NeList.map fst canprems)) in
+  Some ((NeList.map (fun (can, k) -> (repr m' can.canon, k)) prems', refresh_can_expr m' (canl', conclk)), m')
 
 (** [debug_check_model m] The values of [m] are a model of its clauses *)
 let debug_check_model m =
@@ -1791,8 +1827,12 @@ let enforce_eq_can model (canu, ku as _u) (canv, kv as _v) : (canonical_node * i
       str" := " ++ pr_index_point model cank ++
       str" new fwd " ++ pr_clauses model (ForwardClauses.to_clauses
         (NeList.Tip (can.canon, 0)) fwd));
-    let can = { can with clauses_bwd = bwd; clauses_fwd = fwd } in
-    can, change_node model can
+    let can = { can with clauses_bwd = bwd; clauses_fwd = fwd; mp_below = can.mp_below || other.mp_below } in
+    let model = change_node model can in
+    (* The universes above [other] are now above [can] *)
+    if not can.mp_below then can, model else
+    let model = flag_mp_below ~force:true model [can.canon] in
+    repr model can.canon, model
   in
   debug_check_invariants model;
   (can, k), (other.canon, (can.canon, diff)), model
@@ -2314,7 +2354,83 @@ let decompose_eq_constraints u k v =
   | UnivConstraint.Le -> [(u, v)]
   | UnivConstraint.Eq -> [(u, v); (v, u)]
 
-(** 3.1 Redundant premises of the clauses with several premises *)
+(** [unbounded_above model prems concl] holds when no premise of [prems], nor [Set], is above
+  [concl] in the graph of clauses following all their premises, among at most [max_above]
+  universes. Then [concl + k <= max(prems)] is not entailed: raising the universes above [concl],
+  [concl] included, by the same large amount gives a model of the clauses (the clauses of these
+  universes only mention universes above them, the other clauses get greater premises) where
+  [concl + k] is above [max(prems)]. This refutes at once the clauses whose premises have a large
+  graph below them, e.g. global universes of the Corelib, where [check_one_clause] and
+  [check_one_clause_complete] would explore all of it. *)
+let max_above = 1024
+
+let unbounded_above model prems concl =
+  let setidx = Index.find Level.set model.table in
+  let target idx = Index.equal idx setidx || NeList.exists (fun (p, _) -> Index.equal p.canon idx) prems in
+  let exception Unknown in
+  let rec aux todo seen n =
+    match todo with
+    | [] -> true
+    | x :: todo ->
+      let todo, seen, n = ClausesOf.fold (fun _local (_, qs) acc ->
+          NeList.fold (fun (q, _) (todo, seen, n as acc) ->
+              if Index.Set.mem q seen then acc
+              else if target q || n >= max_above then raise_notrace Unknown
+              else (q :: todo, Index.Set.add q seen, n + 1)) qs acc)
+          (repr model x).clauses_bwd (todo, seen, n)
+      in
+      aux todo seen n
+  in
+  not (target concl.canon) &&
+  try aux [concl.canon] (Index.Set.singleton concl.canon) 0 with Unknown -> false
+
+(* The queries of the checks of [-d loop-checking-merged] would check the invariants of the whole
+   model each time *)
+let without_invariant_checks f =
+  let inv = CDebug.get_flag debug_loop_checking_invariants_flag in
+  CDebug.set_flag debug_loop_checking_invariants_flag false;
+  Fun.protect ~finally:(fun () -> CDebug.set_flag debug_loop_checking_invariants_flag inv) f
+
+(** 3.1 Redundant premises of the clauses with several premises
+
+  A premise [p + a] of a clause [C = c + k <= max(P)] is redundant when [G |= p + a <= max(R)],
+  for [R] the other premises and [c + k - 1], and [G] the other clauses: then [C] is equivalent
+  under [G] to [c + k <= max(P \ {p})], as [p + a] is either below another premise, or below
+  [c + k], which [C] then bounds by the other premises. E.g. [u <= max(t, v)] is [u <= v] when
+  [t <= v], and [u + 1 <= max(u, v)] is [u + 1 <= v].
+
+  Invariant (when [m.drop_redundant_premises]): the clauses of [m] with several premises are
+  prime, i.e. they have no redundant premise, [G] being all the other clauses for a local clause,
+  and only the other global ones for a global clause, which must not depend on the local clauses
+  (they are not part of the global graph). These clauses are costly: the equalities near them are
+  searched by the complete procedures of [find_to_merge] and [zone_classes], and they make the
+  graph of clauses following all their premises larger. The redundant premises are dropped one at
+  a time, in their order, which is the order of the universes: the result depends on it, as prime
+  forms are not unique (and the minimal ones are costly to find), e.g. with [u <= max(v, w)],
+  [v <= max(u, w)] and [w <= max(u, v)], [c <= max(u, v, w)] becomes [c <= max(v, w)], or
+  [c <= max(u, v)] in another order. See [restore_invariants].
+
+  Which clauses can get a redundant premise when clauses [x + j <= max(Q)] are added? Let
+  [F = p + a <= max(R)] hold in all the models of [G] and the new clauses, but not in [v], a model
+  of [G], and let [w] be a model of all the clauses, for valuations in the natural numbers:
+  - [p] is below some [x] in the graph of clauses following all their premises. Otherwise, let
+    [B] be the universes below the [x]s, closed downwards (a clause with a premise in [B] has its
+    conclusion in [B]): taking [w] on [B] and [v + d] elsewhere, for a large [d], gives a model
+    of all the clauses but [C] where [F] is false.
+  - All the premises [Q] of some new clause are below universes of [R], hence its conclusion
+    [x] too. Otherwise, let [B] be the universes below [R], in the graph with the new clauses:
+    each new clause has a premise outside [B], and taking [v] on [B] and [w + d] elsewhere gives a
+    model of all the clauses but [C] where [F] is false (a new clause with its conclusion outside
+    [B] has all its premises outside [B]).
+  The candidates are found by exploring the smaller of the two zones, below or above the [x]s, and
+  then the zone above the premises [Q] of the new clauses ([affected_clauses]). Most of them are
+  then refuted by the values of the model and the witnesses, models of all the clauses
+  ([holds_in_values]), or by [unbounded_above], and the other ones are decided by
+  [entails_complete]. A simplified clause entailed by the other ones is removed.
+  NB: in these valuations, [Set] is [0], but it may be raised by [d] when it is not in [B], so
+  that the two conditions are only necessary for the clauses whose entailment does not depend on
+  [Set] being the least universe. With [-d loop-checking-invariants], the invariant is checked
+  completely ([check_prime]). *)
 
 (** [remove_any_can_clause m cl] removes the canonical clause [cl], local or global, from the
   backward clauses of its conclusion and the forward clauses of its premises. @return the model and
@@ -2434,125 +2550,343 @@ let debug_check_witnesses m =
           m.entries)
       m.witnesses
 
-(** [may_drop_premises m (prems, (concl, k))] Some premise [p + a] has [p + a <= max(prems \ {p},
-  concl + k - 1)] in the values of [m] and its witnesses: otherwise, none is redundant in a model of
-  the clauses *)
-let may_drop_premises m ((prems, (concl, k)) : can_clause) =
-  let l = NeList.to_list prems in
-  List.exists (fun x ->
-      let q = (concl, k - 1) :: List.filter (fun y -> y != x) l in
-      holds_in_values m x q && not (refuted_by m.witnesses x q)) l
+(** [global_view m] is [m] without its local clauses: the values of [m] are a model of it *)
+let global_view m =
+  Index.Set.fold (fun idx m ->
+      match PMap.find_opt idx m.entries with
+      | None -> m
+      | Some can ->
+        if not (ClausesOf.has_local can.clauses_bwd) then m else
+        let m = ClausesOf.fold_local (fun (k, prems) m ->
+            NeList.fold (fun (p, kp) m ->
+                let pcan = repr m p in
+                let fwd = ForwardClauses.remove ~kprem:kp idx (k, remove_premise p prems) pcan.clauses_fwd in
+                if fwd == pcan.clauses_fwd then m
+                else { m with entries = PMap.set p { pcan with clauses_fwd = fwd } m.entries })
+              prems m)
+            can.clauses_bwd m
+        in
+        let can = repr m idx in
+        let clauses_bwd = { can.clauses_bwd with ClausesOf.local = ClausesOf.SWC.empty } in
+        { m with entries = PMap.set idx { can with clauses_bwd } m.entries })
+    m.locals m
 
-(** [drop_entailed_premises m (prems, (concl, k))] For a canonical clause [concl + k <= max(prems)],
-  [m] being a model of its other clauses: drops, one at a time, the premises [p + a] with
-  [p + a <= max(prems \ {p}, concl + k - 1)] in all the valuations of the clauses of [m]. In each of
-  them, either [p + a] is below another premise, or below [concl + k], which the clause then bounds
-  by the other premises: the clause is equivalent to the one on the other premises, e.g.
-  [u <= max(t, v)] to [u <= v] when [t <= v], or [u + 1 <= max(u, v)] to [u + 1 <= v]. The values of
-  [m] and its witnesses refute most candidates; the other ones are decided by [entails_complete].
-  @return the clause and the models of the clauses of [m] found by the refuting checks *)
-let drop_entailed_premises m ((prems, (concl, k) as cl) : can_clause) : can_clause * witness list =
-  match prems with
-  | NeList.Tip _ -> cl, []
-  | NeList.Cons _ ->
-    let found = ref [] in
-    let redundant (p, a) others =
-      let q = List.sort (fun (x, _) (y, _) -> Index.compare x.canon y.canon) ((concl, k - 1) :: others) in
-      holds_in_values m (p, a) q && not (refuted_by !found (p, a) q) &&
-      not (refuted_by m.witnesses (p, a) q) &&
-      match entails_complete m (NeList.of_list q) (p, a) with
-      | None -> true
-      | Some w ->
-        found := { wmodel = { w with witnesses = [] }; wext = PMap.empty } :: !found;
-        false
-    in
-    let rec filter kept = function
-      | [] -> List.rev kept
-      | x :: rest ->
-        if redundant x (List.rev_append kept rest) then filter kept rest else filter (x :: kept) rest
-    in
-    let l = NeList.to_list prems in
-    let cl = match filter [] l with
-      | [] -> cl (* All the premises are below [concl + k]: the clause is contradictory *)
-      | l' -> if List.compare_lengths l l' = 0 then cl else (NeList.of_list l', (concl, k))
-    in
-    cl, !found
+(** [prime_premises em ws cands (prems, (concl, k))] For a clause with several premises of a model,
+  [em] being that model, or its global view, without it, and [ws] models of the clauses of that
+  model: drops, one at a time and in their order, the premises [p + a] among [cands] such that
+  [p + a <= max(prems \ {p}, concl + k - 1)] in all the valuations of the clauses of [em] (see above).
+  The values of [em] and the witnesses refute most candidates, then [unbounded_above], and the
+  other ones are decided by [entails_complete].
+  @return the remaining premises and the models of the clauses of [em] found by the refuting checks *)
+let prime_premises em ws cands ((prems, (concl, k)) : can_clause) =
+  let redundant found (p, a) others =
+    let q = List.sort (fun (x, _) (y, _) -> Index.compare x.canon y.canon) ((concl, k - 1) :: others) in
+    if not (holds_in_values em (p, a) q) || refuted_by found (p, a) q || refuted_by ws (p, a) q
+       || unbounded_above em (NeList.of_list q) p
+    then false, found
+    else match entails_complete em (NeList.of_list q) (p, a) with
+      | None -> true, found
+      | Some w -> false, { wmodel = { w with witnesses = [] }; wext = PMap.empty } :: found
+  in
+  let rec filter found kept = function
+    | [] -> List.rev kept, found
+    | (p, _ as x) :: rest ->
+      if not (Index.Set.mem p.canon cands) then filter found (x :: kept) rest else
+      match redundant found x (List.rev_append kept rest) with
+      | true, found -> filter found kept rest
+      | false, found -> filter found (x :: kept) rest
+  in
+  filter [] [] (NeList.to_list prems)
 
-(** [simplify_premises m cl] replaces the clause [cl] of [m], a model of its clauses, by
-  [drop_entailed_premises] in the model without it, with the same locality. [entails] sees all the
-  clauses of [m]: a global clause is only simplified in a model without local clauses, so that it
-  only depends on global ones. The simplified clause is removed when the other clauses entail it.
-  @return [None] if [m] does not have [cl] or it is unchanged, and otherwise the model with the new
-  clause if it was not there already and is not entailed *)
-let simplify_premises m cl =
-  if not (may_drop_premises m cl) then None else
-  match remove_any_can_clause m cl with
-  | None -> None
-  | Some (m', locality) ->
-    if locality == Global && not (Index.Set.is_empty m.locals) then None else
-    let refresh (can, k) = (repr m' can.canon, k) in
-    let cl = (NeList.map refresh (fst cl), refresh (snd cl)) in
-    let cl', found = drop_entailed_premises m' cl in
-    (* [found] are models of the clauses of [m'], i.e. but [cl]: they are witnesses when the clause
-       which replaces [cl] holds in them *)
-    let with_witnesses m kept =
-      let holds (prems, (c, k)) w = witness_holds w (c, k) (NeList.to_list prems) = Some true in
-      add_witnesses (match kept with None -> found | Some cl -> List.filter (holds cl) found) m
+(** The state of [restore_invariants]: [view] is the [global_view] of the model, once computed, in
+  which the global clauses are checked; with [skip_global], the global clauses are not candidates,
+  as only local clauses have changed *)
+type invariants_state = {
+  has_locals : bool;
+  view : model option;
+  skip_global : bool;
+}
+
+let invariants_state ~global_changed m =
+  let has_locals = not (Index.Set.is_empty m.locals) in
+  { has_locals; view = None; skip_global = has_locals && not global_changed }
+
+(** The outcome of [restore_clause] *)
+type simplified =
+  | Absent (* The model does not have the clause *)
+  | Kept (* The clause is prime *)
+  | Removed (* The other clauses entail its simplified form, or the model already has it *)
+  | Replaced of clause (* By its simplified form *)
+
+(** [restore_clause st ~force m (prems, (c, kc)) cands] For a clause of [m], a model of its clauses,
+  where the invariant holds for the other clauses: drops its redundant premises among [cands], if
+  it has several premises, and removes the simplified clause if the other clauses entail it. Unless
+  [force], a global clause is not considered with [st.skip_global].
+  @return the state, the model and the outcome *)
+let restore_clause st ~force m ((prems, (c, kc)) : clause) cands =
+  let locality = match PMap.find_opt c m.entries with
+    | None -> None
+    | Some can ->
+      if not (Premises.for_all (fun (p, _) -> PMap.mem p m.entries) prems) then None else
+      let bwd = can.clauses_bwd in
+      if ClausesOf.SWC.mem (kc, prems) bwd.ClausesOf.global then Some (can, Global)
+      else if ClausesOf.SWC.mem (kc, prems) bwd.ClausesOf.local then Some (can, Local)
+      else None
+  in
+  match locality with
+  | None -> st, m, Absent
+  | Some (_, Global) when st.skip_global && not force -> st, m, Kept
+  | Some (can, locality) ->
+    let cl = (NeList.map (fun (p, kp) -> (repr m p, kp)) prems, (can, kc)) in
+    let lprems = NeList.to_list (fst cl) in
+    let maybe_prime = multi prems && List.exists (fun (p, _ as x) ->
+        let q = (can, kc - 1) :: List.filter (fun (q, _) -> q != p) lprems in
+        Index.Set.mem p.canon cands && holds_in_values m x q && not (refuted_by m.witnesses x q))
+        lprems
     in
-    if cl' == cl then
-      if CList.is_empty found then None else Some (with_witnesses m (Some cl), None)
+    if not maybe_prime then st, m, Kept else
+    let m', _ = Option.get (remove_any_can_clause m cl) in
+    (* A global clause only depends on the other global ones *)
+    let view = if locality == Global && st.has_locals then
+        Some (match st.view with Some v -> v | None -> global_view m)
+      else None
+    in
+    let em = match view with None -> m' | Some v -> fst (Option.get (remove_any_can_clause v cl)) in
+    let set_view st v = match view with None -> st | Some _ -> { st with view = Some v } in
+    let refresh (x, k) = (repr em x.canon, k) in
+    let ecl = (NeList.map refresh (fst cl), refresh (can, kc)) in
+    let st = set_view st (Option.default em view) in
+    let kept, found = prime_premises em m.witnesses cands ecl in
+    (* Without a view, [found] are models of the clauses of [m] but [cl]: they are witnesses when
+       the clause which replaces [cl] holds in them *)
+    let found = if Option.has_some view then [] else found in
+    let with_witnesses m (prems, (c, k)) =
+      add_witnesses (List.filter (fun w -> witness_holds w (c, k) prems = Some true) found) m
+    in
+    if CList.is_empty kept || List.compare_lengths kept lprems = 0 then
+      st, with_witnesses m (lprems, (can, kc)), Kept
     else
     (* The simplified clause is often entailed by the other ones, e.g. [u <= max(t, v)] is [u <= v]
        with [u <= t] and [t <= v]: it is then removed. Otherwise it would be a new bound of the
        universes which the clause with several premises was not, e.g. a lower bound of [v] for
        [minimize], below another one, which changes the minimization *)
-    if entails m' (fst cl') (snd cl') then Some (with_witnesses { m' with locality = m.locality } None, None) else
-    match add_can_clause_model { m' with locality } cl' with
-    | None -> Some (with_witnesses { m' with locality = m.locality } (Some cl'), None)
-    | Some (cl', m'') -> Some (with_witnesses { m'' with locality = m.locality } (Some cl'), Some cl')
+    if entails em (NeList.of_list kept) (snd ecl) then
+      let st = if locality == Global then { st with skip_global = false } else st in
+      set_view st em, with_witnesses m' (lprems, (can, kc)), Removed
+    else
+    let prems' = NeList.of_list (List.map (fun (p, kp) -> (p.canon, kp)) kept) in
+    let add m = add_can_clause_model { m with locality }
+        (NeList.map (fun (p, kp) -> (repr m p, kp)) prems', (repr m c, kc)) in
+    let st = if locality == Global then { st with skip_global = false } else st in
+    let st = set_view st (match add em with None -> em | Some (_, v) -> { v with locality = em.locality }) in
+    match add m' with
+    | None -> st, with_witnesses m' (kept, (can, kc)), Removed
+    | Some (_, m'') -> st, with_witnesses { m'' with locality = m.locality } (kept, (can, kc)), Replaced (prems', (c, kc))
 
-(** [simplify_new_premises m cls] [simplify_premises] for the clauses of [cls] with several premises,
-  just added to [m], a model of its clauses. @return the model and the new clauses *)
-let simplify_new_premises m cls =
-  List.fold_left (fun (m, added) (prems, concl) ->
-      match prems with
-      | NeList.Tip _ -> (m, added)
-      | NeList.Cons _ ->
-        let cl = (NeList.map (fun (can, k) -> (repr m can.canon, k)) prems, refresh_can_expr m concl) in
-        match simplify_premises m cl with
-        | None -> (m, added)
-        | Some (m, None) -> (m, added) (* The simplified clause was already there *)
-        | Some (m, Some cl) -> (m, cl :: added))
-    (m, []) cls
+module ClauseKey =
+struct
+  type t = Index.t * int * Premises.t
+  let compare (c, k, p) (c', k', p') =
+    match Index.compare c c' with
+    | 0 -> (match Int.compare k k' with 0 -> Premises.compare p p' | n -> n)
+    | n -> n
+end
 
-(** [resimplify_premises m cls] After the clauses [cls] are added to [m], a model of its clauses:
-  each [x + k <= max(...)] of them can make redundant the premise [x + j] of a clause
-  [c + kc <= max(x + j, others)] with several premises, e.g. [u <= max(x, v)] when [x <= v] is
-  added. These clauses are simplified by [simplify_premises], and then the ones of the premises of
-  the new clauses, until none changes. @return the model and the new clauses *)
-let rec resimplify_premises m cls =
-  List.fold_left (fun (m, added) (_, (x, _)) ->
-      let x = repr m x.canon in
-      let candidates = ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
-          PartialClausesOf.fold (fun (kc, others) acc ->
+module ClauseMap = Map.Make (ClauseKey)
+
+let premise_set prems = Premises.fold (fun (p, _) s -> Index.Set.add p s) prems Index.Set.empty
+
+(** [affected_clauses m xs qs] The candidates [(C, p)] of clauses [C] with several premises which
+  can get a redundant premise [p] when clauses of conclusions [xs] and premises [qs], canonical,
+  are added (see above): the zones below and above the [xs] are explored in lockstep, and the
+  first one to be complete is used. Below, the candidates are the premises [p] in the zone, which
+  only goes through the universes flagged by [mp_below] (the other ones have no premise of a clause
+  with several premises below them); above, the clauses with a premise or conclusion in the zone,
+  with all their other premises. The candidates are then the ones whose other premises or
+  conclusion meet the zone above the [qs], if it has at most [max_above_premises] universes, or as
+  many as the first zone. @return a map from the clauses [(concl, k, prems)] to their candidate
+  premises *)
+let max_above_premises = 256
+
+let affected_clauses m xs qs =
+  let push (todo, seen as acc) y = if Index.Set.mem y seen then acc else (y :: todo, Index.Set.add y seen) in
+  let flagged y = (repr m y).mp_below in
+  let down y acc = ForwardClauses.fold (fun ~kprem:_ ~concl ~prems:_ acc ->
+      if flagged concl then push acc concl else acc) (repr m y).clauses_fwd acc in
+  let up y acc = ClausesOf.fold (fun _ (_, prems) acc -> NeList.fold (fun (q, _) acc -> push acc q) prems acc)
+      (repr m y).clauses_bwd acc
+  in
+  let start = List.fold_left push ([], Index.Set.empty) xs in
+  let dstart = List.fold_left push ([], Index.Set.empty) (List.filter flagged xs) in
+  (* The side whose next expansion makes the least work so far, counted in clauses, is expanded:
+     a universe with many clauses is expanded only if the other zone is as large *)
+  let rec lockstep dwork uwork (dtodo, dseen as d) (utodo, useen as u) =
+    match dtodo, utodo with
+    | [], _ -> Ok dseen
+    | _, [] -> Error useen
+    | y :: dtodo, z :: utodo ->
+      let dy = dwork + ForwardClauses.cardinal (repr m y).clauses_fwd in
+      let uz = uwork + ClausesOf.cardinal (repr m z).clauses_bwd in
+      if dy <= uz then lockstep (dy + 1) uwork (down y (dtodo, dseen)) u
+      else lockstep dwork (uz + 1) d (up z (utodo, useen))
+  in
+  let add key cands map =
+    ClauseMap.update key (function None -> Some cands | Some c -> Some (Index.Set.union c cands)) map
+  in
+  let fold_fwd y f map =
+    ForwardClauses.fold (fun ~kprem ~concl ~prems map ->
+        PartialClausesOf.fold (fun (kc, others) map -> f (concl, kc, fwd_premises y kprem others) others map)
+          prems map)
+      (repr m y).clauses_fwd map
+  in
+  let fold_bwd y f map = ClausesOf.fold (fun _ (k, prems) map -> f (y, k, prems) map) (repr m y).clauses_bwd map in
+  let zone, cands = match lockstep 0 0 dstart start with
+    | Ok below ->
+      below, Index.Set.fold (fun y map ->
+          fold_fwd y (fun key others map ->
+              if Option.is_empty others then map else add key (Index.Set.singleton y) map) map)
+        below ClauseMap.empty
+    | Error above ->
+      above, Index.Set.fold (fun y map ->
+          let map = fold_bwd y (fun (_, _, prems as key) map ->
+              match prems with
+              | NeList.Tip _ -> map
+              | NeList.Cons _ -> add key (premise_set prems) map) map
+          in
+          fold_fwd y (fun key others map ->
               match others with
-              | None -> acc
-              | Some others -> (Premises.add (x.canon, kprem) others, (concl, kc)) :: acc)
+              | None -> map
+              | Some others -> add key (premise_set others) map) map)
+        above ClauseMap.empty
+  in
+  if ClauseMap.is_empty cands then cands else
+  (* The zone above the premises of the new clauses, within a budget *)
+  let budget = max max_above_premises (Index.Set.cardinal zone) in
+  let exception Large in
+  let rec above_qs (todo, seen) =
+    match todo with
+    | [] -> seen
+    | z :: todo ->
+      if Index.Set.cardinal seen > budget then raise_notrace Large else above_qs (up z (todo, seen))
+  in
+  match above_qs (List.fold_left push ([], Index.Set.empty) qs) with
+  | exception Large -> cands
+  | aboveq ->
+    ClauseMap.filter_map (fun (c, _, prems) cands ->
+        let meets p =
+          Index.Set.mem c aboveq || Premises.exists (fun (r, _) -> not (Index.equal r p) && Index.Set.mem r aboveq) prems
+        in
+        let cands = Index.Set.filter meets cands in
+        if Index.Set.is_empty cands then None else Some cands)
+      cands
+
+(** [canonical_indices m xs] The canonical universes of the universes [xs] of [m] *)
+let canonical_indices m xs =
+  let xs = List.concat_map (fun x ->
+      if PMap.mem x m.entries then [x]
+      else NeList.to_list (NeList.map (fun (can, _) -> can.canon) (canonical_repr m (x, 0)))) xs
+  in
+  List.sort_uniq Index.compare xs
+
+(** [multi_clauses_of m idx] The clauses with several premises mentioning the canonical universe
+  of [idx] *)
+let multi_clauses_of m idx =
+  List.concat_map (fun x ->
+      let can = repr m x in
+      let bwd = ClausesOf.fold (fun _ (k, prems) acc ->
+          if multi prems then (prems, (x, k)) :: acc else acc)
+          can.clauses_bwd []
+      in
+      ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
+          PartialClausesOf.fold (fun (kc, others) acc ->
+              let prems = fwd_premises x kprem others in
+              if Option.has_some others then (prems, (concl, kc)) :: acc else acc)
             prems acc)
-          x.clauses_fwd []
+        can.clauses_fwd bwd)
+    (canonical_indices m [idx])
+
+(** [restore_invariants ~global_changed ~check ~changed m] restores the invariant on the clauses
+  (see above) in [m], a model of its clauses, where it holds but for the clauses [check], and for
+  the clauses which clauses of conclusions and premises [changed] can simplify, as if they were
+  added. The clauses of [check] are simplified, then the ones [affected_clauses]
+  by [changed] and by the simplified clauses, which are stronger in isolation, until none
+  changes. The candidates are considered in a fixed order, the one of the clauses. Without
+  [global_changed], only local clauses have changed: the global ones keep their invariant, and are
+  not considered. *)
+let restore_invariants ~global_changed ~check ~changed m =
+  if not m.drop_redundant_premises then m else
+  let simplify (st, m, next) (cl, cands) =
+    match restore_clause st ~force:false m cl cands with
+    | st, m, (Absent | Kept | Removed) -> (st, m, next)
+    | st, m, Replaced (prems, (c, _)) -> (st, m, (c, NeList.to_list (NeList.map fst prems)) :: next)
+  in
+  let st = invariants_state ~global_changed m in
+  let st, m, next = List.fold_left (fun acc (prems, _ as cl) -> simplify acc (cl, premise_set prems))
+      (st, m, []) check
+  in
+  let rec rounds st m changed =
+    match canonical_indices m (List.map fst changed) with
+    | [] -> m
+    | xs ->
+      let qs = canonical_indices m (List.concat_map snd changed) in
+      let st, m, next = ClauseMap.fold (fun (c, k, prems) cands acc ->
+          simplify acc ((prems, (c, k)), cands))
+          (affected_clauses m xs qs) (st, m, [])
       in
-      let m, added' = List.fold_left (fun (m, added) (prems, (c, kc)) ->
-          let cl = (NeList.map (fun (q, kq) -> (repr m q, kq)) prems, (repr m c, kc)) in
-          match simplify_premises m cl with
-          | None -> (m, added)
-          | Some (m, None) -> (m, added)
-          | Some (m, Some cl) -> (m, cl :: added))
-          (m, []) candidates
-      in
-      if CList.is_empty added' then (m, added) else
-      let m, added'' = resimplify_premises m added' in
-      (m, added'' @ added' @ added))
-    (m, []) cls
+      rounds st m (List.rev next)
+  in
+  rounds st m (List.rev_append next changed)
+
+(** [simplify_new_clauses m cls] [restore_clause] for the clauses of [cls] with several premises, just
+  added to [m], a model of its clauses. @return the model, the clauses of [cls] which it still has,
+  with the simplified forms which replace the other ones, and these simplified forms *)
+let simplify_new_clauses m (cls : can_clause list) =
+  let clause (prems, (can, k)) = (canonical_can_premises prems, (can.canon, k)) in
+  if not m.drop_redundant_premises then (m, List.map clause cls, []) else
+  let st = invariants_state ~global_changed:true m in
+  let _st, m, kept, replaced = List.fold_left (fun (st, m, kept, replaced) ((prems, _) as cl) ->
+      if not (multi prems) then (st, m, clause cl :: kept, replaced) else
+      let (iprems, _) as cl = clause cl in
+      match restore_clause st ~force:true m cl (premise_set iprems) with
+      | st, m, Kept -> (st, m, cl :: kept, replaced)
+      | st, m, (Absent | Removed) -> (st, m, kept, replaced)
+      | st, m, Replaced cl' -> (st, m, cl' :: kept, cl' :: replaced))
+      (st, m, [], []) cls
+  in
+  let can_clause (prems, (c, k)) = (NeList.map (fun (p, kp) -> (repr m p, kp)) prems, (repr m c, k)) in
+  m, List.rev kept, List.rev_map can_clause replaced
+
+(** [check_prime m] checks the invariant on the clauses of [m] (see above) *)
+let check_prime m =
+  if m.drop_redundant_premises then
+  let has_locals = not (Index.Set.is_empty m.locals) in
+  let view = lazy (global_view m) in
+  PMap.iter (fun _ can ->
+      ClausesOf.fold (fun locality (k, prems) () ->
+          if multi prems then
+            let em = if locality == Global && has_locals then Lazy.force view else m in
+            let cl = (NeList.map (fun (p, kp) -> (repr em p, kp)) prems, (repr em can.canon, k)) in
+            let em = fst (Option.get (remove_any_can_clause em cl)) in
+            let refresh (x, k) = (repr em x.canon, k) in
+            let ecl = (NeList.map refresh (fst cl), refresh (snd cl)) in
+            let err msg = CErrors.anomaly Pp.(str "Loop_checking: the " ++
+                str (match locality with Local -> "local" | Global -> "global") ++
+                str " clause " ++ pr_clause_idx m (prems, (can.canon, k)) ++ msg ++ str ".")
+            in
+            let kept, _ = prime_premises em [] (premise_set prems) ecl in
+            let dropped = List.filter (fun (p, _) -> not (List.exists (fun (q, _) -> Index.equal q.canon p.canon) kept))
+                (NeList.to_list (fst ecl)) in
+            if not (CList.is_empty dropped) then
+              err Pp.(str " has the redundant premises " ++
+                      prlist_with_sep pr_comma (fun (p, _) -> pr_index_point m (p.canon, 0)) dropped))
+        can.clauses_bwd ())
+    m.entries
+
+(** With [-d loop-checking-invariants], the invariant on the clauses is checked at the end of the
+  operations changing the clauses *)
+let debug_check_prime m =
+  if CDebug.get_flag debug_loop_checking_invariants_flag then
+    without_invariant_checks (fun () -> check_prime m)
 
 (** [enforce_clauses cls m] enforces the clauses [concl + k <= max(prems)] of [cls], given as
   pairs [(prems, (concl, k))] of universes which need not be canonical, all at once: the clauses
@@ -2563,7 +2897,7 @@ let rec resimplify_premises m cls =
 (** Batches of at most this many clauses are merged one clause at a time *)
 let batch_threshold = 16
 
-let enforce_clauses ?(entailed=false) cls m =
+let enforce_clauses ?(entailed=false) ?(also=[]) cls m =
   (* Adding a clause or raising a value changes nodes: they are looked up again for each clause,
      given by the canonical universes, which do not change until the merges *)
   let add_can_clause (prems, concl) acc =
@@ -2599,9 +2933,6 @@ let enforce_clauses ?(entailed=false) cls m =
   in
   match List.fold_left add_clause (Some (m, [], PSet.empty)) cls with
   | None -> None
-  | Some (m, added, raised) when entailed && PSet.is_empty raised ->
-    (* The clauses were entailed by the model: they create no equality *)
-    Some (filter_witnesses m added, [])
   | Some (m, added, raised) ->
     let m =
       if PSet.is_empty raised then Some m else
@@ -2615,19 +2946,15 @@ let enforce_clauses ?(entailed=false) cls m =
       | Some (_, _, PositiveCycle) -> None
       | Some (modified, m, cycle) -> infer_clauses_extension ~cycle modified m
     in
+    match m with
+    | None -> None
+    | Some m ->
+    let m = filter_witnesses m added in
+    debug_check_witnesses m;
     (* The redundant premises of the new clauses with several premises, e.g. [t] in [u <= max(t, v)]
-       when [t <= v] holds, and then of the clauses which the new ones can simplify *)
-    let m, added = match m with
-      | None -> None, added
-      | Some m when not m.drop_redundant_premises -> Some m, added
-      | Some m ->
-        let m = filter_witnesses m added in
-        debug_check_witnesses m;
-        let m, added' = simplify_new_premises m added in
-        let m, added'' = resimplify_premises m (added' @ added) in
-        debug_check_witnesses m;
-        Some m, added'' @ added' @ added
-    in
+       when [t <= v] holds: the equalities are also searched from the simplified clauses *)
+    let m, kept, replaced = simplify_new_clauses m added in
+    let added = replaced @ added in
     let merge (m, equivs) (prems, concl) =
       let concl = refresh_can_expr_can m concl in
       let prems = refresh_can_premises m prems in
@@ -2638,19 +2965,37 @@ let enforce_clauses ?(entailed=false) cls m =
         let m, equivs' = simplify_clauses_between m concl prems in
         (m, equivs' @ equivs)
     in
-    (* For a few clauses, the equalities are searched from each one, as when they are enforced
-       one at a time: the universes made equal by the last clause of a cycle are merged into its
-       conclusion. [find_to_merge] and [zone_classes] mostly stop early, while the zone of the whole
-       batch is computed. *)
-    if List.length added <= batch_threshold then
-      Option.map (fun m -> List.fold_left merge (m, []) added) m
-    else
-      (* Searching the equalities created by each clause would explore the universes around
-         them once per clause, e.g. for the many clauses of a library: they are found all at once *)
-      Option.map (fun m ->
-          List.fold_left (fun (m, equivs) cls ->
-              let m, equivs' = make_equiv m cls in m, equivs' @ equivs)
-            (m, []) (batch_classes m added)) m
+    let m, equivs =
+      if entailed && PSet.is_empty raised then
+        (* The clauses were entailed by the model: they create no equality *)
+        (m, [])
+      (* For a few clauses, the equalities are searched from each one, as when they are enforced
+         one at a time: the universes made equal by the last clause of a cycle are merged into its
+         conclusion. [find_to_merge] and [zone_classes] mostly stop early, while the zone of the whole
+         batch is computed. *)
+      else if List.length added <= batch_threshold then List.fold_left merge (m, []) added
+      else
+        (* Searching the equalities created by each clause would explore the universes around
+           them once per clause, e.g. for the many clauses of a library: they are found all at once *)
+        List.fold_left (fun (m, equivs) cls ->
+            let m, equivs' = make_equiv m cls in m, equivs' @ equivs)
+          (m, []) (batch_classes m added)
+    in
+    if not m.drop_redundant_premises then Some (m, equivs) else
+    (* The new clauses, and the merges, which are like the clauses of the equalities and rewrite the
+       clauses of the merged universes, can make premises of other clauses redundant *)
+    let changed =
+      List.map (fun (prems, (c, _)) -> (c, NeList.to_list (NeList.map fst prems))) kept @
+      List.map (fun (_, (can, _)) -> (can, [can])) equivs @ also
+    in
+    let check = List.concat_map (fun (_, (can, _)) -> multi_clauses_of m can) equivs in
+    (* The global clauses are rewritten when a global universe is merged *)
+    let global_changed = m.locality == Global ||
+      List.exists (fun (other, _) -> (PMap.find other m.subst).alias_local == Global) equivs
+    in
+    let m = restore_invariants ~global_changed ~check ~changed m in
+    debug_check_witnesses m;
+    Some (m, equivs)
 
 (** The clauses [l + k <= max(prems v)] for each [l + k] of [u], and the converse ones for [Eq] *)
 let clauses_of_constraint m (u, k, v) =
@@ -2658,13 +3003,6 @@ let clauses_of_constraint m (u, k, v) =
   let pv = premises_of_universe m v in
   List.concat_map (fun (u, v) -> List.map (fun u -> (v, u)) (NeList.to_list u))
     (decompose_eq_constraints pu k pv)
-
-(* The queries of the checks of [-d loop-checking-merged] would check the invariants of the whole
-   model each time *)
-let without_invariant_checks f =
-  let inv = CDebug.get_flag debug_loop_checking_invariants_flag in
-  CDebug.set_flag debug_loop_checking_invariants_flag false;
-  Fun.protect ~finally:(fun () -> CDebug.set_flag debug_loop_checking_invariants_flag inv) f
 
 (** With [-d loop-checking-merged], [check_merged model u v] checks that the canonical universes
   near the ones of [u] and [v], at most two clauses away in both directions, and [Set], are not
@@ -2708,58 +3046,47 @@ let enforce_constraints csts m =
   if CDebug.get_flag debug_loop_checking_merged_flag then
     without_invariant_checks (fun () ->
         Option.iter (fun (m, _) -> List.iter (fun (u, _, v) -> check_merged m u v) csts) res);
+  Option.iter (fun (m, _) -> debug_check_prime m) res;
   Option.map (fun (m, equivs) -> m, unrepr_equivalences m equivs) res
 
 let enforce u k v m = enforce_constraints [(u, k, v)] m
 
 let localize csts m =
-  let localize_clause m (prems, concl) =
+  (* A clause may have been simplified by dropping redundant premises (see [restore_invariants]):
+     the global clauses of its conclusion on a subset of its premises are localized instead *)
+  let localize_clause (m, localized) (prems, concl) =
     let concls = canonical_can_premises (canonical_repr m concl) in
-    NeList.fold (fun concl m ->
+    NeList.fold (fun concl (m, _ as acc) ->
         match simplify_can_clause m (canonical_premises_repr m prems, repr_expr m concl) with
-        | Trivial | Contradictory -> m
+        | Trivial | Contradictory -> acc
         | Canonical (prems, (can, k)) ->
-          let clof = (k, NeList.map (fun (p, kp) -> (p.canon, kp)) prems) in
-          match ClausesOf.localize clof can.clauses_bwd with
-          | None -> m
-          | Some clauses_bwd -> change_node m { can with clauses_bwd })
-      concls m
+          let prems = NeList.map (fun (p, kp) -> (p.canon, kp)) prems in
+          let clofs =
+            if ClausesOf.SWC.mem (k, prems) can.clauses_bwd.ClausesOf.global then [(k, prems)]
+            else if ClausesOf.SWC.mem (k, prems) can.clauses_bwd.ClausesOf.local then []
+            else
+              let mem x = NeList.exists (fun y -> Premises.Premise.equal x y) prems in
+              ClausesOf.SWC.fold (fun (k', prems' as clof) acc ->
+                  if Int.equal k k' && Premises.for_all mem prems' then clof :: acc else acc)
+                can.clauses_bwd.ClausesOf.global []
+          in
+          List.fold_left (fun (m, localized) (k, prems as clof) ->
+              let can = repr m can.canon in
+              match ClausesOf.localize clof can.clauses_bwd with
+              | None -> (m, localized)
+              | Some clauses_bwd -> (change_node m { can with clauses_bwd }, (prems, (can.canon, k)) :: localized))
+            acc clofs)
+      concls (m, localized)
   in
-  List.fold_left localize_clause m (List.concat_map (clauses_of_constraint m) csts)
+  let m, localized = List.fold_left localize_clause (m, []) (List.concat_map (clauses_of_constraint m) csts) in
+  (* The localized clauses are local clauses, which depend on all the other clauses *)
+  let m = restore_invariants ~global_changed:false ~check:(List.rev localized) ~changed:[] m in
+  debug_check_prime m;
+  m
 
 let enforce_eq u v m = enforce u UnivConstraint.Eq v m
 let enforce_leq u v m = enforce u UnivConstraint.Le v m
 let enforce_lt u v m = enforce_leq (Universe.addn u 1) v m
-
-(** [unbounded_above model prems concl] holds when no premise of [prems], nor [Set], is above
-  [concl] in the graph of clauses following all their premises, among at most [max_above]
-  universes. Then [concl + k <= max(prems)] is not entailed: raising the universes above [concl],
-  [concl] included, by the same large amount gives a model of the clauses (the clauses of these
-  universes only mention universes above them, the other clauses get greater premises) where
-  [concl + k] is above [max(prems)]. This refutes at once the clauses whose premises have a large
-  graph below them, e.g. global universes of the Corelib, where [check_one_clause] and
-  [check_one_clause_complete] would explore all of it. *)
-let max_above = 1024
-
-let unbounded_above model prems concl =
-  let setidx = Index.find Level.set model.table in
-  let target idx = Index.equal idx setidx || NeList.exists (fun (p, _) -> Index.equal p.canon idx) prems in
-  let exception Unknown in
-  let rec aux todo seen n =
-    match todo with
-    | [] -> true
-    | x :: todo ->
-      let todo, seen, n = ClausesOf.fold (fun _local (_, qs) acc ->
-          NeList.fold (fun (q, _) (todo, seen, n as acc) ->
-              if Index.Set.mem q seen then acc
-              else if target q || n >= max_above then raise_notrace Unknown
-              else (q :: todo, Index.Set.add q seen, n + 1)) qs acc)
-          (repr model x).clauses_bwd (todo, seen, n)
-      in
-      aux todo seen n
-  in
-  not (target concl.canon) &&
-  try aux [concl.canon] (Index.Set.singleton concl.canon) 0 with Unknown -> false
 
 let check_leq_can canu canv model =
   match simplify_can_clause model (canv, canu) with
@@ -2821,7 +3148,7 @@ let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; va
     else Index.fresh u table
   in
   let can = { canon = idx; value = 0; local = locality; rigid;
-    clauses_fwd = ForwardClauses.empty; clauses_bwd = ClausesOf.empty } in
+    clauses_fwd = ForwardClauses.empty; clauses_bwd = ClausesOf.empty; mp_below = false } in
   let entries = PMap.add idx can entries in
   let locals = match locality with Local -> Index.Set.add idx locals | Global -> locals in
   idx, { locality; entries; subst; subst_deps; table; values; canonical = canonical + 1; locals; local_eqs;
@@ -3165,7 +3492,11 @@ let set_can ?entailed (can,k) u model =
   debug_loop_checking_set_can Pp.(fun () ->str "newfwd: " ++ pr_clauses model fwdcls ++
     str"bwdcls: " ++ pr_clauses model (List.map snd bwdcls));
   let newcls = List.filter_map (filter_trivial_clause model) newcls in
-  match enforce_clauses ?entailed newcls model with
+  (* Setting [can] to [u] is like adding the equality, whose clauses conclude on [can] and the
+     universes of [u] *)
+  let atoms = NeList.to_list (NeList.map fst uprems) in
+  let also = List.map (fun u -> (u, atoms)) atoms in
+  match enforce_clauses ?entailed ~also newcls model with
   | Some res -> res
   | None -> raise InconsistentEquality
 
@@ -3179,6 +3510,7 @@ let set_can ?entailed cank u model =
     if Index.equal (fst cank).canon setidx then raise InconsistentEquality
     else
       let model, equivs = set_can ?entailed cank u model in
+      debug_check_prime model;
       let equivs = unrepr_equivalences model equivs in
       model, equivs
 
@@ -3533,7 +3865,7 @@ let is_trivial setidx u k v k' =
   The clauses of [idx] are left in the model.
   If [skip_set], the always valid clauses [idx + kprem, ... -> Set + conclk] with [kprem >= conclk]
   are ignored. *)
-let eliminate_can ~alive ~skip_set model idx =
+let eliminate_can ~alive ~skip_set (model, added) idx =
   let can = repr model idx in
   assert (Index.equal can.canon idx);
   let setidx = Index.find Level.set model.table in
@@ -3546,17 +3878,17 @@ let eliminate_can ~alive ~skip_set model idx =
       can.clauses_bwd []
   in
   match bwd with
-  | [] -> model
+  | [] -> (model, added)
   | _ ->
-  ForwardClauses.fold (fun ~kprem ~concl ~prems model ->
+  ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
     (* The clauses concluding [idx] are considered as backward clauses above *)
-    if Index.equal concl idx || not (alive concl) then model else
-    PartialClausesOf.fold (fun (conclk, premsfwd) model ->
+    if Index.equal concl idx || not (alive concl) then acc else
+    PartialClausesOf.fold (fun (conclk, premsfwd) acc ->
       (* premsfwd, idx + kprem -> concl + conclk *)
-      if skip_set && Index.equal concl setidx && kprem >= conclk then model
-      else if not (Option.cata alive_prems true premsfwd) then model else
+      if skip_set && Index.equal concl setidx && kprem >= conclk then acc
+      else if not (Option.cata alive_prems true premsfwd) then acc else
       let premsfwd = cons_opt_nelist (idx, kprem) premsfwd in
-      List.fold_left (fun model (cank, premsbwd) ->
+      List.fold_left (fun (model, added as acc) (cank, premsbwd) ->
         (* premsbwd -> idx + cank *)
         let cl = merge_clauses premsbwd idx cank premsfwd concl conclk in
         let cl =
@@ -3565,16 +3897,16 @@ let eliminate_can ~alive ~skip_set model idx =
           | _ -> assert false (* The conclusion was already canonical, cannot expand to a list of universes *)
         in
         match simplify_can_clause model cl with
-        | Trivial -> model
+        | Trivial -> acc
         | Contradictory -> assert false
         | Canonical cl ->
-          if subsumed ~alive cl then model else
+          if subsumed ~alive cl then acc else
           match add_can_clause_model model cl with
-          | Some (_, m) -> m
-          | None -> model)
-        model bwd)
-      prems model)
-    can.clauses_fwd model
+          | Some ((prems, (concl, k)), m) -> (m, (canonical_can_premises prems, (concl.canon, k)) :: added)
+          | None -> acc)
+        acc bwd)
+      prems acc)
+    can.clauses_fwd (model, added)
 
 (** [closure succs seeds] is the set of universes reachable from [seeds] through [succs] *)
 let closure succs seeds =
@@ -3703,12 +4035,12 @@ let spanned_subgraph ~skip_set model kept =
 let eliminate_spanned ~skip_set model kept =
   let spanned = spanned_subgraph ~skip_set model kept in
   let removed = PSet.filter (fun idx -> not (PSet.mem idx kept)) spanned in
-  let model, _ = PSet.fold (fun idx (model, alive) ->
+  let acc, _ = PSet.fold (fun idx (acc, alive) ->
       let alive = PSet.remove idx alive in
-      eliminate_can ~alive:(fun idx -> PSet.mem idx alive) ~skip_set model idx, alive)
-      removed (model, spanned)
+      eliminate_can ~alive:(fun idx -> PSet.mem idx alive) ~skip_set acc idx, alive)
+      removed ((model, []), spanned)
   in
-  model
+  acc
 
 (** [constraints_for ~kept model] computes the constraints between the [kept] universes
   derivable in [model]. Only the subgraph spanned by the kept universes is considered
@@ -3745,7 +4077,7 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
     add_cst l knd r csts
   in
   let kept_cans = PMap.fold (fun can _ acc -> PSet.add can acc) rmap PSet.empty in
-  let model = eliminate_spanned ~skip_set:true model kept_cans in
+  let model, _resolvents = eliminate_spanned ~skip_set:true model kept_cans in
   let csts = PMap.fold (fun u (can, k) csts ->
       if Index.equal u (fst (PMap.find can rmap)) then csts
       else add_shifted_cst (NeList.tip (u, 0)) UnivConstraint.Eq (NeList.tip (rexpr (can, k))) csts)
@@ -3929,12 +4261,20 @@ let remove_eliminating removed model =
   (* After the elimination of the removed universes, the clauses that don't mention them
      are enough to derive the clauses between kept universes. The clauses mentioning already
      eliminated universes are removed below, so they are not used for the next eliminations. *)
-  let model, _ = PSet.fold (fun idx (model, eliminated) ->
+  let (model, resolvents), _ = PSet.fold (fun idx (acc, eliminated) ->
       let eliminated = PSet.add idx eliminated in
-      eliminate_can ~alive:(fun idx -> not (PSet.mem idx eliminated)) ~skip_set:false model idx, eliminated)
-      removed ({ model with subst; subst_deps }, PSet.empty)
+      eliminate_can ~alive:(fun idx -> not (PSet.mem idx eliminated)) ~skip_set:false acc idx, eliminated)
+      removed (({ model with subst; subst_deps }, []), PSet.empty)
   in
-  remove_from_model removed model
+  let model = remove_from_model removed model in
+  (* The kept clauses derive the same clauses on the kept universes as before, without the other
+     kept clauses: only the resolvents between kept universes can be redundant or have redundant
+     premises *)
+  let resolvents = List.filter (fun (prems, (c, _)) ->
+      PMap.mem c model.entries && Premises.for_all (fun (p, _) -> PMap.mem p model.entries) prems)
+      resolvents
+  in
+  restore_invariants ~global_changed:(model.locality == Global) ~check:(List.rev resolvents) ~changed:[] model
 
 (** [remove_restricting removed model] computes the same model as [remove_eliminating], from
   the kept universes: only the removed universes of the subgraph spanned by the kept ones
@@ -3945,7 +4285,7 @@ let remove_restricting removed model =
   let kept = PMap.fold (fun idx _ kept -> if is_removed idx then kept else PSet.add idx kept)
       model.entries PSet.empty
   in
-  let model = eliminate_spanned ~skip_set:false model kept in
+  let model, resolvents = eliminate_spanned ~skip_set:false model kept in
   let removed_can idx = not (PSet.mem idx kept) in
   let add_kept idx entries =
     let can = repr model idx in
@@ -3959,7 +4299,12 @@ let remove_restricting removed model =
       not (is_removed idx) && not (occurs_in_premises removed_can u))
       model.subst
   in
-  { model with entries; subst; subst_deps = subst_deps_of subst; canonical = PSet.cardinal kept }
+  let model = { model with entries; subst; subst_deps = subst_deps_of subst; canonical = PSet.cardinal kept } in
+  let resolvents = List.filter (fun (prems, (c, _)) ->
+      PSet.mem c kept && Premises.for_all (fun (p, _) -> PSet.mem p kept) prems)
+      resolvents
+  in
+  restore_invariants ~global_changed:(model.locality == Global) ~check:(List.rev resolvents) ~changed:[] model
 
 let remove_core removed model =
   (* Each removed universe costs more to [remove_eliminating] than each canonical node
@@ -4009,7 +4354,10 @@ let remove removed model =
         else (Index.Set.add idx held, Index.Set.union ws orphans))
       removed_idx (Index.Set.empty, Index.Set.empty)
   in
-  if Index.Set.is_empty orphans then remove_core removed model
+  if Index.Set.is_empty orphans then
+    let model = remove_core removed model in
+    debug_check_prime model;
+    model
   else
     let levels_of idxs = Index.Set.fold (fun idx acc -> Level.Set.add (Index.repr idx model.table) acc) idxs Level.Set.empty in
     let held_levels = levels_of held in
