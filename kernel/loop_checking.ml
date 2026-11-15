@@ -1988,6 +1988,15 @@ let entails model prems (x, kx) =
   let prems = NeList.map (fun (p, kp) -> (p, kp + s)) prems in
   check_one_clause model prems x (kx + s) || check_one_clause_complete model prems x (kx + s)
 
+(** [entails_complete model prems (x, kx)] is [entails] with [check_one_clause_complete] only:
+  starting from the values of [model], it is cheaper when the clause does not hold, while
+  [check_one_clause] propagates the consequences of the premises from scratch *)
+let entails_complete model prems (x, kx) =
+  NeList.exists (fun (p, kp) -> p == x && kx <= kp) prems ||
+  let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- kx)) in
+  let prems = NeList.map (fun (p, kp) -> (p, kp + s)) prems in
+  check_one_clause_complete model prems x (kx + s)
+
 (** [entails_from model (p, kp) candidates] decides [x + kx <= p + kp] as [entails] for each
   [x + kx] of [candidates], propagating the consequences of [p + kp] once for all of them
   instead of once for each: [x + kx + s <= p + kp + s] is derived when [x] gets a value at
@@ -2339,7 +2348,7 @@ let drop_entailed_premises m ((prems, (concl, k) as cl) : can_clause) : can_clau
   | NeList.Cons _ ->
     let redundant (p, a) others =
       let q = List.sort (fun (x, _) (y, _) -> Index.compare x.canon y.canon) ((concl, k - 1) :: others) in
-      holds_in_values m (p, a) q && entails m (NeList.of_list q) (p, a)
+      holds_in_values m (p, a) q && entails_complete m (NeList.of_list q) (p, a)
     in
     let rec filter kept = function
       | [] -> List.rev kept
