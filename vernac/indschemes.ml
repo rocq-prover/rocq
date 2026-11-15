@@ -222,8 +222,11 @@ let declare_one_induction_scheme ?loc ind =
   let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
   let from_prop = Sorts.Quality.is_qprop kind in
   let depelim = Inductiveops.always_dependent_elim specif in
-  let kelim mip = Inductiveops.constant_sorts_below
-              @@ Inductiveops.elim_sort (mib,mip) in
+  let kelim mip =
+    if Sorts.is_sprop mip.mind_sort && Inductiveops.mis_is_recursive mip
+    then [UnivGen.QualityOrSet.sprop]
+    else Inductiveops.constant_sorts_below
+        @@ Inductiveops.elim_sort (mib,mip) in
   let kelim =
     List.fold_right (fun x acc ->
       List.intersect UnivGen.QualityOrSet.equal acc x)

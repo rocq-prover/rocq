@@ -498,6 +498,26 @@ let build_mutual_induction_scheme_gen cache rec_hyp env sigma lrecspec u =
       (* Check the blocks are all mutual, different, and can be eliminated dependently *)
       let () = check_valid_mutual env sigma mind mib u tail in
       let () = check_valid_elimination env sigma mind mib u lrecspec rec_hyp in
+      let sigma =
+        if List.length lrecspec = 1 && not (rec_hyp && Inductiveops.mis_is_recursive mip) then sigma
+        else List.fold_left (fun sigma ((_, ni), _, s) ->
+            let inst = match mib.mind_template with
+              | None -> EInstance.kind sigma u
+              | Some templ -> templ.template_defaults
+            in
+            let ind_sort = UVars.subst_instance_sort inst mib.mind_packets.(ni).mind_sort in
+            let out_sort = match ERelevance.kind sigma (ESorts.relevance_of_sort s) with
+              | Sorts.Irrelevant -> Sorts.sprop
+              | Sorts.Relevant -> Sorts.prop
+              | Sorts.RelevanceVar q -> Sorts.vsort q Univ.Universe.type0
+            in
+            let elim_to = Inductive.eliminates_to (Evd.elim_graph sigma) in
+            if Inductive.is_allowed_fixpoint elim_to ind_sort out_sort then sigma
+            else
+              try Evd.set_elim_to sigma (Sorts.quality ind_sort) (Sorts.quality out_sort)
+              with QGraph.EliminationError _ -> sigma)
+            sigma lrecspec
+      in
       (* Compute values for gen_elim *)
       let listdepkind = (snd mind, mip, dep, s) ::
         List.map (fun ((_,ni), dep, s) -> (ni, mib.mind_packets.(ni), dep, s)) tail in
