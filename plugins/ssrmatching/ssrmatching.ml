@@ -1523,11 +1523,14 @@ let decode_pattern ?wit_ssrpatternarg env sigma0 red =
         let id = Id.to_string id in let len = String.length id in
         (match String.sub id 8 (len - 8), DAst.get t with
         | "In", GApp( _, [t]) -> decodeG ist t xInT (fun x -> T x)
-        | "In", GApp( _, [e; t]) -> decodeG ist t (eInXInT (mkG e ist)) (bad_enc id)
+        | "In", GApp( _, [e; t]) ->
+            decodeG ist t (eInXInT (mkG e ist)) (fun x -> xInT (id_of_Cterm (mkG e ist)) x)
         | "In", GApp( _, [e; t; e_in_t]) ->
             decodeG ist t (eInXInT (mkG e ist))
               (fun _ -> decodeG ist e_in_t xInT (fun _ -> assert false))
-        | "As", GApp(_, [e; t]) -> decodeG ist t (eAsXInT (mkG e ist)) (bad_enc id)
+        | "As", GApp(_, [e; t]) ->
+            decodeG ist t (eAsXInT (mkG e ist))
+              (fun _ -> loc_error (Glob_ops.loc_of_glob_constr t) "Only patterns of the form X in T are allowed here")
         | _ -> bad_enc id ())
       | _ ->
         decode ~reccall:decode_red (mkG ~k t ist) xInT (fun x -> T x)
