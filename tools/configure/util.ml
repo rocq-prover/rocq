@@ -218,6 +218,7 @@ let rec try_archs = function
 
 let arch = function
   | Some a -> a
+  | None when os_type_win32 -> "win32"
   | None ->
     let arch,_ = tryrun "uname" ["-s"] in
     if starts_with arch "CYGWIN" then "win32"
