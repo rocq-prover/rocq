@@ -259,13 +259,12 @@ let rec lft_fconstr n ft =
 let lift_fconstr k f =
   if Int.equal k 0 then f else lft_fconstr k f
 
-let rec relift_fconstr (n, k as el) v =
+let rec relift_fconstr el v =
   match v.term with
   | FRel i ->
-    if i <= k then v else
-    { v with term = FRel (n + i) }
-  | FFlex (RelKey _) ->
-    lft_fconstr n v (* we know we must be beyond k *)
+    { v with term = FRel (reloc_rel i el) }
+  | FFlex (RelKey p) ->
+    lift_fconstr (reloc_rel p el - p) v
   | FApp (f,ve) ->
     { v with term =
         FApp (relift_fconstr el f,
@@ -300,36 +299,41 @@ let rec relift_fconstr (n, k as el) v =
     let env = lift_subs el env in
     { v with term =
       FEvar (ev, args, env, repack) }
-  | FLIFT (k', a) ->
-    let () = assert (k' >= k) in
-    { v with term = FLIFT (n + k', a) }
+  | FLIFT (lft, a) ->
+    relift_fconstr (el_shft lft el) a
 
   | FArray (u, t, ty, lft) ->
-    if lft >= k then { v with term = FArray (u, t, ty, lft + n) }
-    else
-      let el = (n, k - lft) in
-      let t = Parray.map (relift_fconstr el) t in
-      let ty = relift_fconstr el ty in
-      { v with term =
-        FArray (u, t, ty, lft) }
+    let el = el_shft lft el in
+    let t = Parray.map (relift_fconstr el) t in
+    let ty = relift_fconstr el ty in
+    { v with term =
+      FArray (u, t, ty, 0) }
+
+  | FConstruct (c, args) ->
+    { v with term =
+      FConstruct (c, Array.Fun1.map relift_fconstr el args) }
 
   | FCLOS (t,env) ->
     let env = lift_subs el env in
     { v with term =
       FCLOS (t, env) }
 
-  | FFlex (ConstKey _ | VarKey _) | FInd _ | FConstruct _ | FAtom _ | FInt _ | FFloat _ | FString _ -> v
+  | FFlex (ConstKey _ | VarKey _) | FInd _ | FAtom _ | FInt _ | FFloat _ | FString _ -> v
 
   | FIrrelevant -> v (* Stable under substitution and lifts *)
   | FLOCKED -> assert (!Flags.in_debugger); v
 
-and lift_subs (n, k) s =
-  usubs_shft (n, usubs_liftn k s)
+and lift_subs el (s, u) =
+  lift_subst relift_subs_content el s, u
+
+and relift_subs_content el = function
+  | Regular v -> Regular (relift_fconstr el v)
+  | HigherOrder (n, v) -> HigherOrder (n, relift_fconstr (el_liftn n el) v)
 
 let clos_rel e i =
   match expand_rel i e with
     | Inl (n, (Regular mt | HigherOrder (0, mt))) -> Regular (lift_fconstr n mt)
-    | Inl (n, HigherOrder (nargs, mt)) -> HigherOrder (nargs, relift_fconstr (n, nargs) mt)
+    | Inl (n, HigherOrder (nargs, mt)) -> HigherOrder (nargs, relift_fconstr (el_liftn nargs (el_shft n el_id)) mt)
     | Inr (k, None) -> Regular {mark=Ntrl; term= FRel k}
     | Inr (k, Some p) ->
       Regular (lift_fconstr (k-p) {mark=Red;term=FFlex(RelKey p)})
@@ -739,7 +743,7 @@ let term_of_fconstr c = to_constr el_id c
 
 let lift_union k = function
   | Regular v -> Regular (lift_fconstr k v)
-  | HigherOrder (n, v) -> HigherOrder (n, relift_fconstr (k, n) v)
+  | HigherOrder (n, v) -> HigherOrder (n, relift_fconstr (el_liftn n (el_shft k el_id)) v)
 
 let rec resubst subs v =
   match v.term with
@@ -805,13 +809,17 @@ let rec resubst subs v =
     { v with term =
       FArray (u, t, ty, 0) }
 
+  | FConstruct (c, args) ->
+    { v with term =
+      FConstruct (c, Array.Fun1.map resubst subs args) }
+
   | FCLOS (t,env) ->
     let env = comp_subs subs env in
     { v with term =
       FCLOS (t, env) }
 
   | FFlex (RelKey _) -> v (* outside the substitution *)
-  | FFlex (ConstKey _ | VarKey _) | FInd _ | FConstruct _ | FAtom _ | FInt _ | FFloat _ | FString _ -> v
+  | FFlex (ConstKey _ | VarKey _) | FInd _ | FAtom _ | FInt _ | FFloat _ | FString _ -> v
 
   | FIrrelevant -> v (* Stable under substitution and lifts *)
   | FLOCKED -> assert (!Flags.in_debugger); v
