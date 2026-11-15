@@ -1565,11 +1565,26 @@ let add_can_clause_model m ((prems, (canl, conclk)) : can_clause) : (can_clause 
       prems m'
   in Some ((prems', refresh_can_expr m' (canl', conclk)), m')
 
+(** [debug_check_model m] The values of [m] are a model of its clauses *)
+let debug_check_model m =
+  if CDebug.get_flag debug_loop_checking_invariants_flag then
+    PMap.iter (fun _ (can : canonical_node) ->
+        ClausesOf.fold (fun _local (k, prems) () ->
+            let v = get_canonical_value m can in
+            let min_prems = NeList.fold (fun (q, kq) acc -> min acc (get_canonical_value m (repr m q) - kq))
+                prems max_int in
+            if v < k + min_prems then
+              CErrors.anomaly Pp.(str "The values are not a model of " ++
+                pr_clause (pr_index_point m) (prems, (can.canon, k))))
+          can.clauses_bwd ())
+      m.entries
+
 let infer_clauses_extension ?cycle cans m =
   match check ?cycle m cans with
   | Loop -> None
   | Model (_updates, model) ->
     debug_check_invariants model;
+    debug_check_model model;
     Some model
 
 (** [in_premises idx prems] is [true] iff [idx] appears in [prems] *)
