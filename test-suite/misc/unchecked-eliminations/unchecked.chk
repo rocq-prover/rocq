@@ -11,6 +11,7 @@ CONTEXT SUMMARY
 * Constants/Inductives relying on type-in-type: <none>
 
 * Constants/Inductives relying on unchecked sort eliminations:
+    UncheckedElim.unchecked.unchecked_or_poly_rec
     UncheckedElim.unchecked.unchecked_or
     UncheckedElim.unchecked.unchecked_or_sind
     UncheckedElim.unchecked.unchecked_or_rect
