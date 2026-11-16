@@ -94,6 +94,8 @@ We want to make sure that contributing to Rocq is a fun and positive
 experience for everyone, so please make sure you read and abide by our
 [Code of Conduct][Code-of-conduct].
 
+If you use AI assistance, please read and follow our [AI policy][AI-policy].
+
 ## Contributing to the ecosystem ##
 
 In this section, we present all the ways to contribute to Rocq outside
@@ -1301,6 +1303,7 @@ The list of past (and upcoming, when it's already planned) workshops
 can be found [on the wiki][wiki-CUDW].
 
 [add-contributor]: https://github.com/orgs/rocq-prover/teams/contributors/members?add=true
+[AI-policy]: https://rocq-prover.org/policies/ai-policy
 [api-doc]: https://rocq-prover.org/doc/master/api/
 [Awesome-Coq]: https://github.com/rocq-community/awesome-coq
 [Benchmarking]: https://github.com/rocq-prover/rocq/wiki/Benchmarking
