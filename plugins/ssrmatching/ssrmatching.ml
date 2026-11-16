@@ -173,8 +173,8 @@ let unif_EQ_args env sigma pa a =
   let rec loop i = (i = n) || unif_EQ_ref env ise pa.(i) a.(i) && loop (i + 1) in
   if loop 0 then Some !ise else None
 
-let unif_HO env ise p c =
-  try Evarconv.unify_delay env ise p c
+let unif_HO ?flags env ise p c =
+  try Evarconv.unify_delay ?flags env ise p c
   with Evarconv.UnableToUnify(ise, err) ->
     raise Pretype_errors.(PretypeError(env,ise,CannotUnify(p,c,Some err)))
 
@@ -350,8 +350,8 @@ let nf_open_term sigma0 ise c =
   let changed = sigma0 != !s' in
   changed, Evd.set_ustate !s' (Evd.ustate ise), c'
 
-let unif_end ?(solve_TC=true) env sigma0 ise0 pt ok =
-  let ise = Evarconv.solve_unif_constraints_with_heuristics env ise0 in
+let unif_end ?flags ?(solve_TC=true) env sigma0 ise0 pt ok =
+  let ise = Evarconv.solve_unif_constraints_with_heuristics ?flags env ise0 in
   let tcs = Evd.get_typeclass_evars ise in
   let c, s, t = nf_open_term sigma0 ise pt in
   let ise1 = create_evar_defs s in
@@ -365,10 +365,12 @@ let unif_end ?(solve_TC=true) env sigma0 ise0 pt ok =
     (* [ise2] is a refinement of [ise1], so its universe state extends [s]'s *)
     nf_open_term sigma0 ise2 t
 
-let unify_HO env sigma0 t1 t2 =
-  let sigma = unif_HO env sigma0 t1 t2 in
-  let _, sigma, _ = unif_end ~solve_TC:false env sigma0 sigma t2 (fun _ -> true) in
+let unify_HO_gen ?flags env sigma0 t1 t2 =
+  let sigma = unif_HO ?flags env sigma0 t1 t2 in
+  let _, sigma, _ = unif_end ?flags ~solve_TC:false env sigma0 sigma t2 (fun _ -> true) in
   sigma
+
+let unify_HO env sigma0 t1 t2 = unify_HO_gen env sigma0 t1 t2
 
 (* This is what the definition of iter_constr should be... *)
 let iter_constr_LR sigma f c = match EConstr.kind sigma c with
@@ -1652,6 +1654,11 @@ let noindex = Some(false,[])
 (* calls do_subst on every sub-term identified by (pattern,occ) *)
 let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst) =
   let rigid ev = Evd.mem sigma0 ev in
+  let unify_HO env sigma t1 t2 =
+    let flags = Evarconv.default_flags_of TransparentState.full in
+    let flags = { flags with Evarsolve.allowed_evars = Evarsolve.AllowedEvars.from_pred (fun ev -> not (rigid ev)) } in
+    unify_HO_gen ~flags env sigma t1 t2
+  in
   let fs sigma x = Reductionops.nf_evar sigma x in
   let pop_evar sigma { in_hole = (e, args); in_patt = p; in_func = fp } =
     let EvarInfo e_def = Evd.find sigma e in
