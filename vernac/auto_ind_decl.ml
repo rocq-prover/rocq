@@ -1045,7 +1045,9 @@ let do_replace_bl handle (ind,u as indu) aavoid narg lft rgt =
   create, from a list of ids [i1,i2,...,in] the list
   [(in,eq_in,in_bl,in_al),,...,(i1,eq_i1,i1_bl_i1_al  )]
 *)
-let list_id l = List.fold_left ( fun a decl -> let s' =
+let list_id l = List.fold_left ( fun a decl ->
+    if RelDecl.is_local_def decl then a else
+    let s' =
       match RelDecl.get_name decl with
         Name s -> Id.to_string s
       | Anonymous -> "A" in
@@ -1054,6 +1056,22 @@ let list_id l = List.fold_left ( fun a decl -> let s' =
               Id.of_string (s'^"_lb"))
             ::a
     ) [] l
+
+let intros_params_using_then lnamesparrec ids k =
+  let params = List.rev lnamesparrec in
+  let pids = List.map (fun decl -> match RelDecl.get_name decl with
+      | Name s -> s
+      | Anonymous -> Id.of_string "A") params in
+  let filter = List.map RelDecl.is_local_assum params in
+  let nassum = Context.Rel.nhyps lnamesparrec in
+  let _, rest = List.chop nassum ids in
+  Tactics.intros_using_then (pids @ rest) (fun fresh ->
+      let fparams, frest = List.chop (List.length params) fresh in
+      k (List.filter_with filter fparams @ frest))
+
+let mk_param_binder x decl a = match decl with
+  | RelDecl.LocalAssum (_, t) -> Term.mkNamedProd x t a
+  | RelDecl.LocalDef (_, b, t) -> Term.mkNamedLetIn x b t a
 
 let avoid_of_list_id list_id =
   List.fold_left (fun avoid (s,seq,sbl,slb) ->
@@ -1126,7 +1144,7 @@ let compute_bl_goal env handle (ind,u) lnamesparrec nparrec =
             (function Name s -> s | Anonymous -> next_ident_away (Id.of_string "A") avoid)
             (RelDecl.get_annot decl)
         in
-        mkNamedProd x (RelDecl.get_type decl) a) eq_input lnamesparrec
+        mk_param_binder x decl a) eq_input lnamesparrec
     in
      create_input (
         mkNamedProd (Context.make_annot x Sorts.Relevant) (mkFullInd env (ind,u) (2*nparrec)) (
@@ -1147,7 +1165,7 @@ let compute_bl_tact handle ind lnamesparrec nparrec =
   let open Tactics in
   let open Proofview.Notations in
   Ind_tables.push_handle handle <*>
-  intros_using_then first_intros begin fun fresh_first_intros ->
+  intros_params_using_then lnamesparrec first_intros begin fun fresh_first_intros ->
     Tacticals.tclTHENLIST [
         intro_using_then (Id.of_string "x") (fun freshn -> induct_on (EConstr.mkVar freshn));
         intro_using_then (Id.of_string "y") (fun freshm -> destruct_on (EConstr.mkVar freshm));
@@ -1276,7 +1294,7 @@ let compute_lb_goal env handle (ind,u) lnamesparrec nparrec =
               (function Name s -> s | Anonymous -> Id.of_string "A")
               (RelDecl.get_annot decl)
           in
-          mkNamedProd x (RelDecl.get_type decl)  a) eq_input lnamesparrec
+          mk_param_binder x decl a) eq_input lnamesparrec
     in
       create_input (
         mkNamedProd (Context.make_annot x Sorts.Relevant) (mkFullInd env (ind,u) (2*nparrec)) (
@@ -1297,7 +1315,7 @@ let compute_lb_tact handle ind lnamesparrec nparrec =
   let open Tactics in
   let open Proofview.Notations in
   Ind_tables.push_handle handle <*>
-  intros_using_then first_intros begin fun fresh_first_intros ->
+  intros_params_using_then lnamesparrec first_intros begin fun fresh_first_intros ->
     Tacticals.tclTHENLIST [
         intro_using_then (Id.of_string "x") (fun freshn -> induct_on (EConstr.mkVar freshn));
         intro_using_then (Id.of_string "y") (fun freshm -> destruct_on (EConstr.mkVar freshm));
@@ -1430,7 +1448,7 @@ let compute_dec_goal env ind lnamesparrec nparrec =
               (function Name s -> s | Anonymous -> Id.of_string "A")
               (RelDecl.get_annot decl)
           in
-          mkNamedProd x (RelDecl.get_type decl) a) eq_input lnamesparrec
+          mk_param_binder x decl a) eq_input lnamesparrec
     in
         let eqnm = mkApp(eq,[|mkFullInd env ind (3*nparrec+2);mkVar x;mkVar y|]) in
         create_input (
@@ -1459,7 +1477,7 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
   let fresh_id s gl = fresh_id_in_env (Id.Set.empty) s (Proofview.Goal.env gl) in
   let open Proofview.Notations in
   Ind_tables.push_handle handle <*>
-  intros_using_then first_intros begin fun fresh_first_intros ->
+  intros_params_using_then lnamesparrec first_intros begin fun fresh_first_intros ->
     let eqI =
       let a = Array.of_list fresh_first_intros in
       let n = List.length list_id in
