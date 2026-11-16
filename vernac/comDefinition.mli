@@ -30,6 +30,7 @@ val do_definition
   : ?loc:Loc.t
   -> ?hook:Declare.Hook.t
   -> name:Id.t
+  -> sealed:bool
   -> ?scope:Locality.definition_scope
   -> ?clearbody:bool
   -> poly:PolyFlags.t
@@ -49,6 +50,7 @@ val do_definition_program
   -> ?hook:Declare.Hook.t
   -> pm:Declare.OblState.t
   -> name:Id.t
+  -> sealed:bool
   -> scope:Locality.definition_scope
   -> ?clearbody:bool
   -> poly:PolyFlags.t

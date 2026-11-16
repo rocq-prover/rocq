@@ -39,6 +39,7 @@ val new_instance_interactive
 val new_instance
   : locality:Hints.hint_locality
   -> poly:PolyFlags.t
+  -> sealed:bool
   -> name_decl
   -> local_binder_expr list
   -> constr_expr
@@ -51,6 +52,7 @@ val new_instance_program
   : locality:Hints.hint_locality
   -> pm:Declare.OblState.t
   -> poly:PolyFlags.t
+  -> sealed:bool
   -> name_decl
   -> local_binder_expr list
   -> constr_expr

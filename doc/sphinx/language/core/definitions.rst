@@ -101,6 +101,7 @@ Section :ref:`typing-rules`.
    computation on :n:`@term`.
 
    These commands also support the :attr:`global`, :attr:`universes(polymorphic)`,
+   :attr:`sealed`, :attr:`defined`,
    :attr:`universes(collapse_sort_variables)`, :attr:`refine`,
    :attr:`program` (see :ref:`program_definition`), :attr:`canonical`,
    :attr:`bypass_check(universes)`, :attr:`bypass_check(guard)`, :attr:`deprecated`,
@@ -129,6 +130,28 @@ Section :ref:`typing-rules`.
 
    .. exn:: The term @term has type @type while it is expected to have type @type'.
       :undocumented:
+
+.. attr:: sealed
+
+   This :term:`attribute` can be used to make a definition
+   :term:`sealed <opaque>`, as though it was defined by interactive
+   proof terminated with :cmd:`Qed`.
+
+   It is rejected when the definition command would open an
+   interactive proof, use :cmd:`Qed` to terminate the proof instead of
+   using this attribute.
+
+.. attr:: defined
+
+   This :term:`attribute` can be used to make a definition
+   :term:`transparent <opaque>`, as though it was defined by
+   interactive proof terminated with :cmd:`Defined`. This is also the
+   default behaviour when neither :attr:`sealed` or :attr:`defined`
+   are provided.
+
+   It is rejected when the definition command would open an
+   interactive proof, use :cmd:`Defined` to terminate the proof instead of
+   using this attribute.
 
 .. attr:: refine
 
