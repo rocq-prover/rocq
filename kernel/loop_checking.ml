@@ -2787,7 +2787,7 @@ let affected_clauses m xs qs =
   let flagged y = (repr m y).mp_below in
   let down y acc = ForwardClauses.fold (fun ~kprem:_ ~concl ~prems:_ acc ->
       if flagged concl then push acc concl else acc) (repr m y).clauses_fwd acc in
-  let up y acc = ClausesOf.fold (fun _ (_, prems) acc -> NeList.fold (fun (q, _) acc -> push acc q) prems acc)
+  let up push y acc = ClausesOf.fold (fun _ (_, prems) acc -> NeList.fold (fun (q, _) acc -> push acc q) prems acc)
       (repr m y).clauses_bwd acc
   in
   let start = List.fold_left push ([], Index.Set.empty) xs in
@@ -2802,7 +2802,7 @@ let affected_clauses m xs qs =
       let dy = dwork + ForwardClauses.cardinal (repr m y).clauses_fwd in
       let uz = uwork + ClausesOf.cardinal (repr m z).clauses_bwd in
       if dy <= uz then lockstep (dy + 1) uwork (down y (dtodo, dseen)) u
-      else lockstep dwork (uz + 1) d (up z (utodo, useen))
+      else lockstep dwork (uz + 1) d (up push z (utodo, useen))
   in
   let add key (red, cands) map =
     ClauseMap.update key (function
@@ -2843,13 +2843,17 @@ let affected_clauses m xs qs =
   (* The zone above the premises of the new clauses, within a budget *)
   let budget = max max_above_premises (Index.Set.cardinal zone) in
   let exception Large in
-  let rec above_qs (todo, seen) =
+  (* [n] is the number of universes in [seen] *)
+  let push_count (todo, seen, n as acc) y =
+    if Index.Set.mem y seen then acc else (y :: todo, Index.Set.add y seen, n + 1)
+  in
+  let rec above_qs (todo, seen, n) =
     match todo with
     | [] -> seen
     | z :: todo ->
-      if Index.Set.cardinal seen > budget then raise_notrace Large else above_qs (up z (todo, seen))
+      if n > budget then raise_notrace Large else above_qs (up push_count z (todo, seen, n))
   in
-  match above_qs (List.fold_left push ([], Index.Set.empty) qs) with
+  match above_qs (List.fold_left push_count ([], Index.Set.empty, 0) qs) with
   | exception Large -> cands
   | aboveq ->
     ClauseMap.filter_map (fun (c, _, prems) (red, cands) ->
