@@ -161,10 +161,10 @@ let v_pred v = v_pair v_bool (v_set v)
 
 (** kernel/names *)
 
-let v_id = v_string
+let v_id = v_tuple "identifier" [|v_int;v_string|]
 let v_dp = v_annot_c ("dirpath", v_list v_id)
 let v_name = v_sum "name" 1 [|[|v_id|]|]
-let v_uid = v_tuple "uniq_ident" [|v_int;v_string;v_dp|]
+let v_uid = v_tuple "uniq_ident" [|v_int;v_id;v_dp|]
 let v_mp =
   fix (fun v_mp ->
       v_sum_c("module_path",0,
