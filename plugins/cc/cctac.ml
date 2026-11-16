@@ -324,7 +324,11 @@ let rec proof_term env sigma (typ, lhs, rhs) p = match p.p_rule with
   let sigma, funty = type_and_refresh_ env sigma f in
   let sigma, argty = type_and_refresh_ env sigma t in
   let id = fresh_id env (Id.of_string "f") in
-  let appf = mkLambda (make_annot (Name id) ERelevance.relevant, funty, mkApp (mkRel 1, [|t|])) in
+  let na = make_annot (Name id) ERelevance.relevant in
+  let fj = { Environ.uj_val = mkRel 1; uj_type = Vars.lift 1 funty } in
+  let tj = { Environ.uj_val = t; uj_type = argty } in
+  let sigma, body = Typing.judge_of_apply (push_rel (LocalAssum (na, funty)) env) sigma fj [|tj|] in
+  let appf = mkLambda (na, funty, body.uj_val) in
   let sigma, p1 = proof_term env sigma (funty, f, g) p1 in
   let sigma, p2 = proof_term env sigma (argty, t, u) p2 in
   (* lemma1 : ⊢ f t = g t : B{t} *)
@@ -359,7 +363,8 @@ let proof_tac (typ, lhs, rhs) p : unit Proofview.tactic =
     let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
     let sigma, p = proof_term env sigma (typ, lhs, rhs) p in
-    let sigma = Typing.check env sigma p concl in
+    let ty = Retyping.get_type_of env sigma p in
+    let sigma = Typing.check_actual_type env sigma { Environ.uj_val = p; uj_type = ty } concl in
     Proofview.Unsafe.tclEVARS sigma <*> exact_no_check p
   end
 
