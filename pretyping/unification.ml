@@ -2022,17 +2022,19 @@ let isEvar_or_Meta sigma c = match EConstr.kind sigma c with
 let check_types env flags subst m n =
   let sigma = subst.subst_sigma in
   let metas = subst.subst_metam in
-  if isEvar_or_Meta sigma (head_app ~metas env sigma m) then
-    unify_0_with_initial_metas subst true env CUMUL
-      flags
-      (get_type_of_with_metas ~metas env sigma n, Unknown)
-      (get_type_of_with_metas ~metas env sigma m, Unknown)
-  else if isEvar_or_Meta sigma (head_app ~metas env sigma n) then
-    unify_0_with_initial_metas subst true env CUMUL
-      flags
-      (get_type_of_with_metas ~metas env sigma m, Unknown)
-      (get_type_of_with_metas ~metas env sigma n, Unknown)
-  else subst
+  try
+    if isEvar_or_Meta sigma (head_app ~metas env sigma m) then
+      unify_0_with_initial_metas subst true env CUMUL
+        flags
+        (get_type_of_with_metas ~metas ~lax:true env sigma n, Unknown)
+        (get_type_of_with_metas ~metas ~lax:true env sigma m, Unknown)
+    else if isEvar_or_Meta sigma (head_app ~metas env sigma n) then
+      unify_0_with_initial_metas subst true env CUMUL
+        flags
+        (get_type_of_with_metas ~metas ~lax:true env sigma m, Unknown)
+        (get_type_of_with_metas ~metas ~lax:true env sigma n, Unknown)
+    else subst
+  with RetypeError _ -> subst
 
 let try_resolve_typeclasses env evd flag m n =
   if flag then
