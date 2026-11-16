@@ -215,7 +215,7 @@ let adjust_rel_to_rel_context sign n =
     let open RelDecl in
     match sign with
     | LocalAssum _ :: sign' -> let (n',p) = aux sign' in (n'+1,p)
-    | LocalDef (_,_c,_)::sign' -> let (n',p) = aux sign' in (n'+1,if n'<n then p+1 else p)
+    | LocalDef (_,_c,_)::sign' -> let (n',p) = aux sign' in (n'+1,if n'<p then p+1 else p)
     | [] -> (0,n)
   in snd (aux sign)
 
