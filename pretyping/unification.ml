@@ -2022,17 +2022,25 @@ let isEvar_or_Meta sigma c = match EConstr.kind sigma c with
 let check_types env flags subst m n =
   let sigma = subst.subst_sigma in
   let metas = subst.subst_metam in
+  let with_types f =
+    let getty x = get_type_of_with_metas ~metas ~lax:true env sigma x in
+    match getty m, getty n with
+    | exception RetypeError _ -> subst
+    | tm, tn -> f ~tm ~tn
+  in
   try
     if isEvar_or_Meta sigma (head_app ~metas env sigma m) then
+      with_types @@ fun ~tm ~tn ->
       unify_0_with_initial_metas subst true env CUMUL
         flags
-        (get_type_of_with_metas ~metas ~lax:true env sigma n, Unknown)
-        (get_type_of_with_metas ~metas ~lax:true env sigma m, Unknown)
+        (tn, Unknown)
+        (tm, Unknown)
     else if isEvar_or_Meta sigma (head_app ~metas env sigma n) then
+      with_types @@ fun ~tm ~tn ->
       unify_0_with_initial_metas subst true env CUMUL
         flags
-        (get_type_of_with_metas ~metas ~lax:true env sigma m, Unknown)
-        (get_type_of_with_metas ~metas ~lax:true env sigma n, Unknown)
+        (tm, Unknown)
+        (tn, Unknown)
     else subst
   with RetypeError _ -> subst
 
