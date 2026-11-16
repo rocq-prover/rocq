@@ -698,10 +698,23 @@ Ltac normalizes :=
     | _ => class_apply @flip_atom
   end.
 
+Ltac normalization_informative R :=
+  lazymatch R with
+  | respectful ?A ?B =>
+    first [normalization_informative A | normalization_informative B]
+  | pointwise_relation _ ?A => normalization_informative A
+  | forall_relation _ => idtac
+  | flip ?A => normalization_informative A
+  | @eq _ => fail
+  | iff => fail
+  | _ => tryif is_evar R then fail else idtac
+  end.
+
 Ltac proper_normalization :=
   match goal with
     | [ _ : normalization_done |- _ ] => fail 1
-    | [ _ : apply_subrelation |- @Proper _ ?R _ ] => 
+    | [ _ : apply_subrelation |- @Proper _ ?R _ ] =>
+      normalization_informative R;
       let H := fresh "H" in
       set(H:=did_normalization) ; class_apply @proper_normalizes_proper
   end.
