@@ -2639,6 +2639,15 @@ let refuted_redundant m ws ((prems, (c, k)) : can_clause) =
   lowered_refutes (model_value m) setidx ~skip c k iprems ||
   List.exists (fun w -> lowered_refutes (witness_value w) setidx ~skip c k iprems) ws
 
+(** [derived_clause m (prems, (c, k))] For a clause with several premises, not in [m]: it is
+  derived from the clauses of [m] by propagating the values of its premises
+  ([check_one_clause]), unless the values of [m] or its witnesses refute it. This is only sound:
+  the other entailed clauses are found by [redundant_clause] once added. *)
+let derived_clause m ((prems, (c, k)) as cl : can_clause) =
+  not (refuted_redundant m m.witnesses cl) &&
+  let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- k)) in
+  check_one_clause m (NeList.map (fun (p, kp) -> (p, kp + s)) prems) c (k + s)
+
 (** [redundant_clause em ws (prems, (c, k))] For a clause of a model, [em] being that model, or its
   global view, without it, and [ws] models of the clauses of that model: the clauses of [em] entail
   it. Most clauses are refuted by [refuted_redundant] or [unbounded_above], the other ones are
@@ -2984,6 +2993,13 @@ let debug_check_irredundant_prime m =
 let batch_threshold = 16
 
 let enforce_clauses ?(entailed=false) ?(also=[]) cls m =
+  (* Whether the new clauses with several premises are checked against the model before they are
+     added: its values must be a model of its clauses, i.e. no value has been raised yet, and a
+     global clause is checked against the global clauses only, as in [restore_clause] *)
+  let precheck m raised =
+    m.irredundant_prime && PSet.is_empty raised &&
+    (m.locality == Local || Index.Set.is_empty m.locals)
+  in
   (* Adding a clause or raising a value changes nodes: they are looked up again for each clause,
      given by the canonical universes, which do not change until the merges *)
   let add_can_clause (prems, concl) acc =
@@ -2997,6 +3013,11 @@ let enforce_clauses ?(entailed=false) ?(also=[]) cls m =
         (* A clause with several premises implied by a clause of its conclusion, e.g.
            [u <= max(v, w)] once [u <= v] holds: it creates no equality and raises no value, and
            would only make the graph of clauses following all their premises larger *)
+        acc
+      | Canonical (NeList.Cons _, _ as cl) when precheck m raised && derived_clause m cl ->
+        (* A clause with several premises derived from the model, e.g. [u <= max(v, w)] once
+           [u <= max(v, x)] and [x <= w] hold: it would be removed as redundant once added, and
+           deciding it there costs a complete check *)
         acc
       | Canonical cl ->
         match add_can_clause_model m cl with
