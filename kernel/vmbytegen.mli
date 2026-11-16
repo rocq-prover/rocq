@@ -14,7 +14,7 @@ open Declarations
 open Environ
 
 val compile :
-  fail_on_error:bool ->
+  share:bool -> fail_on_error:bool ->
   env -> Genlambda.evars -> constr ->
   (bool array * to_patch * patches) option
 

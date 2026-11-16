@@ -60,7 +60,7 @@ module HashsetBlock = Hashset.Make(HashBlock)
 
 let block_table = HashsetBlock.create 97
 
-let as_value tag args =
+let as_value ~share tag args =
   if Array.for_all is_value args then
     let h = hash_block tag args in
     (* Don't simplify this to Array.map because of flat float arrays *)
@@ -72,29 +72,44 @@ let as_value tag args =
     in
     if tag < Obj.last_non_constant_constructor_tag then
       let block = val_of_block tag args in
-      Some (h, HashsetBlock.repr h block block_table)
+      let block = if share then HashsetBlock.repr h block block_table else block in
+      Some (h, block)
     else
       let args = Array.append [| val_of_int (tag - Obj.last_non_constant_constructor_tag) |] args in
       let block = val_of_block Obj.last_non_constant_constructor_tag args in
-      Some (h, HashsetBlock.repr h block block_table)
+      let block = if share then HashsetBlock.repr h block block_table else block in
+      Some (h, block)
   else None
 
 module Val =
 struct
   type value = int * structured_values
-  let as_value = as_value
+  let as_value tag args = as_value ~share:true tag args
+  let check_inductive (_, i) mb =
+    let { mind_typename=name; mind_nb_args; mind_nb_constant; _ } = mb.mind_packets.(i) in
+    Vmerrors.check_compilable_ind ~name ~mind_nb_args ~mind_nb_constant
+end
+
+module UnsharedVal =
+struct
+  type value = int * structured_values
+  let as_value tag args = as_value ~share:false tag args
   let check_inductive (_, i) mb =
     let { mind_typename=name; mind_nb_args; mind_nb_constant; _ } = mb.mind_packets.(i) in
     Vmerrors.check_compilable_ind ~name ~mind_nb_args ~mind_nb_constant
 end
 
 module Lambda = Genlambda.Make(Val)
+module UnsharedLambda = Genlambda.Make(UnsharedVal)
 
 (*********************************)
 let dump_lambda_flag, dump_lambda = CDebug.create_full ~name:"vmlambda" ()
 
-let lambda_of_constr env sigma c =
-  let lam = Lambda.lambda_of_constr env sigma c in
+let lambda_of_constr ~share env sigma c =
+  let lam =
+    if share then Lambda.lambda_of_constr env sigma c
+    else UnsharedLambda.lambda_of_constr env sigma c
+  in
   let lam = optimize lam in
   dump_lambda (fun () -> pp_lam lam);
   lam

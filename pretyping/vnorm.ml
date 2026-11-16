@@ -506,10 +506,12 @@ let evars_of_evar_map sigma =
 
 type vm_flags = {
   vm_normalize_params : bool;
+  vm_share_values : bool;
 }
 
 let default_vm_flags = {
   vm_normalize_params = false;
+  vm_share_values = true;
 }
 
 let cbv_vm ?(flags = default_vm_flags) env sigma c t  =
@@ -520,6 +522,7 @@ let cbv_vm ?(flags = default_vm_flags) env sigma c t  =
   (* This evar-normalizes terms beforehand *)
   let c = EConstr.Unsafe.to_constr c in
   let t = EConstr.Unsafe.to_constr t in
-  let v = Vmsymtable.val_of_constr env (evars_of_evar_map sigma) c in
+  let share = flags.vm_share_values in
+  let v = Vmsymtable.val_of_constr ~share env (evars_of_evar_map sigma) c in
   let env = { env; norm_params = flags.vm_normalize_params } in
   EConstr.of_constr (nf_val env sigma v t)
