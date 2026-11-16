@@ -1376,14 +1376,31 @@ let build_branch ~program_mode initial current realargs deps (realnames,curname)
 
   (* We compute over which of x(i+1)..xn and x matching on xi will need a *)
   (* generalization *)
-  let dep_sign =
-    find_dependencies_signature sigma
-      (dependencies_in_rhs ~program_mode sigma const_info.cs_nargs current pb.tomatch eqns)
-      (List.rev typs') in
-
   (* The dependent term to subst in the types of the remaining UnPushed
      terms is relative to the current context enriched by topushs *)
   let ci = build_dependent_constructor const_info in
+
+  let nargs = const_info.cs_nargs in
+  let pred_substs =
+    let realargsi =
+      if List.is_empty realnames then []
+      else Vars.subst_of_rel_context_instance arsign const_info.cs_concl_realargs in
+    match curname with
+    | Anonymous -> realargsi
+    | Name _ -> ci :: realargsi in
+  let pred_substs =
+    List.filteri (fun i _ ->
+      not (map_predicate (fun k c -> noccurn sigma (k + i + 1) c) 0 pb.pred pb.tomatch))
+      pred_substs in
+  let deps_in_rhs =
+    dependencies_in_rhs ~program_mode sigma nargs current pb.tomatch eqns in
+  let deps_in_rhs =
+    List.mapi (fun j b ->
+      b || List.exists (fun c -> not (noccurn sigma (nargs - j) c)) pred_substs)
+      deps_in_rhs in
+
+  let dep_sign =
+    find_dependencies_signature sigma deps_in_rhs (List.rev typs') in
 
   (* Current context Gamma has the form Gamma1;cur:I(realargs);Gamma2 *)
   (* We go from Gamma |- PI tms. pred to                              *)
