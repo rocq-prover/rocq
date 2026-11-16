@@ -1348,7 +1348,14 @@ let update_value premv concl m (clause : PartialClausesOf.ClauseInfo.t) : int op
   ([PositiveCycle]): the inference reports a loop at once, instead of going around the cycle and
   propagating the raise to the universes below it until all of them are updated. With a clause
   [concl + k <= max(p, q)], a cycle through [p] gives no loop, as [concl] can be below [q]: the
-  first update by a clause with several premises gives [NoCycle]. *)
+  first update by a clause with several premises gives [NoCycle].
+  Similarly, when the inference starts from the raises of the conclusions of new clauses which all
+  have the single premise [root], e.g. [u + 1 <= root] and [v <= root] for [max(u + 1, v) <= root],
+  every update is caused by an earlier one, back to one of these raises, which read the value of
+  [root] before the inference. Each single-premise update sets its conclusion to the value of its
+  premise plus the increment of its clause: a raise of [root] by such updates gives a cycle
+  [root + w <= root] with [w > 0]. Taking [root] as [CycleRoot] also covers a single raised
+  universe [r] concluding these clauses: a new raise of [r] is caused by one of [root]. *)
 type cycle_check =
   | NoCycleCheck
   | CycleRoot of Index.t
@@ -3045,10 +3052,20 @@ let enforce_clauses ?(entailed=false) ?(also=[]) cls m =
   | Some (m, added, raised) ->
     let m =
       if PSet.is_empty raised then Some m else
-      (* [m] is a model of the clauses whose conclusion is not raised: from a single raised
-         universe, a positive cycle of single-premise clauses through it is found at once *)
-      let cycle =
-        if Int.equal (PSet.cardinal raised) 1 then CycleRoot (PSet.choose raised) else NoCycleCheck
+      (* [m] is a model of the clauses whose conclusion is not raised. When the new clauses have a
+         single premise, on the same universe, e.g. for [max(u, v) <= w], a positive cycle of
+         single-premise clauses is found at once from it, as soon as it is raised; otherwise from a
+         single raised universe, see [cycle_check] *)
+      let common_premise = match added with
+        | (NeList.Tip (p, _), _) :: cls when List.for_all (function
+            | (NeList.Tip (q, _), _) -> Index.equal p.canon q.canon
+            | (NeList.Cons _, _) -> false) cls -> Some p.canon
+        | _ -> None
+      in
+      let cycle = match common_premise with
+        | Some p -> CycleRoot p
+        | None ->
+          if Int.equal (PSet.cardinal raised) 1 then CycleRoot (PSet.choose raised) else NoCycleCheck
       in
       match check_clauses_with_premises_cycle cycle (add_fwd_clause m raised CanSet.empty) m with
       | None -> Some m
