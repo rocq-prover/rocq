@@ -904,6 +904,55 @@ let strip_update_shift_absorb_app head stk =
   in
   strip_rec head stk
 
+let strip_update_shift (head, stk) =
+  let rec strip_rec h = function
+    | (Zapp args as z) :: s ->
+      let n, s = strip_rec (zip h [z]) s in
+      n, Zapp (Array.Fun1.map lift_fconstr n args) :: s
+    | (ZcaseT (ci, u, pms, p, br, e) as z) :: s ->
+      let n, s = strip_rec (zip h [z]) s in
+      n, ZcaseT (ci, u, pms, p, br, usubs_shft (n, e)) :: s
+    | (Zproj _ as z) :: s ->
+      let n, s = strip_rec (zip h [z]) s in
+      n, z :: s
+    | Zshift k :: s ->
+      let n, s = strip_rec (lift_fconstr k h) s in
+      n + k, s
+    | Zupdate m :: s ->
+      let () = update m h.mark h.term in
+      strip_rec m s
+    | Zprimitive (op, c, rargs, kargs) as z :: s ->
+      let n, s = strip_rec (zip h [z]) s in
+      let rargs = List.map (lift_fconstr n) rargs in
+      let kargs = List.map (fun (kd, arg) -> kd, lift_fconstr n arg) kargs in
+      n, Zprimitive (op, c, rargs, kargs) :: s
+    | (Zfix _ :: _ | []) as s -> 0, s
+      (* We can reduce under a fix using the regular mechanism,
+         so no need to remove lifts after them. *)
+  in
+  (* Apply a lift on a head (result of knh),
+     such that rewrite rule head matcher finds shape. *)
+  let lift_head n h = match h.term with
+    | FInd _ | FFlex (ConstKey _ | VarKey _) | FAtom _
+    | FInt _ | FFloat _ | FString _ | FIrrelevant -> h
+    | FConstruct _ | FRel _ | FLambda _
+    | FFlex (RelKey _) | FLetIn _ | FEvar _ | FCaseInvert _
+    | FFix _ | FCoFix _ | FProj _ -> lift_fconstr n h
+    | FProd (na, ty, c, e) ->
+      { h with term = FProd (na, lift_fconstr n ty, c, usubs_shft (n, e)) }
+    | FArray (u, t, ty, lft) ->
+      let n = n + lft in
+      if Int.equal n 0 then
+        h
+      else
+        let t = Parray.map (lft_fconstr n) t in
+        let ty = lft_fconstr n ty in
+        { h with term = FArray (u, t, ty, 0) }
+    | FLOCKED | FCLOS _ | FApp _ | FCaseT _ | FLIFT _ -> assert false
+  in
+  let n, stk = strip_rec head stk in
+  lift_head n head, stk
+
 (* optimised for the case where there are no shifts... *)
 let strip_update_shift_app_red head stk =
   let rec strip_rec rstk h depth = function
@@ -2064,6 +2113,8 @@ let match_symbol red info tab ~pat_state fl (u, b, r) stk =
     ) (Array.of_list r)
   in
   let m = { mark = Red; term = FFlex fl } in
+  (* Stack purification is needed before entering the matcher machinery *)
+  let m, stk = strip_update_shift (m, stk) in
   let loc = LocStart { elims; depth=0; head = m; stack = stk; next = Return (unfold_fix, m, stk) } in
   match_main red info tab ~pat_state states loc
 
@@ -2176,7 +2227,8 @@ and knr_ret : type a. _ -> _ -> pat_state: a depth -> ?failed: _ -> _ -> a =
   fun info tab ~pat_state ?(failed=false) i ->
   match pat_state with
   | RedPattern.Cons (patt, pat_state) ->
-      let m, stk = i in
+      (* Stack purification is needed before entering the matcher machinery *)
+      let m, stk = strip_update_shift i in
       RedPattern.match_head knred info tab ~pat_state patt m stk
   | RedPattern.Nil b ->
       match b with No -> i | Yes -> if failed then None else Some i
