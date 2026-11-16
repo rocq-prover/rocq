@@ -482,7 +482,9 @@ let decompose_app c =
 (* Constructs a de Bruijn index with number n *)
 let rels = Array.init 17 (fun i -> T (View.wrap (Rel i)))
 
-let mkRel n = if 0<=n && n<=16 then rels.(n) else T (Rel (n, Hashset.Combine.combine 0 @@ Int.hash n))
+let mkRel n =
+  if 0 <= n && n <= 16 then rels.(n)
+  else T ((View.wrap [@inlined always]) (Rel n))
 
 let mkSProp = T (View.wrap (Sort (Sorts.sprop)))
 let mkProp  = T (View.wrap (Sort (Sorts.prop)))
@@ -516,14 +518,17 @@ let of_kind k = match k with
 let mkType u = of_kind @@ Sort (Sorts.sort_of_univ u)
 let mkSort s = of_kind @@ Sort s
 
+(* Constructors that need no normalization bypass [of_kind]. Inlining [wrap]
+   at these call sites avoids allocating an intermediate [kind_of_term]. *)
+
 (* Constructs the product (x:t1)t2 *)
-let mkProd (x,t1,t2) = of_kind @@ Prod (x,t1,t2)
+let mkProd (x,t1,t2) = T ((View.wrap [@inlined always]) (Prod (x,t1,t2)))
 
 (* Constructs the abstraction [x:t1]t2 *)
-let mkLambda (x,t1,t2) = of_kind @@ Lambda (x,t1,t2)
+let mkLambda (x,t1,t2) = T ((View.wrap [@inlined always]) (Lambda (x,t1,t2)))
 
 (* Constructs [x=c_1:t]c_2 *)
-let mkLetIn (x,c1,t,c2) = of_kind @@ LetIn (x,c1,t,c2)
+let mkLetIn (x,c1,t,c2) = T ((View.wrap [@inlined always]) (LetIn (x,c1,t,c2)))
 
 let mkApp (f, a) = of_kind (App (f, a))
 
@@ -535,27 +540,28 @@ let map_puniverses f (x,u) = (f x, u)
 let in_punivs a = (a, UVars.Instance.empty)
 
 (* Constructs a constant *)
-let mkConst c = of_kind @@ Const (in_punivs c)
-let mkConstU c = of_kind @@ Const c
+let mkConst c = T ((View.wrap [@inlined always]) (Const (in_punivs c)))
+let mkConstU c = T ((View.wrap [@inlined always]) (Const c))
 
 (* Constructs an applied projection *)
-let mkProj (p,r,c) = of_kind @@ Proj (p,r,c)
+let mkProj (p,r,c) = T ((View.wrap [@inlined always]) (Proj (p,r,c)))
 
 (* Constructs an existential variable *)
-let mkEvar e = of_kind @@ Evar e
+let mkEvar e = T ((View.wrap [@inlined always]) (Evar e))
 
 (* Constructs the ith (co)inductive type of the block named kn *)
-let mkInd m = of_kind @@ Ind (in_punivs m)
-let mkIndU m = of_kind @@ Ind m
+let mkInd m = T ((View.wrap [@inlined always]) (Ind (in_punivs m)))
+let mkIndU m = T ((View.wrap [@inlined always]) (Ind m))
 
 (* Constructs the jth constructor of the ith (co)inductive type of the
    block named kn. *)
-let mkConstruct c = of_kind @@ Construct (in_punivs c)
-let mkConstructU c = of_kind @@ Construct c
-let mkConstructUi ((ind,u),i) = of_kind @@ Construct ((ind,i),u)
+let mkConstruct c = T ((View.wrap [@inlined always]) (Construct (in_punivs c)))
+let mkConstructU c = T ((View.wrap [@inlined always]) (Construct c))
+let mkConstructUi ((ind,u),i) = T ((View.wrap [@inlined always]) (Construct ((ind,i),u)))
 
 (* Constructs the term <p>Case c of c1 | c2 .. | cn end *)
-let mkCase (ci, u, params, p, iv, c, ac) = of_kind @@ Case (ci, u, params, p, iv, c, ac)
+let mkCase (ci, u, params, p, iv, c, ac) =
+  T ((View.wrap [@inlined always]) (Case (ci, u, params, p, iv, c, ac)))
 
 (* If recindxs = [|i1,...in|]
       funnames = [|f1,...fn|]
@@ -575,7 +581,7 @@ let mkCase (ci, u, params, p, iv, c, ac) = of_kind @@ Case (ci, u, params, p, iv
    where the length of the jth context is ij.
 *)
 
-let mkFix fix = of_kind @@ Fix fix
+let mkFix fix = T ((View.wrap [@inlined always]) (Fix fix))
 
 (* If funnames = [|f1,...fn|]
       typarray = [|t1,...tn|]
@@ -591,13 +597,13 @@ let mkFix fix = of_kind @@ Fix fix
     ...
     with       fn : tn := bn.
 *)
-let mkCoFix cofix= of_kind @@ CoFix cofix
+let mkCoFix cofix = T ((View.wrap [@inlined always]) (CoFix cofix))
 
 (* Constructs an existential variable named "?n" *)
-let mkMeta  n = of_kind @@  Meta n
+let mkMeta n = T ((View.wrap [@inlined always]) (Meta n))
 
 (* Constructs a Variable named id *)
-let mkVar id = of_kind @@ Var id
+let mkVar id = T ((View.wrap [@inlined always]) (Var id))
 
 let mkRef (gr,u) = let open GlobRef in match gr with
   | ConstRef c -> mkConstU (c,u)
@@ -606,16 +612,16 @@ let mkRef (gr,u) = let open GlobRef in match gr with
   | VarRef x -> mkVar x
 
 (* Constructs a primitive integer *)
-let mkInt i = of_kind @@ Int i
+let mkInt i = T ((View.wrap [@inlined always]) (Int i))
 
 (* Constructs an array *)
-let mkArray (u,t,def,ty) = of_kind @@ Array (u,t,def,ty)
+let mkArray (u,t,def,ty) = T ((View.wrap [@inlined always]) (Array (u,t,def,ty)))
 
 (* Constructs a primitive float number *)
-let mkFloat f = of_kind @@ Float f
+let mkFloat f = T ((View.wrap [@inlined always]) (Float f))
 
 (* Constructs a primitive string. *)
-let mkString s = of_kind @@ String s
+let mkString s = T ((View.wrap [@inlined always]) (String s))
 
 module UnsafeMonomorphic = struct
   let mkConst = mkConst
