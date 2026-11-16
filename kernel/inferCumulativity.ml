@@ -227,13 +227,13 @@ let rec infer_fterm cv_pb infos variances hd stk =
       infer_inductive_instance cv_pb (info_env (fst infos)) variances ind nargs u
     in
     infer_stack infos variances stk
-  | FConstruct ((ctor,u),args) ->
+  | FConstruct ((ctor,u),args,l) ->
     assert (List.is_empty stk);
     let variances =
       let nargs = Array.length args in
       infer_constructor_instance_eq (info_env (fst infos)) variances ctor nargs u
     in
-    infer_stack infos variances (append_stack args stk)
+    infer_stack infos variances (append_stack args (zshift l stk))
   | FFix ((_,(na,tys,cl)),e) | FCoFix ((_,(na,tys,cl)),e) ->
     let n = Array.length cl in
     let variances = infer_vect infos variances (Array.map (mk_clos e) tys) in

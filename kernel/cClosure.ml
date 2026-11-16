@@ -85,7 +85,7 @@ and fterm =
   | FAtom of constr (* Metas and Sorts *)
   | FFlex of table_key
   | FInd of pinductive
-  | FConstruct of pconstructor * fconstr array
+  | FConstruct of pconstructor * fconstr array * int (* shift *)
   | FApp of fconstr * fconstr array
   | FProj of Projection.t * Sorts.relevance * fconstr
   | FFix of fixpoint * usubs
@@ -243,7 +243,7 @@ let usubs_liftn n (e,u) = subs_liftn n e, u
    when the lift is 0. *)
 let rec lft_fconstr n ft =
   match ft.term with
-    | (FInd _|FConstruct (_,[||])|FFlex(ConstKey _|VarKey _)|FInt _|FFloat _|FString _|FIrrelevant) -> ft
+    | (FInd _|FConstruct (_,[||],_)|FFlex(ConstKey _|VarKey _)|FInt _|FFloat _|FString _|FIrrelevant) -> ft
     | FRel i -> {mark=ft.mark;term=FRel(i+n)}
     | FLambda(k,tys,f,e) -> {mark=Cstr; term=FLambda(k,tys,f,usubs_shft(n,e))}
     | FFix(fx,e) ->
@@ -251,13 +251,17 @@ let rec lft_fconstr n ft =
     | FCoFix(cfx,e) ->
       {mark=Cstr; term=FCoFix(cfx,usubs_shft(n,e))}
     | FLIFT(k,m) -> lft_fconstr (n+k) m
-    | FConstruct (c,args) -> {mark=Cstr; term=FConstruct(c,Array.Fun1.map lft_fconstr n args)}
+    | FConstruct (c,args,l) -> {mark=Cstr; term=FConstruct(c,args,l+n)}
     | FArray (u,ar,ty,l) -> {mark=Cstr; term=FArray(u,ar,ty,l+n)}
     | FLOCKED -> assert false
     | FFlex (RelKey _) | FAtom _ | FApp _ | FProj _ | FCaseT _ | FCaseInvert _ | FProd _
     | FLetIn _ | FEvar _ | FCLOS _ -> {mark=ft.mark; term=FLIFT(n,ft)}
 let lift_fconstr k f =
   if Int.equal k 0 then f else lft_fconstr k f
+
+let lift_fconstr_vec k f =
+  if Int.equal k 0 then f
+  else Array.Fun1.map lft_fconstr k f
 
 let rec relift_fconstr (n, k as el) v =
   match v.term with
@@ -410,7 +414,7 @@ let mk_clos (e:usubs) t =
       {mark = Ntrl; term = FAtom (mkSort s) }
     | Meta _ -> {mark = Ntrl; term = FAtom t }
     | Ind kn -> {mark = Ntrl; term = FInd (usubst_punivs e kn) }
-    | Construct kn -> {mark = Cstr; term = FConstruct (usubst_punivs e kn,[||]) }
+    | Construct kn -> {mark = Cstr; term = FConstruct (usubst_punivs e kn,[||],0) }
     | Int i -> {mark = Cstr; term = FInt i}
     | Float f -> {mark = Cstr; term = FFloat f}
     | String s -> {mark = Cstr; term = FString s}
@@ -602,7 +606,9 @@ let rec to_constr lfts v =
     | FAtom c -> exliftn lfts c
     | FFlex (ConstKey op) -> mkConstU op
     | FInd op -> mkIndU op
-    | FConstruct (op,args) -> mkApp (mkConstructU op, Array.Fun1.map to_constr lfts args)
+    | FConstruct (op,args,lft) ->
+      let lfts = el_shft lft lfts in
+      mkApp (mkConstructU op, Array.Fun1.map to_constr lfts args)
     | FCaseT (ci, u, pms, p, c, ve, env) ->
       to_constr_case lfts ci u pms p NoInvert c ve env
     | FCaseInvert (ci, u, pms, p, indices, c, ve, env) ->
@@ -833,9 +839,12 @@ let rec fstrong unfreeze_fun lfts v =
 let mkFApp h args =
   if CArray.is_empty args then h
   else match[@warning "-4"] h.term with
-    | FConstruct (c, args0) ->
-      let args = if CArray.is_empty args0 then args else Array.append args0 args in
-      {mark=Cstr; term=FConstruct(c, args)}
+    | FConstruct (c, args0, l) ->
+      let args = if CArray.is_empty args0 then args else
+          let args0 = lift_fconstr_vec l args0 in
+          Array.append args0 args
+      in
+      {mark=Cstr; term=FConstruct(c, args, 0)}
     | _ ->
       (* don't bother collapsing FApp nodes *)
       {mark=neutr h.mark; term=FApp(h,args)}
@@ -1080,9 +1089,10 @@ let esubst_of_context ctx args e =
   aux 0 e args (List.rev ctx)
 
 (* Iota-reduction: feed the arguments of the constructor to the branch *)
-let get_branch infos ci pms ((ind, c), u) args br e =
+let get_branch infos ci pms ((ind, c), u) l args br e =
   let i = c - 1 in
   let args = drop_parameters ci.ci_npar args in
+  let args = lift_fconstr_vec l args in
   let (_nas, br) = br.(i) in
   if Int.equal ci.ci_cstr_ndecls.(i) ci.ci_cstr_nargs.(i) then
     (* No let-bindings in the constructor, we don't have to fetch the
@@ -1187,7 +1197,7 @@ module FNativeEntries =
 
     let mk_construct c =
       (* All constructors used in primitive functions are relevant *)
-      { mark = Cstr; term = FConstruct (UVars.in_punivs c, [||]) }
+      { mark = Cstr; term = FConstruct (UVars.in_punivs c, [||], 0) }
 
     let get = Array.get
 
@@ -1930,7 +1940,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
     in
     let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
     match_main red info tab ~pat_state states loc
-  | FConstruct ((constr', u), args) ->
+  | FConstruct ((constr', u), args, l) ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
     | (PHConstr (constr, pu), elims), psubst ->
       if not @@ QConstruct.equal (info_env info) constr constr' then None else
@@ -1938,7 +1948,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
       Option.map (fun subst -> elims, { psubst with subst }) subst
     | _ -> None) patterns states
     in
-    let loc = LocStart { elims; depth; head=t; stack=append_stack args stk; next=Continue next } in
+    let loc = LocStart { elims; depth; head=t; stack=append_stack args (zshift l stk); next=Continue next } in
     match_main red info tab ~pat_state states loc
   | FAtom t' -> begin match [@ocaml.warning "-4"] kind t' with
     | Sort s ->
@@ -2086,7 +2096,7 @@ let rec knr info tab ~pat_state m stk =
         | Symbol (u, b, r) ->
           RedPattern.match_symbol knred info tab ~pat_state fl (u, b, r) stk
         | Undef _ | OpaqueDef _ -> (set_ntrl m; knr_ret info tab ~pat_state (m,stk)))
-  | FConstruct (c, args) ->
+  | FConstruct (c, args, l) ->
     let use_match = red_set info.i_flags fMATCH in
     let use_fix = red_set info.i_flags fFIX in
     begin match [@ocaml.warning "-4"] stk with
@@ -2094,7 +2104,7 @@ let rec knr info tab ~pat_state m stk =
       assert false (* knh / strip_update_shift_absorb_app *)
     | ZcaseT (ci, _, pms, _, br, e) :: s when use_match ->
       (* instance on the case and instance on the constructor are compatible by typing *)
-      let (br, e) = get_branch info ci pms c args br e in
+      let (br, e) = get_branch info ci pms c l args br e in
       knit info tab ~pat_state e br s
     | Zfix (fx, par) :: s when use_fix ->
       let stk' = par @ append_stack [|m|] s in
@@ -2102,7 +2112,7 @@ let rec knr info tab ~pat_state m stk =
       knit info tab ~pat_state fxe fxbd stk'
     | Zproj (p, _) :: s when use_match ->
       let rargs = drop_parameters (Projection.Repr.npars p) args in
-      let rarg = rargs.(Projection.Repr.arg p) in
+      let rarg = lift_fconstr l @@ rargs.(Projection.Repr.arg p) in
       kni info tab ~pat_state rarg s
     | _ ->
       if is_irrelevant_constructor info c then
@@ -2227,7 +2237,7 @@ let kh info tab v stk = fapp_stack(kni info tab v stk)
       calls itself recursively. *)
 
 let is_val v = match v.term with
-| FAtom _ | FRel _   | FInd _ | FConstruct (_,[||]) | FInt _ | FFloat _ | FString _ -> true
+| FAtom _ | FRel _   | FInd _ | FConstruct (_,[||],_) | FInt _ | FFloat _ | FString _ -> true
 | FFlex _ -> v.mark == Ntrl
 | FConstruct _ | FApp _ | FProj _ | FFix _ | FCoFix _ | FCaseT _ | FCaseInvert _ | FLambda _
 | FProd _ | FLetIn _ | FEvar _ | FArray _ | FLIFT _ | FCLOS _ -> false
@@ -2340,7 +2350,9 @@ and norm_head info tab m =
         let def = kl info tab (lift_fconstr lft def) in
         let ty = kl info tab (lift_fconstr lft ty) in
         mkArray (u, a, def, ty)
-      | FConstruct (c,args) -> mkApp (mkConstructU c, Array.map (kl info tab) args)
+      | FConstruct (c,args,l) ->
+        mkApp (mkConstructU c,
+               Array.map (fun a -> kl info tab (lift_fconstr l a)) args)
       | FLOCKED | FRel _ | FAtom _ | FFlex _ | FInd _
       | FApp _ | FCaseT _ | FCaseInvert _ | FLIFT _ | FCLOS _ | FInt _
       | FFloat _ | FString _ -> term_of_fconstr m

@@ -38,7 +38,7 @@ type fterm =
   | FAtom of constr (** Metas and Sorts *)
   | FFlex of table_key
   | FInd of pinductive
-  | FConstruct of pconstructor * fconstr array
+  | FConstruct of pconstructor * fconstr array * int (* lift *)
   | FApp of fconstr * fconstr array
   | FProj of Projection.t * Sorts.relevance * fconstr
   | FFix of fixpoint * usubs
@@ -78,6 +78,8 @@ and stack = stack_member list
 val empty_stack : stack
 val append_stack : fconstr array -> stack -> stack
 
+val zshift : int -> stack -> stack
+
 val check_native_args : CPrimitives.t -> stack -> bool
 val get_native_args1 : CPrimitives.t -> pconstant -> stack ->
   fconstr list * fconstr * fconstr next_native_args * stack
@@ -92,6 +94,7 @@ val inductive_subst : Declarations.mutual_inductive_body
   -> usubs
 
 val lift_fconstr : int -> fconstr -> fconstr
+val lift_fconstr_vec : int -> fconstr array -> fconstr array
 
 val usubs_lift : usubs -> usubs
 val usubs_liftn : int -> usubs -> usubs
