@@ -2229,13 +2229,14 @@ let sccs nodes succ =
   single clause. The universes made equal are in the zone of the universes below a conclusion
   of [cls] or [Set], and above one of their premises, in the graph of clauses following all
   their premises: two universes of the zone are candidates if they are in the same strongly
-  connected component, through the clauses and the implicit clauses [Set <= x]. The universes
-  in a cycle of tight clauses with a single premise are equal, as in [find_to_merge]; the other
-  candidates are checked to be equal in all valuations, as in [zone_classes]. The candidates of a
-  component are grouped with the first one [r] of them, then with the first one of the remaining
-  ones, and so on: the models of [witness_models] where [r] and a candidate are not equal refute
-  at once the equality of all the universes whose differences of values they change, for the
-  following groups too, so that most of the candidates are not checked by [entails]. *)
+  connected component, through the clauses and the clauses [Set <= x], which are given for every
+  universe but the template ones (see [remove_set_clauses]). The universes in a cycle of tight
+  clauses with a single premise are equal, as in [find_to_merge]; the other candidates are checked
+  to be equal in all valuations, as in [zone_classes]. The candidates of a component are grouped
+  with the first one [r] of them, then with the first one of the remaining ones, and so on: the
+  models of [witness_models] where [r] and a candidate are not equal refute at once the equality
+  of all the universes whose differences of values they change, for the following groups too, so
+  that most of the candidates are not checked by [entails]. *)
 let batch_classes model cls =
   let setcan = repr model (Index.find Level.set model.table) in
   let setidx = setcan.canon in
@@ -2316,8 +2317,9 @@ let batch_classes model cls =
   through the remaining premises. They are looked for in the zone of the universes below [canv]
   or [Set], and above a premise, in the graph of clauses following all their premises. Two
   universes of the zone are candidates if they are in the same strongly connected component,
-  through the clauses and the implicit clauses [Set <= x], and are then checked to be equal in
-  all valuations, as in [check_leq]. This is checked by [-d loop-checking-merged]. *)
+  through the clauses and the clauses [Set <= x] (also for the template universes, which lack
+  them), and are then checked to be equal in all valuations, as in [check_leq]. This is checked
+  by [-d loop-checking-merged]. *)
 (* The strongly connected components of the zone are those of [batch_classes] for the single clause,
    computed in linear time. *)
 let zone_classes model prems (canv, _ as v) =
@@ -2327,6 +2329,16 @@ let zone_classes model prems (canv, _ as v) =
          not (Index.equal concl setcan.canon)) canv.clauses_fwd)
   then [] else
   if (match prems with NeList.Tip (p, _) -> ClausesOf.is_empty p.clauses_bwd | NeList.Cons _ -> false)
+  then [] else
+  (* Without a clause with several premises below [canv] or [Set], i.e. in the zone (see
+     [mp_below]), the equalities created by the clause are on cycles of single-premise clauses
+     through it: they are between its conclusion and its premise, in the class of [canv + kv] found
+     by [find_to_merge]. With the premise [Set], they can go through a missing clause [Set <= u] of
+     a template universe (see [remove_set_clauses]), which [find_to_merge] does not follow. *)
+  if not canv.mp_below && not setcan.mp_below &&
+     (match prems with
+      | NeList.Tip (p, _) -> not (Index.equal p.canon setcan.canon)
+      | NeList.Cons _ -> false)
   then [] else
   batch_classes model [(prems, v)]
 
