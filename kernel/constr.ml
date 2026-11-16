@@ -148,6 +148,8 @@ type t = T of (t, t, Sorts.t, Instance.t, Sorts.relevance) Wrap.t [@@unboxed]
 type constr = t
 type types = constr
 
+type closedn_status = Closed | Open | Unknown
+
 type existential = existential_key * constr SList.t
 
 type case_invert = constr pcase_invert
@@ -168,6 +170,7 @@ sig
   external unwrap : ('constr, 'types, 'sort, 'univs, 'r) Wrap.t -> ('constr, 'types, 'sort, 'univs, 'r) kind_of_term = "%identity"
   val wrap : (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term -> (t, t, Sorts.t, Instance.t, Sorts.relevance) Wrap.t
   val hash : t -> int [@@ocaml.warning "-32"]
+  val closedn_status : int -> t -> closedn_status
 end =
 struct
 
@@ -176,98 +179,241 @@ open Hashset.Combine
 (* Unsafe transmutation that should not impact the runtime *)
 external unwrap : ('constr, 'types, 'sort, 'univs, 'r) Wrap.t -> ('constr, 'types, 'sort, 'univs, 'r) kind_of_term = "%identity"
 
-(* Designed so that [Constr.equal t1 t2 = true] implies [hash t1 = hash t2] *)
-
 (* Every [Wrap.t] constructor is a regular block and stores its hash in its
    final field.  Casting it to an [int array] lets [Array.length] read the
    block's payload size and [unsafe_get] read that field without dispatching
    on the constructor tag. *)
-let[@inline always] hash (T k) =
+let[@inline always] stored_hash (T k) =
   let fields : int array = Obj.magic k in
   Array.unsafe_get fields (Array.length fields - 1)
 
-let hash_slist l =
-  SList.Skip.fold (fun accu c -> combine accu (hash c)) 0 l
+(* The upper seven non-sign bits cache a conservative summary of the number of
+   enclosing binders needed to close a term. The low six bits are a lower
+   bound; the high bit means that the actual bound may be greater. *)
+let rel_bound_bits = 6
+let rel_bound_value_mask = (1 lsl rel_bound_bits) - 1
+let rel_bound_unknown_bit = 1 lsl rel_bound_bits
+let rel_bound_mask = rel_bound_value_mask lor rel_bound_unknown_bit
+let rel_bound_shift = Sys.int_size - 1 - (rel_bound_bits + 1)
+let rel_bound_field_mask = rel_bound_mask lsl rel_bound_shift
+let semantic_hash_mask = lnot rel_bound_field_mask
 
-let hash_array v =
-  Array.fold_left (fun accu c -> combine accu (hash c)) 0 v
+let[@inline] pack h b =
+  assert (0 <= b && b <= rel_bound_mask);
+  (h land semantic_hash_mask) lor (b lsl rel_bound_shift)
 
-let hash_invert = function
-| NoInvert -> 0
-| CaseInvert { indices } -> combinesmall 1 (hash_array indices)
+let[@inline] hash_of_stored_hash h = h land semantic_hash_mask
+let[@inline] rel_bound_of_stored_hash h =
+  (h lsr rel_bound_shift) land rel_bound_mask
+
+(* Designed so that [Constr.equal t1 t2 = true] implies [hash t1 = hash t2]. *)
+let[@inline] hash c = hash_of_stored_hash (stored_hash c)
+let[@inline] rel_bound c = rel_bound_of_stored_hash (stored_hash c)
+
+let[@inline] rel_bound_leaf n =
+  if n <= 0 then 0
+  else if n <= rel_bound_value_mask then n
+  else rel_bound_value_mask lor rel_bound_unknown_bit
+
+let[@inline] rel_bound_max b1 b2 =
+  let lo1 = b1 land rel_bound_value_mask in
+  let lo2 = b2 land rel_bound_value_mask in
+  (if lo1 >= lo2 then lo1 else lo2)
+  lor ((b1 lor b2) land rel_bound_unknown_bit)
+
+let[@inline] rel_bound_under n b =
+  let lo = (b land rel_bound_value_mask) - n in
+  (if lo > 0 then lo else 0)
+  lor (b land rel_bound_unknown_bit)
+
+(* Compute both summaries in one traversal.  In particular, do not compute a
+   hash and relative bound in separate traversals of an Evar instance or a
+   term array. *)
+let rec hash_and_rel_bound_slist_loop h b = function
+| SList.Nil -> h, b
+| SList.Cons (c, l) ->
+  let info = stored_hash c in
+  hash_and_rel_bound_slist_loop (combine h (hash_of_stored_hash info))
+    (rel_bound_max b (rel_bound_of_stored_hash info)) l
+| SList.Default (_, l) -> hash_and_rel_bound_slist_loop h b l
+
+let hash_and_rel_bound_slist l = hash_and_rel_bound_slist_loop 0 0 l
+
+let rec hash_and_rel_bound_array_loop v n i h b =
+  if Int.equal i n then h, b
+  else
+    let info = stored_hash (Array.unsafe_get v i) in
+    hash_and_rel_bound_array_loop v n (succ i)
+      (combine h (hash_of_stored_hash info))
+      (rel_bound_max b (rel_bound_of_stored_hash info))
+
+let hash_and_rel_bound_array v =
+  hash_and_rel_bound_array_loop v (Array.length v) 0 0 0
+
+let hash_and_rel_bound_invert = function
+| NoInvert -> 0, 0
+| CaseInvert { indices } ->
+  let h, b = hash_and_rel_bound_array indices in
+  combinesmall 1 h, b
+
+let hash_and_rel_bound_under_context (nas, c) =
+  let info = stored_hash c in
+  hash_of_stored_hash info,
+  rel_bound_under (Array.length nas) (rel_bound_of_stored_hash info)
+
+let hash_and_rel_bound_return ((nas, c), _) =
+  hash_and_rel_bound_under_context (nas, c)
+
+let rec hash_and_rel_bound_branches_loop br n i h b =
+  if Int.equal i n then h, b
+  else
+    let nas, c = Array.unsafe_get br i in
+    let info = stored_hash c in
+    hash_and_rel_bound_branches_loop br n (succ i)
+      (combine h (hash_of_stored_hash info))
+      (rel_bound_max b
+         (rel_bound_under (Array.length nas) (rel_bound_of_stored_hash info)))
+
+let hash_and_rel_bound_branches br =
+  hash_and_rel_bound_branches_loop br (Array.length br) 0 0 0
 
 let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
 | Rel n ->
   let h = Int.hash n in
-  Wrap.Rel (n, combinesmall 1 h)
+  Wrap.Rel (n, pack (combinesmall 1 h) (rel_bound_leaf n))
 | Var id ->
   let h = Id.hash id in
-  Wrap.Var (id, combinesmall 2 h)
+  Wrap.Var (id, pack (combinesmall 2 h) 0)
 | Meta m ->
   let h = Int.hash m in
-  Wrap.Meta (m, combinesmall 3 h)
+  Wrap.Meta (m, pack (combinesmall 3 h) 0)
 | Evar ((evk, l) as ev) ->
-  let h = combine (Evar.hash evk) (hash_slist l) in
-  Wrap.Evar (ev, combinesmall 4 h)
+  let hl, bl = hash_and_rel_bound_slist l in
+  let h = combine (Evar.hash evk) hl in
+  Wrap.Evar (ev, pack (combinesmall 4 h) bl)
 | Sort s ->
   let h = Sorts.hash s in
-  Wrap.Sort (s, combinesmall 5 h)
+  Wrap.Sort (s, pack (combinesmall 5 h) 0)
 | Cast (c, k, t) ->
-  (* Ignore the Cast node to preserve Constr.equal compat *)
-  Wrap.Cast (c, k, t, hash c)
+  (* Ignore the Cast node to preserve Constr.equal compat. *)
+  let hc = stored_hash c in
+  let ht = stored_hash t in
+  let b = rel_bound_max (rel_bound_of_stored_hash hc)
+    (rel_bound_of_stored_hash ht)
+  in
+  Wrap.Cast (c, k, t, pack (hash_of_stored_hash hc) b)
 | Prod (na, t, u) ->
-  let h = combine (hash t) (hash u) in
-  Wrap.Prod (na, t, u, combinesmall 7 h)
+  let ht = stored_hash t in
+  let hu = stored_hash u in
+  let h = combine (hash_of_stored_hash ht) (hash_of_stored_hash hu) in
+  let b = rel_bound_max (rel_bound_of_stored_hash ht)
+    (rel_bound_under 1 (rel_bound_of_stored_hash hu))
+  in
+  Wrap.Prod (na, t, u, pack (combinesmall 7 h) b)
 | Lambda (na, t, c) ->
-  let h = combine (hash t) (hash c) in
-  Wrap.Lambda (na, t, c, combinesmall 8 h)
+  let ht = stored_hash t in
+  let hc = stored_hash c in
+  let h = combine (hash_of_stored_hash ht) (hash_of_stored_hash hc) in
+  let b = rel_bound_max (rel_bound_of_stored_hash ht)
+    (rel_bound_under 1 (rel_bound_of_stored_hash hc))
+  in
+  Wrap.Lambda (na, t, c, pack (combinesmall 8 h) b)
 | LetIn (na, b, t, c) ->
-  let h = combine3 (hash b) (hash t) (hash c) in
-  Wrap.LetIn (na, b, t, c, combinesmall 9 h)
+  let hb = stored_hash b in
+  let ht = stored_hash t in
+  let hc = stored_hash c in
+  let h = combine3 (hash_of_stored_hash hb) (hash_of_stored_hash ht)
+    (hash_of_stored_hash hc)
+  in
+  let r = rel_bound_max (rel_bound_of_stored_hash hb)
+    (rel_bound_max (rel_bound_of_stored_hash ht)
+       (rel_bound_under 1 (rel_bound_of_stored_hash hc)))
+  in
+  Wrap.LetIn (na, b, t, c, pack (combinesmall 9 h) r)
 | App (c, args) ->
-  let h = combine (hash c) (hash_array args) in
-  Wrap.App (c, args, combinesmall 10 h)
+  let info = stored_hash c in
+  let ha, ba = hash_and_rel_bound_array args in
+  let h = combine (hash_of_stored_hash info) ha in
+  let b = rel_bound_max (rel_bound_of_stored_hash info) ba in
+  Wrap.App (c, args, pack (combinesmall 10 h) b)
 | Const ((cst, u) as pcst) ->
   let h = combine (Constant.CanOrd.hash cst) (UVars.Instance.hash u) in (* XXX *)
-  Wrap.Const (pcst, combinesmall 11 h)
+  Wrap.Const (pcst, pack (combinesmall 11 h) 0)
 | Ind ((ind, u) as pind) ->
   let h = combine (Ind.CanOrd.hash ind) (UVars.Instance.hash u) in (* XXX *)
-  Wrap.Ind (pind, combinesmall 12 h)
+  Wrap.Ind (pind, pack (combinesmall 12 h) 0)
 | Construct ((cstr, u) as pcstr) ->
   let h = combine (Construct.CanOrd.hash cstr) (UVars.Instance.hash u) in (* XXX *)
-  Wrap.Construct (pcstr, combinesmall 13 h)
+  Wrap.Construct (pcstr, pack (combinesmall 13 h) 0)
 | Case (ci, u, pms, p, iv, c, br) ->
-  let brh = Array.fold_left (fun accu (_, br) -> combine accu (hash br)) 0 br in
+  let hpms, bpms = hash_and_rel_bound_array pms in
+  let hp, bp = hash_and_rel_bound_return p in
+  let hiv, biv = hash_and_rel_bound_invert iv in
+  let hc = stored_hash c in
+  let hbr, bbr = hash_and_rel_bound_branches br in
   let h =
     combine (Ind.CanOrd.hash ci.ci_ind)
-      (combine5 (UVars.Instance.hash u) (hash_array pms)
-        (hash (snd (fst p))) (hash_invert iv) brh)
+      (combine5 (UVars.Instance.hash u) hpms hp hiv hbr)
   in
-  Wrap.Case (ci, u, pms, p, iv, c, br, combinesmall 14 h)
-| Fix ((ln, i), (_nas, fb, ft) as rdef) ->
+  let b =
+    rel_bound_max bpms
+      (rel_bound_max bp
+        (rel_bound_max biv
+          (rel_bound_max (rel_bound_of_stored_hash hc) bbr)))
+  in
+  Wrap.Case (ci, u, pms, p, iv, c, br, pack (combinesmall 14 h) b)
+| Fix ((ln, i), (nas, ft, fb) as rdef) ->
   let lnh = Array.fold_left combine 0 ln in
-  let h = combine4 lnh (Int.hash i) (hash_array fb) (hash_array ft) in
-  Wrap.Fix (rdef, combinesmall 15 h)
-| CoFix (i, (_nas, fb, ft) as rdef) ->
-  let h = combine3 (Int.hash i) (hash_array fb) (hash_array ft) in
-  Wrap.CoFix (rdef, combinesmall 16 h)
+  let hft, bft = hash_and_rel_bound_array ft in
+  let hfb, bfb = hash_and_rel_bound_array fb in
+  let h = combine4 lnh (Int.hash i) hfb hft in
+  let b = rel_bound_max bft (rel_bound_under (Array.length nas) bfb) in
+  Wrap.Fix (rdef, pack (combinesmall 15 h) b)
+| CoFix (i, (nas, ft, fb) as rdef) ->
+  let hft, bft = hash_and_rel_bound_array ft in
+  let hfb, bfb = hash_and_rel_bound_array fb in
+  let h = combine3 (Int.hash i) hfb hft in
+  let b = rel_bound_max bft (rel_bound_under (Array.length nas) bfb) in
+  Wrap.CoFix (rdef, pack (combinesmall 16 h) b)
 | Proj (p, r, c) ->
-  let h = combine (Projection.CanOrd.hash p) (hash c) in (* XXX *)
-  Wrap.Proj (p, r, c, combinesmall 17 h)
+  let hc = stored_hash c in
+  let h = combine (Projection.CanOrd.hash p) (hash_of_stored_hash hc) in (* XXX *)
+  Wrap.Proj (p, r, c,
+    pack (combinesmall 17 h) (rel_bound_of_stored_hash hc))
 | Int i ->
   let h = Uint63.hash i in
-  Wrap.Int (i, combinesmall 18 h)
+  Wrap.Int (i, pack (combinesmall 18 h) 0)
 | Float f ->
   let h = Float64.hash f in
-  Wrap.Float (f, combinesmall 19 h)
+  Wrap.Float (f, pack (combinesmall 19 h) 0)
 | String s ->
   let h = Pstring.hash s in
-  Wrap.String (s, combinesmall 20 h)
+  Wrap.String (s, pack (combinesmall 20 h) 0)
 | Array (u, v, def, t) ->
-  let h = combine4 (UVars.Instance.hash u) (hash_array v) (hash def) (hash t) in
-  Wrap.Array (u, v, def, t, combinesmall 21 h)
+  let hv, bv = hash_and_rel_bound_array v in
+  let hdef = stored_hash def in
+  let ht = stored_hash t in
+  let h = combine4 (UVars.Instance.hash u) hv
+    (hash_of_stored_hash hdef) (hash_of_stored_hash ht)
+  in
+  let b = rel_bound_max bv
+    (rel_bound_max (rel_bound_of_stored_hash hdef) (rel_bound_of_stored_hash ht))
+  in
+  Wrap.Array (u, v, def, t, pack (combinesmall 21 h) b)
+
+let closedn_status n c =
+  if n < 0 then Unknown
+  else
+    let b = rel_bound c in
+    let lower = b land rel_bound_value_mask in
+    if b land rel_bound_unknown_bit = 0 then
+      if lower <= n then Closed else Open
+    else if lower > n then Open
+    else Unknown
 
 end
+
+let closedn_status = View.closedn_status
 
 (* User view of [constr]. For [App], it is ensured there is at
    least one argument and the function is not itself an applicative
@@ -1009,8 +1155,11 @@ let rec exliftn el c =
 let liftn n k c =
   let open Esubst in
   match el_liftn (pred k) (el_shft n el_id) with
-    | ELID -> c
-    | el -> exliftn el c
+  | ELID -> c
+  | el ->
+    match closedn_status (pred k) c with
+    | Closed -> c
+    | Open | Unknown -> exliftn el c
 
 let lift n = liftn n 1
 

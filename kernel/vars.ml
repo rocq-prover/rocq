@@ -21,11 +21,15 @@ exception LocalOccur
 (* (closedn n M) is true iff M is a (de Brujin) closed term under n binders *)
 
 let closedn n c =
-  let rec closed_rec n c = match Constr.kind c with
-    | Constr.Rel m -> if m>n then raise_notrace LocalOccur
-    | _ -> Constr.iter_with_binders succ closed_rec n c
-  in
-  try closed_rec n c; true with LocalOccur -> false
+  match Constr.closedn_status n c with
+  | Constr.Closed -> true
+  | Constr.Open -> false
+  | Constr.Unknown ->
+    let rec closed_rec n c = match Constr.kind c with
+      | Constr.Rel m -> if m > n then raise_notrace LocalOccur
+      | _ -> Constr.iter_with_binders succ closed_rec n c
+    in
+    try closed_rec n c; true with LocalOccur -> false
 
 (* [closed0 M] is true iff [M] is a (de Bruijn) closed term *)
 
@@ -34,21 +38,27 @@ let closed0 c = closedn 0 c
 (* (noccurn n M) returns true iff (Rel n) does NOT occur in term M  *)
 
 let noccurn n term =
-  let rec occur_rec n c = match Constr.kind c with
-    | Constr.Rel m -> if Int.equal m n then raise_notrace LocalOccur
-    | _ -> Constr.iter_with_binders succ occur_rec n c
-  in
-  try occur_rec n term; true with LocalOccur -> false
+  match Constr.closedn_status (pred n) term with
+  | Constr.Closed -> true
+  | Constr.Open | Constr.Unknown ->
+    let rec occur_rec n c = match Constr.kind c with
+      | Constr.Rel m -> if Int.equal m n then raise_notrace LocalOccur
+      | _ -> Constr.iter_with_binders succ occur_rec n c
+    in
+    try occur_rec n term; true with LocalOccur -> false
 
 (* (noccur_between n m M) returns true iff (Rel p) does NOT occur in term M
   for n <= p < n+m *)
 
 let noccur_between n m term =
-  let rec occur_rec n c = match Constr.kind c with
-    | Constr.Rel p -> if n<=p && p<n+m then raise_notrace LocalOccur
-    | _        -> Constr.iter_with_binders succ occur_rec n c
-  in
-  try occur_rec n term; true with LocalOccur -> false
+  match Constr.closedn_status (pred n) term with
+  | Constr.Closed -> true
+  | Constr.Open | Constr.Unknown ->
+    let rec occur_rec n c = match Constr.kind c with
+      | Constr.Rel p -> if n <= p && p < n + m then raise_notrace LocalOccur
+      | _ -> Constr.iter_with_binders succ occur_rec n c
+    in
+    try occur_rec n term; true with LocalOccur -> false
 
 (* Checking function for terms containing existential variables.
  The function [noccur_with_meta] considers the fact that
@@ -133,7 +143,9 @@ let make_substituend c = { sinfo=Unknown; sit=c }
 let substn_many lamv n c =
   let lv = Array.length lamv in
   if Int.equal lv 0 then c
-  else
+  else match Constr.closedn_status n c with
+  | Constr.Closed -> c
+  | Constr.Open | Constr.Unknown ->
     let rec substrec depth c = match Constr.kind c with
       | Constr.Rel k     ->
           if k<=depth then c

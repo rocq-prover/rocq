@@ -57,6 +57,13 @@ type constr = t
 
 type types = constr
 
+type closedn_status = Closed | Open | Unknown
+(** A conservative answer derived from cached relative-index metadata. *)
+
+val closedn_status : int -> constr -> closedn_status
+(** [closedn_status n t] determines whether [t] is closed under [n] binders
+    when its cached metadata is precise, and returns [Unknown] otherwise. *)
+
 (** {5 Functions for dealing with constr terms. }
   The following functions are intended to simplify and to uniform the
   manipulation of terms. Some of these functions may be overlapped with
