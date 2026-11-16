@@ -36,8 +36,7 @@
 (rule
  (targets revision)
  (mode fallback)
- (deps (:rev-script dev/tools/make_git_revision.sh))
- (action (with-stdout-to revision (bash %{rev-script}))))
+ (action (with-stdout-to revision (run tools/make_git_revision.exe))))
 
 ; bootstrap for theories/Corelib/dune
 (rule
