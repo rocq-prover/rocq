@@ -559,7 +559,8 @@ let rec subst_constr (subst,usubst as e) c =
     begin match expand_rel i subst with
     | Inl (k, Inl lazy v) -> mkApp (Vars.lift_substituend k v, args)
     | Inr (m, _) -> mkApp (mkRel m, args)
-    | Inl (_, Inr (nargs, term)) ->
+    | Inl (k, Inr (nargs, term)) ->
+      let term = Vars.liftn k (nargs + 1) term in
       let subs', args = Array.chop nargs args in
       let head = Vars.substl (Array.rev_to_list subs') term in
       mkApp (head, args)
@@ -569,7 +570,7 @@ let rec subst_constr (subst,usubst as e) c =
 | Rel i ->
   begin match expand_rel i subst with
   | Inl (k, Inl lazy v) -> Vars.lift_substituend k v
-  | Inl (_, Inr (nargs, term)) -> assert (Int.equal nargs 0); term
+  | Inl (k, Inr (nargs, term)) -> assert (Int.equal nargs 0); Vars.lift k term
   | Inr (m, _) -> mkRel m
   end
 | Const _ | Ind _ | Construct _ | Sort _ -> subst_instance_constr usubst c
@@ -730,7 +731,7 @@ and to_constr_invert lfts = function
 
 and lift_to_constr el = function
   | Regular c -> Inl (lazy (Vars.make_substituend @@ to_constr el c))
-  | HigherOrder (n, v) -> Inr (n, to_constr el_id v)
+  | HigherOrder (n, v) -> Inr (n, to_constr (el_liftn n el) v)
 
 and comp_subs el (s,u') =
   Esubst.lift_subst lift_to_constr el s, u'
