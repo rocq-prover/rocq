@@ -104,6 +104,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [translation of identifiers from Coq to OCaml was not injective](#translation-of-identifiers-from-coq-to-ocaml-was-not-injective)
       - [VM conversion entered a mutual fixpoint with the block's last component](#vm-conversion-entered-a-mutual-fixpoint-with-the-blocks-last-component)
       - [kernel reduction drops the lift on a primitive array](#kernel-reduction-drops-the-lift-on-a-primitive-array)
+      - [VM conversion of stuck matches shifted the arguments of constructors with extended tags](#vm-conversion-of-stuck-matches-shifted-the-arguments-of-constructors-with-extended-tags)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -1224,6 +1225,19 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - risk: when reducing a primitive array under binders, the lift on the
   array was eagerly dropped, producing wrong normal forms and letting the
   kernel accept ill-typed terms
+
+#### VM conversion of stuck matches shifted the arguments of constructors with extended tags
+
+- component: "virtual machine" (compilation to bytecode ran by a C-interpreter)
+- introduced: V8.5 ([924a6e99f8](https://github.com/rocq-prover/rocq/commit/924a6e99f85aa0d70d42e753d6901b067ebf8f1d), 27 Mar 2015, Grégoire)
+- impacted released versions: V8.5-V9.3.0
+- impacted coqchk versions: V8.16-V9.3.0 (only when using -bytecode-compiler yes)
+- fixed in: V9.4
+- found by: Axel Mierczuk, Spencer Michaels (1Password Security Research)
+- GH issue number: rocq-prover/rocq#22760
+- exploit: see issue
+- risk: needs a VM conversion of matches stuck on a variable, over an inductive
+  type with at least 246 non-constant constructors
 
 ### Side-effects
 
