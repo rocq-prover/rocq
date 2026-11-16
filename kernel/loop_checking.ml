@@ -1002,6 +1002,14 @@ let simplify_can_premises setidx prems concl conclk =
   | None -> Contradictory
   | Some prems -> Canonical (remove_dominated_set (fun can -> can.canon) setidx prems)
 
+(** [unshift_clause cl] removes the shift common to the conclusion and the premises of [cl]:
+  [c + k + s <= max(p_i + k_i + s)] is equivalent to [c + k <= max(p_i + k_i)]. The clauses are
+  stored in this form, so that equivalent clauses such as [u + 1 <= v + 1] and [u <= v] are
+  stored once. *)
+let unshift_clause ((prems, (concl, k)) as cl) =
+  let s = NeList.fold (fun (_, kp) s -> min kp s) prems k in
+  if s <= 0 then cl else (NeList.map (fun (p, kp) -> (p, kp - s)) prems, (concl, k - s))
+
 (** Simplify u <= max (Set, v) clauses to u <= v and filter away u <= ... u + n , ... clauses, always valid *)
 let simplify_can_clause m ((prems, (concl, k as conclk)) : can_clause) : can_clause canonical_result =
   (* Filter out `Set` from max(Set, u) -> v constraints *)
@@ -1011,7 +1019,7 @@ let simplify_can_clause m ((prems, (concl, k as conclk)) : can_clause) : can_cla
     Trivial
   else
     match simplify_can_premises setidx prems concl k with
-    | Canonical prems -> Canonical (prems, conclk)
+    | Canonical prems -> Canonical (unshift_clause (prems, conclk))
     | Trivial -> Trivial
     | Contradictory -> Contradictory
 
@@ -1029,14 +1037,14 @@ let is_trivial_clause setidx (prems, (concl, k)) =
 
 (** [simplify_clause setidx cl] simplifies the clause [cl] on canonical sorted premises as
   [simplify_can_clause]: if it is not trivial, its premises on its conclusion and [Set + k] below
-  another premise are dropped. *)
+  another premise are dropped, and its common shift is removed. *)
 let simplify_clause setidx (prems, (concl, k) as cl) =
   if is_trivial_clause setidx cl then Trivial
   else match Premises.filter (fun (idx, _) -> not (Index.equal idx concl)) prems with
     | None -> Contradictory
     | Some prems' ->
       let prems' = remove_dominated_set Fun.id setidx prems' in
-      Canonical (if prems' == prems then cl else (prems', (concl, k)))
+      Canonical (unshift_clause (if prems' == prems then cl else (prems', (concl, k))))
 
 (** [fwd_premises prem kprem others] are the premises of the forward clause [prem + kprem, others -> _] *)
 let fwd_premises prem kprem others =
@@ -1068,6 +1076,8 @@ let check_invariants ~(required_canonical:Level.t -> bool) model =
       err Pp.(str"has unsorted premises, or premises mentioning the same universe several times");
     if remove_dominated_set Fun.id setidx prems != prems then
       err Pp.(str"has a premise Set + k below another premise");
+    if unshift_clause cl != cl then
+      err Pp.(str"has a shift common to its conclusion and premises");
     let canprems = NeList.map (fun (idx, k) -> (repr model idx, k)) prems in
     match simplify_can_clause model (canprems, (repr model concl, k)) with
     | Trivial -> err Pp.(str"is trivial")
@@ -1650,7 +1660,7 @@ let subst_fwd_clauses setidx prem idx (idx', k' as u) fwd =
         else match simplify_clause setidx (prems', (concl', kconcl')) with
         | Trivial -> fwd
         | Contradictory -> assert false (* The substituted equality holds in the model *)
-        | Canonical (prems', _) ->
+        | Canonical (prems', (_, kconcl')) ->
           match NeList.find (fun p -> Index.equal p prem') prems' with
           | exception Not_found -> fwd (* [prem'] is dropped from the premises when it is the conclusion *)
           | kprem ->
@@ -1668,7 +1678,7 @@ let subst_bwd_clause setidx concl idx u (kconcl, prems as cli) =
   match simplify_clause setidx (prems', (concl, kconcl)) with
   | Trivial -> None
   | Contradictory -> assert false (* The substituted equality holds in the model *)
-  | Canonical (prems', _) -> if prems' == prems then Some cli else Some (kconcl, prems')
+  | Canonical (prems', (_, kconcl')) -> if prems' == prems then Some cli else Some (kconcl', prems')
 
 let subst_bwd_clauses setidx concl idx u bwd  =
   ClausesOf.filter_map (fun _local -> subst_bwd_clause setidx concl idx u) bwd
@@ -2740,7 +2750,10 @@ let restore_clause st ~force m ((prems, (c, kc)) : clause) ~redundant cands =
       st, with_witnesses m (lprems, (can, kc)), Kept
     else
     (* [cl] is irredundant, and so is its simplified form, equivalent to it under the other clauses *)
-    let prems' = NeList.of_list (List.map (fun (p, kp) -> (p.canon, kp)) kept) in
+    (* Dropping premises can leave a shift common to the conclusion and the other premises *)
+    let canprems', (_, kc) = unshift_clause (NeList.of_list kept, (can, kc)) in
+    let kept = NeList.to_list canprems' in
+    let prems' = NeList.map (fun (p, kp) -> (p.canon, kp)) canprems' in
     let add m = add_can_clause_model { m with locality }
         (NeList.map (fun (p, kp) -> (repr m p, kp)) prems', (repr m c, kc)) in
     let st = if locality == Global then { st with skip_global = false } else st in
