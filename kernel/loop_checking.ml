@@ -1010,6 +1010,13 @@ let unshift_clause ((prems, (concl, k)) as cl) =
   let s = NeList.fold (fun (_, kp) s -> min kp s) prems k in
   if s <= 0 then cl else (NeList.map (fun (p, kp) -> (p, kp - s)) prems, (concl, k - s))
 
+(** [positive_clause cl] shifts the conclusion and the premises of [cl] so that their increments
+  are non-negative, as expected by [check_one_clause] and to print the clause:
+  [c + k <= max(p_i + k_i)] is equivalent to [c + k + s <= max(p_i + k_i + s)]. *)
+let positive_clause ((prems, (concl, k)) as cl) =
+  let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- k)) in
+  if Int.equal s 0 then cl else (NeList.map (fun (p, kp) -> (p, kp + s)) prems, (concl, k + s))
+
 (** Simplify u <= max (Set, v) clauses to u <= v and filter away u <= ... u + n , ... clauses, always valid *)
 let simplify_can_clause m ((prems, (concl, k as conclk)) : can_clause) : can_clause canonical_result =
   (* Filter out `Set` from max(Set, u) -> v constraints *)
@@ -2050,9 +2057,8 @@ let reach_all model next within start =
 (** [entails model prems (x, kx)] decides [x + kx <= max(prems)] in all the valuations of [model] *)
 let entails model prems (x, kx) =
   NeList.exists (fun (p, kp) -> p == x && kx <= kp) prems ||
-  let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- kx)) in
-  let prems = NeList.map (fun (p, kp) -> (p, kp + s)) prems in
-  check_one_clause model prems x (kx + s) || check_one_clause_complete model prems x (kx + s)
+  let prems, (x, kx) = positive_clause (prems, (x, kx)) in
+  check_one_clause model prems x kx || check_one_clause_complete model prems x kx
 
 (** [entails_complete model prems (x, kx)] is [entails] with [check_one_clause_complete] only:
   starting from the values of [model], it is cheaper when the clause does not hold, while
@@ -2061,9 +2067,8 @@ let entails model prems (x, kx) =
   does not hold *)
 let entails_complete model prems (x, kx) =
   if NeList.exists (fun (p, kp) -> p == x && kx <= kp) prems then None else
-  let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- kx)) in
-  let prems = NeList.map (fun (p, kp) -> (p, kp + s)) prems in
-  check_one_clause_complete_witness model prems x (kx + s)
+  let prems, (x, kx) = positive_clause (prems, (x, kx)) in
+  check_one_clause_complete_witness model prems x kx
 
 (** [entails_from model (p, kp) candidates] decides [x + kx <= p + kp] as [entails] for each
   [x + kx] of [candidates], propagating the consequences of [p + kp] once for all of them
@@ -2084,8 +2089,8 @@ let entails_from model (p, kp) candidates =
     (match derived with
      | Some m -> (match canonical_value m x with Some v -> kx + s <= v | None -> false)
      | None -> false) ||
-    let s = max 0 (max (- kp) (- kx)) in
-    check_one_clause_complete model (NeList.tip (p, kp + s)) x (kx + s)
+    let prems, (x, kx) = positive_clause (NeList.tip (p, kp), (x, kx)) in
+    check_one_clause_complete model prems x kx
 
 (** [witness_models model rcan (y0, d0)] The models of [model] where [r] and [y0 + d0] are not
   equal: its extensions by the negations [r + 1 <= y0 + d0] and [y0 + d0 + 1 <= r] of the two
@@ -2093,10 +2098,9 @@ let entails_from model (p, kp) candidates =
   in all the valuations of [model]. *)
 let witness_models model rcan (y0, d0) =
   let y0can = repr model y0 in
-  let s = max 0 (- d0) in
-  List.filter_map (fun cl -> infer_clause_extension cl model)
-    [ (NeList.tip (y0can, d0 + s), (rcan, 1 + s));
-      (NeList.tip (rcan, s), (y0can, d0 + 1 + s)) ]
+  List.filter_map (fun cl -> infer_clause_extension (positive_clause cl) model)
+    [ (NeList.tip (y0can, d0), (rcan, 1));
+      (NeList.tip (rcan, 0), (y0can, d0 + 1)) ]
 
 (** [same_differences model witnesses x y] Two universes equal in all the valuations of [model]
   have the same difference of values in all its models: [x] and [y] can only be equal if their
@@ -2638,10 +2642,10 @@ let refuted_redundant m ws ((prems, (c, k)) : can_clause) =
   derived from the clauses of [m] by propagating the values of its premises
   ([check_one_clause]), unless the values of [m] or its witnesses refute it. This is only sound:
   the other entailed clauses are found by [redundant_clause] once added. *)
-let derived_clause m ((prems, (c, k)) as cl : can_clause) =
+let derived_clause m (cl : can_clause) =
   not (refuted_redundant m m.witnesses cl) &&
-  let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- k)) in
-  check_one_clause m (NeList.map (fun (p, kp) -> (p, kp + s)) prems) c (k + s)
+  let prems, (c, k) = positive_clause cl in
+  check_one_clause m prems c k
 
 (** [redundant_clause em ws (prems, (c, k))] For a clause of a model, [em] being that model, or its
   global view, without it, and [ws] models of the clauses of that model: the clauses of [em] entail
@@ -3400,10 +3404,9 @@ let constraint_of_can_clause model ((prems, concl) : can_clause) : UnivConstrain
   (Universe.of_list [expr_of_can_premise model concl], UnivConstraint.Le, univ_of_can_premises model prems)
 
 (** The clause [concl + k <= max(prems)], with non-negative increments, using [<] when [k > 0] *)
-let explain_can_clause model ((prems, (concl, k)) : can_clause) =
-  let s = NeList.fold (fun (_, kp) s -> max s (- kp)) prems (max 0 (- k)) in
-  let prems = univ_of_can_premises model (NeList.map (fun (p, kp) -> (p, kp + s)) prems) in
-  let k = k + s in
+let explain_can_clause model (cl : can_clause) =
+  let prems, (concl, k) = positive_clause cl in
+  let prems = univ_of_can_premises model prems in
   let univ k = Universe.of_expr (expr_of_can_premise model (concl, k)) in
   if k > 0 then (univ (k - 1), ULt, prems) else (univ k, ULe, prems)
 
@@ -4176,23 +4179,21 @@ let constraints_for ~(kept:Level.Set.t) model (fold : 'a constraint_fold) (accu 
   let is_kept idx = PMap.mem idx rmap in
   (* [can + j] is [v + j - k] *)
   let rexpr (can, j) = let (v, k) = PMap.find can rmap in (v, j - k) in
-  let add_shifted_cst l knd r csts =
-    let min_shift prems m = NeList.fold (fun (_, k) m -> min k m) prems m in
-    let shift = min_shift l (min_shift r 0) in
-    let l, r = if shift < 0 then Premises.shift (- shift) l, Premises.shift (- shift) r else l, r in
-    add_cst l knd r csts
+  let add_shifted_cst concl knd prems csts =
+    let prems, concl = positive_clause (prems, concl) in
+    add_cst (NeList.tip concl) knd prems csts
   in
   let kept_cans = PMap.fold (fun can _ acc -> PSet.add can acc) rmap PSet.empty in
   let model, _resolvents = eliminate_spanned ~skip_set:true model kept_cans in
   let csts = PMap.fold (fun u (can, k) csts ->
       if Index.equal u (fst (PMap.find can rmap)) then csts
-      else add_shifted_cst (NeList.tip (u, 0)) UnivConstraint.Eq (NeList.tip (rexpr (can, k))) csts)
+      else add_shifted_cst (u, 0) UnivConstraint.Eq (NeList.tip (rexpr (can, k))) csts)
       keptp accu
   in
   PMap.fold (fun can _ csts ->
       ClausesOf.fold (fun _local (k, prems) csts ->
         if Premises.for_all (fun (u, _) -> is_kept u) prems then
-          add_shifted_cst (NeList.tip (rexpr (can, k))) UnivConstraint.Le (NeList.map rexpr prems) csts
+          add_shifted_cst (rexpr (can, k)) UnivConstraint.Le (NeList.map rexpr prems) csts
         else csts)
         (repr model can).clauses_bwd csts)
     rmap csts
