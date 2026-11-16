@@ -85,6 +85,10 @@ let app_poly_check env evars f args =
   let evars, t = Typing.checked_appvect env evars fc args in
   (evars, cstrs), t
 
+let checked_app env (evars, cstrs) f args =
+  let evars, t = Typing.checked_appvect env evars f args in
+  (evars, cstrs), t
+
 let app_poly_nocheck env evars f args =
   let evars, fc = f env evars in
     evars, mkApp (fc, args)
@@ -120,24 +124,193 @@ let evd_convertible env evd x y =
     else None
   with e when CErrors.noncritical e -> None
 
+(** Typing invariants of proofs.
+
+    A proof [p] is evaluated by [eval_proof] in an environment Γ into a term
+    written ⟦p⟧ below. We write 𝓡(A) for a relation type over A, that is
+    either [A -> A -> Prop] or [A -> A -> Type]. When a constraint evar
+    ([subrelation], [ProperProxy], [Transitive] or [Proper]) is involved, it
+    is the one selected by the [sort] argument of [eval_proof], i.e.
+    [rewrite.prop] or [rewrite.type]. Universe levels are left implicit, and
+    all the judgements below hold up to conversion and cumulativity.
+
+    The judgements listed for a constructor are of three kinds.
+
+    - Preconditions: the well-typedness of the term fields, i.e. that they
+      have some type in Γ (in Γ, _ : car for [body] in [PrfCongr]), and that
+      [dom] is a type of the relevance of [name] in [PrfLam], as well as the
+      conversion rfrom ≡ rto in [PrfRefl]. They are assumed by [eval_proof]
+      and must be established where the proof is built.
+    - Checked judgements: that the term fields have the stated types, and
+      the types of the subproofs. They are checked by [eval_proof] through
+      [Typing.checked_appvect] when it builds the node, so that if the
+      preconditions hold then Γ ⊢ ⟦p⟧ : T, where T is the type stated for
+      the constructor. The types of the leaves [PrfLemma], [PrfRel1] and
+      [PrfExtern] are checked by the node that consumes them, or against the
+      goal in [cl_rewrite_clause_newtac] for the root.
+    - Judgements marked (evar): they only concern terms used to build the
+      type of a constraint evar. Such terms do not occur syntactically in
+      ⟦p⟧, but the solution of the evar found by typeclass resolution may
+      contain subterms of its type obtained by unification, so they must
+      hold as well. Judgements marked (unused) describe fields that do not
+      occur in ⟦p⟧ at all. *)
+
+(** Arguments of a morphism application, relative to an argument type A and
+    an argument relation R of the morphism signature (see [PrfApp]). *)
 type 'self app_proof =
 | AppPrfProper of { car : etypes; rel : econstr; trm : econstr }
+(** Stands for the arguments [trm trm ?p] where [?p : ProperProxy car rel trm],
+    i.e. [?p : rel trm trm].
+
+    (evar) Γ ⊢ car : Type      car ≡ A
+    (evar) Γ ⊢ rel : 𝓡(car)    rel ≡ R
+           Γ ⊢ trm : car *)
 | AppPrfNode of { prf : 'self; rfrom : econstr; rto : econstr }
+(** Stands for the arguments [rfrom rto ⟦prf⟧].
+
+    Γ ⊢ rfrom : A
+    Γ ⊢ rto : A
+    Γ ⊢ ⟦prf⟧ : R rfrom rto *)
 | AppPrfArg of { arg : econstr }
+(** Stands for the argument [arg], where A is the domain of a dependent
+    argument of the morphism (a [forall_relation] in the signature).
+
+    Γ ⊢ arg : A *)
 
 type proof =
 | PrfLemma of econstr
+(** [PrfLemma pf] is the instantiated rewriting lemma.
+
+    Γ ⊢ pf : R c₁ c₂
+    ─────────────────────
+    ⟦p⟧ = pf
+    T   = R c₁ c₂ *)
 | PrfRefl of { car : etypes; rel : econstr; cast : cast_kind; rfrom : econstr; rto : econstr }
+(** Reflexivity of Leibniz equality, cast with kind [cast].
+
+    Γ ⊢ car : Type
+    rel = @eq car
+    Γ ⊢ rfrom : car
+    Γ ⊢ rto : car
+    rfrom ≡ rto                (precondition)
+    ─────────────────────────────────────────
+    ⟦p⟧ = (@eq_refl car rfrom : rel rfrom rto)
+    T   = rel rfrom rto *)
 | PrfSym of { car : etypes; rel : econstr; rfrom: econstr; rto: econstr; prf : proof; sym : econstr }
+(** Symmetry. The fields [car] and [rel] do not occur in ⟦p⟧, they only
+    describe the type of [sym]. The sort of [rel] is the one of the [Symmetric]
+    instance, which may differ from the one selected by [sort].
+
+    (unused) Γ ⊢ car : Type
+    (unused) Γ ⊢ rel : 𝓡(car)
+             Γ ⊢ sym : forall x y : car, rel x y -> rel y x
+             Γ ⊢ rfrom : car
+             Γ ⊢ rto : car
+             Γ ⊢ ⟦prf⟧ : rel rfrom rto
+    ─────────────────────────────────────────
+    ⟦p⟧ = sym rfrom rto ⟦prf⟧
+    T   = rel rto rfrom *)
 | PrfSub of { car : etypes; rel : econstr; rel' : econstr; rfrom : econstr; rto : econstr; prf : proof }
+(** Subrelation, with [?s : subrelation car rel rel'].
+
+    (evar) Γ ⊢ car : Type
+    (evar) Γ ⊢ rel : 𝓡(car)
+    (evar) Γ ⊢ rel' : 𝓡(car)
+           Γ ⊢ rfrom : car
+           Γ ⊢ rto : car
+           Γ ⊢ ⟦prf⟧ : rel rfrom rto
+    ─────────────────────────────────────────
+    ⟦p⟧ = ?s rfrom rto ⟦prf⟧
+    T   = rel' rfrom rto *)
 | PrfProperProxy of { car : etypes; rel : econstr; trm : econstr }
+(** Reflexivity, with [?p : ProperProxy car rel trm].
+
+    (evar) Γ ⊢ car : Type
+    (evar) Γ ⊢ rel : 𝓡(car)
+    (evar) Γ ⊢ trm : car
+    ─────────────────────────────────────────
+    ⟦p⟧ = ?p
+    T   = rel trm trm *)
 | PrfApp of { cl_args : econstr array; app : proof app_proof list }
+(** Morphism application, with [cl_args = [| A; S; m |]],
+    [app = [a₁; ...; aₙ]] and [?m : Proper A S m]. Each [aᵢ] satisfies the
+    [app_proof] invariant for the i-th argument type Aᵢ and relation Rᵢ of S.
+    The arrow is a [forall_relation] for the [AppPrfArg] arguments, in which
+    case Rᵢ and the subsequent types depend on the previous [AppPrfArg]
+    arguments. We write xᵢ, yᵢ for [trm], [trm] when [aᵢ] is an
+    [AppPrfProper], [rfrom], [rto] when it is an [AppPrfNode] and [arg],
+    [arg] when it is an [AppPrfArg].
+
+    (evar) Γ ⊢ A : Type
+    (evar) Γ ⊢ S : 𝓡(A)        S ≡ R₁ ==> ... ==> Rₙ ==> R
+    (evar) Γ ⊢ m : A
+    ─────────────────────────────────────────
+    ⟦p⟧ = ?m ⟦a₁⟧ ... ⟦aₙ⟧
+    T   = R (m x₁ ... xₙ) (m y₁ ... yₙ) *)
 | PrfCongr of { car : etypes; rfrom : econstr; rto : econstr; prf : proof; body : econstr; typ : econstr }
+(** Congruence of Leibniz equality.
+
+    Γ ⊢ car : Type
+    Γ ⊢ typ : Type
+    Γ, _ : car ⊢ body : lift 1 typ
+    Γ ⊢ rfrom : car
+    Γ ⊢ rto : car
+    Γ ⊢ ⟦prf⟧ : @eq car rfrom rto
+    ─────────────────────────────────────────
+    ⟦p⟧ = f_equal car typ (fun _ : car => body) rfrom rto ⟦prf⟧
+    T   = @eq typ body{rfrom} body{rto} *)
 | PrfFun of { prf : proof; args : econstr array }
+(** Application of a pointwise proof, with [args = [| t₁; ...; tₙ |]]. The
+    relation R is built from [pointwise_relation] and [forall_relation] on
+    the type [forall (x₁ : B₁) ... (xₙ : Bₙ), B], so that it unfolds to a
+    product over the arguments.
+
+    Γ ⊢ f : forall (x₁ : B₁) ... (xₙ : Bₙ), B
+    Γ ⊢ g : forall (x₁ : B₁) ... (xₙ : Bₙ), B
+    Γ ⊢ ⟦prf⟧ : R f g
+    R f g ≡ forall (x₁ : B₁) ... (xₙ : Bₙ), R' (f x₁ ... xₙ) (g x₁ ... xₙ)
+    Γ ⊢ tᵢ : Bᵢ{t₁ ... tᵢ₋₁}
+    ─────────────────────────────────────────
+    ⟦p⟧ = ⟦prf⟧ t₁ ... tₙ
+    T   = R'{t₁ ... tₙ} (f t₁ ... tₙ) (g t₁ ... tₙ) *)
 | PrfLam of { name : Name.t binder_annot; dom : econstr; prf : proof }
+(** Abstraction, where the relevance of [name] is the one of s. The type T
+    is the pointwise lifting of R to [fun name : dom => b] and
+    [fun name : dom => b'].
+
+    Γ ⊢ dom : s
+    Γ, name : dom ⊢ ⟦prf⟧ : R b b'
+    ─────────────────────────────────────────
+    ⟦p⟧ = fun name : dom => ⟦prf⟧
+    T   = forall name : dom, R b b' *)
 | PrfTrans of { car : etypes; rel : econstr; lft : econstr; mid : econstr; rgt : econstr; fst : proof; snd : proof }
+(** Transitivity, with [?t : Transitive car rel].
+
+    (evar) Γ ⊢ car : Type
+    (evar) Γ ⊢ rel : 𝓡(car)
+           Γ ⊢ lft : car
+           Γ ⊢ mid : car
+           Γ ⊢ rgt : car
+           Γ ⊢ ⟦fst⟧ : rel lft mid
+           Γ ⊢ ⟦snd⟧ : rel mid rgt
+    ─────────────────────────────────────────
+    ⟦p⟧ = ?t lft mid rgt ⟦fst⟧ ⟦snd⟧
+    T   = rel lft rgt *)
 | PrfRel1
+(** The rewriting lemma abstracted by [general_s_rewrite].
+
+    Γ = Γ', lemma : U          U ≡ R c₁ c₂
+    ─────────────────────────────────────────
+    ⟦p⟧ = Rel 1
+    T   = lift 1 U *)
 | PrfExtern of econstr
+(** A proof produced by a tactic, where [rel], [lhs] and [rhs] are the
+    relation, source and target of the rewriting result it comes from.
+
+    Γ ⊢ c : rel lhs rhs
+    ─────────────────────────────────────────
+    ⟦p⟧ = c
+    T   = rel lhs rhs *)
 
 type hypinfo = {
   prf : proof;
@@ -320,7 +493,7 @@ end) = struct
             let evars, relty = mk_relty evars env ext ty obj in
             let evars', b' = Evarsolve.refresh_universes ~onlyalg:true ~status:(Evd.UnivFlexible false)
               (Some false) env (fst evars) b' in
-            let evars, newarg = app_poly env (evars', snd evars) respectful [| ty ; b' ; relty ; arg |] in
+            let evars, newarg = app_poly_check env (evars', snd evars) respectful [| ty ; b' ; relty ; arg |] in
               evars, mkProd(na, ty, b), newarg, (ty, Some relty) :: cstrs
           else if not (Option.is_empty obj) then
             user_err Pp.(str "Cannot rewrite inside dependent arguments of a function.")
@@ -332,7 +505,7 @@ end) = struct
             let ty = Reductionops.nf_betaiota env (goalevars evars) ty in
             let pred = mkLambda (na, ty, b) in
             let liftarg = mkLambda (na, ty, arg) in
-            let evars, arg' = app_poly env evars forall_relation [| ty ; pred ; liftarg |] in
+            let evars, arg' = app_poly_check env evars forall_relation [| ty ; pred ; liftarg |] in
             evars, mkProd(na, ty, b), arg', (ty, None) :: cstrs
         | _, obj :: _ -> anomaly ~label:"build_signature" (Pp.str "not enough products.")
         | _, [] ->
@@ -370,14 +543,14 @@ end) = struct
 
   let arrow_morphism env evd n ta tb a b =
     let ap = is_Prop (goalevars evd) ta and bp = is_Prop (goalevars evd) tb in
-      if ap && bp then app_poly env evd impl [| a; b |], unfold_impl n
+      if ap && bp then app_poly_check env evd impl [| a; b |], unfold_impl n
       else if ap then (* Domain in Prop, CoDomain in Type *)
-        (app_poly env evd arrow [| a; b |]), unfold_impl n
+        (app_poly_check env evd arrow [| a; b |]), unfold_impl n
         (* (evd, mkProd (Anonymous, a, b)), (fun x -> x) *)
       else if bp then (* Dummy forall *)
-        (app_poly env evd rocq_all [| a; mkLambda (make_annot n ERelevance.relevant, a, lift 1 b) |]), unfold_forall
+        (app_poly_check env evd rocq_all [| a; mkLambda (make_annot n ERelevance.relevant, a, lift 1 b) |]), unfold_forall
       else (* None in Prop, use arrow *)
-        (app_poly env evd arrow [| a; b |]), unfold_impl n
+        (app_poly_check env evd arrow [| a; b |]), unfold_impl n
 
   let rec decomp_pointwise env sigma n c =
     if Int.equal n 0 then Some c
@@ -484,11 +657,6 @@ end) = struct
 
 end
 
-let type_app_poly env env evd f args =
-  let evars, c = app_poly_nocheck env evd f args in
-  let evd', t = Typing.type_of env (goalevars evars) c in
-    (evd', cstrevars evars), c
-
 module PropGlobal = struct
   module Consts =
   struct
@@ -503,8 +671,7 @@ module PropGlobal = struct
   include G
   include Consts
   let inverse env evd car rel =
-    type_app_poly env env evd rocq_inverse [| car ; car; mkProp; rel |]
-      (* app_poly env evd rocq_inverse [| car ; car; mkProp; rel |] *)
+    app_poly_check env evd rocq_inverse [| car ; car; mkProp; rel |]
 
 end
 
@@ -758,23 +925,25 @@ let rec eval_proof env ext evars sort prf = match prf with
 | PrfLemma pf -> (evars, pf)
 | PrfSym { car; rel; rfrom; rto; prf; sym } ->
   let evars, prf = eval_proof env ext evars sort prf in
-  evars, mkApp (sym, [|rfrom; rto; prf|])
+  checked_app env evars sym [|rfrom; rto; prf|]
 | PrfRefl { rel; car; rfrom; rto; cast } ->
   let evars, eq_refl = make_eq_refl env evars in
-  evars, mkCast (mkApp (eq_refl, [| car; rfrom |]), cast, mkApp (rel, [| rfrom; rto |]))
+  let evars, refl = checked_app env evars eq_refl [| car; rfrom |] in
+  let evars, ty = checked_app env evars rel [| rfrom; rto |] in
+  evars, mkCast (refl, cast, ty)
 | PrfSub { car; rel; rel'; rfrom; rto; prf } ->
   let evars, prf = eval_proof env ext evars sort prf in
   let subrel = if sort then PropGlobal.subrelation else TypeGlobal.subrelation in
   let evars, app = app_poly_check env evars subrel [|car; rel; rel'|] in
   let evars, subrel = new_cstr_evar evars ext app in
-  evars, mkApp (subrel, [| rfrom ; rto ; prf |])
+  checked_app env evars subrel [| rfrom ; rto ; prf |]
 | PrfCongr { car; rfrom; rto; body; typ; prf } ->
   let evars, prf = eval_proof env ext evars sort prf in
-  app_poly_nocheck env evars rocq_f_equal
-    [| car; typ; mkLambda (make_annot Anonymous ERelevance.relevant, car, body); rfrom; rto; prf |]
+  let lam = mkLambda (make_annot Anonymous ERelevance.relevant, car, body) in
+  app_poly_check env evars rocq_f_equal [| car; typ; lam; rfrom; rto; prf |]
 | PrfFun { prf; args } ->
   let evars, prf = eval_proof env ext evars sort prf in
-  evars, mkApp (prf, args)
+  checked_app env evars prf args
 | PrfLam { name; dom; prf } ->
   let nenv = EConstr.push_rel (LocalAssum (name, dom)) env in
   let next = Evarutil.push_rel_decl_to_named_context env (goalevars evars) (LocalAssum (name, dom)) ext in
@@ -799,8 +968,7 @@ let rec eval_proof env ext evars sort prf = match prf with
   let evars, fst = eval_proof env ext evars sort fst in
   let evars, snd = eval_proof env ext evars sort snd in
   let evars, prf = new_cstr_evar evars ext prfty in
-  let prf = mkApp (prf, [|lft; mid; rgt; fst; snd |]) in
-  evars, prf
+  checked_app env evars prf [|lft; mid; rgt; fst; snd |]
 | PrfApp { cl_args; app } ->
   let evars, fapp = List.fold_left_map (fun evars prf -> eval_app_proof env ext evars sort prf) evars app in
   let evars, proj =
@@ -831,8 +999,7 @@ let rec eval_proof env ext evars sort prf = match prf with
     evars, [ rfrom; rto; prf ]
   in
   let evars, fapp = List.fold_left_map fold evars fapp in
-  let prf = applist (proj, List.concat fapp) in
-  evars, prf
+  checked_app env evars proj (Array.of_list (List.concat fapp))
 | PrfRel1 ->
   evars, mkRel 1
 | PrfExtern c ->
@@ -911,7 +1078,7 @@ let get_rew_prf env evars r = match r.rew_prf with
   | RewPrf (rel, prf) -> evars, (rel, prf)
   | RewCast c ->
     let evars, eq = make_eq env evars in
-    let rel = mkApp (eq, [| r.rew_car |]) in
+    let evars, rel = checked_app env evars eq [| r.rew_car |] in
     evars, (rel, PrfRefl { rel; car = r.rew_car; rfrom = r.rew_from; rto = r.rew_to; cast = c })
 
 let resolve_subrelation env car rel sort prf rel' res =
@@ -929,8 +1096,8 @@ let resolve_morphism env ext m args args' (b,cstr) evars =
     | None -> invalid_arg "resolve_morphism" in
     let morphargs, morphobjs = Array.chop first args in
     let morphargs', morphobjs' = Array.chop first args' in
-    let appm = mkApp(m, morphargs) in
-    let evd, appmtype = Typing.type_of env (goalevars evars) appm in
+    let evd, appm = Typing.checked_appvect env (goalevars evars) m morphargs in
+    let appmtype = Retyping.get_type_of env evd appm in
     let evars = evd, snd evars in
     let cstrs = List.map
       (Option.map (fun r -> r.rew_car, get_opt_rew_rel r.rew_prf))
@@ -1089,9 +1256,13 @@ let fold_match ?(force=false) env sigma c =
     let ind, args = Inductiveops.find_mrectype env sigma cty in
     let pars, args = List.chop ci.ci_npar args in
     let meths = Array.to_list brs in
-      applist (sk, pars @ [pred] @ meths @ args @ [c])
+    try
+      let sigma, _ = Typing.type_of env sigma pred in
+      Typing.checked_applist env sigma sk (pars @ [pred] @ meths @ args @ [c])
+    with e when CErrors.noncritical e -> raise Not_found
   in
-    sk, app
+  let sigma, app = app in
+    sigma, sk, app
 
 let unfold_match env sigma sk app =
   match EConstr.kind sigma app with
@@ -1257,10 +1428,10 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
           let lam = mkLambda (n, dom, codom) in
           let (evars', app), unfold =
             if eq_constr (fst evars) ty mkProp then
-              (app_poly_sort prop env evars rocq_all [| dom; lam |]), TypeGlobal.unfold_all
+              (app_poly_check env evars rocq_all [| dom; lam |]), TypeGlobal.unfold_all
             else
               let forall = if prop then PropGlobal.rocq_forall else TypeGlobal.rocq_forall in
-                (app_poly_sort prop env evars forall [| dom; lam |]), TypeGlobal.unfold_forall
+                (app_poly_check env evars forall [| dom; lam |]), TypeGlobal.unfold_forall
           in
           let state, res = s.strategy { state ; env ; ext_ctx ; unfresh ;
                                  term1 = app ; ty1 = ty ;
@@ -1320,6 +1491,9 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
         in state, res
 
       | Case (ci, u, pms, p, iv, c, brs) ->
+        let ((nas, pbody), _) = p in
+        let scrutinee_indep = noccurn (goalevars evars) 1 pbody in
+        let return_indep = noccur_between (goalevars evars) 1 (Array.length nas) pbody in
         let (ci, (p,rp), iv, c, brs) = EConstr.expand_case env (goalevars evars) (ci, u, pms, p, iv, c, brs) in
         let cty = Retyping.get_type_of env (goalevars evars) c in
         let evars', eqty = app_poly_sort prop env evars rocq_eq [| cty |] in
@@ -1329,10 +1503,11 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                                      cstr = (prop, cstr') ; evars = evars' } in
         let state, res =
           match c' with
-          | Success r ->
+          | Success r when scrutinee_indep || is_rew_cast r.rew_prf ->
             let case = mkCase (EConstr.contract_case env (goalevars evars) (ci, (lift 1 p,rp), map_invert (lift 1) iv, mkRel 1, Array.map (lift 1) brs)) in
             let res = make_leibniz_proof env case ty r in
               state, Success (coerce env (prop,cstr) res)
+          | Success _ -> state, Fail
           | Fail | Identity ->
             if Array.for_all (Int.equal 0) ci.ci_cstr_ndecls then
               let evars', eqty = app_poly_sort prop env evars rocq_eq [| ty |] in
@@ -1351,17 +1526,17 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                 (state, None, fun x -> []) brs
               in
                 match found with
-                | Some r ->
+                | Some r when return_indep || is_rew_cast r.rew_prf ->
                   let ctxc = mkCase (EConstr.contract_case env (goalevars evars) (ci, (lift 1 p, rp), map_invert (lift 1) iv, lift 1 c, Array.of_list (List.rev (brs' c')))) in
                     state, Success (make_leibniz_proof env ctxc ty r)
-                | None -> state, c'
+                | Some _ | None -> state, c'
             else
               match try Some (fold_match env (goalevars evars) t) with Not_found -> None with
               | None -> state, c'
-              | Some (cst, t') ->
+              | Some (sigma, cst, t') ->
                  let state, res = s.strategy { state ; env ; ext_ctx ; unfresh ;
                                         term1 = t' ; ty1 = ty ;
-                                        cstr = (prop,cstr) ; evars } in
+                                        cstr = (prop,cstr) ; evars = (sigma, cstrevars evars) } in
                 let res =
                   match res with
                   | Success prf ->
@@ -1593,6 +1768,10 @@ module Strategies =
         | Result.Fail -> state.state, Fail
         | Result.Success { rew_to; rew_prf; rew_rel } ->
            let sigma = Proofview.return pv in
+           let sigma, _ = Typing.type_of env sigma rew_rel in
+           let sigma = Typing.check env sigma rew_to ty in
+           let sigma, prfty = Typing.checked_appvect env sigma rew_rel [| t; rew_to |] in
+           let sigma = Typing.check env sigma rew_prf prfty in
            let rew_prf = extract_proof env sigma rew_rel rew_prf in
            let rinfo = { rew_car = ty; rew_from = t; rew_to; rew_prf;
                          rew_evars = (sigma, cstrevars evars) } in
@@ -1721,7 +1900,7 @@ let () = CErrors.register_handler begin function
 end
 
 let cl_rewrite_clause_aux abs strat env sigma concl is_hyp : result =
-  let sigma, sort = Typing.sort_of env sigma concl in
+  let sort = Retyping.get_sort_of env sigma concl in
   let evdref = ref sigma in
   let evars = (!evdref, Evar.Set.empty) in
   let evars, cstr =
@@ -1742,16 +1921,25 @@ let cl_rewrite_clause_aux abs strat env sigma concl is_hyp : result =
   | Identity -> Some None
   | Success res ->
     let is_prop = Sorts.is_prop @@ ESorts.kind (fst res.rew_evars) sort in
-    let evars, prf = match res.rew_prf with
-    | RewCast c -> evars, None
-    | RewPrf (rel, p) ->
-      let evars, p = eval_proof env ext res.rew_evars is_prop p in
-      evars, Some p
+    let evars = match res.rew_prf with
+    | RewCast _ -> evars
+    | RewPrf _ -> res.rew_evars
     in
     let evars, abs = match abs with
     | None -> evars, None
     | Some p ->
       let evars, p = eval_proof env ext evars is_prop p in
+      let ty = Retyping.get_type_of env (goalevars evars) p in
+      evars, Some (p, ty)
+    in
+    let evars, prf = match res.rew_prf with
+    | RewCast c -> evars, None
+    | RewPrf (rel, p) ->
+      let penv = match abs with
+      | None -> env
+      | Some (_, ty) -> push_rel (LocalAssum (make_annot (Name (Id.of_string "lemma")) ERelevance.relevant, ty)) env
+      in
+      let evars, p = eval_proof penv ext evars is_prop p in
       evars, Some p
     in
     let (_, cstrs) = evars in
@@ -1759,22 +1947,25 @@ let cl_rewrite_clause_aux abs strat env sigma concl is_hyp : result =
     let iter ev = if not (Evd.is_defined evars ev) then raise (UnsolvedConstraints (env, evars, ev)) in
     let () = Evar.Set.iter iter cstrs in
     let newt = res.rew_to in
-    let res = match prf with
-      | None -> None
+    let evars, res = match prf with
+      | None -> evars, None
       | Some p ->
         (* if abs is [Some t] with t : T, [p] lives in an extended rel context Γ, x : T *)
-        let term =
+        let evars, term =
           match abs with
-          | None -> p
-          | Some t ->
-            let ty = Retyping.get_type_of env evars t in
-            mkApp (mkLambda (make_annot (Name (Id.of_string "lemma")) ERelevance.relevant, ty, p), [| t |])
+          | None -> evars, p
+          | Some (t, ty) ->
+            Typing.checked_appvect env evars (mkLambda (make_annot (Name (Id.of_string "lemma")) ERelevance.relevant, ty, p)) [| t |]
         in
-        let proof = match is_hyp with
-          | None -> term
-          | Some id -> mkApp (term, [| mkVar id |])
+        let evars, proof = match is_hyp with
+          | None -> evars, term
+          | Some id ->
+            let evars, proof = Typing.checked_appvect env evars term [| mkVar id |] in
+            let j = Environ.make_judge proof (Retyping.get_type_of env evars proof) in
+            let evars = Typing.check_actual_type env evars j newt in
+            evars, proof
         in
-        Some proof
+        evars, Some proof
     in
     Some (Some (evars, res, newt))
 
@@ -1808,7 +1999,7 @@ let cl_rewrite_clause_newtac ?origsigma ~progress abs strat clause =
           match clause, prf with
         | Some id, Some p ->
             let tac = tclTHENLIST [
-              Refine.refine ~typecheck:true (fun h -> (h,p));
+              Refine.refine ~typecheck:false (fun h -> (h,p));
               Proofview.Unsafe.tclNEWGOALS gls;
             ] in
             Proofview.Unsafe.tclEVARS undef <*>
@@ -1821,11 +2012,15 @@ let cl_rewrite_clause_newtac ?origsigma ~progress abs strat clause =
             Proofview.Unsafe.tclEVARS undef <*>
             Proofview.Goal.enter begin fun gl ->
             let env = Proofview.Goal.env gl in
+            let concl = Proofview.Goal.concl gl in
             let make = begin fun sigma ->
               let (sigma, ev) = Evarutil.new_evar env sigma newt in
-              (sigma, mkApp (p, [| ev |]))
+              let sigma, c = Typing.checked_appvect env sigma p [| ev |] in
+              let j = Environ.make_judge c (Retyping.get_type_of env sigma c) in
+              let sigma = Typing.check_actual_type env sigma j concl in
+              (sigma, c)
             end in
-            Refine.refine ~typecheck:true make <*> Proofview.Unsafe.tclNEWGOALS gls
+            Refine.refine ~typecheck:false make <*> Proofview.Unsafe.tclNEWGOALS gls
             end
         | None, None ->
             Proofview.Unsafe.tclEVARS undef <*>
@@ -1845,8 +2040,22 @@ let cl_rewrite_clause_newtac ?origsigma ~progress abs strat clause =
     | Some id ->
       (* Only consider variables not depending on [id] *)
       let ctx = named_context_of_val_with_status @@ named_context_val env in
-      let filter (_, decl) = not (occur_var_in_decl env sigma id decl) in
-      let nctx = List.filter filter ctx in
+      let exception Occur in
+      let occur ids c =
+        let rec occur c = match EConstr.kind sigma c with
+        | Evar _ -> ()
+        | _ ->
+          match EConstr.destRef sigma c with
+          | gr, _ -> if not (Id.Set.is_empty (Id.Set.inter ids (vars_of_global env gr))) then raise Occur
+          | exception DestKO -> EConstr.iter sigma occur c
+        in
+        try occur c; false with Occur -> true
+      in
+      let filter (_, decl as d) (nctx, ids) =
+        if Named.Declaration.exists (occur ids) decl then (nctx, Id.Set.add (Named.Declaration.get_id decl) ids)
+        else (d :: nctx, ids)
+      in
+      let nctx, _ = List.fold_right filter ctx ([], Id.Set.singleton id) in
       Environ.reset_with_named_context (val_of_named_context nctx) env
     in
     try
