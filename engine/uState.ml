@@ -806,10 +806,12 @@ let compute_instance_binders uctx inst =
   in
   {quals = Array.map qmap qinst; univs =  Array.map umap uinst}
 
-(* The constraints of a declaration are instantiated at each of its uses, so we remove the
-   constraints with an algebraic universe that the others entail, e.g. those making equal the
-   maxima of copies of universes, [max(u,v) = max(u',v') = max(u'',v'')], of which the pairwise
-   encoding is quadratic. The graph of the constraints is built once, without the global
+(* The constraints of a declaration are instantiated at each of its uses, and printed, so we
+   remove the inequalities that the others entail: e.g. [u < w] with [u <= v] and [v < w], which
+   the graph keeps (its clauses with a single premise are not kept irredundant), and those with an
+   algebraic universe making equal the maxima of copies of universes,
+   [max(u,v) = max(u',v') = max(u'',v'')], of which the pairwise encoding is quadratic. The
+   graph of the constraints is built once, without the global
    constraints, which can only entail more, and each candidate is removed from it when the
    remaining clauses entail it: the remaining constraints have the same models. The candidates
    with the most levels are tried first, so that a constraint subsumed by a smaller one is the one
@@ -823,8 +825,8 @@ let remove_redundant_constraints csts =
   let size u = List.length (Universe.repr u) in
   let candidates = UnivConstraints.fold (fun (l, d, r as c) acc ->
     let n = size l + size r in
-    if d == Le && n > 2 then (n, c) :: acc else acc) csts [] in
-  if List.is_empty candidates then csts
+    if d == Le then (n, c) :: acc else acc) csts [] in
+  if CList.is_empty candidates then csts
   else
     let candidates = List.stable_sort (fun (n, _) (n', _) -> Int.compare n' n) candidates in
     let levels = UnivConstraints.levels csts in
