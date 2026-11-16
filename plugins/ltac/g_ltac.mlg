@@ -409,7 +409,7 @@ let pr_ltac_production_item = function
   str arg ++ str "(" ++ Id.print id ++ sep ++ str ")"
 
 let check_non_empty_string ?loc s =
-  if String.is_empty s then CErrors.user_err ?loc (str "Invalid empty string.")
+  if String.for_all (fun c -> Char.equal c ' ') s then CErrors.user_err ?loc (str "Invalid empty string.")
 
 }
 

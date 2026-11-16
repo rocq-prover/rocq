@@ -618,7 +618,12 @@ let check_name na =
     Name id
 
 let parse_token = function
-| SexprStr {v=s} -> no_used_levels, TacTerm s
+| SexprStr {loc; v=s} ->
+  let () =
+    if String.for_all (fun c -> Char.equal c ' ') s then
+      CErrors.user_err ?loc Pp.(str "Invalid empty string.")
+  in
+  no_used_levels, TacTerm s
 | SexprRec (_, na, [tok]) ->
   let na = check_name na in
   let used, syntax_class = intern_syntax_class tok in
