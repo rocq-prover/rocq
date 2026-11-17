@@ -210,15 +210,6 @@ let subst_of_rel_context_instance_list sign l =
 let subst_of_rel_context_instance sign v =
   subst_of_rel_context_instance_list sign (Array.to_list v)
 
-let adjust_rel_to_rel_context sign n =
-  let rec aux sign =
-    let open RelDecl in
-    match sign with
-    | LocalAssum _ :: sign' -> let (n',p) = aux sign' in (n'+1,p)
-    | LocalDef (_,_c,_)::sign' -> let (n',p) = aux sign' in (n'+1,if n'<p then p+1 else p)
-    | [] -> (0,n)
-  in snd (aux sign)
-
 (* (thin_val sigma) removes identity substitutions from sigma *)
 
 let rec thin_val = function

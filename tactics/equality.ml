@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-module CVars = Vars
 open Pp
 open CErrors
 open Util
@@ -893,6 +892,17 @@ module KeepEqualitiesTable = Goptions.MakeRefTable(KeepEqualities)
 
 let set_keep_equality = KeepEqualitiesTable.set
 
+(** Take an index in an instance of a context and returns its index wrt to
+    the full context (e.g. 2 in [x:A;y:=b;z:C] is 3, i.e. a reference to z) *)
+let adjust_rel_to_rel_context sign n =
+  let rec aux sign =
+    let open Context.Rel.Declaration in
+    match sign with
+    | LocalAssum _ :: sign' -> let (n',p) = aux sign' in (n'+1,p)
+    | LocalDef (_,_c,_)::sign' -> let (n',p) = aux sign' in (n'+1,if n'<p then p+1 else p)
+    | [] -> (0,n)
+  in snd (aux sign)
+
 (* [keep_proofs] is relevant for types in Prop with elimination in Type *)
 (* In particular, it is relevant for injection but not for discriminate *)
 
@@ -946,7 +956,7 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
             let params1,rargs1 = List.chop nparams args1 in
             let _,rargs2 = List.chop nparams args2 in
             let ctxt = (get_constructor ((ind1,u1),mib,mip,params1) i1).cs_args in
-            let adjust i = CVars.adjust_rel_to_rel_context ctxt (i+1) - 1 in
+            let adjust i = adjust_rel_to_rel_context ctxt (i+1) - 1 in
             List.flatten
               (List.map2_i (fun i -> findrec ((sp1,adjust i)::posn) s1)
                 0 rargs1 rargs2)
