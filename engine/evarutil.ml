@@ -88,23 +88,28 @@ let nf_evar_map_undefined evm =
  *)
 
 let has_undefined_evars evd t =
-  let rec f h t =
-    let (h, knd) = EConstr.Expand.kind evd h t in
-    match knd with
-    | Evar _ -> raise NotInstantiatedEvar
-    | _ -> EConstr.Expand.iter evd f h knd
-  in
-  let h, t = EConstr.Expand.make t in
-  try let _ = f h t in false
-  with (Not_found | NotInstantiatedEvar) -> true
+  if not (Constr.may_have_evar (EConstr.Unsafe.to_constr t)) then false
+  else
+    let rec f h t =
+      let (h, knd) = EConstr.Expand.kind evd h t in
+      match knd with
+      | Evar _ -> raise NotInstantiatedEvar
+      | _ -> EConstr.Expand.iter evd f h knd
+    in
+    let h, t = EConstr.Expand.make t in
+    try let _ = f h t in false
+    with (Not_found | NotInstantiatedEvar) -> true
 
 let has_undefined_evars_or_metas evd t =
-  let rec has_ev t =
-    match EConstr.kind evd t with
-    | Evar _ | Meta _ -> raise NotInstantiatedEvar
-    | _ -> EConstr.iter evd has_ev t in
-  try let _ = has_ev t in false
-  with (Not_found | NotInstantiatedEvar) -> true
+  let t' = EConstr.Unsafe.to_constr t in
+  if not (Constr.may_have_evar t' || Constr.may_have_meta t') then false
+  else
+    let rec has_ev t =
+      match EConstr.kind evd t with
+      | Evar _ | Meta _ -> raise NotInstantiatedEvar
+      | _ -> EConstr.iter evd has_ev t in
+    try let _ = has_ev t in false
+    with (Not_found | NotInstantiatedEvar) -> true
 
 let is_ground_term evd t =
   not (has_undefined_evars evd t)

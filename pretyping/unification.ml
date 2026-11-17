@@ -355,16 +355,18 @@ let occur_meta_or_undefined_evar evd c =
   (* This is performance-critical. Using the evar-insensitive API changes the
      resulting heuristic. *)
   let c = EConstr.Unsafe.to_constr c in
-  let rec occrec c = match Constr.kind c with
-    | Meta _ -> raise Occur
-    | Evar (ev,args) ->
-      let EvarInfo evi = Evd.find evd ev in
-        (match evar_body evi with
-        | Evar_defined c ->
-            occrec (EConstr.Unsafe.to_constr c); SList.Skip.iter occrec args
-        | Evar_empty -> raise Occur)
-    | _ -> Constr.iter occrec c
-  in try occrec c; false with Occur | Not_found -> true
+  if not (Constr.may_have_evar c || Constr.may_have_meta c) then false
+  else
+    let rec occrec c = match Constr.kind c with
+      | Meta _ -> raise Occur
+      | Evar (ev,args) ->
+        let EvarInfo evi = Evd.find evd ev in
+          (match evar_body evi with
+          | Evar_defined c ->
+              occrec (EConstr.Unsafe.to_constr c); SList.Skip.iter occrec args
+          | Evar_empty -> raise Occur)
+      | _ -> Constr.iter occrec c
+    in try occrec c; false with Occur | Not_found -> true
 
 let whd_meta ~metas sigma c = match EConstr.kind sigma c with
   | Meta p ->

@@ -793,57 +793,73 @@ let fold_map_constr_with_full_binders env sigma g f l acc cstr =
 
 exception Occur
 
+let may_have_evar c =
+  Constr.may_have_evar (EConstr.Unsafe.to_constr c)
+
+let may_have_meta c =
+  Constr.may_have_meta (EConstr.Unsafe.to_constr c)
+
 let occur_meta sigma c =
-  let rec occrec h c =
-    let h, knd = EConstr.Expand.kind sigma h c in
-    match knd with
-    | Meta _ -> raise Occur
-    | Evar (evk, args) ->
-      let evi = Evd.find_undefined sigma evk in
-      let args = EConstr.Expand.expand_instance ~skip:true evi h args in
-      SList.Skip.iter (fun c -> occrec h c) args
-    | _ -> EConstr.Expand.iter sigma occrec h knd
-  in
-  let h, c = EConstr.Expand.make c in
-  try occrec h c; false with Occur -> true
+  if not (may_have_evar c || may_have_meta c) then false
+  else
+    let rec occrec h c =
+      let h, knd = EConstr.Expand.kind sigma h c in
+      match knd with
+      | Meta _ -> raise Occur
+      | Evar (evk, args) ->
+        let evi = Evd.find_undefined sigma evk in
+        let args = EConstr.Expand.expand_instance ~skip:true evi h args in
+        SList.Skip.iter (fun c -> occrec h c) args
+      | _ -> EConstr.Expand.iter sigma occrec h knd
+    in
+    let h, c = EConstr.Expand.make c in
+    try occrec h c; false with Occur -> true
 
 let occur_existential sigma c =
-  let rec occrec h c =
-    let h, knd = EConstr.Expand.kind sigma h c in
-    match knd with
-    | Evar _ -> raise Occur
-    | _ -> EConstr.Expand.iter sigma occrec h knd
-  in
-  let h, c = EConstr.Expand.make c in
-  try occrec h c; false with Occur -> true
+  if not (may_have_evar c) then false
+  else
+    let rec occrec h c =
+      let h, knd = EConstr.Expand.kind sigma h c in
+      match knd with
+      | Evar _ -> raise Occur
+      | _ -> EConstr.Expand.iter sigma occrec h knd
+    in
+    let h, c = EConstr.Expand.make c in
+    try occrec h c; false with Occur -> true
 
 let occur_meta_or_existential sigma c =
-  let rec occrec h c =
-    let h, knd = EConstr.Expand.kind sigma h c in
-    match knd with
-    | Evar _ -> raise Occur
-    | Meta _ -> raise Occur
-    | _ -> EConstr.Expand.iter sigma occrec h knd
-  in
-  let h, c = EConstr.Expand.make c in
-  try occrec h c; false with Occur -> true
+  if not (may_have_evar c || may_have_meta c) then false
+  else
+    let rec occrec h c =
+      let h, knd = EConstr.Expand.kind sigma h c in
+      match knd with
+      | Evar _ -> raise Occur
+      | Meta _ -> raise Occur
+      | _ -> EConstr.Expand.iter sigma occrec h knd
+    in
+    let h, c = EConstr.Expand.make c in
+    try occrec h c; false with Occur -> true
 
 let occur_metavariable sigma m c =
-  let rec occrec c = match EConstr.kind sigma c with
-  | Meta m' -> if Int.equal m m' then raise Occur
-  | Evar (_, args) -> SList.Skip.iter occrec args
-  | _ -> EConstr.iter sigma occrec c
-  in
-  try occrec c; false with Occur -> true
+  if not (may_have_evar c || may_have_meta c) then false
+  else
+    let rec occrec c = match EConstr.kind sigma c with
+    | Meta m' -> if Int.equal m m' then raise Occur
+    | Evar (_, args) -> SList.Skip.iter occrec args
+    | _ -> EConstr.iter sigma occrec c
+    in
+    try occrec c; false with Occur -> true
 
 let occur_evar sigma n c =
-  let rec occur_rec c = match EConstr.kind sigma c with
-    | Evar (sp, args) ->
-      if Evar.equal sp n then raise Occur
-      else SList.Skip.iter occur_rec args
-    | _ -> EConstr.iter sigma occur_rec c
-  in
-  try occur_rec c; false with Occur -> true
+  if not (may_have_evar c) then false
+  else
+    let rec occur_rec c = match EConstr.kind sigma c with
+      | Evar (sp, args) ->
+        if Evar.equal sp n then raise Occur
+        else SList.Skip.iter occur_rec args
+      | _ -> EConstr.iter sigma occur_rec c
+    in
+    try occur_rec c; false with Occur -> true
 
 let occur_in_global env id constr =
   let vars = vars_of_global env constr in

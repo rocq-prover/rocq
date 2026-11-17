@@ -170,6 +170,8 @@ sig
   external unwrap : ('constr, 'types, 'sort, 'univs, 'r) Wrap.t -> ('constr, 'types, 'sort, 'univs, 'r) kind_of_term = "%identity"
   val wrap : (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term -> (t, t, Sorts.t, Instance.t, Sorts.relevance) Wrap.t
   val hash : t -> int [@@ocaml.warning "-32"]
+  val may_have_evar : t -> bool
+  val may_have_meta : t -> bool
   val closedn_status : int -> t -> closedn_status
 end =
 struct
@@ -187,28 +189,39 @@ let[@inline always] stored_hash (T k) =
   let fields : int array = Obj.magic k in
   Array.unsafe_get fields (Array.length fields - 1)
 
-(* The upper seven non-sign bits cache a conservative summary of the number of
-   enclosing binders needed to close a term. The low six bits are a lower
-   bound; the high bit means that the actual bound may be greater. *)
+(* The upper nine non-sign bits cache a conservative syntactic summary.  The
+   low seven encode the relative binder bound: the low six bits are a lower
+   bound and the high bit means that the actual bound may be greater.  The
+   remaining two bits record Evar and Meta occurrence, respectively. *)
 let rel_bound_bits = 6
 let rel_bound_value_mask = (1 lsl rel_bound_bits) - 1
 let rel_bound_unknown_bit = 1 lsl rel_bound_bits
 let rel_bound_mask = rel_bound_value_mask lor rel_bound_unknown_bit
-let rel_bound_shift = Sys.int_size - 1 - (rel_bound_bits + 1)
-let rel_bound_field_mask = rel_bound_mask lsl rel_bound_shift
-let semantic_hash_mask = lnot rel_bound_field_mask
+let may_have_evar_bit = 1 lsl (rel_bound_bits + 1)
+let may_have_meta_bit = 1 lsl (rel_bound_bits + 2)
+let syntactic_flag_mask = may_have_evar_bit lor may_have_meta_bit
+let summary_mask = rel_bound_mask lor syntactic_flag_mask
+let summary_shift = Sys.int_size - 1 - (rel_bound_bits + 3)
+let summary_field_mask = summary_mask lsl summary_shift
+let semantic_hash_mask = lnot summary_field_mask
 
-let[@inline] pack h b =
-  assert (0 <= b && b <= rel_bound_mask);
-  (h land semantic_hash_mask) lor (b lsl rel_bound_shift)
+let[@inline] pack h summary =
+  assert (0 <= summary && summary <= summary_mask);
+  (h land semantic_hash_mask) lor (summary lsl summary_shift)
 
 let[@inline] hash_of_stored_hash h = h land semantic_hash_mask
+let[@inline] summary_of_stored_hash h =
+  (h lsr summary_shift) land summary_mask
 let[@inline] rel_bound_of_stored_hash h =
-  (h lsr rel_bound_shift) land rel_bound_mask
+  summary_of_stored_hash h land rel_bound_mask
 
 (* Designed so that [Constr.equal t1 t2 = true] implies [hash t1 = hash t2]. *)
 let[@inline] hash c = hash_of_stored_hash (stored_hash c)
 let[@inline] rel_bound c = rel_bound_of_stored_hash (stored_hash c)
+let[@inline] may_have_evar c =
+  stored_hash c land (may_have_evar_bit lsl summary_shift) <> 0
+let[@inline] may_have_meta c =
+  stored_hash c land (may_have_meta_bit lsl summary_shift) <> 0
 
 let[@inline] rel_bound_leaf n =
   if n <= 0 then 0
@@ -219,12 +232,12 @@ let[@inline] rel_bound_max b1 b2 =
   let lo1 = b1 land rel_bound_value_mask in
   let lo2 = b2 land rel_bound_value_mask in
   (if lo1 >= lo2 then lo1 else lo2)
-  lor ((b1 lor b2) land rel_bound_unknown_bit)
+  lor ((b1 lor b2) land (rel_bound_unknown_bit lor syntactic_flag_mask))
 
 let[@inline] rel_bound_under n b =
   let lo = (b land rel_bound_value_mask) - n in
   (if lo > 0 then lo else 0)
-  lor (b land rel_bound_unknown_bit)
+  lor (b land (rel_bound_unknown_bit lor syntactic_flag_mask))
 
 (* Compute both summaries in one traversal.  In particular, do not compute a
    hash and relative bound in separate traversals of an Evar instance or a
@@ -234,7 +247,7 @@ let rec hash_and_rel_bound_slist_loop h b = function
 | SList.Cons (c, l) ->
   let info = stored_hash c in
   hash_and_rel_bound_slist_loop (combine h (hash_of_stored_hash info))
-    (rel_bound_max b (rel_bound_of_stored_hash info)) l
+    (rel_bound_max b (summary_of_stored_hash info)) l
 | SList.Default (_, l) -> hash_and_rel_bound_slist_loop h b l
 
 let hash_and_rel_bound_slist l = hash_and_rel_bound_slist_loop 0 0 l
@@ -245,7 +258,7 @@ let rec hash_and_rel_bound_array_loop v n i h b =
     let info = stored_hash (Array.unsafe_get v i) in
     hash_and_rel_bound_array_loop v n (succ i)
       (combine h (hash_of_stored_hash info))
-      (rel_bound_max b (rel_bound_of_stored_hash info))
+      (rel_bound_max b (summary_of_stored_hash info))
 
 let hash_and_rel_bound_array v =
   hash_and_rel_bound_array_loop v (Array.length v) 0 0 0
@@ -259,7 +272,7 @@ let hash_and_rel_bound_invert = function
 let hash_and_rel_bound_under_context (nas, c) =
   let info = stored_hash c in
   hash_of_stored_hash info,
-  rel_bound_under (Array.length nas) (rel_bound_of_stored_hash info)
+  rel_bound_under (Array.length nas) (summary_of_stored_hash info)
 
 let hash_and_rel_bound_return ((nas, c), _) =
   hash_and_rel_bound_under_context (nas, c)
@@ -272,7 +285,7 @@ let rec hash_and_rel_bound_branches_loop br n i h b =
     hash_and_rel_bound_branches_loop br n (succ i)
       (combine h (hash_of_stored_hash info))
       (rel_bound_max b
-         (rel_bound_under (Array.length nas) (rel_bound_of_stored_hash info)))
+         (rel_bound_under (Array.length nas) (summary_of_stored_hash info)))
 
 let hash_and_rel_bound_branches br =
   hash_and_rel_bound_branches_loop br (Array.length br) 0 0 0
@@ -286,11 +299,11 @@ let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
   Wrap.Var (id, pack (combinesmall 2 h) 0)
 | Meta m ->
   let h = Int.hash m in
-  Wrap.Meta (m, pack (combinesmall 3 h) 0)
+  Wrap.Meta (m, pack (combinesmall 3 h) may_have_meta_bit)
 | Evar ((evk, l) as ev) ->
   let hl, bl = hash_and_rel_bound_slist l in
   let h = combine (Evar.hash evk) hl in
-  Wrap.Evar (ev, pack (combinesmall 4 h) bl)
+  Wrap.Evar (ev, pack (combinesmall 4 h) (bl lor may_have_evar_bit))
 | Sort s ->
   let h = Sorts.hash s in
   Wrap.Sort (s, pack (combinesmall 5 h) 0)
@@ -298,24 +311,24 @@ let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
   (* Ignore the Cast node to preserve Constr.equal compat. *)
   let hc = stored_hash c in
   let ht = stored_hash t in
-  let b = rel_bound_max (rel_bound_of_stored_hash hc)
-    (rel_bound_of_stored_hash ht)
+  let b = rel_bound_max (summary_of_stored_hash hc)
+    (summary_of_stored_hash ht)
   in
   Wrap.Cast (c, k, t, pack (hash_of_stored_hash hc) b)
 | Prod (na, t, u) ->
   let ht = stored_hash t in
   let hu = stored_hash u in
   let h = combine (hash_of_stored_hash ht) (hash_of_stored_hash hu) in
-  let b = rel_bound_max (rel_bound_of_stored_hash ht)
-    (rel_bound_under 1 (rel_bound_of_stored_hash hu))
+  let b = rel_bound_max (summary_of_stored_hash ht)
+    (rel_bound_under 1 (summary_of_stored_hash hu))
   in
   Wrap.Prod (na, t, u, pack (combinesmall 7 h) b)
 | Lambda (na, t, c) ->
   let ht = stored_hash t in
   let hc = stored_hash c in
   let h = combine (hash_of_stored_hash ht) (hash_of_stored_hash hc) in
-  let b = rel_bound_max (rel_bound_of_stored_hash ht)
-    (rel_bound_under 1 (rel_bound_of_stored_hash hc))
+  let b = rel_bound_max (summary_of_stored_hash ht)
+    (rel_bound_under 1 (summary_of_stored_hash hc))
   in
   Wrap.Lambda (na, t, c, pack (combinesmall 8 h) b)
 | LetIn (na, b, t, c) ->
@@ -325,16 +338,16 @@ let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
   let h = combine3 (hash_of_stored_hash hb) (hash_of_stored_hash ht)
     (hash_of_stored_hash hc)
   in
-  let r = rel_bound_max (rel_bound_of_stored_hash hb)
-    (rel_bound_max (rel_bound_of_stored_hash ht)
-       (rel_bound_under 1 (rel_bound_of_stored_hash hc)))
+  let r = rel_bound_max (summary_of_stored_hash hb)
+    (rel_bound_max (summary_of_stored_hash ht)
+       (rel_bound_under 1 (summary_of_stored_hash hc)))
   in
   Wrap.LetIn (na, b, t, c, pack (combinesmall 9 h) r)
 | App (c, args) ->
   let info = stored_hash c in
   let ha, ba = hash_and_rel_bound_array args in
   let h = combine (hash_of_stored_hash info) ha in
-  let b = rel_bound_max (rel_bound_of_stored_hash info) ba in
+  let b = rel_bound_max (summary_of_stored_hash info) ba in
   Wrap.App (c, args, pack (combinesmall 10 h) b)
 | Const ((cst, u) as pcst) ->
   let h = combine (Constant.CanOrd.hash cst) (UVars.Instance.hash u) in (* XXX *)
@@ -359,7 +372,7 @@ let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
     rel_bound_max bpms
       (rel_bound_max bp
         (rel_bound_max biv
-          (rel_bound_max (rel_bound_of_stored_hash hc) bbr)))
+          (rel_bound_max (summary_of_stored_hash hc) bbr)))
   in
   Wrap.Case (ci, u, pms, p, iv, c, br, pack (combinesmall 14 h) b)
 | Fix ((ln, i), (nas, ft, fb) as rdef) ->
@@ -379,7 +392,7 @@ let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
   let hc = stored_hash c in
   let h = combine (Projection.CanOrd.hash p) (hash_of_stored_hash hc) in (* XXX *)
   Wrap.Proj (p, r, c,
-    pack (combinesmall 17 h) (rel_bound_of_stored_hash hc))
+    pack (combinesmall 17 h) (summary_of_stored_hash hc))
 | Int i ->
   let h = Uint63.hash i in
   Wrap.Int (i, pack (combinesmall 18 h) 0)
@@ -397,7 +410,7 @@ let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
     (hash_of_stored_hash hdef) (hash_of_stored_hash ht)
   in
   let b = rel_bound_max bv
-    (rel_bound_max (rel_bound_of_stored_hash hdef) (rel_bound_of_stored_hash ht))
+    (rel_bound_max (summary_of_stored_hash hdef) (summary_of_stored_hash ht))
   in
   Wrap.Array (u, v, def, t, pack (combinesmall 21 h) b)
 
@@ -414,6 +427,8 @@ let closedn_status n c =
 end
 
 let closedn_status = View.closedn_status
+let may_have_evar = View.may_have_evar
+let may_have_meta = View.may_have_meta
 
 (* User view of [constr]. For [App], it is ensured there is at
    least one argument and the function is not itself an applicative
