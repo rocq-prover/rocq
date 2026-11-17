@@ -453,12 +453,21 @@ struct
   let pattern_syntactic env pat =
     Dn.pattern (bounded_constr_pat_discr_syntactic env) (Pattern pat, !dnet_depth)
 
+  let is_proper = function
+  | GRLabel gr ->
+    Rocqlib.check_ref "rewrite.prop.Proper" gr || Rocqlib.check_ref "rewrite.type.Proper" gr
+  | _ -> false
+
   let constr_pattern env sigma st pat =
-    let mk p = match bounded_constr_val_discr env st sigma p with
-    | Label l -> Some l
-    | Everything | Nothing -> None
+    let mk (p, depth, syn) =
+      let st = if syn then Some TransparentState.empty else st in
+      match bounded_constr_val_discr env st sigma (p, depth) with
+      | Label (lbl, l) ->
+        let proper = not syn && Int.equal (List.length l) 3 && is_proper lbl in
+        Some (lbl, List.mapi (fun i (p, d) -> (p, d, syn || (proper && Int.equal i 2))) l)
+      | Everything | Nothing -> None
     in
-    Dn.pattern mk (Constr pat, !dnet_depth)
+    Dn.pattern mk (Constr pat, !dnet_depth, false)
 
   let empty = Dn.empty
   let add = Dn.add
