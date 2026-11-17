@@ -632,6 +632,9 @@ let mkSsrConst env sigma name =
 
 let mkProt env sigma t c =
   let sigma, prot = mkSsrConst env sigma "protect_term" in
+  let protty = Retyping.get_type_of env sigma prot in
+  let (_, dom, _) = EConstr.destProd sigma protty in
+  let sigma = Evd.set_leq_sort sigma (Retyping.get_sort_of env sigma t) (EConstr.destSort sigma dom) in
   sigma, EConstr.mkApp (prot, [|t; c|])
 
 let mkEtaApp c n imin =

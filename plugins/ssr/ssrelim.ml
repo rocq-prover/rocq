@@ -168,10 +168,13 @@ let unif_redex env sigma0 nsigma pext t = (* t is a hint for the redex of p *)
 let get_nth_arg n args =
   List.find_map_exn (fun (i, x, _) -> if Int.equal i n then Some x else None) args
 
+let get_nth_arg_type n args =
+  List.find_map_exn (fun (i, _, t) -> if Int.equal i n then Some t else None) args
+
 let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
   match elim with
   | Some elim ->
-    let sigma, elimty = Typing.type_of env sigma elim in
+    let elimty = Retyping.get_type_of env sigma elim in
     let elimty =
       let rename_elimty r =
         EConstr.of_constr
@@ -189,20 +192,21 @@ let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
     let elim, elimty, elim_args, sigma =
       saturate ~beta:is_case env sigma elim ~ty:elimty n_elim_args in
     let pred = get_nth_arg pred_id elim_args in
+    let predty = get_nth_arg_type pred_id elim_args in
     let elimty = Reductionops.whd_all env sigma elimty in
     let cty, sigma =
       if Option.is_empty oc then None, sigma
       else
         let c = Option.get oc in
-        let sigma, c_ty = Typing.type_of env sigma c in
+        let c_ty = Retyping.get_type_of env sigma c in
         let pc = match c_gen with
           | Some p -> interp_cpattern env sigma p None
           | _ -> mkTpat env sigma (sigma, c) in
         Some(c, c_ty, pattern_extension ~env ~base:sigma pc), sigma in
-    sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred
+    sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred, predty
   | None ->
     let c = Option.get oc in
-    let sigma, c_ty = Typing.type_of env sigma c in
+    let c_ty = Retyping.get_type_of env sigma c in
     let ((kn, i),_ as indu), unfolded_c_ty =
       Tacred.reduce_to_quantified_ind env sigma c_ty in
     let sort = Retyping.get_sort_of env sigma concl in
@@ -245,12 +249,13 @@ let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
     let elim, elimty, elim_args, sigma =
       saturate ~beta:is_case env sigma elim ~ty:elimty n_elim_args in
     let pred = get_nth_arg pred_id elim_args in
+    let predty = get_nth_arg_type pred_id elim_args in
     let pc = match n_c_args, c_gen with
       | 0, Some p -> interp_cpattern env sigma p None
       | _ -> mkTpat env sigma (sigma, c) in
     let cty = Some (c, c_ty, pattern_extension ~env ~base:sigma pc) in
     let elimty = Reductionops.whd_all env sigma elimty in
-    sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred
+    sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred, predty
 
 let saturate_until env sigma c c_ty f =
   let rec loop n = try
@@ -288,7 +293,7 @@ let get_head_pattern env sigma elim_is_dep elim_args n_elim_args inf_deps_r cty 
     (* we try to see if c unifies with the last arg of elim *)
     if elim_is_dep then None else
     let arg = get_nth_arg (n_elim_args - 1) elim_args in
-    let sigma, arg_ty = Typing.type_of env sigma arg in
+    let arg_ty = get_nth_arg_type (n_elim_args - 1) elim_args in
     match saturate_until env sigma c c_ty (fun sigma c c_ty ->
       unify_HO env (unify_HO_rigid env sigma c_ty arg_ty) arg c) with
     | Some (c, _, _, sigma) -> Some (sigma, false)
@@ -297,7 +302,7 @@ let get_head_pattern env sigma elim_is_dep elim_args n_elim_args inf_deps_r cty 
     (* we try to see if c unifies with the last inferred pattern *)
     if inf_deps_r = [] then None else
     let inf_arg = List.hd inf_deps_r in
-    let sigma, inf_arg_ty = Typing.type_of env sigma inf_arg in
+    let inf_arg_ty = Retyping.get_type_of env sigma inf_arg in
     match saturate_until env sigma c c_ty (fun sigma _ c_ty ->
             unify_HO_rigid env sigma c_ty inf_arg_ty) with
     | Some (c, _, _, sigma) -> Some(sigma, true)
@@ -367,11 +372,13 @@ let generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n
     else match_all concl sigma postponed in
   let concl, sigma = match_all concl sigma patterns in
   let pred_rctx, _ = EConstr.decompose_prod_decls sigma (fire_subst sigma predty) in
+  let penv = EConstr.push_rel_context pred_rctx env in
+  let sigma, _ = Typing.recheck_against penv sigma (EConstr.Vars.lift (List.length pred_rctx) concl0) concl in
   let sigma, concl, gen_eq_tac, clr = match eqid with
   | Some (IPatId _) when not is_rec ->
       let k = List.length deps in
       let c = fire_subst sigma (get_nth_arg (n_elim_args - k - 1) elim_args) in
-      let sigma, t = Typing.type_of env sigma c in
+      let t = get_nth_arg_type (n_elim_args - k - 1) elim_args in
       let sigma, eq = get_eq_type env sigma in
       let sigma, gen_eq_tac, eq_ty =
         let refl = EConstr.mkApp (eq, [|t; c; c|]) in
@@ -379,8 +386,7 @@ let generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n
         let new_concl = fire_subst sigma new_concl in
         let sigma, erefl = mkRefl env sigma t c in
         let erefl = fire_subst sigma erefl in
-        let erefl_ty = Retyping.get_type_of env sigma erefl in
-        let eq_ty = Retyping.get_type_of env sigma erefl_ty in
+        let eq_ty = Retyping.get_type_of env sigma refl in
         let ucst = Evd.ustate sigma in
         let evds = Evar.Map.bind (Evd.find_undefined sigma) @@
           Evd.evars_of_term sigma new_concl in
@@ -404,6 +410,7 @@ let generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n
         sigma, gen_eq_tac, eq_ty
       in
       let rel = k + if c_is_head_p then 1 else 0 in
+      let sigma = Typing.check penv sigma (EConstr.mkRel rel) t in
       let sigma, src = mkProt env sigma eq_ty EConstr.(mkApp (eq,[|t; c; mkRel rel|])) in
       let concl = EConstr.mkArrow src EConstr.ERelevance.relevant (EConstr.Vars.lift 1 concl) in
       let clr = if deps <> [] then clr else [] in
@@ -413,10 +420,8 @@ let generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n
   let concl = List.fold_left mk_lam concl pred_rctx in
   let sigma, concl =
     if eqid <> None && is_rec then
-      let sigma, concls = Typing.type_of env sigma concl in
-      let sigma, concl = mkProt env sigma concls concl in
-      let sigma, _ = Typing.type_of env sigma concl in
-      sigma, concl
+      let concls = Retyping.get_type_of env sigma concl in
+      mkProt env sigma concls concl
     else sigma, concl in
   sigma, concl, gen_eq_tac, clr
 
@@ -471,7 +476,7 @@ let ssrelim ?(is_case=false) deps what ?elim eqid elim_intro_tac =
   (* cty is None when the user writes _ (hence we can't make a pattern *)
   (* `seed` represents the array of types from which we derive the name seeds
      for the block intro patterns *)
-  let sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred =
+  let sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred, predty =
     find_eliminator env sigma ~concl ~is_case ?elim oc c_gen
   in
   let () =
@@ -486,7 +491,6 @@ let ssrelim ?(is_case=false) deps what ?elim eqid elim_intro_tac =
     * wether tn is the t the user wrote in 'elim: t' *)
   let sigma, c_is_head_p = get_head_pattern env sigma elim_is_dep elim_args n_elim_args inf_deps_r cty in
   debug_ssr (fun () -> Pp.(str"c_is_head_p= " ++ bool c_is_head_p));
-  let sigma, predty = Typing.type_of env sigma pred in
   (* Patterns for the inductive types indexes to be bound in pred are computed
    * looking at the ones provided by the user and the inferred ones looking at
    * the type of the elimination principle *)
@@ -500,9 +504,8 @@ let ssrelim ?(is_case=false) deps what ?elim eqid elim_intro_tac =
   let sigma, elim_pred, gen_eq_tac, clr =
     generate_pred env sigma0 ~concl patterns predty eqid is_rec deps elim_args n_elim_args c_is_head_p clr sigma
   in
-  let sigma, pty = Typing.type_of env sigma elim_pred in
   debug_ssr (fun () -> Pp.(str"elim_pred=" ++ pr_econstr_env env sigma elim_pred));
-  debug_ssr (fun () -> Pp.(str"elim_pred_ty=" ++ pr_econstr_env env sigma pty));
+  debug_ssr (fun () -> Pp.(str"elim_pred_ty=" ++ pr_econstr_env env sigma (Retyping.get_type_of env sigma elim_pred)));
   let sigma = unify_HO env sigma pred elim_pred in
   let elim = fire_subst sigma elim in
   let sigma = resolve_typeclasses env sigma ~where:elim ~fail:false in
