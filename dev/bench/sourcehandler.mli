@@ -15,6 +15,7 @@ val join_to_source : dummy:'a -> source:string -> (char_loc * 'a) list -> (sourc
     maybe gaps, associate them to substrings of the source and fill in
     the gaps using [dummy].
 
-    When a gap is all whitespace in the source, it is merged to the
-    next value (dropped if at the end).
+    When a gap ends with whitespace (not newlines) that whitespace is merged into the next value.
+
+    An all-blank gap at the end is dropped.
 *)
