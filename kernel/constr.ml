@@ -177,28 +177,14 @@ open Hashset.Combine
 external unwrap : ('constr, 'types, 'sort, 'univs, 'r) Wrap.t -> ('constr, 'types, 'sort, 'univs, 'r) kind_of_term = "%identity"
 
 (* Designed so that [Constr.equal t1 t2 = true] implies [hash t1 = hash t2] *)
-let hash (T k) = match k with
-| Wrap.Rel (_, h) -> h
-| Wrap.Var (_, h) -> h
-| Wrap.Meta (_, h) -> h
-| Wrap.Evar (_, h) -> h
-| Wrap.Sort (_, h) -> h
-| Wrap.Cast (_, _, _, h) -> h
-| Wrap.Prod (_, _, _, h) -> h
-| Wrap.Lambda (_, _, _, h) -> h
-| Wrap.LetIn (_, _, _, _, h) -> h
-| Wrap.App (_, _, h) -> h
-| Wrap.Const (_, h) -> h
-| Wrap.Ind (_, h) -> h
-| Wrap.Construct (_, h) -> h
-| Wrap.Case (_, _, _, _, _, _, _, h) -> h
-| Wrap.Fix (_, h) -> h
-| Wrap.CoFix (_, h) -> h
-| Wrap.Proj (_, _, _, h) -> h
-| Wrap.Int (_, h) -> h
-| Wrap.Float (_, h) -> h
-| Wrap.String (_, h) -> h
-| Wrap.Array (_, _, _, _, h) -> h
+
+(* Every [Wrap.t] constructor is a regular block and stores its hash in its
+   final field.  Casting it to an [int array] lets [Array.length] read the
+   block's payload size and [unsafe_get] read that field without dispatching
+   on the constructor tag. *)
+let[@inline always] hash (T k) =
+  let fields : int array = Obj.magic k in
+  Array.unsafe_get fields (Array.length fields - 1)
 
 let hash_slist l =
   SList.Skip.fold (fun accu c -> combine accu (hash c)) 0 l
