@@ -375,14 +375,18 @@ let whd_meta ~metas sigma c = match EConstr.kind sigma c with
   | _ -> c
 
 let occur_meta_evd ~metas sigma mv c =
-  let rec occrec c =
-    (* Note: evars are not instantiated by terms with metas *)
-    let c = whd_meta ~metas sigma c in
-    match EConstr.kind sigma c with
-    | Meta mv' when Int.equal mv mv' -> raise Occur
-    | Evar (_, args) -> SList.Skip.iter occrec args
-    | _ -> EConstr.iter sigma occrec c
-  in try occrec c; false with Occur -> true
+  (* A defined evar can expand to a meta, hence both summaries matter. *)
+  let c' = EConstr.Unsafe.to_constr c in
+  if not (Constr.may_have_evar c' || Constr.may_have_meta c') then false
+  else
+    let rec occrec c =
+      (* Note: evars are not instantiated by terms with metas *)
+      let c = whd_meta ~metas sigma c in
+      match EConstr.kind sigma c with
+      | Meta mv' when Int.equal mv mv' -> raise Occur
+      | Evar (_, args) -> SList.Skip.iter occrec args
+      | _ -> EConstr.iter sigma occrec c
+    in try occrec c; false with Occur -> true
 
 (* if lname_typ is [xn,An;..;x1,A1] and l is a list of terms,
    gives [x1:A1]..[xn:An]c' such that c converts to ([x1:A1]..[xn:An]c' l) *)
