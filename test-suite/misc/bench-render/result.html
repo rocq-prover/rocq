@@ -43,8 +43,8 @@ code::before {
 <body>
 <h1>Timings for foo.v</h1>
 <ol>
-<li style="background-color: #F08080">foo.v.time1 (total time: 3s)</li>
-<li style="background-color: #EEE8AA">foo.v.time2 (total time: 2.5s)</li>
+<li style="background-color: #F08080">foo.v.time1 (total time: 3.5s)</li>
+<li style="background-color: #EEE8AA">foo.v.time2 (total time: 3.5s)</li>
 </ol>
 <input type="radio" name="mode" id="time" checked><label for="time">Time</label>
 <pre><div class="code" title="File: foo.v
@@ -109,7 +109,31 @@ Line: 15
 Time1: 0s
 Time2: 0s
 "><div class="measure1 time" style="width: 0.000000%"></div><div class="measure2 time" style="width: 0.000000%"></div><code id="L15" data-line="15"></code>
-<code id="L16" data-line="16">(* end of file comment *)</code>
+</div><div class="code" title="File: foo.v
+Line: 16
+
+Time1: 0.s
+Time2: 0.s
+"><div class="measure1 time" style="width: 0.000000%"></div><div class="measure2 time" style="width: 0.000000%"></div><code id="L16" data-line="16">Module M.</code>
+</div><div class="code" title="File: foo.v
+Line: 17
+
+Time1: 0.5s
+Time2: 1.s
+"><div class="measure1 time" style="width: 25.000000%"></div><div class="measure2 time" style="width: 50.000000%"></div><code id="L17" data-line="17">  Definition e := 5.</code>
+</div><div class="code" title="File: foo.v
+Line: 18
+
+Time1: 0.s
+Time2: 0.s
+"><div class="measure1 time" style="width: 0.000000%"></div><div class="measure2 time" style="width: 0.000000%"></div><code id="L18" data-line="18">End M.</code>
+</div><div class="code" title="File: foo.v
+Line: 19
+
+Time1: 0s
+Time2: 0s
+"><div class="measure1 time" style="width: 0.000000%"></div><div class="measure2 time" style="width: 0.000000%"></div><code id="L19" data-line="19"></code>
+<code id="L20" data-line="20">(* end of file comment *)</code>
 </div>
 </pre>
 

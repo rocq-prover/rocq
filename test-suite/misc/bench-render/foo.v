@@ -13,4 +13,8 @@ Definition b :=
 
 Definition c := 3. (* hello *) Definition d := 4.
 
+Module M.
+  Definition e := 5.
+End M.
+
 (* end of file comment *)
