@@ -45,12 +45,15 @@ type 'a freelisted = {
 
 (* Collects all metavars appearing in a constr *)
 let metavars_of c =
-  let rec collrec acc c =
-    match Constr.kind c with
-      | Meta mv -> Int.Set.add mv acc
-      | _         -> Constr.fold collrec acc c
-  in
-  collrec Int.Set.empty (EConstr.Unsafe.to_constr c)
+  let raw = EConstr.Unsafe.to_constr c in
+  if not (Constr.may_have_meta raw) then Int.Set.empty
+  else
+    let rec collrec acc c =
+      match Constr.kind c with
+        | Meta mv -> Int.Set.add mv acc
+        | _       -> Constr.fold collrec acc c
+    in
+    collrec Int.Set.empty raw
 
 let mk_freelisted c =
   { rebus = c; freemetas = metavars_of c }
@@ -477,40 +480,48 @@ let extract_instance_status = function
   | CONV -> add_type_status (Conv, Conv)
 
 let rec subst_meta_instances sigma bl c =
-  match EConstr.kind sigma c with
-    | Meta i ->
-      let select (j,_,_) = Int.equal i j in
-      (try pi2 (List.find select bl) with Not_found -> c)
-    | _ -> EConstr.map sigma (subst_meta_instances sigma bl) c
+  let raw = EConstr.Unsafe.to_constr c in
+  (* [EConstr.kind] can unfold a defined evar to a term containing a Meta. *)
+  if not (Constr.may_have_evar raw || Constr.may_have_meta raw) then c
+  else
+    match EConstr.kind sigma c with
+      | Meta i ->
+        let select (j,_,_) = Int.equal i j in
+        (try pi2 (List.find select bl) with Not_found -> c)
+      | _ -> EConstr.map sigma (subst_meta_instances sigma bl) c
 
 (** [env] should be the context in which the metas live *)
 
 let pose_all_metas_as_evars ~metas env evd t =
-  let evdref = ref evd in
-  let metas = ref metas in
-  let rec aux t = match EConstr.kind !evdref t with
-  | Meta mv ->
-      (match Meta.meta_opt_fvalue !metas mv with
-       | Some {rebus=c;freemetas=mvs} ->
-         let c = if Metaset.is_empty mvs then c else aux c in
-         metas := Meta.meta_reassign mv (c,(Conv,TypeNotProcessed)) !metas;
-         c
-       | None ->
-        let {rebus=ty;freemetas=mvs} = Meta.meta_ftype !metas mv in
-        let ty = if Metaset.is_empty mvs then ty else aux ty in
-        let ty = nf_betaiota env !evdref ty in
-        let src = Meta.evar_source_of_meta mv !metas in
-        let typeclass_candidate = Typeclasses.is_maybe_class_type env !evdref ty in
-        let evd, ev = Evarutil.new_evar ~typeclass_candidate env !evdref ~src ty in
-        let evd, nmetas = Meta.meta_assign mv (ev, TypeNotProcessed) !metas evd in
-        let () = evdref := evd in
-        let () = metas := nmetas in
-        ev)
-  | _ ->
-      EConstr.map !evdref aux t in
-  let c = aux t in
-  (* side-effect *)
-  (!evdref, !metas, c)
+  let raw = EConstr.Unsafe.to_constr t in
+  (* Do not bypass defined evars: they may unfold to metas. *)
+  if not (Constr.may_have_evar raw || Constr.may_have_meta raw) then evd, metas, t
+  else
+    let evdref = ref evd in
+    let metas = ref metas in
+    let rec aux t = match EConstr.kind !evdref t with
+    | Meta mv ->
+        (match Meta.meta_opt_fvalue !metas mv with
+         | Some {rebus=c;freemetas=mvs} ->
+           let c = if Metaset.is_empty mvs then c else aux c in
+           metas := Meta.meta_reassign mv (c,(Conv,TypeNotProcessed)) !metas;
+           c
+         | None ->
+          let {rebus=ty;freemetas=mvs} = Meta.meta_ftype !metas mv in
+          let ty = if Metaset.is_empty mvs then ty else aux ty in
+          let ty = nf_betaiota env !evdref ty in
+          let src = Meta.evar_source_of_meta mv !metas in
+          let typeclass_candidate = Typeclasses.is_maybe_class_type env !evdref ty in
+          let evd, ev = Evarutil.new_evar ~typeclass_candidate env !evdref ~src ty in
+          let evd, nmetas = Meta.meta_assign mv (ev, TypeNotProcessed) !metas evd in
+          let () = evdref := evd in
+          let () = metas := nmetas in
+          ev)
+    | _ ->
+        EConstr.map !evdref aux t in
+    let c = aux t in
+    (* side-effect *)
+    (!evdref, !metas, c)
 
 let solve_pattern_eqn_array (env,nb) f l c (subst : subst0) =
   let sigma = subst.subst_sigma in
