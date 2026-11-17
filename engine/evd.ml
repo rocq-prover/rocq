@@ -1934,12 +1934,11 @@ let evars_of_filtered_evar_info (type a) evd (evi : a evar_info) =
 
 let drop_new_defined ~original sigma =
   NewProfile.profile "drop_new_defined" (fun () ->
-  let to_keep, to_drop = Evar.Map.partition (fun ev _ ->
+  let to_keep = Evar.Map.filter (fun ev _ ->
       Evar.Map.mem ev original.defn_evars || Evar.Map.mem ev original.undf_evars)
       sigma.defn_evars
   in
-  let dummy = { empty with defn_evars = to_drop } in
-  let nfc c = snd @@ MiniEConstr.to_constr_gen ~expand:true ~ignore_missing:false dummy c in (* FIXME: do we really need to expand? *)
+  let nfc c = snd @@ MiniEConstr.to_constr_gen ~expand:true ~ignore_missing:false sigma c in (* FIXME: do we really need to expand? *)
   assert (List.is_empty sigma.conv_pbs);
   let normalize_changed _ev orig evi =
     match orig, evi with
