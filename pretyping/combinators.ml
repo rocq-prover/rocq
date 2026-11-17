@@ -121,14 +121,27 @@ let make_tuple env sigma (rterm,rty) lind =
     (applist(exist_term,[a;p;(mkRel lind);rterm]),
      applist(sig_term,[a;p]))
 
+let expand_let_rels env sigma c =
+  let rec aux k c = match EConstr.kind sigma c with
+  | Rel n when n > k ->
+    begin match lookup_rel (n - k) env with
+    | RelDecl.LocalDef (_, b, _) -> aux k (Vars.lift n b)
+    | RelDecl.LocalAssum _ -> c
+    end
+  | _ -> EConstr.map_with_binders sigma succ aux k c
+  in
+  aux 0 c
+
 (* check that the free-references of the type of [c] are contained in
    the free-references of the normal-form of that type. Strictly
    computing the exact set of free rels would require full
    normalization but this is not reasonable (e.g. in presence of
-   records that contains proofs). We restrict ourself to a "simpl"
+   records that contains proofs). We restrict ourself to unfolding
+   the local definitions of the context followed by a "simpl"
    normalization *)
 
 let minimal_free_rels env sigma (c,cty) =
+  let cty = expand_let_rels env sigma cty in
   let cty_rels = free_rels sigma cty in
   let cty' = Tacred.simpl env sigma cty in
   let rels' = free_rels sigma cty' in

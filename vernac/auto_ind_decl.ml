@@ -112,6 +112,13 @@ let is_irrelevant env c =
   | Sort SProp -> true
   | _ -> false
 
+let expand_letins ctx c =
+  let fold (i, c) = function
+    | RelDecl.LocalAssum _ -> (i + 1, c)
+    | RelDecl.LocalDef (_, b, _) -> (i + 1, Vars.substnl [lift 1 b] (i - 1) (Vars.liftn 1 (i + 1) c))
+  in
+  snd (List.fold_left fold (1, c) ctx)
+
 let get_scheme handle k ind = match Ind_tables.local_lookup_scheme handle k ind with
 | None -> assert false
 | Some c -> c
@@ -759,12 +766,14 @@ let build_beq_scheme env handle kn =
           | RelDecl.LocalAssum (na,cc) ->
               if is_irrelevant env_lift.env cc then (ndx-1,env_lift',l)
               else
+                let prev = EConstr.Unsafe.to_rel_context (List.lastn (nb_cstr_args-ndx) constrs.(0).cs_args) in
+                let cc = expand_letins prev cc in
                 if Vars.noccur_between 1 (nb_cstr_args-ndx) cc then
                   let cc = lift (ndx-nb_cstr_args) cc in
                   match translate_term_eq env_lift_recparams_fix_nonrecparams_tomatch cc with
                   | None -> raise (EqUnknown "type") (* A supported type should have an eq *)
                   | Some eqA ->
-                     let proj, relevance = projs.(nb_cstr_args-ndx) in
+                     let proj, relevance = projs.(Context.Rel.nhyps prev) in
                      let proj = Projection.make proj true in
                      (ndx-1,env_lift',mkApp (eqA, [|mkProj (proj, relevance, mkRel 2);
                                                     mkProj (proj, relevance, mkRel 1)|])::l)
@@ -793,6 +802,7 @@ let build_beq_scheme env handle kn =
                    | RelDecl.LocalAssum (na,cc) ->
                      if is_irrelevant env_lift.env cc then (ndx-1,env_lift',l)
                      else
+                       let cc = expand_letins (EConstr.Unsafe.to_rel_context (List.lastn (nb_cstr_args-ndx) constrs.(j).cs_args)) cc in
                        if Vars.noccur_between 1 (nb_cstr_args-ndx) cc then
                          let cc = lift (ndx-nb_cstr_args) cc in
                          match translate_term_eq env_lift_recparams_fix_nonrecparams_tomatch_csargsij cc with
