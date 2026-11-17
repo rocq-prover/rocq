@@ -613,6 +613,33 @@ let with_zeta env =
 
 exception Expand
 
+exception Has_universes
+
+(* Raises [Has_universes] at a sort or an instance with universes; allocates nothing *)
+let has_universes_visitor = Vars.{
+  visit_sort = (fun () -> function
+      | Sorts.(SProp | Prop | Set) -> ()
+      | Sorts.(Type _ | GSort _ | VSort _) -> raise_notrace Has_universes);
+  visit_instance = (fun () u -> if UVars.Instance.has_universes u then raise_notrace Has_universes);
+  visit_relevance = (fun () _ -> ());
+  visit_ref = (fun () _ -> ());
+}
+
+(* [c] has no universe and nothing the inference would expand into a term with universes: an evar,
+   a constant of the volatile transparent state, a variable with Kernel Cumulativity Zeta *)
+let without_universes ~zeta volatile c =
+  let rec check c =
+    let k = Constr.kind c in
+    let () = match k with
+      | Constr.Evar _ -> raise_notrace Has_universes
+      | Constr.Rel _ | Constr.Var _ when zeta -> raise_notrace Has_universes
+      | Constr.Const (cst, _) when TransparentState.is_transparent_constant volatile cst -> raise_notrace Has_universes
+      | _ -> Vars.visit_kind_univs has_universes_visitor () k
+    in
+    Constr.iter check c
+  in
+  try check c; true with Has_universes -> false
+
 let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd stk =
   Control.check_for_interrupt ();
   let hd,stk = whd_stack infos hd stk in
@@ -736,7 +763,11 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
      (* The body is traversed under the binder, as for lambdas: substituting the variable in
         the body would copy it at each let-in, quadratically for nested let-ins *)
      let variances =
-       if Vars.noccurn 1 body then variances
+       (* A value without universes changes no variance: checking it first spares the scan of
+          the body for the variable, which is quadratic for nested let-ins *)
+       let zeta = with_zeta (info_env (fst infos)) in
+       if without_universes ~zeta (Inf.volatile variances) (CClosure.term_of_fconstr b)
+          || Vars.noccurn 1 body then variances
        else begin
          debug_infer_term Pp.(fun () -> str"infer_term at LetIn: " ++ Inf.pr Level.raw_pr variances ++ Constr.debug_print (CClosure.term_of_fconstr b));
          infer_fterm Conv variance infos variances b []
