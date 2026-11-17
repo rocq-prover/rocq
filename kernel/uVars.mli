@@ -245,6 +245,9 @@ sig
   val empty : t
   val is_empty : t -> bool
 
+  val has_universes : t -> bool
+  (** Whether the instance has universe arguments, not only sort qualities *)
+
   val of_array : Quality.t array * Universe.t array -> t
   val to_array : t -> Quality.t array * Universe.t array
 
