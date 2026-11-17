@@ -382,13 +382,21 @@ let judge_of_variable env id =
 
 let judge_of_projection env sigma p cj =
   let pr, pty = lookup_projection p env in
-  let (ind,u), args =
-    try find_mrectype env sigma cj.uj_type
-    with Not_found -> error_case_not_inductive env sigma cj
+  let sigma, (ind,u), args =
+    let (t, l) = EConstr.decompose_app sigma (whd_all env sigma cj.uj_type) in
+    match EConstr.kind sigma t with
+    | Ind ind -> sigma, ind, l
+    | Evar ev when Array.is_empty l ->
+      (* The type of the record is not known yet: as for the type of an
+         applied function, it is refined to the only possible one, the
+         record type of the projection applied to unknown parameters. *)
+      Evardefine.define_evar_as_inductive env sigma ev (Names.Projection.inductive p)
+    | _ -> error_case_not_inductive env sigma cj
   in
   let pr = Vars.subst_instance_relevance u (ERelevance.make pr) in
   let ty = Vars.subst_instance_constr u (EConstr.of_constr pty) in
-  let ty = substl (cj.uj_val :: List.rev args) ty in
+  let ty = substl (cj.uj_val :: Array.rev_to_list args) ty in
+  sigma,
   {uj_val = EConstr.mkProj (p,pr,cj.uj_val);
    uj_type = ty}
 
@@ -603,7 +611,7 @@ let rec execute env sigma cstr =
 
     | Proj (p, _, c) ->
       let sigma, cj = execute env sigma c in
-      sigma, judge_of_projection env sigma p cj
+      judge_of_projection env sigma p cj
 
     | App (f,args) ->
         let sigma, fj = execute env sigma f in
@@ -833,7 +841,7 @@ let rec recheck_against env sigma good c =
       if not (QProjection.equal env gp p) then default ()
       else
         let sigma, changed, c = recheck_against env sigma gc c in
-        maybe_changed (sigma, judge_of_projection env sigma p c)
+        maybe_changed (judge_of_projection env sigma p c)
 
     | App (gf, gargs),
       App (f, args) ->
