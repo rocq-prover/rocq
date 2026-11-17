@@ -207,24 +207,67 @@ let access_table what tables dp i =
   in
   Opaques.get_opaque_disk i t
 
+let stored_opaque o =
+  let (_sub, _ci, dp, i) = Opaqueproof.repr o in
+  if DirPath.equal dp (Global.current_dirpath ()) then
+    Opaques.get_current_opaque i
+  else
+    access_table "opaque proofs" opaque_tables dp i
+
 let access_opaque_table o =
-  let (sub, ci, dp, i) = Opaqueproof.repr o in
-  let ans =
-    if DirPath.equal dp (Global.current_dirpath ()) then
-      Opaques.get_current_opaque i
-    else
-      let what = "opaque proofs" in
-      access_table what opaque_tables dp i
-  in
-  match ans with
+  let (sub, ci, _, _) = Opaqueproof.repr o in
+  match stored_opaque o with
   | None -> None
   | Some (c, ctx) ->
     let (c, ctx) = Discharge.cook_opaque_proofterm ci (c, ctx) in
     let c = Mod_subst.subst_mps_list sub c in
     Some (c, ctx)
 
+(* The same term, with the module substitutions applied but not the section
+   discharge, plus what the discharge would have done.  [None] when the
+   discharge generalizes an inductive of the section, since a [Case]
+   node of the stored term then has fewer parameters than the discharged
+   inductive declares; and when a module substitution follows a discharge,
+   since the discharge knows the section constants by their names before the
+   substitution. *)
+let uncooked_opaque_table o =
+  let (sub, ci, _, _) = Opaqueproof.repr o in
+  if List.is_empty ci then
+    Option.map (fun (c, _) ->
+        { Global.uncooked_body = Mod_subst.subst_mps_list sub c;
+          Global.uncooked_bound = Id.Set.empty;
+          Global.uncooked_context = [];
+          Global.uncooked_cook = None })
+      (stored_opaque o)
+  else if not (List.is_empty sub) || List.exists Cooking.discharges_inductive ci
+  then None
+  else match stored_opaque o with
+  | None -> None
+  | Some (c, _) ->
+    (* the innermost section is last, and discharged first *)
+    let caches = List.map Cooking.create_cache ci in
+    let nctx cache = List.length (Cooking.rel_context_of_cooking_cache cache) in
+    let cook k c =
+      let fold cache (k, c) = (k + nctx cache, Cooking.expand_subterm cache k c) in
+      snd (List.fold_right fold caches (k, c))
+    in
+    let context =
+      let n = List.fold_left (fun n cache -> n + nctx cache) 0 caches in
+      let c = List.fold_right Cooking.abstract_as_body caches Constr.mkProp in
+      fst (Term.decompose_lambda_n_decls n c)
+    in
+    let bound =
+      List.fold_left (fun bound info -> Id.Set.union bound (Cooking.names_info info))
+        Id.Set.empty ci
+    in
+    Some { Global.uncooked_body = c;
+           Global.uncooked_bound = bound;
+           Global.uncooked_context = context;
+           Global.uncooked_cook = Some cook }
+
 let indirect_accessor = {
   Global.access_proof = access_opaque_table;
+  Global.access_uncooked_proof = uncooked_opaque_table;
 }
 
 (************************************************************************)
