@@ -628,6 +628,7 @@ module Instance : sig
 
   val empty : t
   val is_empty : t -> bool
+  val has_universes : t -> bool
 
   val of_array : Quality.t array * Universe.t array -> t
   val to_array : t -> Quality.t array * Universe.t array
@@ -703,6 +704,8 @@ let hcons = Hashcons.simple_hcons HInstance.generate HInstance.hcons ()
 let hash : t -> int = HInstancestruct.hash
 
 let is_empty (x,y) = CArray.is_empty x && CArray.is_empty y
+
+let has_universes (_,y) = not (CArray.is_empty y)
 
 let append (xq,xu as x) (yq,yu as y) =
   if is_empty x then y

@@ -146,12 +146,26 @@ let compute_variances_named_context env sigma ?(position = fun x -> Position.InB
    them occurs in [c], e.g. in a monomorphic proof whose flexible universes are all in its universe
    context but not in its term, the traversal of [c] would leave them unchanged. With Kernel
    Cumulativity Zeta, the inference also unfolds the let-bound variables of the context, whose
-   bodies may contain such universes. *)
+   bodies may contain such universes. The search stops at the first occurrence: the term is a whole
+   proof, usually with many. *)
 let occurs_inferred env status c =
   let inferred = Inf.inferred status in
+  let exception Found in
+  let check_universe u =
+    if Universe.exists (fun (l, _) -> Level.Map.mem l inferred) u then raise_notrace Found
+  in
+  let visitor = Vars.{
+    visit_sort = (fun () -> function
+        | Sorts.Type u | Sorts.GSort (_, u) | Sorts.VSort (_, u) -> check_universe u
+        | Sorts.(SProp | Prop | Set) -> ());
+    visit_instance = (fun () u -> Array.iter check_universe (snd (Instance.to_array u)));
+    visit_relevance = (fun () _ -> ());
+    visit_ref = (fun () _ -> ());
+  } in
+  let rec occurs c = Vars.visit_kind_univs visitor () (Constr.kind c); Constr.iter occurs c in
   not (Level.Map.is_empty inferred)
   && ((Environ.typing_flags env).Declarations.cumulativity_zeta
-      || Level.Set.exists (fun l -> Level.Map.mem l inferred) (Vars.universes_of_constr c))
+      || (try occurs c; false with Found -> true))
 
 let compute_variances_body_constr env sigma ?(ctx_position = fun i -> Position.InBinder i) ?(ctx_cumul_pb=Conv) ?(term_cumul_pb=Cumul) ?(cumul_pb=Cumul) status c =
   if not (occurs_inferred env status c) then Inf.set_position Position.InTerm status else
