@@ -525,20 +525,20 @@ end) = struct
       mkProd (make_annot n ERelevance.relevant, a, lift 1 b)
     | _ -> assert false
 
-  let unfold_all sigma t =
+  let unfold_all na sigma t =
     match EConstr.kind sigma t with
     | App (id, [| a; b |]) (* when eq_constr id (Lazy.force rocq_all) *) ->
       (match EConstr.kind sigma b with
       | Lambda (n, ty, b) -> mkProd (n, ty, b)
-      | _ -> assert false)
+      | _ -> mkProd (na, a, mkApp (lift 1 b, [| mkRel 1 |])))
     | _ -> assert false
 
-  let unfold_forall sigma t =
+  let unfold_forall na sigma t =
     match EConstr.kind sigma t with
     | App (id, [| a; b |]) (* when eq_constr id (Lazy.force rocq_all) *) ->
       (match EConstr.kind sigma b with
       | Lambda (n, ty, b) -> mkProd (n, ty, b)
-      | _ -> assert false)
+      | _ -> mkProd (na, a, mkApp (lift 1 b, [| mkRel 1 |])))
     | _ -> assert false
 
   let arrow_morphism env evd n ta tb a b =
@@ -548,7 +548,8 @@ end) = struct
         (app_poly_check env evd arrow [| a; b |]), unfold_impl n
         (* (evd, mkProd (Anonymous, a, b)), (fun x -> x) *)
       else if bp then (* Dummy forall *)
-        (app_poly_check env evd rocq_all [| a; mkLambda (make_annot n ERelevance.relevant, a, lift 1 b) |]), unfold_forall
+        let na = make_annot n ERelevance.relevant in
+        (app_poly_check env evd rocq_all [| a; mkLambda (na, a, lift 1 b) |]), unfold_forall na
       else (* None in Prop, use arrow *)
         (app_poly_check env evd arrow [| a; b |]), unfold_impl n
 
@@ -1428,10 +1429,10 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
           let lam = mkLambda (n, dom, codom) in
           let (evars', app), unfold =
             if eq_constr (fst evars) ty mkProp then
-              (app_poly_check env evars rocq_all [| dom; lam |]), TypeGlobal.unfold_all
+              (app_poly_check env evars rocq_all [| dom; lam |]), TypeGlobal.unfold_all n
             else
               let forall = if prop then PropGlobal.rocq_forall else TypeGlobal.rocq_forall in
-                (app_poly_check env evars forall [| dom; lam |]), TypeGlobal.unfold_forall
+                (app_poly_check env evars forall [| dom; lam |]), TypeGlobal.unfold_forall n
           in
           let state, res = s.strategy { state ; env ; ext_ctx ; unfresh ;
                                  term1 = app ; ty1 = ty ;
