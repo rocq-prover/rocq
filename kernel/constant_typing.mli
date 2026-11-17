@@ -45,5 +45,5 @@ val infer_opaque :
   sec_univs:UVars.Instance.t option -> env -> 'a opaque_entry ->
     (unit, unit) pconstant_body * typing_context
 
-val check_delayed : 'a effect_handler -> typing_context -> 'a proof_output ->
+val check_delayed : admit:bool -> 'a effect_handler -> typing_context -> 'a proof_output ->
   HConstr.t option * Constr.t * Univ.ContextSet.t Opaqueproof.delayed_universes

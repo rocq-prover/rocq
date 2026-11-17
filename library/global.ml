@@ -181,6 +181,7 @@ let exists_objlabel id = Safe_typing.exists_objlabel id (safe_env ())
 
 type indirect_accessor = {
   access_proof : Opaqueproof.opaque -> Opaqueproof.opaque_proofterm option;
+  access_unchecked : Opaqueproof.opaque -> bool;
 }
 
 let force_proof access o = match access.access_proof o with
