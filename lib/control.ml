@@ -18,13 +18,20 @@ let enable_thread_delay = ref false
 
 exception Timeout
 
+let interrupt_poll = ref None
+
+let set_interrupt_poll f = interrupt_poll := f
+
 let check_for_interrupt () =
   if !interrupt then begin interrupt := false; raise Sys.Break end;
-  if !enable_thread_delay then begin
+  if !enable_thread_delay || !interrupt_poll != None then begin
     incr steps;
     if !steps = 1000 then begin
-      Thread.delay 0.001;
       steps := 0;
+      if !enable_thread_delay then Thread.delay 0.001;
+      match !interrupt_poll with
+      | Some poll when poll () -> raise Sys.Break
+      | _ -> ()
     end
   end
 
