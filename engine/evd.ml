@@ -1139,6 +1139,9 @@ let fresh_global ?loc ?(rigid=univ_flexible) ?names env evd gr =
 let add_parameter_only_levels evd levels =
   { evd with universes = UState.add_parameter_only_levels evd.universes levels }
 
+let add_internal_levels evd levels =
+  { evd with universes = UState.add_internal_levels evd.universes levels }
+
 let is_flexible_level evd l =
   let uctx = evd.universes in
   UState.is_flexible l uctx
@@ -1245,9 +1248,9 @@ let collapse_sort_variables ?except ~only_above_prop evd =
   let universes = UState.collapse_sort_variables ?except ~only_above_prop evd.universes in
   { evd with universes }
 
-let minimize_universes_no_collapse ~partial ?(solve_term=false) evd =
+let minimize_universes_no_collapse ~partial ?(solve_term=false) ?minimize_internal evd =
   let uctx' = UState.normalize_variables evd.universes in
-  let uctx' = UState.minimize ~partial ~solve_term uctx' in
+  let uctx' = UState.minimize ~partial ~solve_term ?minimize_internal uctx' in
   {evd with universes = uctx'}
 
 let minimize_universes ?(poly=PolyFlags.default) ?(partial=false) evd =
@@ -1255,7 +1258,10 @@ let minimize_universes ?(poly=PolyFlags.default) ?(partial=false) evd =
   let uctx' =
     UState.collapse_sort_variables ~only_above_prop:(not collapse_sort_variables) evd.universes
   in
-  minimize_universes_no_collapse ~partial ~solve_term:(PolyFlags.solve_term_variables poly) {evd with universes = uctx'}
+  (* The universes created internally are set to their lower bound in polymorphic declarations
+     only: the minimizations of tactics use the default (monomorphic) flags *)
+  minimize_universes_no_collapse ~partial ~solve_term:(PolyFlags.solve_term_variables poly)
+    ~minimize_internal:(PolyFlags.univ_poly poly) {evd with universes = uctx'}
 
 let universe_of_name evd s = UState.universe_of_name evd.universes s
 
