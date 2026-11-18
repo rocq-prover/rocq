@@ -5,7 +5,9 @@
  (foreign_stubs
   (language c)
   (names rocq_fix_code rocq_float64 rocq_memory rocq_values rocq_interp)
-  (flags :standard (:include %{project_root}/config/dune.c_flags))))
+  (flags :standard (:include %{project_root}/config/dune.c_flags)))
+ ; implementation of the primitives above for wasm_of_ocaml
+ (wasm_of_ocaml (wasm_files rocq_wasm.wat)))
 
 (rule
  (targets rocq_instruct.h)
