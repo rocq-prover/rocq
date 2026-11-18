@@ -11,8 +11,6 @@
 (* Invariant: the msb should be 0 *)
 type t = Int64.t
 
-let _ = assert (Sys.word_size = 32)
-
 let uint_size = 63
 
 let maxuint63 = 0x7FFF_FFFF_FFFF_FFFFL

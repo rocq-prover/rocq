@@ -10,8 +10,6 @@
 
 type t = int
 
-let _ = assert (Sys.word_size = 64)
-
 let uint_size = 63
 
 let maxuint63 = Int64.of_string "0x7FFFFFFFFFFFFFFF"
