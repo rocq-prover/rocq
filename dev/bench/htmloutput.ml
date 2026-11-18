@@ -204,8 +204,10 @@ Line: %d
     in
 
     let text = loc.text in
-    let text = if text <> "" && text.[0] = '\n'
-      then String.sub text 1 (String.length text  - 1)
+    (* ending newline gets printed after "</code>"
+       (and we get an extra newline to separate blocks when there's no ending newline) *)
+    let text = if text <> "" && text.[String.length text - 1] = '\n'
+      then String.sub text 0 (String.length text  - 1)
       else text
     in
     let sublines = String.split_on_char '\n' text in
