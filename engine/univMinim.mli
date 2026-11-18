@@ -21,6 +21,10 @@ type extra = {
   (** Universes of the fresh instances of fully applied globals at the positions which only
     bound the types of their arguments, e.g. [u] in [@sig@{u v} nat P] (see
     [Pretyping]): they are irrelevant, and are set to their lower bound *)
+  internal : Level.Set.t;
+  (** Universes created by [Evarsolve.refresh_universes] above or below existing ones, e.g. the
+    type of the equalities built by [f_equal]: they do not come from the user, and are set to
+    their lower bound whatever their variances *)
 }
 
 val empty_extra : extra
@@ -69,6 +73,9 @@ val normalize_context_set :
   solve_flexibles:bool ->
   solve_term:bool ->
   (* Solve flexibles appearing in term position, if they are irrelevant for the type *)
+  ?minimize_internal:bool ->
+  (* Set the [internal] universes to their lower bound whatever their variances: only for the
+     final minimization of a polymorphic declaration, as a monomorphic one makes them global *)
   variances:InferCumulativity.variances ->
   partial:bool ->
   UGraph.t -> (* The graph representing constraints and a level to universe substitution *)

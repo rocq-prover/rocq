@@ -14,3 +14,11 @@ Proof. f_equal. exact H. Qed.
 
 (* g1 and g2 are still unrelated *)
 Constraint g1 < g2.
+
+(* The fresh universes of f_equal are internal: in a polymorphic proof they are set to their lower
+   bound, here g, instead of becoming universe parameters (as in Stdlib's PairUsualDecidableType) *)
+Universe g.
+Parameter A : Type@{g}.
+Polymorphic Definition pe (x y a b : A) (H : x = y) (H' : a = b) : (x, a) = (y, b).
+Proof. f_equal; assumption. Defined.
+Check pe@{}.

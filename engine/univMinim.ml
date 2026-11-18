@@ -114,7 +114,7 @@ let update_equivs_bound (us, _, _ as acc) l u equivs =
   update_univ_subst acc ((l, u) :: subst_of_equivalences us equivs)
 
 (** [partial]: we have type information only, not term information (i.e. Axiom, Definition/Lemma type only) *)
-let simplify_variables solve_flexibles above_prop above_zero partial solve_term flex variances graph =
+let simplify_variables solve_flexibles above_prop above_zero internal partial solve_term flex variances graph =
   let open UVars.Variance in
   (* A universe is not set to its lower bound when this would constrain the others (see
      [UGraph.minimize]), unless the universes not declared must all be removed *)
@@ -194,6 +194,23 @@ let simplify_variables solve_flexibles above_prop above_zero partial solve_term 
     let term_variance, type_variance, typing_variance, impred = variance_info u flex variances in
     debug_each Pp.(fun () -> str"Trying to minimize flexible " ++ Level.raw_pr u ++ str" arbitrarily, type variance: " ++ UVars.Variance.pr type_variance ++
       str " typing_variance: " ++ UVars.Variance.pr typing_variance);
+    (* A universe created by a tactic or the unifier, not by the user, is set to its lower bound
+       whatever its variances, but only when this does not constrain the other universes, even
+       when all the flexibles are solved: it may already be equal to a global universe, e.g. the
+       universe of the domain of [list] in [f_equal]. Not with partial information either: the
+       universe of the type of [H] in a statement [forall H : x = y, ...] would be set to the
+       universe of [x] before the proof relates it to others *)
+    let internal_minimized =
+      if partial || not (Level.Set.mem u internal) then None else
+      match UGraph.minimize ~require_entailed:true u graph with
+      | HasSubst (graph, equivs, lbound) when allowed_instance ~allow_collapse_to_zero:false u lbound ->
+        debug_each Pp.(fun () -> str"Minimizing internal " ++ Level.raw_pr u ++ str" to lbound: " ++ Universe.pr Level.raw_pr lbound);
+        Some (update_equivs_bound (flex, variances, graph) u lbound equivs)
+      | HasSubst _ | NoBound | CannotSimplify -> None
+    in
+    match internal_minimized with
+    | Some acc -> acc
+    | None ->
     match typing_variance with
     | Irrelevant ->
       (* The universe does not occur relevantly in the principal type of the expressions where it appears *)
@@ -346,6 +363,7 @@ type extra = {
   above_prop : Level.Set.t;
   above_zero : Level.Set.t;
   parameter_only : Level.Set.t;
+  internal : Level.Set.t;
 }
 
 let empty_extra = {
@@ -353,6 +371,7 @@ let empty_extra = {
   above_prop = Level.Set.empty;
   above_zero = Level.Set.empty;
   parameter_only = Level.Set.empty;
+  internal = Level.Set.empty;
 }
 
 let extra_union a b = {
@@ -360,6 +379,7 @@ let extra_union a b = {
   above_prop = Level.Set.union a.above_prop b.above_prop;
   above_zero = Level.Set.union a.above_zero b.above_zero;
   parameter_only = Level.Set.union a.parameter_only b.parameter_only;
+  internal = Level.Set.union a.internal b.internal;
 }
 
 let nf_extra nf a =
@@ -375,7 +395,8 @@ let remove_from_extra removed a =
   { weak_constraints = UPairSet.filter filter a.weak_constraints;
     above_zero = Level.Set.diff a.above_zero removed;
     above_prop = Level.Set.diff a.above_prop removed;
-    parameter_only = Level.Set.diff a.parameter_only removed; }
+    parameter_only = Level.Set.diff a.parameter_only removed;
+    internal = Level.Set.diff a.internal removed; }
 
 (* let pr_universe_set prl s =
   let open Pp in
@@ -458,9 +479,9 @@ let minimize_parameter_only solve_flexibles partial parameter_only (flex, varian
   in
   Level.Set.fold minimize parameter_only acc
 
-let normalize_context_set ~solve_flexibles ~solve_term ~variances ~partial graph
+let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false) ~variances ~partial graph
   ~flexible_variables ?binders
-  {weak_constraints=weak;above_prop; above_zero; parameter_only} =
+  {weak_constraints=weak;above_prop; above_zero; parameter_only; internal} =
   let prl = UnivNames.pr_level_with_global_universes ?binders in
   debug Pp.(fun () -> str "Minimizing context: " ++ UGraph.pr_universes prl (UGraph.repr ~local:true graph) ++ spc () ++
     str"Flexible variables: " ++ Level.Set.pr Level.raw_pr flexible_variables ++ fnl () ++
@@ -483,7 +504,8 @@ let normalize_context_set ~solve_flexibles ~solve_term ~variances ~partial graph
     (* debug Pp.(fun () -> str"Model after removal: " ++ UGraph.pr_model graph); *)
     let flexible_variables, variances, graph =
       minimize_parameter_only solve_flexibles partial parameter_only (flexible_variables, variances, graph) in
-    let flex, variances, graph = simplify_variables solve_flexibles above_prop above_zero partial solve_term flexible_variables variances graph in
+    let internal = if minimize_internal then internal else Level.Set.empty in
+    let flex, variances, graph = simplify_variables solve_flexibles above_prop above_zero internal partial solve_term flexible_variables variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ Level.Set.pr Level.raw_pr flex);
     new_minimize_weak flex weak (graph, variances)
   in

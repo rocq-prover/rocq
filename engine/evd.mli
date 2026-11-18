@@ -591,6 +591,9 @@ val is_flexible_level : evar_map -> Univ.Level.t -> bool
 val add_parameter_only_levels : evar_map -> Univ.Level.Set.t -> evar_map
 (** See [UState.add_parameter_only_levels] *)
 
+val add_internal_levels : evar_map -> Univ.Level.Set.t -> evar_map
+(** See [UState.add_internal_levels] *)
+
 val is_declared_level : evar_map -> Univ.Level.t -> bool
 
 val normalize_universe_instance : evar_map -> einstance -> einstance
@@ -674,7 +677,7 @@ val disable_universe_extension : evar_map -> with_cstrs:bool -> evar_map
 val get_variances : evar_map -> InferCumulativity.variances option
 val set_variances : evar_map -> InferCumulativity.variances -> evar_map
 
-val minimize_universes_no_collapse : partial:bool -> ?solve_term:bool -> evar_map -> evar_map
+val minimize_universes_no_collapse : partial:bool -> ?solve_term:bool -> ?minimize_internal:bool -> evar_map -> evar_map
 
 (** Universe minimization *)
 val minimize_universes :
