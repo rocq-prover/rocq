@@ -1549,6 +1549,11 @@ let with_supply uctx f =
   let supply, x = f uctx.supply in
   { uctx with supply }, x
 
+let supply_namespace uctx = UnivGen.Supply.namespace uctx.supply
+
+let set_supply_namespace ns uctx =
+  { uctx with supply = UnivGen.Supply.set_namespace ns uctx.supply }
+
 let with_fresh_context rigid uctx f =
   let uctx, (x, ctx) = with_supply uctx f in
   merge_sort_context_set ~sideff:false rigid ~src:Internal uctx ctx, x

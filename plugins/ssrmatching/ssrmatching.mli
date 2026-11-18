@@ -189,6 +189,15 @@ type evar_map_extension
     disjoint in general: they share the evars these terms have in common. *)
 val evar_map_extension : env:env -> base:evar_map -> evar_map -> EConstr.t list -> evar_map_extension
 
+(** [in_extension_namespace sigma] is [sigma] generating its fresh universes in a
+    namespace of its own: the terms whose extensions of [sigma] are computed must be
+    interpreted in it, so that adding their extensions to an evar map which
+    extends [sigma] cannot identify their new universes with the ones it created
+    since. When the universe state of such an evar map is adopted by an evar map,
+    its namespace must not be: see the [ignore_namespace] argument of
+    {!Evd.set_ustate}. *)
+val in_extension_namespace : evar_map -> evar_map
+
 (** [nf_evars_univs sigma c] normalizes the evars and universes of [c] like
     [Evarutil.nf_evar], but without going through the contexts of evars, so
     that its cost does not depend on their size. *)

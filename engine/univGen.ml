@@ -133,13 +133,24 @@ let new_univ_global () =
 
 module Supply =
 struct
-  (* Next indices of the unification levels and sort variables *)
-  type t = { level : int; sort : int }
+  (* Next indices of the unification levels and sort variables, and the namespace
+     of their names *)
+  type t = { level : int; sort : int; namespace : string }
 
-  let empty = { level = 1; sort = 1 }
+  let empty = { level = 1; sort = 1; namespace = "" }
 
   let process () =
     if Flags.async_proofs_is_worker() then !Flags.async_proofs_worker_id else ""
+
+  let name s =
+    let p = process () in
+    if s.namespace = "" then p
+    else if p = "" then s.namespace
+    else p ^ ":" ^ s.namespace
+
+  let namespace s = s.namespace
+
+  let set_namespace namespace s = { s with namespace }
 
   (* A worker performs several tasks, each one starting from a state of the master:
      its indices must not restart with this state, otherwise the master could receive
@@ -156,14 +167,14 @@ struct
 
   let fresh_level s =
     let n = next_index s.level worker_level in
-    { s with level = n + 1 }, Level.make_unif (process ()) n
+    { s with level = n + 1 }, Level.make_unif (name s) n
 
   let fresh_qvar s =
     let n = next_index s.sort worker_sort in
-    { s with sort = n + 1 }, QVar.make_unif (process ()) n
+    { s with sort = n + 1 }, QVar.make_unif (name s) n
 
   let union s s' =
-    { level = max s.level s'.level; sort = max s.sort s'.sort }
+    { level = max s.level s'.level; sort = max s.sort s'.sort; namespace = s.namespace }
 
   let add_level l s = match Level.unif_repr l with
     | Some (_, n) when n >= s.level -> { s with level = n + 1 }

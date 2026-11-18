@@ -701,7 +701,7 @@ let rwprocess_rule env dir rule =
    computing the universe extension, which is costly. *)
 let independent_rules env sigma0 r_sigma rules =
   let sigma0 = match rules with
-    | [_] -> Evd.set_ustate sigma0 (Evd.ustate r_sigma)
+    | [_] -> Evd.set_ustate ~ignore_namespace:true sigma0 (Evd.ustate r_sigma)
     | _ -> sigma0
   in
   (* The rules must not depend on the universe substitution of [r_sigma],
@@ -784,7 +784,7 @@ let ssrinstancesofrule ist dir arg =
   let sigma0 = Proofview.Goal.sigma gl in
   let concl0 = Proofview.Goal.concl gl in
   let rigid ev = Evd.mem sigma0 ev in
-  let rule = interp_term env0 sigma0 ist arg in
+  let rule = interp_term env0 (in_extension_namespace sigma0) ist arg in
   let r_sigma, rules = rwprocess_rule env0 dir rule in
   let sigma0, rules = independent_rules env0 sigma0 r_sigma rules in
   let find =
@@ -828,15 +828,15 @@ let rwargtac ?under ?map_redex ist ((dir, mult), (((oclr, occ), grx), (kind, gt)
     | None -> sigma
     | Some { pat_sigma = s } -> Evd.set_ustate sigma (Evd.ustate s)
     in
-    let t = interp env sigma gt in
+    let t = interp env (in_extension_namespace sigma) gt in
     (* Commit the term's ustate unifications to the goal and the rx_pat *)
     let commit_term_univs () =
       let us = Evd.ustate (fst t) in
       let rx = match rx with
         | None -> None
-        | Some p -> Some { p with pat_sigma = Evd.set_ustate p.pat_sigma us }
+        | Some p -> Some { p with pat_sigma = Evd.set_ustate ~ignore_namespace:true p.pat_sigma us }
       in
-      Proofview.Unsafe.tclEVARS (Evd.set_ustate sigma us), rx
+      Proofview.Unsafe.tclEVARS (Evd.set_ustate ~ignore_namespace:true sigma us), rx
     in
     match kind with
     | RWred sim ->
