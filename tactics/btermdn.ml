@@ -459,12 +459,24 @@ struct
   | _ -> false
 
   let constr_pattern env sigma st pat =
+    let morphism (p, d) = match p with
+    | Constr m ->
+      let ts = Option.default TransparentState.full st in
+      let flags = RedFlags.red_add_transparent RedFlags.all ts in
+      let r = Reductionops.clos_whd_flags flags env sigma m in
+      let r = Reductionops.shrink_eta sigma r in
+      begin match EConstr.kind sigma (fst (EConstr.decompose_app sigma r)) with
+      | Lambda _ | Fix _ | CoFix _ | Case _ -> (p, d, true)
+      | _ -> (Constr r, d, false)
+      end
+    | PartialConstr _ -> (p, d, false)
+    in
     let mk (p, depth, syn) =
       let st = if syn then Some TransparentState.empty else st in
       match bounded_constr_val_discr env st sigma (p, depth) with
       | Label (lbl, l) ->
         let proper = not syn && Int.equal (List.length l) 3 && is_proper lbl in
-        Some (lbl, List.mapi (fun i (p, d) -> (p, d, syn || (proper && Int.equal i 2))) l)
+        Some (lbl, List.mapi (fun i (p, d) -> if proper && Int.equal i 2 then morphism (p, d) else (p, d, syn)) l)
       | Everything | Nothing -> None
     in
     Dn.pattern mk (Constr pat, !dnet_depth, false)
