@@ -153,7 +153,7 @@ let inner_ssrapplytac gviews (ggenl, gclr) ist =
     let clr', lemma = interp_agens ist env sigma ~concl agens in
     (* [lemma] was interpreted in [sigma], so its universe state extends it *)
     let sigma = Evd.set_ustate sigma (Evd.ustate (fst lemma)) in
-    Tacticals.tclTHENLIST [Proofview.Unsafe.tclEVARS sigma; cleartac clr; refine_with ~beta:true lemma; cleartac clr']
+    Tacticals.tclTHENLIST [Proofview.Unsafe.tclEVARS sigma; refine_with ~beta:true lemma; cleartac clr; cleartac clr']
   | _, _ ->
     Tacticals.tclTHENLIST [apply_top_tac; cleartac clr]))
 
