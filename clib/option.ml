@@ -149,6 +149,10 @@ let default a = function
   | Some y -> y
   | _ -> a
 
+let max x y = union Stdlib.max x y
+
+let min x y = union Stdlib.min x y
+
 (** {6 Smart operations} *)
 
 module Smart =
