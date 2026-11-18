@@ -112,10 +112,6 @@ type instance_list = constr list
 val subst_of_rel_context_instance : Constr.rel_context -> instance -> substl
 val subst_of_rel_context_instance_list : Constr.rel_context -> instance_list -> substl
 
-(** Take an index in an instance of a context and returns its index wrt to
-    the full context (e.g. 2 in [x:A;y:=b;z:C] is 3, i.e. a reference to z) *)
-val adjust_rel_to_rel_context : ('a, 'b, 'r) Context.Rel.pt -> int -> int
-
 (** [substnl [a₁;...;an] k c] substitutes in parallel [a₁],...,[an]
     for respectively [Rel(k+1)],...,[Rel(k+n)] in [c]; it relocates
     accordingly indexes in [an],...,[a1] and [c]. In terms of typing, if
