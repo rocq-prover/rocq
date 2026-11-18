@@ -74,6 +74,11 @@ val add_parameter_only_levels : t -> Level.Set.t -> t
   of a fresh instance which only bound the types of the arguments of a fully applied global:
   they are set to their lower bound by the minimization (see [UnivMinim.extra]) *)
 
+val add_internal_levels : t -> Level.Set.t -> t
+(** [add_internal_levels uctx levels] records the flexible ones among [levels] as universes
+  created internally, not by the user: the minimization sets them to their lower bound whatever
+  their variances (see [UnivMinim.extra]) *)
+
 val is_declared : t -> Level.t -> bool
 (** Is a universe level declared already? *)
 
@@ -267,7 +272,8 @@ val set_variances : t -> InferCumulativity.variances -> t
   solve_term determines if flexible variables appearing only in the term, not the type, should be minimized (false by default).
 
 *)
-val minimize : partial:bool -> ?solve_term:bool -> t -> t
+val minimize : partial:bool -> ?solve_term:bool -> ?minimize_internal:bool -> t -> t
+(** [minimize_internal]: see [UnivMinim.normalize_context_set] *)
 
 val collapse_sort_variables : ?except:QVar.Set.t -> only_above_prop:bool -> t -> t
 

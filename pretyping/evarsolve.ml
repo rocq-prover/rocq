@@ -117,6 +117,9 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ~status ?(onlyalg=false)
   (* direction: true for fresh universes lower than the existing ones *)
   let refresh_sort status ~direction s =
     let sigma, l = new_univ_level_variable status !evdref in
+    (* Not a universe of the user: the minimization may set it to its lower bound whatever its
+       variances, e.g. in a polymorphic proof using [f_equal] *)
+    let sigma = Evd.add_internal_levels sigma (Univ.Level.Set.singleton l) in
     let s' = Sorts.make (Sorts.quality @@ ESorts.kind sigma s) (Univ.Universe.make l) in
     let s' = ESorts.make s' in
     evdref := sigma;

@@ -484,6 +484,12 @@ let add_parameter_only_levels uctx levels =
   let parameter_only = Level.Set.union levels uctx.minim_extra.UnivMinim.parameter_only in
   { uctx with minim_extra = { uctx.minim_extra with UnivMinim.parameter_only } }
 
+let add_internal_levels uctx levels =
+  let levels = Level.Set.filter (fun l -> is_flexible l uctx) levels in
+  if Level.Set.is_empty levels then uctx else
+  let internal = Level.Set.union levels uctx.minim_extra.UnivMinim.internal in
+  { uctx with minim_extra = { uctx.minim_extra with UnivMinim.internal } }
+
 let flexible_variables uctx = UGraph.flexible_local_levels uctx.universes
 
 (* The universe variables which are not flexible: the rigid local universes, canonical or
@@ -2090,7 +2096,7 @@ let update_variances_qvars qs variances =
   Univ.Level.Map.Smart.map upd variances
 
 let minimize
-  ~partial ?(solve_term=false) uctx =
+  ~partial ?(solve_term=false) ?minimize_internal uctx =
   let open UnivMinim in
   match uctx.variances with
   | None -> warn_no_variances (); uctx
@@ -2099,7 +2105,7 @@ let minimize
     let flexible_variables = flexible_variables uctx in
     let flexible_variables', variances, universes =
       normalize_context_set ~solve_flexibles:uctx.fixed_rigid_universes
-        ~solve_term
+        ~solve_term ?minimize_internal
         ~variances ~partial uctx.universes
         ~flexible_variables
         ~binders:(fst uctx.names) uctx.minim_extra
@@ -2186,9 +2192,9 @@ let check_uctx_impl ~fail uctx uctx' =
 
 let disable_minim, _ = CDebug.create_full ~name:"minimization" ()
 
-let minimize ~partial ?(solve_term=false) uctx =
+let minimize ~partial ?(solve_term=false) ?minimize_internal uctx =
   if CDebug.get_flag disable_minim then uctx
-  else minimize ~partial ~solve_term uctx
+  else minimize ~partial ~solve_term ?minimize_internal uctx
 
 module Internal =
 struct
