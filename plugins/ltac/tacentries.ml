@@ -277,7 +277,7 @@ let make_fresh_key =
     (* We embed the hash of the kernel name in the label so that the identifier
        should be mostly unique. This ensures that including two modules
        together won't confuse the corresponding labels. *)
-    let hash = (cur lxor (ModPath.hash (Lib.current_mp ()))) land 0x7FFFFFFF in
+    let hash = (cur lxor (ModPath.hash (Lib.current_mp ()))) land 0x3FFFFFFF in
     let lbl = Id.of_string_soft (Printf.sprintf "%s_%08X" prods hash) in
     Lib.make_kn lbl
 
