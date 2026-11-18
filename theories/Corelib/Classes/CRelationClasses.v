@@ -199,12 +199,11 @@ End Defs.
 
 (** Default rewrite crelations handled by [setoid_rewrite]. *)
 #[global]
-Instance: RewriteRelation impl.
-Defined.
-
+Instance inverse_impl_rewrite_relation@{u r} : RewriteRelation@{u r} (flip impl) | 3 := {}.
 #[global]
-Instance: RewriteRelation iff.
-Defined.
+Instance impl_rewrite_relation@{u r} : RewriteRelation@{u r} impl | 3 := {}.
+#[global]
+Instance iff_rewrite_relation@{u r} : RewriteRelation@{u r} iff | 2 := {}.
 
 #[global]
 Instance inverse_arrow_rewrite_relation@{u u0 u1 u2 | u1 < u, u2 < u0, u1 <= u2} :
@@ -335,6 +334,12 @@ Proof. intros A B [f g]; exact (g, f). Defined.
 #[global]
 Instance iffT_Transitive@{u u0 | u0 < u} : Transitive@{u u0} iffT@{u0 u0}.
 Proof. intros A B C [f g] [f' g']; exact (fun x => f' (f x), fun x => g (g' x)). Defined.
+#[global]
+Instance iffT_equivalence@{u u0 | u0 < u} : Equivalence@{u u0} iffT@{u0 u0} := {|
+  Equivalence_Reflexive := iffT_Reflexive;
+  Equivalence_Symmetric := fun A B '(f, g) => (g, f);
+  Equivalence_Transitive := fun A B C '(f, g) '(f', g') =>
+    (fun x => f' (f x), fun x => g (g' x)) |}.
 
 (** We now develop a generalization of results on crelations for arbitrary predicates.
    The resulting theory can be applied to homogeneous binary crelations but also to
@@ -352,8 +357,8 @@ Section Binary.
   Definition relation_equivalence : crelation (crelation A) :=
     fun R R' => forall x y, iffT (R x y) (R' x y).
 
-  Global Instance: RewriteRelation relation_equivalence.
-  Defined.
+  Global Instance relation_equivalence_rewrite_relation@{u0 u1 u2 | u2 < u0, u <= u0, u <= u1, u2 <= u1} :
+    RewriteRelation@{u0 u1} relation_equivalence@{u0 u1 u2} := {}.
 
   Definition relation_conjunction (R : crelation A) (R' : crelation A) : crelation A :=
     fun x y => prod (R x y) (R' x y).
