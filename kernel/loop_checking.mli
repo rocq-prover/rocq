@@ -129,8 +129,6 @@ val subst : local:bool -> t -> (locality * Universe.t) Level.Map.t
 (** Substitution from (local) levels to universes.
    N.B.: slighty expensive to compute, better use [normalize] below. *)
 
-(* val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option *)
-
 type 'a simplification_result =
   | HasSubst of 'a * level_equivalences * Universe.t
   | NoBound
