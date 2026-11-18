@@ -1,10 +1,10 @@
 UNIVERSES:
- {ℓ7 i} | i <= eq_ind_r.u0
-          ℓ7 = i
+ {ext1.ℓ7 i} | i <= eq_ind_r.u0
+               ext1.ℓ7 = i
 ALGEBRAIC UNIVERSES:
  {}
 FLEXIBLE UNIVERSES:
- ℓ7 := i
+ ext1.ℓ7 := i
  ℓ4 := i
  ℓ3 := i
  ℓ2 := i

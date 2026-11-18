@@ -915,10 +915,17 @@ let merge_ustate evd uctx' =
 
 let merge_universe_context = merge_ustate
 
-let set_ustate evd uctx' =
+let set_ustate ?(ignore_namespace = false) evd uctx' =
+  let uctx' =
+    if ignore_namespace then UState.set_supply_namespace (UState.supply_namespace evd.universes) uctx'
+    else uctx'
+  in
   { evd with universes = uctx' }
 
-let set_universe_context = set_ustate
+let set_supply_namespace evd ns =
+  { evd with universes = UState.set_supply_namespace ns evd.universes }
+
+let set_universe_context evd uctx = set_ustate evd uctx
 
 (* TODO: make unique *)
 let add_conv_pb ?(tail=false) pb d =

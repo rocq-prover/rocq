@@ -262,6 +262,12 @@ val with_supply : t -> (UnivGen.Supply.t -> UnivGen.Supply.t * 'a) -> t * 'a
 (** Generate unification levels or sort variables using the supply of the
     state, so that they do not clash with the ones it already contains. *)
 
+val supply_namespace : t -> string
+
+val set_supply_namespace : string -> t -> t
+(** The namespace of the fresh levels and sort variables of the state, see
+    {!UnivGen.Supply.set_namespace}. *)
+
 val with_fresh_context : rigid -> t ->
   (UnivGen.Supply.t -> UnivGen.Supply.t * 'a UnivGen.in_sort_context_set) -> t * 'a
 (** Generate an object with the supply of the state, and add its context to the state. *)

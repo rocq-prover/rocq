@@ -641,7 +641,15 @@ val restrict_ustate : evar_map -> Univ.Level.Set.t -> evar_map
 val merge_ustate : evar_map -> UState.t -> evar_map
 (** Dangerous API, see {!UState.union}. *)
 
-val set_ustate : evar_map -> UState.t -> evar_map
+val set_ustate : ?ignore_namespace:bool -> evar_map -> UState.t -> evar_map
+(** With [~ignore_namespace:true], the namespace of the fresh universes of the new
+    state is ignored: the evar map keeps its own, e.g. when adopting the state of an
+    evar map in which a term was interpreted in its own namespace (see
+    {!set_supply_namespace}). *)
+
+val set_supply_namespace : evar_map -> string -> evar_map
+(** The namespace of the fresh levels and sort variables of the evar map, see
+    {!UnivGen.Supply.set_namespace}. *)
 
 val restrict_universe_context : evar_map -> Univ.Level.Set.t -> evar_map
 [@@deprecated "(9.3) Use [Evd.restrict_ustate]"]
