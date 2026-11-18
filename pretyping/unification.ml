@@ -1732,7 +1732,24 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       let app = mkApp (c, Array.rev_of_list ks) in
       let substn = unirec_rec curenvnb pb opt' substn c1 app in
       let substn = test substn in
-      unirec_rec curenvnb pb opt' substn (snd t) (fst (decompose_app substn.subst_sigma (substl ks (fst t))))
+      let substn = unirec_rec curenvnb pb opt' substn (snd t) (fst (decompose_app substn.subst_sigma (substl ks (fst t)))) in
+      (* The arguments of the canonical instance may have got several
+         instances, which are otherwise only compared once the whole
+         unification is over: an inconsistent solution has to be rejected
+         here for the other unification steps to be tried. *)
+      let nb = snd curenvnb in
+      let consistent substn k =
+        match EConstr.kind substn.subst_sigma k with
+        | Meta mv ->
+          (match List.filter (fun (mv', _, _) -> Int.equal mv mv') substn.subst_metas with
+           | (_, c, _) :: (_ :: _ as rest) ->
+             List.fold_left (fun substn (_, c', _) ->
+                 unirec_rec curenvnb CONV opt' substn (lift nb c') (lift nb c))
+               substn rest
+           | _ -> substn)
+        | _ -> substn
+      in
+      List.fold_left consistent substn ks
       with Reductionops.Stack.IncompatibleFold2 ->
         let () = debug_canonical_tactic_unification (fun () -> str "reject canonical projection: incompatible stacks") in
         error_cannot_unify env sigma (cM,cN)
