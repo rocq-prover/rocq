@@ -1137,7 +1137,10 @@ type orig_term =
   | Orig of EConstr.t
   | UsedOrig
 
-let no_orig = (NoOrig, NoOrig)
+(* A side of a problem, see [expand]. *)
+type side = SideM | SideN
+
+let no_orig = (NoOrig, NoOrig, None)
 
 let orig_of env sigma o c = match o with
   | Orig _ | UsedOrig -> o
@@ -1146,8 +1149,15 @@ let orig_of env sigma o c = match o with
     | Proj (p, _, r) when has_canonical_instances env sigma p r -> Orig c
     | _ -> NoOrig
 
-let orig_left env sigma (om, on) c = (orig_of env sigma om c, on)
-let orig_right env sigma (om, on) c = (om, orig_of env sigma on c)
+let orig_left env sigma (om, on, _) c = (orig_of env sigma om c, on, None)
+let orig_right env sigma (om, on, _) c = (om, orig_of env sigma on c, None)
+
+(* A term headed by an unfolded primitive projection whose record may matter
+   for canonical structure inference: it is reduced after the other side. *)
+let is_kept_projection env sigma c =
+  match EConstr.kind sigma (fst (decompose_app sigma c)) with
+  | Proj (p, _, r) -> Projection.unfolded p && has_canonical_instances env sigma p r
+  | _ -> false
 
 let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n =
   let mk_expand_subst substn =
@@ -1164,9 +1174,9 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
      the solution would otherwise mention that unfolding. *)
   let rec unirec_rec ?(orig=no_orig) curenvnb pb opt (substn : subst0) ?nargs curm curn =
     match orig with
-    | (NoOrig | UsedOrig), (NoOrig | UsedOrig) ->
+    | (NoOrig | UsedOrig), (NoOrig | UsedOrig), _ ->
       unirec_body curenvnb pb opt substn ?nargs ~orig curm curn
-    | origm, orign ->
+    | origm, orign, tried ->
       let sigma = substn.subst_sigma in
       let is_flexible c =
         let c = Evarutil.whd_head_evar sigma c in
@@ -1177,12 +1187,12 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       let flexm = is_flexible curm and flexn = is_flexible curn in
       match origm, orign with
       | _, Orig origN when flexm && not flexn ->
-        let orig = (origm, UsedOrig) in
+        let orig = (origm, UsedOrig, tried) in
         (try unirec_body curenvnb pb opt substn ?nargs ~orig curm origN
          with ex when precatchable_exception ex ->
            unirec_body curenvnb pb opt substn ?nargs ~orig curm curn)
       | Orig origM, _ when flexn && not flexm ->
-        let orig = (UsedOrig, orign) in
+        let orig = (UsedOrig, orign, tried) in
         (try unirec_body curenvnb pb opt substn ?nargs ~orig origM curn
          with ex when precatchable_exception ex ->
            unirec_body curenvnb pb opt substn ?nargs ~orig curm curn)
@@ -1443,11 +1453,12 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
   and unify_app curenvnb pb opt (substn : subst0) ~orig cM f1 l1 cN f2 l2 =
     try unify_app_fo curenvnb pb opt substn cM f1 l1 cN f2 l2
     with ex when precatchable_exception ex ->
-    try reduce curenvnb pb {opt with with_types = false} substn ~orig cM cN
+    let reduced = ref None in
+    try reduce ~reduced curenvnb pb {opt with with_types = false} substn ~orig cM cN
     with ex when precatchable_exception ex ->
     try canonical_projections curenvnb pb opt cM cN substn
     with ex when precatchable_exception ex ->
-    expand curenvnb pb {opt with with_types = false} substn ~orig cM f1 l1 cN f2 l2
+    expand ~reduced:!reduced curenvnb pb {opt with with_types = false} substn ~orig cM f1 l1 cN f2 l2
 
   (* First-order unification of two applications *)
   and unify_app_fo (curenv, nb as curenvnb) pb opt (substn : subst0) cM f1 l1 cN f2 l2 =
@@ -1499,30 +1510,68 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
     match constr_cmp pb env sigma flags ~nargs cM cN with
     | Some sigma -> push_sigma sigma substn
     | None ->
-        try reduce curenvnb pb opt substn ~orig cM cN
+        let reduced = ref None in
+        try reduce ~reduced curenvnb pb opt substn ~orig cM cN
         with ex when precatchable_exception ex ->
         let (f1,l1) =
           match EConstr.kind sigma cM with App (f,l) -> (f,l) | _ -> (cM,[||]) in
         let (f2,l2) =
           match EConstr.kind sigma cN with App (f,l) -> (f,l) | _ -> (cN,[||]) in
-          expand curenvnb pb opt substn ~orig cM f1 l1 cN f2 l2
+          expand ~reduced:!reduced curenvnb pb opt substn ~orig cM f1 l1 cN f2 l2
 
-  and reduce curenvnb pb opt substn ~orig cM cN =
+  (* [reduced] is set to the side which got reduced and the problem the
+     reduction led to, if any. A kept projection whose reduction was already
+     tried is not reduced, see [expand]. *)
+  and reduce ?(reduced = ref None) curenvnb pb opt substn ~orig cM cN =
     let sigma = substn.subst_sigma in
     let metas = substn.subst_metam in
+    let (_, _, tried) = orig in
+    let do_reduce side c =
+      let skip = match tried, side with
+        | Some SideM, SideM | Some SideN, SideN -> is_kept_projection env sigma c
+        | _ -> false in
+      if skip then c else do_reduce ~metas flags.modulo_delta curenvnb sigma c in
     if flags.modulo_betaiota && not (subterm_restriction opt flags) then
-      let cM' = do_reduce ~metas flags.modulo_delta curenvnb sigma cM in
+      let cM' = do_reduce SideM cM in
         if not (EConstr.eq_constr sigma cM cM') then
+          let () = reduced := Some (SideM, cM', cN) in
           unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM) cM' cN
         else
-          let cN' = do_reduce ~metas flags.modulo_delta curenvnb sigma cN in
+          let cN' = do_reduce SideN cN in
             if not (EConstr.eq_constr sigma cN cN') then
+              let () = reduced := Some (SideN, cM, cN') in
               unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM cN'
             else error_cannot_unify (fst curenvnb) sigma (cM,cN)
     else error_cannot_unify (fst curenvnb) sigma (cM,cN)
 
-  and expand (curenv,_ as curenvnb) pb opt (substn : subst0) ~orig cM f1 l1 cN f2 l2 =
+  (* [reduced] is the side [reduce] reduced and the problem it led to from
+     this one, before failing.
+     - The expansion of an unfolded primitive projection is its reduction:
+       it may lead to that same problem, which is not tried again.
+     - When the reduced side is a kept projection and the other side is the
+       one expanded here, that reduction is not tried again on the expanded
+       problem: the projection is reduced once the other side has no key
+       left.
+     Otherwise the same failing problems would be explored again at each
+     step of two chains of definitions, which is exponential in their
+     lengths. *)
+  and expand ?(reduced=None) (curenv,_ as curenvnb) pb opt (substn : subst0) ~orig cM f1 l1 cN f2 l2 =
     let sigma = substn.subst_sigma in
+    let unirec_rec curenvnb pb opt substn ~orig cM' cN' =
+      match reduced with
+      | Some (_, rM, rN) when EConstr.eq_constr sigma rM cM' && EConstr.eq_constr sigma rN cN' ->
+        error_cannot_unify curenv sigma (cM, cN)
+      | _ -> unirec_rec curenvnb pb opt substn ~orig cM' cN' in
+    let (_, _, tried) = orig in
+    let tried = match reduced with Some (side, _, _) -> Some side | None -> tried in
+    let keep_tried side (om, on, _) =
+      let tried = match tried, side with
+        | Some SideM, SideN when is_kept_projection env sigma cM -> tried
+        | Some SideN, SideM when is_kept_projection env sigma cN -> tried
+        | _ -> None in
+      (om, on, tried) in
+    let orig_left env sigma orig c = keep_tried SideM (orig_left env sigma orig c) in
+    let orig_right env sigma orig c = keep_tried SideN (orig_right env sigma orig c) in
     let res =
       (* Try full conversion on meta-free terms. *)
       (* Back to 1995 (later on called trivial_unify in 2002), the
