@@ -821,8 +821,8 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
     let eq c1 c2 = eq 0 (EConstr.Unsafe.to_constr c1) (EConstr.Unsafe.to_constr c2) in
     EConstr.eq_existential evd eq (EConstr.of_existential e1) (EConstr.of_existential e2)
   in
-  let kind1 c = Constr.kind_nocast_gen (kind_of_term_upto evd) c in
-  let kind2 c = Constr.kind_nocast_gen (kind_of_term_upto extended_evd) c in
+  let kind1 = kind_of_term_upto evd in
+  let kind2 = kind_of_term_upto extended_evd in
   let rec eq_constr' nargs m n =
     Constr.compare_head_gen_leq_with kind1 kind2 eq_universes eq_sorts (eq_existential eq_constr') eq_constr' eq_constr' nargs m n
   in

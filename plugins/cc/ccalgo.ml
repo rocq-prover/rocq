@@ -137,7 +137,7 @@ type 'a term =
   | Constructor of cinfo (* constructor arity + nhyps *)
 
 let rec eq_constr_nounivs m n =
-  m == n || Constr.compare_head_gen_leq_with Constr.kind_nocast Constr.kind_nocast
+  m == n || Constr.compare_head_gen_leq_with Constr.kind Constr.kind
     (fun _ _ _ -> true) (fun _ _ -> true) eq_evars eq_constr_nounivs0 eq_constr_nounivs0 0 m n
 
 and eq_evars (evk1, args1) (evk2, args2) =
