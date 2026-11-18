@@ -49,14 +49,20 @@ val of_names : (UnivNames.universe_binders * UnivNames.rev_binders) -> t
 
 val is_empty : t -> bool
 
-val union : t -> t -> t
-(** Dangerous API: avoid it when possible. The unification levels and sort variables
+val merge : into:t -> t -> t
+(** [merge ~into uctx] adds the universes, sort variables and constraints of [uctx] to
+    [into], keeping the namespace of the fresh universes of [into].
+    Dangerous API: avoid it when possible. The unification levels and sort variables
     of a state are only meaningful in the lineage of this state: the states of two
     branches forked from a common state can both generate the same fresh levels or
-    variables (e.g. ℓ5) for unrelated universes, which [union] then identifies. In
-    general, the fresh levels and variables of the two arguments must be disjoint, e.g.
-    because the second one is generated in a worker (see {!UnivGen.Supply}). When the
-    second state extends the first one, use it instead. *)
+    variables (e.g. ℓ5) for unrelated universes, which [merge] then identifies. In
+    general, the fresh levels and variables of the two states must be disjoint, e.g.
+    because [uctx] is generated in a worker (see {!UnivGen.Supply}) or in a namespace
+    of its own (see {!set_supply_namespace}). When [uctx] extends [into], use it
+    instead. *)
+
+val union : t -> t -> t
+[@@deprecated "(9.4) Use [UState.merge ~into]"]
 
 (** {5 Projections and other destructors} *)
 
