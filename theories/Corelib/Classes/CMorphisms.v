@@ -34,7 +34,8 @@ Set Universe Polymorphism.
    The relation [R] will be instantiated by [respectful] and [A] by an arrow
    type for usual morphisms. *)
 Section Proper.
-  Context {A : Type}.
+  Universe u.
+  Context {A : Type@{u}}.
 
   Class Proper (R : crelation A) (m : A) :=
     proper_prf : R m m.
@@ -51,13 +52,28 @@ Section Proper.
   Class ProperProxy (R : crelation A) (m : A) :=
     proper_proxy : R m m.
 
+  Class ReflexiveProxy@{u0} (R : crelation@{u u0} A) :=
+    reflexive_proxy : forall x, R x x.
+
   Lemma eq_proper_proxy@{r} (x : A) : ProperProxy@{r} (@eq A) x.
   Proof. firstorder. Qed.
-  
-  Lemma reflexive_proper_proxy `(Reflexive A R) (x : A) : ProperProxy R x.
+
+  (** Every reflexive crelation gives rise to a morphism.
+    If the crelation is not determined (is an evar),
+    then we restrict the solutions to predefined ones (equality, or iff on Prop),
+    using ground instances. If the crelation is determined then
+    [ReflexiveProxy] calls back to [Reflexive]. *)
+
+  Lemma reflexive_proper@{u0} `{ReflexiveProxy@{u0} R} (x : A) : Proper@{u0} R x.
+  Proof. firstorder. Qed.
+
+  Lemma reflexive_proper_proxy@{u0} `(ReflexiveProxy@{u0} R) (x : A) : ProperProxy@{u0} R x.
   Proof. firstorder. Qed.
 
   Lemma proper_proper_proxy x `(Proper R x) : ProperProxy R x.
+  Proof. firstorder. Qed.
+
+  Lemma reflexive_reflexive_proxy@{u0} `(Reflexive@{u u0} A R) : ReflexiveProxy@{u0} R.
   Proof. firstorder. Qed.
 
   (** Respectful morphisms. *)
@@ -86,8 +102,39 @@ Hint Extern 1 (ProperProxy _ _) =>
   class_apply @eq_proper_proxy || class_apply @reflexive_proper_proxy : typeclass_instances.
 
 #[global]
-Hint Extern 2 (ProperProxy ?R _) => 
+Hint Extern 2 (ProperProxy ?R _) =>
   not_evar R; class_apply @proper_proper_proxy : typeclass_instances.
+
+Lemma eq_rewrite_relation@{u r} {A : Type@{u}} : RewriteRelation@{u r} (@eq A).
+Proof. split. Qed.
+
+Ltac eq_rewrite_relation A :=
+  solve [unshelve class_apply @eq_rewrite_relation].
+
+Global Hint Extern 100 (@RewriteRelation ?A _) => eq_rewrite_relation A : typeclass_instances.
+
+(* This tactics takes a type and (partially defined) crelation and tries
+   to find all instances matching it which completely determine the crelation,
+   feeding them to kont. *)
+Ltac find_rewrite_relation A R kont :=
+  assert (@RewriteRelation A R); [solve [unshelve typeclasses eauto]|]; kont R.
+
+(** This hint helps infer "generic" reflexive crelations, based only on the type of the
+    carrier, when the crelation is only partially defined (contains evars). *)
+
+Ltac reflexive_proxy_tac A R :=
+  tryif has_evar R then
+    (* If the user declared a specific rewrite crelation on the type, we favor it.
+      By default, [iff] and and [impl] are favored for Prop,
+      pointwise equality for function types and finally leibniz equality. *)
+    find_rewrite_relation A R ltac:(fun RA =>
+      class_apply (@reflexive_reflexive_proxy A RA))
+  else
+    (* If the crelation is determined then we look for a relexivity proof on it *)
+    class_apply @reflexive_reflexive_proxy.
+
+#[global]
+Hint Extern 1 (@ReflexiveProxy ?A ?R) => reflexive_proxy_tac A R : typeclass_instances.
 
 (** Notations reminiscent of the old syntax for declaring morphisms. *)
 Declare Scope signatureT_scope.
@@ -217,6 +264,30 @@ End Relations.
 Global Typeclasses Opaque respectful pointwise_relation forall_relation.
 Arguments forall_relation {A P}%_type sig%_signatureT _ _.
 Arguments pointwise_relation A%_type {B}%_type R%_signatureT _ _.
+
+(** We let Rocq infer these crelations when a default crelation should
+  be found on the function space. *)
+Lemma rewrite_relation_pointwise@{u u0 u1 u2 u3 | u1 <= u, u1 <= u0, u2 <= u, u3 <= u0}
+  {A : Type@{u1}} {B : Type@{u2}} {R : crelation@{u2 u3} B} `{RewriteRelation@{u2 u3} B R} :
+  RewriteRelation@{u u0} (@pointwise_relation@{u1 u2 u3 u u0} A B R).
+Proof. split. Qed.
+
+Lemma rewrite_relation_eq_dom@{u u0 u1 u2 u3 u4 | u1 <= u, u2 <= u0, u3 <= u, u3 <= u0, u4 <= u0}
+  {A : Type@{u3}} {B : Type@{u1}} {R : crelation@{u1 u2} B} `{RewriteRelation@{u1 u2} B R} :
+  RewriteRelation@{u u0} (@respectful@{u3 u4 u1 u2 u u0} A B (@Logic.eq A) R).
+Proof. split. Qed.
+
+Ltac rewrite_relation_fun :=
+  (* If we're looking for a default rewrite crelation on a
+    function type, we favor pointwise equality *)
+  class_apply @rewrite_relation_pointwise ||
+  (* The crelation might be already determined to be (eq ==> _) instead of a
+    pointwise equality, but we want to treat them the same. No point in
+    backtracking on the previous instance though *)
+  class_apply @rewrite_relation_eq_dom.
+
+Global Hint Extern 2 (@RewriteRelation (_ -> _) _) =>
+  rewrite_relation_fun : typeclass_instances.
   
 #[global]
 Hint Unfold Reflexive : core.
@@ -466,14 +537,8 @@ Section GenericInstances.
   
   Definition proper_flip_proper `(mor : Proper A R m) : Proper (flip R) m := mor.
   
-  (** Every reflexive crelation gives rise to a morphism, 
-  only for immediately solving goals without variables. *)
-  
-  Lemma reflexive_proper `{Reflexive A R} (x : A) : Proper R x.
-  Proof. firstorder. Qed.
-  
   Lemma proper_eq@{u r} {A : Type@{u}} (x : A) : Proper@{u r} (@eq A) x.
-  Proof. intros. apply reflexive_proper. Qed.
+  Proof. intros. reflexivity. Qed.
   
 End GenericInstances.
 
