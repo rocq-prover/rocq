@@ -176,10 +176,11 @@ Section Defs.
   Class RewriteRelation (RA : crelation A).
 
   (** Any [Equivalence] declared in the context is automatically considered
-   a rewrite crelation. *)
-    
-  Global Instance equivalence_rewrite_crelation `(Equivalence eqA) : RewriteRelation eqA.
-  Defined.
+   a rewrite crelation. This only applies if the crelation is at least partially
+   defined: setoid_rewrite won't try to infer arbitrary user rewrite crelations. *)
+
+  Definition equivalence_rewrite_crelation `(Equivalence eqA) : RewriteRelation eqA :=
+    Build_RewriteRelation _.
 
   (** Leibniz equality. *)
   Section Leibniz.
@@ -204,6 +205,21 @@ Defined.
 #[global]
 Instance: RewriteRelation iff.
 Defined.
+
+#[global]
+Instance inverse_arrow_rewrite_relation@{u u0 u1 u2 | u1 < u, u2 < u0, u1 <= u2} :
+  RewriteRelation@{u u2} (@flip@{u u u0} Type@{u1} Type@{u1} Type@{u2} arrow@{u1 u1}) | 3 := {}.
+#[global]
+Instance arrow_rewrite_relation@{u u0 | u0 < u} : RewriteRelation@{u u0} arrow@{u0 u0} | 3 := {}.
+#[global]
+Instance iffT_rewrite_relation@{u u0 | u0 < u} : RewriteRelation@{u u0} iffT@{u0 u0} | 2 := {}.
+
+Ltac equiv_rewrite_relation R :=
+  tryif is_evar R then fail
+  else class_apply equivalence_rewrite_crelation.
+
+#[global]
+Hint Extern 10 (@RewriteRelation ?A ?R) => equiv_rewrite_relation R : typeclass_instances.
 
 (** Hints to drive the typeclass resolution avoiding loops
  due to the use of full unification. *)
