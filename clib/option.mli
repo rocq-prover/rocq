@@ -105,6 +105,12 @@ val union : ('a -> 'a -> 'a) -> 'a option -> 'a option -> 'a option
 (** [default a x] is [y] if [x] is [Some y] and [a] otherwise. *)
 val default : 'a -> 'a option -> 'a
 
+(** [max x y] is the maximum of [x] and [y] by [Stdlib.max], [None] being neutral (see [union]) *)
+val max : 'a option -> 'a option -> 'a option
+
+(** [min x y] is the minimum of [x] and [y] by [Stdlib.min], [None] being neutral (see [union]) *)
+val min : 'a option -> 'a option -> 'a option
+
 (** {6 Smart operations} *)
 
 module Smart :
