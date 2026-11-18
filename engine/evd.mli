@@ -639,7 +639,7 @@ val check_univ_decl_early : poly:PolyFlags.t -> with_obls:bool -> evar_map -> US
 val restrict_ustate : evar_map -> Univ.Level.Set.t -> evar_map
 
 val merge_ustate : evar_map -> UState.t -> evar_map
-(** Dangerous API, see {!UState.union}. *)
+(** Dangerous API, see {!UState.merge}. *)
 
 val set_ustate : ?ignore_namespace:bool -> evar_map -> UState.t -> evar_map
 (** With [~ignore_namespace:true], the namespace of the fresh universes of the new

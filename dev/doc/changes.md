@@ -39,6 +39,13 @@ generates them, and the safe environment never declares them.
   It is for clients that need level names which stay meaningful outside
   of the universe state, e.g. to print or quote them.
 
+- Names of unification levels are only unique within one lineage of
+  universe states. `UState.union` is deprecated in favour of
+  `UState.merge ~into`, which identifies levels with the same name: only
+  use it when the fresh levels of the two states are disjoint, e.g.
+  because one of them was generated in a namespace of its own
+  (`UState.set_supply_namespace`, `Evd.set_supply_namespace`).
+
 ## Changes between Coq 8.17 and Coq 8.18
 
 ### XML protocol

@@ -1423,7 +1423,7 @@ let update_global_obligation_uctx prg uctx univs =
          the universe state of the program, e.g. an admitted obligation is declared
          with a state restricted to its type; its fresh levels come from the supply of
          the program, so the union cannot identify unrelated levels *)
-      UState.union prg.prg_uctx uctx
+      UState.merge ~into:prg.prg_uctx uctx
     else
       (* The monomorphic universe context of the main constant has
          been declared by the first obligation; it is now in the

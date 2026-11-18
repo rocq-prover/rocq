@@ -911,7 +911,7 @@ let has_given_up evd = not (Evar.Set.is_empty evd.given_up)
 let has_shelved evd = not (List.for_all List.is_empty evd.shelf)
 
 let merge_ustate evd uctx' =
-  { evd with universes = UState.union evd.universes uctx' }
+  { evd with universes = UState.merge ~into:evd.universes uctx' }
 
 let merge_universe_context = merge_ustate
 

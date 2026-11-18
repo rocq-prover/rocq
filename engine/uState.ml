@@ -559,7 +559,7 @@ let names_union ((qbind,ubind),(qrev,urev)) ((qbind',ubind'),(qrev',urev')) =
   and urev = Level.Map.lunion urev urev' in
   ((qbind,ubind),(qrev,urev))
 
-let union uctx uctx' =
+let merge ~into:uctx uctx' =
   if uctx == uctx' then uctx
   else if is_empty uctx' then uctx
   else
@@ -593,6 +593,8 @@ let union uctx uctx' =
         minim_extra = extra;
         supply = UnivGen.Supply.union uctx.supply uctx'.supply;
       }
+
+let union uctx uctx' = merge ~into:uctx uctx'
 
 let context_set uctx = uctx.local
 
