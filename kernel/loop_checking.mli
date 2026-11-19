@@ -176,6 +176,18 @@ val substitution_entailed : (Level.t * Level.t) list -> t -> bool
   the same after the substitution: the models of [m] restricted to them are models of the
   substituted clauses, and a model of these extends to one of [m], with each [u] set to its [v]. *)
 
+val substitution_entailed_univ : ?free:(Level.t -> bool) -> (Level.t * Universe.t) list -> t -> bool
+(** [substitution_entailed_univ] is [substitution_entailed] for substitutions by universes, e.g.
+  [max(v, w)]. With [free], the universes which may take any value, a substituted clause also holds
+  when it can be satisfied by raising its [free] premise, if it has only one (whose upper bounds
+  are single universes which can be raised too), or by lowering its [free] conclusion to its lower
+  bounds: it then constrains no other universe. *)
+
+val substitution_failures_univ : ?free:(Level.t -> bool) -> (Level.t * Universe.t) list -> t -> Level.t list option
+(** [substitution_failures_univ subst m] is the list of the levels [u] of [subst] whose clauses do
+  not hold once substituted (see [substitution_entailed_univ]), [None] when one of them is an
+  alias or is not declared *)
+
 (** {1 Constraints of a graph} *)
 
 type 'a constraint_fold = UnivConstraint.t -> 'a -> 'a

@@ -3913,6 +3913,94 @@ let substitution_entailed subst model =
     in
     List.for_all clauses_hold subst
 
+let substitution_failures_univ ?(free = fun _ -> false) subst model =
+  let find l = repr model (find_declared model l) in
+  let orig = subst in
+  match List.map (fun (u, v) -> find u, repr_univ model v) subst with
+  | exception (Not_found | Undeclared _) -> None (* An alias, or an undeclared universe *)
+  | subst ->
+    let sigma (can, k) =
+      match List.find_opt (fun (u, _) -> Index.equal u.canon can.canon) subst with
+      | Some (_, v) -> NeList.map (fun (can', k') -> (can', k' + k)) v
+      | None -> NeList.tip (can, k)
+    in
+    (* In a clause [concl + k <= max(prems)], [concl] is below the premises *)
+    let is_free can = free (Index.repr can.canon model.table) in
+    (* A [free] universe which can be raised without constraining another universe: each of its
+       upper bounds is a single universe which can be raised too (the greatest fixpoint on cycles).
+       Not a [max(prems)]: raising one of its premises is a choice the minimization would not
+       make, as it sets the free universes to their lower bounds *)
+    let raisable = ref PMap.empty in
+    let rec can_raise can =
+      match PMap.find_opt can.canon !raisable with
+      | Some b -> b
+      | None ->
+        raisable := PMap.add can.canon true !raisable;
+        let b =
+          is_free can &&
+          ClausesOf.fold (fun _local (_, prems) ok ->
+              ok && match prems with
+              | NeList.Tip (idx, _) -> can_raise (repr model idx)
+              | NeList.Cons _ -> false)
+            can.clauses_bwd true
+        in
+        raisable := PMap.add can.canon b !raisable; b
+    in
+    (* The lower bounds of a [free] universe, through the free universes: [None] when it is bounded
+       from below by a clause with several premises *)
+    let rec lower_bounds n (can, k) =
+      if not (is_free can) then Some [(can, k)]
+      else if Int.equal n 0 then None
+      else
+        ForwardClauses.fold (fun ~kprem ~concl ~prems acc ->
+            PartialClausesOf.fold (fun (conclk, premsfwd) acc ->
+                match acc, premsfwd with
+                | None, _ | _, Some _ -> None
+                | Some acc, None ->
+                  (* [concl + conclk <= can + kprem] *)
+                  match lower_bounds (n - 1) (repr model concl, conclk - kprem + k) with
+                  | None -> None
+                  | Some lbs -> Some (lbs @ acc))
+              prems acc)
+          can.clauses_fwd (Some [])
+    in
+    (* [concl + k <= max(prems)] once substituted: the substitution of a conclusion by [max(vs)]
+       is the conjunction of the clauses on each [v]. With [free] universes, it may also hold by
+       raising a premise, or by lowering the conclusion to its lower bounds *)
+    let holds prems concl =
+      let prems = NeList.concat_map sigma prems in
+      NeList.for_all (fun (c, _ as concl) ->
+          entails model prems concl ||
+          (match prems with NeList.Tip (p, _) -> can_raise p | NeList.Cons _ -> false) ||
+          (is_free c &&
+           match lower_bounds 5 concl with
+           | None -> false
+           | Some lbs -> List.for_all (fun lb -> entails model prems lb) lbs))
+        (sigma concl)
+    in
+    let clauses_hold (u, _) =
+      ForwardClauses.fold (fun ~kprem ~concl ~prems ok ->
+          ok && PartialClausesOf.fold (fun (conclk, premsfwd) ok ->
+              ok &&
+              let others = match premsfwd with
+                | None -> []
+                | Some others -> List.map (fun (idx, k) -> (repr model idx, k)) (NeList.to_list others)
+              in
+              holds (NeList.of_list ((u, kprem) :: others)) (repr model concl, conclk))
+            prems true)
+        u.clauses_fwd true &&
+      ClausesOf.fold (fun _local (k, prems) ok ->
+          ok && holds (NeList.map (fun (idx, kp) -> (repr model idx, kp)) prems) (u, k))
+        u.clauses_bwd true
+    in
+    Some (List.filter_map (fun ((u, _), (l, _)) -> if clauses_hold (u, ()) then None else Some l)
+      (List.combine subst orig))
+
+let substitution_entailed_univ ?free subst model =
+  match substitution_failures_univ ?free subst model with
+  | None -> false
+  | Some failures -> CList.is_empty failures
+
 (** {1 Removing clauses} *)
 
 (** [remove_can_clause m cl] removes the local clause [cl], canonical and simplified as by
