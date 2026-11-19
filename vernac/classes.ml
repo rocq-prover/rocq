@@ -425,10 +425,9 @@ let do_instance_resolve_TC ~poly term termtype sigma env =
   let sigma = UnivVariances.register_universe_variances_of_type env sigma termtype in
   let sigma = Option.cata (UnivVariances.register_universe_variances_of env sigma) sigma term in
   (* The variance information is partial without a term. With a term still containing undefined
-     evars, e.g. the obligations of a [Program Instance], it is too, but only [Universe
-     Minimization Compat] relies on it being complete, to set to [Set] the universes irrelevant
-     to the type and the typing of the definition: those occurring only in the types of the evars
-     would be, as the rest of the term does not mention them yet *)
+     evars, e.g. the obligations of a [Program Instance], it is too: the universes occurring only
+     in the types of the evars look irrelevant, as the rest of the term does not mention them
+     yet. Only the rules of [Universe Minimization Compat] rely on it being complete. *)
   let partial = match term with
     | None -> true
     | Some term ->

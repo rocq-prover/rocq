@@ -157,24 +157,29 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
     match UGraph.minimize ~require_entailed u graph0 with
       | HasSubst (graph, equivs, lbound) ->
         debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
-        (* With [Universe Minimization Compat], a universe irrelevant to the type and the typing
-           of the definition is set to [Set] even without [Universe Minimization ToSet]: it only
-           remains in the instances of the body, where it does not make the type less general *)
+        (* With [Universe Minimization Compat], a universe occurring only in the body of the
+           definition, not in its type, is set to [Set] even without [Universe Minimization ToSet]:
+           it only remains in the instances of the body, and would otherwise pile up in the
+           definitions built on top. Not one occurring in the type, even irrelevantly: the
+           unification of this type, unreduced, would make [Set] reach positions where it
+           matters. *)
         (* (Not with partial information: the universes of a statement look irrelevant before the
            proof uses them) *)
-        (* (Nor when a universe equal to [u], which the substitution sets too, is relevant) *)
-        let irrelevant_level l =
+        (* (Nor when a universe equal to [u], which the substitution sets too, occurs in the
+           type) *)
+        let body_only l =
           Level.is_set l ||
-          let _, typev, typingv, _ = variance_info l flex variances in
-          typev == UVars.Variance.Irrelevant && typingv == UVars.Variance.Irrelevant
+          match Level.Map.find_opt l variances with
+          | None -> Level.Set.mem l flex
+          | Some { InferCumulativity.infer_binders = (_, (b, _)); infer_topfix_binders = (_, (fb, _));
+                   infer_type = (_, t); _ } ->
+            Option.is_empty b && Option.is_empty fb && Option.is_empty t
         in
-        let irrelevant_equivs () =
-          List.for_all (fun (l, (l', _)) -> irrelevant_level l && irrelevant_level l') equivs
+        let collapse_body_only () =
+          irrelevant && not partial && get_compat_minimization () && body_only u &&
+          List.for_all (fun (l, (l', _)) -> body_only l && body_only l') equivs
         in
-        let collapse_irrelevant () =
-          irrelevant && not partial && get_compat_minimization () && irrelevant_equivs ()
-        in
-        if allowed_instance ~allow_collapse_to_zero u lbound || collapse_irrelevant () then
+        if allowed_instance ~allow_collapse_to_zero u lbound || collapse_body_only () then
           update_equivs_bound (flex, variances, graph) u lbound equivs
         else acc
       | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
