@@ -537,7 +537,8 @@ it is an atomic universe (i.e. not an algebraic max() universe).
    occurs invariantly itself (not :g:`Set` nor an algebraic universe) and
    identifying them with that level adds no constraint between the other
    universes, e.g. :g:`v` with :g:`u` given :g:`u <= v <= w`: they are then
-   identified with that level. Such universes typically come from cumulative instances of
+   identified with that level, as are those of the types of the variables
+   of a section (:cmd:`Context`). Such universes typically come from cumulative instances of
    definitions, e.g. a common universe for both sides of an equality
    between instances at different universes. The resulting type is less
    general, but the universes do not accumulate in the definitions built

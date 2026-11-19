@@ -208,7 +208,12 @@ let interp_context_gen scope ~program_mode ~poly ~kind ~autoimp_enable ~coercion
       | Locality.Global _ -> true, InferCumulativity.Conv
     in
     UnivVariances.register_universe_variances_of_named_context env0 sigma ~as_types ~cumul_pb ctx in
-  let sigma, ctx = Evarutil.finalize ~poly ~partial:true sigma @@ fun nf ->
+  (* With [Universe Minimization Compat], the information about the universes of the assumptions
+     is complete: as those of an [Axiom], the universes of the type of a [Context] variable only
+     bounded from below, e.g. [v] in [R : Rel@{u v} A] given [u <= v], are then identified
+     with their lower bound. Otherwise each declaration of the section would keep them. *)
+  let partial = not (UnivMinim.get_compat_minimization ()) in
+  let sigma, ctx = Evarutil.finalize ~poly ~partial sigma @@ fun nf ->
     List.map (NamedDecl.map_constr_het (fun x -> x) nf) ctx
   in
   (* reorder, evar-normalize and add implicit status *)
