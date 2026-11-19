@@ -70,6 +70,5 @@ let rec join_loop ~source ~last_end ~lines acc = function
     in
     join_loop ~source ~last_end:stop_char ~lines:(lines + n) acc rest
 
-let join_to_source ~dummy ~source vals =
-  let res = join_loop ~source ~last_end:0 ~lines:1 [] vals in
-  List.map (fun (loc,v) -> loc, Option.default dummy v) res
+let join_to_source ~source vals =
+  join_loop ~source ~last_end:0 ~lines:1 [] vals

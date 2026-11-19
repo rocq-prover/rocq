@@ -10,7 +10,7 @@
 
 open BenchUtil
 
-val join_to_source : dummy:'a -> source:string -> (char_loc * 'a) list -> (source_loc * 'a) list
+val join_to_source : source:string -> (char_loc * 'a) list -> (source_loc * 'a option) list
 (** Given a list of values ordered by locations with no overlaps but
     maybe gaps, associate them to substrings of the source and fill in
     the gaps using [dummy].

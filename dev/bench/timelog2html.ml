@@ -85,9 +85,7 @@ let main args =
 
   let all_data = BenchUtil.combine_related_data all_data in
 
-  let dummy = Array.make (Array.length data_files) BenchUtil.dummy_data in
-
-  let all_data = Array.of_list (Sourcehandler.join_to_source ~dummy ~source (Array.to_list all_data)) in
+  let all_data = Array.of_list (Sourcehandler.join_to_source ~source (Array.to_list all_data)) in
 
   let vname = Filename.basename vfile in
 
