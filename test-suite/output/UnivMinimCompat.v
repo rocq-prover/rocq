@@ -73,3 +73,11 @@ Definition pl (A B C : Type) (f : A -> B) (b : B) : Po A B C f :=
 Definition pg (A B C : Type) (f : A -> B) (a : A) : pl A B C f (f a) = pl A B C f (f a)
   := glue A (B + C) (fun a => inl (f a)) a.
 Print pg.
+
+(* As for the type of a definition, a universe occurring in the type of a section variable, even
+   when the inference reduces it away, is not set to Set *)
+Section Var.
+  Context (x : nodes q).
+  Definition fx := x.
+End Var.
+About fx.

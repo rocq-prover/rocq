@@ -373,7 +373,15 @@ let register_universe_variances_of_named_context env sigma ~as_types ?(cumul_pb=
         Option.fold_left (compute_variances_body env sigma) status (get_value binder)
       else
         let status = compute_variances env sigma status (InBinder i) (Conv, cumul_pb) (get_type binder) in
-        Option.cata (compute_variances env sigma status (InBinder i) (Conv, cumul_pb)) status (get_value binder)
+        let status = Option.cata (compute_variances env sigma status (InBinder i) (Conv, cumul_pb)) status (get_value binder) in
+        (* With [Universe Minimization Compat], as for the type of a declaration (see
+           [compute_variances_type_constr]), the universes occurring in the type of a variable,
+           even ones the inference reduces away, e.g. [u] in [G : FreeCat@{v u} S ⟶ P], are not
+           set to [Set] as if they occurred nowhere *)
+        if UnivMinim.get_compat_minimization () then
+          Inf.add_irrelevant_type_occurrences
+            (Vars.universes_of_constr (EConstr.to_constr sigma (get_type binder))) status
+        else status
     in
     (EConstr.push_named Environ.ProofVar binder env, status)
   in
