@@ -44,6 +44,15 @@ let variance_info u flex (variances : InferCumulativity.variances) =
     let termv, typev, principal = term_type_variances occs in
     Option.default Irrelevant termv, Option.default Irrelevant typev, Option.default Irrelevant principal, occs.infer_under_impred_qvars
 
+(* [u] occurs in the type of the declaration or in its binders, possibly irrelevantly, e.g. a
+   universe the inference reduces away (see [InferCumulativity.Inf.add_irrelevant_type_occurrences]) *)
+let occurs_in_type u (variances : InferCumulativity.variances) =
+  match Level.Map.find_opt u variances with
+  | None -> false
+  | Some { InferCumulativity.infer_binders = (_, (b, _)); infer_topfix_binders = (_, (fb, _));
+           infer_type = (_, t); _ } ->
+    Option.has_some b || Option.has_some fb || Option.has_some t
+
 (* [u] occurs relevantly for cumulativity in the type of the declaration, e.g. in the type of a
    binder: setting it to a bound of its choice would make this type less general *)
 let in_declared_type u (variances : InferCumulativity.variances) =
@@ -169,11 +178,8 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
            type) *)
         let body_only l =
           Level.is_set l ||
-          match Level.Map.find_opt l variances with
-          | None -> Level.Set.mem l flex
-          | Some { InferCumulativity.infer_binders = (_, (b, _)); infer_topfix_binders = (_, (fb, _));
-                   infer_type = (_, t); _ } ->
-            Option.is_empty b && Option.is_empty fb && Option.is_empty t
+          if Level.Map.mem l variances then not (occurs_in_type l variances)
+          else Level.Set.mem l flex
         in
         let collapse_body_only () =
           irrelevant && not partial && get_compat_minimization () && body_only u &&
@@ -489,7 +495,7 @@ let new_minimize_weak partial flex weak (g, variances) =
   type they occur in, still holds of the lower bound). Not with partial information, where the
   rest of the definition may still bound them, nor when the substitution would also set a
   universe which is not one of them. *)
-let minimize_parameter_only solve_flexibles partial parameter_only (flex, variances, graph as acc) =
+let minimize_parameter_only solve_flexibles partial above_zero parameter_only (flex, variances, graph as acc) =
   if partial then acc else
   let require_entailed = not solve_flexibles in
   let minimize u (flex, variances, graph as acc) =
@@ -499,10 +505,17 @@ let minimize_parameter_only solve_flexibles partial parameter_only (flex, varian
         (* The universe may have escaped its positions, e.g. into the type of a binder [B : ?T]
            whose type [?T] was solved to [Type@{u}] by [@sig@{u v} B P]: it must also be
            irrelevant to the type and typing of the definition *)
+        (* With [Universe Minimization Compat], it must not occur in the type of the declaration
+           either, even irrelevantly: the unification of this type would make [Set] reach
+           positions where it matters, as for the universes not occurring in the type (see
+           [simplify_variables]). Unless it is above a type in [Set] ([above_zero], e.g. the
+           universe of [Fin n] in [sig@{u v} (Fin n) P]), where [Set] is its natural value. *)
         let parameter_only_level l =
           (Level.equal l u || Level.Set.mem l parameter_only) &&
           let _, typev, typingv, _ = variance_info l flex variances in
-          typev == UVars.Variance.Irrelevant && typingv == UVars.Variance.Irrelevant
+          typev == UVars.Variance.Irrelevant && typingv == UVars.Variance.Irrelevant &&
+          not (get_compat_minimization () && occurs_in_type l variances &&
+               not (Level.Set.mem l above_zero))
         in
         if parameter_only_level u && List.for_all (fun (l, _) -> parameter_only_level l) equivs then begin
           debug_each Pp.(fun () -> str"Minimizing parameter-only " ++ Level.raw_pr u ++ str" to " ++ Universe.pr Level.raw_pr lbound);
@@ -537,7 +550,7 @@ let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false
   let flexible_variables, variances, graph =
     (* debug Pp.(fun () -> str"Model after removal: " ++ UGraph.pr_model graph); *)
     let flexible_variables, variances, graph =
-      minimize_parameter_only solve_flexibles partial parameter_only (flexible_variables, variances, graph) in
+      minimize_parameter_only solve_flexibles partial above_zero parameter_only (flexible_variables, variances, graph) in
     let internal = if minimize_internal then internal else Level.Set.empty in
     let flex, variances, graph = simplify_variables solve_flexibles above_prop above_zero internal partial solve_term flexible_variables variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ Level.Set.pr Level.raw_pr flex);
