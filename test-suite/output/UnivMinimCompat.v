@@ -29,3 +29,13 @@ About pair_box.
 Record Chain@{u v w | u <= v, v <= w} := { lo : Type@{u}; mid : Type@{v}; hi : Type@{w} }.
 Definition chain (x : Chain) := x.
 About chain.
+
+(* As do the universes of the type of a section variable, which are those of the declarations of
+   the section *)
+Record Cat@{o h p | h <= p} := { ob : Type@{o}; hm : ob -> ob -> Type@{h};
+  eqv : forall x y, hm x y -> hm x y -> Type@{p} }.
+Section S.
+  Context (C : Cat).
+  Definition terminal := { t : ob C & forall x, hm C x t }.
+End S.
+About terminal.

@@ -48,3 +48,13 @@ Arguments chain x
 chain is transparent
 Expands to: Constant UnivMinimCompat.chain
 Declared in library UnivMinimCompat, line 30, characters 11-16
+terminal@{u u0} :
+Cat@{u u0 u0} -> Type@{max(u,u0)}
+(* u(= in 1st binder, = (* for typing) in term, + in type)
+   u0(= in 1st binder, = (* for typing) in term, + in type) | *)
+
+terminal is universe polymorphic
+Arguments terminal C
+terminal is transparent
+Expands to: Constant UnivMinimCompat.terminal
+Declared in library UnivMinimCompat, line 39, characters 13-21
