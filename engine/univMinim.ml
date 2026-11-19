@@ -414,12 +414,37 @@ let _pr_substitution prl m =
   let open Pp in
   prlist_with_sep spc (fun (l, u) -> prl l ++ str" := " ++ Universe.pr prl u ++ fnl ()) (Level.Map.bindings m)
 
-let new_minimize_weak flex weak (g, variances) =
+let new_minimize_weak partial flex weak (g, variances) =
   UPairSet.fold (fun (u,v) (flex, variances, g as acc) ->
     let norm = Universe.subst_opt_fn (UGraph.normalize g) in
     let u = norm u and v = norm v in
     if (Universe.is_type0 u || Universe.is_type0 v) then acc
     else
+      let check_le a b = UGraph.check_constraint g (a,Le,b) in
+      let set a b variances =
+        try
+          let g, equivs = UGraph.set a b g in
+          debug Pp.(fun () -> str"Minimize_weak: setting " ++ Level.raw_pr a ++ str" to " ++ Universe.pr Level.raw_pr b);
+          update_equivs_bound (flex, variances, g) a b equivs
+        with Loop_checking.NotCanonical -> assert false
+           | UGraph.InconsistentEquality | UGraph.OccurCheck -> acc
+      in
+      (* With [Universe Minimization Compat], as the minimization ignoring variances did, the
+         flexible side is also identified with the other one when it does not occur in the type of
+         the declaration and the identification constrains no other universe: it is not bounded
+         from above, and its lower bound is below the other side. E.g. the universes of the
+         instances of the obligations of a [Program] definition, created by their proofs and only
+         weakly related to the universes of the definition. *)
+      let unbounded_irrelevant_to_type a b =
+        not partial && get_compat_minimization () &&
+        (let _, typev, _, _ = variance_info a flex variances in
+         typev == UVars.Variance.Irrelevant) &&
+        not (in_declared_type a variances) &&
+        not (UGraph.has_upper_bound a g) &&
+        match UGraph.lower_bound a g with
+        | None -> true
+        | Some lbound -> check_le lbound b
+      in
       let set_to a b =
         let levels = Universe.levels b in
         let sup_variances = sup_variances variances (Level.Set.add a levels) in
@@ -429,16 +454,11 @@ let new_minimize_weak flex weak (g, variances) =
           let variances =
             Level.Set.fold (fun bl variances -> set_variance variances bl sup_variances) levels variances
           in
-          (try
-            let g, equivs = UGraph.set a b g in
-            debug Pp.(fun () -> str"Minimize_weak: setting " ++ Level.raw_pr a ++ str" to " ++ Universe.pr Level.raw_pr b);
-            update_equivs_bound (flex, variances, g) a b equivs
-           with Loop_checking.NotCanonical -> assert false
-              | UGraph.InconsistentEquality | UGraph.OccurCheck -> acc)
+          set a b variances
         | _, _, _ -> (* One universe is not irrelevant *)
-          (flex, variances, g)
+          if unbounded_irrelevant_to_type a b then set a b variances
+          else (flex, variances, g)
       in
-      let check_le a b = UGraph.check_constraint g (a,Le,b) in
       if check_le u v || check_le v u
       then acc
       else match Universe.level u with
@@ -507,7 +527,7 @@ let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false
     let internal = if minimize_internal then internal else Level.Set.empty in
     let flex, variances, graph = simplify_variables solve_flexibles above_prop above_zero internal partial solve_term flexible_variables variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ Level.Set.pr Level.raw_pr flex);
-    new_minimize_weak flex weak (graph, variances)
+    new_minimize_weak partial flex weak (graph, variances)
   in
   debug Pp.(fun () ->
     str "After minimization: " ++ fnl () ++
