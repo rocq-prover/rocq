@@ -302,13 +302,17 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
   in
   let (flex, _, _ as acc) = Level.Set.fold simplify_max flex acc in
   (* With [Universe Minimization Compat], a flexible universe that is still undefined, e.g. one
-     occurring invariantly, is set to its lower bound when no constraint bounds it from above, as
-     the minimization ignoring variances did. The type loses generality, but the universes made by
-     cumulative instances, only bounded from below by the universes of the instances, do not pile up. *)
+     occurring invariantly, is set to its lower bound, as the minimization ignoring variances did.
+     The type loses generality, but the universes made by cumulative instances, only bounded from
+     below by the universes of the instances, do not pile up. Its upper bounds do not prevent it:
+     the substitution must be entailed ([UGraph.minimize]), so that it does not constrain the
+     other universes, e.g. [v := u] with [u <= v <= w] (the universes of the homs and of their
+     equalities of the categories of a functor). Setting a universe may make the lower bound of
+     another one a single level: the universes are tried again until none is set. *)
   let (flex, _, _ as acc) =
     if partial || not (get_compat_minimization ()) then acc else
     let simplify_unbounded u (flex, variances, graph as acc) =
-      if not (Level.Set.mem u flex) || UGraph.has_upper_bound u graph then acc
+      if not (Level.Set.mem u flex) then acc
       else match UGraph.minimize ~require_entailed u graph with
         | HasSubst (graph', equivs, lbound) ->
           (* Only when the lower bound is a universe level which occurs invariantly itself, e.g. one
@@ -329,7 +333,12 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
           end
         | NoBound | CannotSimplify -> acc
     in
-    Level.Set.fold simplify_unbounded flex acc
+    let rec rounds n (flex, _, _ as acc) =
+      let (flex', _, _ as acc') = Level.Set.fold simplify_unbounded flex acc in
+      if Int.equal n 0 || Int.equal (Level.Set.cardinal flex') (Level.Set.cardinal flex) then acc'
+      else rounds (n - 1) acc'
+    in
+    rounds 5 acc
   in
   let simplify_arbitrary u (flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
