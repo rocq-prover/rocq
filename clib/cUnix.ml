@@ -69,7 +69,7 @@ let canonical_path_name p =
     p'
   with Sys_error _ ->
     (* We give up to find a canonical name and just simplify it... *)
-    current ^ dirsep ^ strip_path p
+    if Filename.is_relative p then current ^ dirsep ^ strip_path p else p
 
 let make_suffix name suffix =
   if Filename.check_suffix name suffix then name else (name ^ suffix)
