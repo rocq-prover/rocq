@@ -541,7 +541,10 @@ it is an atomic universe (i.e. not an algebraic max() universe).
    between instances at different universes. The resulting type is less
    general, but the universes do not accumulate in the definitions built
    on top of it. The floating universes which occur in the body of the
-   definition but not in its type are also minimized.
+   definition but not in its type are also minimized, and identified with
+   the universes they are weakly equated to by unification (e.g. those of
+   the instances of the obligations of a :ref:`Program <programs>` definition) when
+   this adds no constraint between the other universes.
 
 .. _explicit-universes:
 
