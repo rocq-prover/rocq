@@ -86,3 +86,12 @@ glue@{max(u,u0,u1) max(u,u0,u1)} A (B + C) (fun a0 : A => inl (f a0)) a
    u1(= in 3rd binder, = (* for typing) in term, * in type) | *)
 
 Arguments pg (A B C)%_type_scope f%_function_scope a
+fx@{u} :
+nodes@{u} q@{u} -> nodes@{u} q@{u}
+(* u(= (* for typing) in 1st binder, = (* for typing) in type) | *)
+
+fx is universe polymorphic and cumulative
+Arguments fx x
+fx is transparent
+Expands to: Constant UnivMinimCompat.fx
+Declared in library UnivMinimCompat, line 81, characters 13-15
