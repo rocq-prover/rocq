@@ -29,6 +29,9 @@ type extra = {
 
 val empty_extra : extra
 
+(** Whether [Universe Minimization Compat] is set *)
+val get_compat_minimization : unit -> bool
+
 val extra_union : extra -> extra -> extra
 
 val nf_extra : (Universe.t -> Universe.t) -> extra -> extra
