@@ -1445,10 +1445,22 @@ let declare_obligation prg obl ~uctx ~types ~body =
       if not (PolyFlags.univ_poly poly) then shrink_body body types
       else ([], body, types, [||])
     in
-    let uctx' = UState.restrict uctx (universes_of_decl body types) in
-    let univs = UState.univ_entry ~poly uctx' in
+    let ce, univs =
+      match ty with
+      | Some ty when PolyFlags.univ_poly poly && opaque && private_poly_univs () ->
+        (* As for the proofs of polymorphic lemmas, the universes only occurring in the proof of
+           an opaque obligation, e.g. those created by the tactic solving it, are private: they
+           do not appear in the instances of the obligation in the definition. *)
+        let _, univs, _, body =
+          make_univs_immediate_private_poly ~poly ~uctx ~udecl:UState.default_univ_decl
+            ~eff:SideEff.empty ~used_univs:Univ.Level.Set.empty body (Some ty) in
+        definition_entry_core ~using:(make_using None) ~types:ty ~univs body, univs
+      | _ ->
+        let uctx' = UState.restrict uctx (universes_of_decl body types) in
+        let univs = UState.univ_entry ~poly uctx' in
+        definition_entry ?types:ty ~opaque ~univs body, univs
+    in
     let inst = instance_of_univs univs in
-    let ce = definition_entry ?types:ty ~opaque ~univs body in
     (* ppedrot: seems legit to have obligations as local *)
     let constant =
       declare_constant ~loc:(fallback_loc ~warn:false obl.obl_name None) ~name:obl.obl_name
