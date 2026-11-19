@@ -550,7 +550,9 @@ it is an atomic universe (i.e. not an algebraic max() universe).
    equations are applied before the minimization, as the minimization
    ignoring variances did: a universe of the body only related to one of
    the type by a conversion up to reduction is identified with it rather
-   than minimized on its own, e.g. to :g:`Set`.
+   than minimized on its own, e.g. to :g:`Set`. Finally, a universe is never
+   set to an upper bound which is not a universe of the definition, e.g. a
+   monomorphic universe of the global environment.
 
 .. _explicit-universes:
 

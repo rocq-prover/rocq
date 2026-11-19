@@ -155,8 +155,19 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
     with Loop_checking.NotCanonical -> assert false
        | UGraph.InconsistentEquality | UGraph.OccurCheck -> acc
   in
-  let maximize u (flex, variances, graph as acc) =
-    match UGraph.maximize u graph with
+  (* With [Universe Minimization Compat], a universe is not maximized to a universe which is not
+     one of the declaration, e.g. a monomorphic universe of the global environment bounding a
+     polymorphic one: this would tie the declaration to it, while the minimization ignoring
+     variances never maximized. *)
+  let local_bound variances ub =
+    not (Universe.exists (fun (l, _) ->
+        not (Level.is_set l || Level.Map.mem l variances || Level.Set.mem l flex)) ub)
+  in
+  let maximize u (flex, variances, graph0 as acc) =
+    match UGraph.maximize u graph0 with
+    | HasSubst (_, _, ubound) when get_compat_minimization () && not (local_bound variances ubound) ->
+      debug_each Pp.(fun () -> str"Not maximizing " ++ Level.raw_pr u ++ str" to the non-local " ++ Universe.pr Level.raw_pr ubound);
+      acc
     | HasSubst (graph, equivs, ubound) ->
       debug_each Pp.(fun () -> str"Maximizing " ++ Level.raw_pr u ++ str" resulted in ubound: " ++ Universe.pr Level.raw_pr ubound);
       update_equivs_bound (flex, variances, graph) u ubound equivs
