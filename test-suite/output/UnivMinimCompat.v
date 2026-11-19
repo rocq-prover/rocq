@@ -81,3 +81,10 @@ Section Var.
   Definition fx := x.
 End Var.
 About fx.
+
+(* A universe only bounded from above by a monomorphic universe is not maximized to it: this would
+   tie the definition to the global environment *)
+Monomorphic Universe g.
+Monomorphic Definition id_g (A : Type@{g}) (a : A) : A := a.
+Definition use_g (A : Type) (a : A) := id_g A a.
+About use_g.
