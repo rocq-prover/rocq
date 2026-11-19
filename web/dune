@@ -1,0 +1,33 @@
+; Rocq compiled with wasm_of_ocaml. The libraries are the ones of
+; rocq-runtime (the bytecode works with 31 bits integers), plugins are
+; loaded with Dynlink.
+
+; Primitives missing in the wasm_of_ocaml runtime, for programs linking
+; the Rocq libraries
+(library
+ (name rocq_web_stubs)
+ (public_name rocq-web.stubs)
+ (modes byte)
+ (modules rocq_web_stubs)
+ (wasm_of_ocaml (wasm_files rocq_web_stubs.wat)))
+
+(executable
+ (name rocq_c)
+ (modes wasm)
+ (modules rocq_c)
+ (link_flags (:standard -linkall))
+ (wasm_of_ocaml (compilation_mode whole_program) (flags (:standard --dynlink)))
+ (libraries zarith_stubs_js rocq_web_stubs rocq-runtime.toplevel
+   wasm_of_ocaml-compiler.dynlink))
+
+(executable
+ (name rocq_dep)
+ (modes wasm)
+ (modules rocq_dep)
+ (libraries rocq_web_stubs rocq-runtime.coqdeplib))
+
+(install
+ (section lib)
+ (package rocq-web)
+ (files rocq_c.bc.wasm.js rocq_dep.bc.wasm.js)
+ (dirs rocq_c.bc.wasm.assets rocq_dep.bc.wasm.assets))

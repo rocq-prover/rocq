@@ -76,6 +76,24 @@ This package includes tools to help when developing Rocq projects
 (timelog2html)."))
 
 (package
+ (name rocq-web)
+ (depends
+  (rocq-runtime (= :version))
+  zarith_stubs_js
+  (wasm_of_ocaml-compiler (>= 6.5)))
+ (synopsis "The Rocq Prover compiled to WebAssembly")
+ (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
+a formal language to write mathematical definitions, executable
+algorithms and theorems together with an environment for
+semi-interactive development of machine-checked proofs.
+
+This package provides `rocq compile` and `rocq dep` compiled with
+wasm_of_ocaml, and the wasm primitives needed to link the Rocq libraries
+to wasm. It uses the
+libraries, plugins and .vo files of rocq-runtime and rocq-core: plugins
+are loaded with Dynlink."))
+
+(package
  (name coq-core)
  (depends
   (rocq-runtime (= :version)))
