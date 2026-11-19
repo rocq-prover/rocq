@@ -29,8 +29,8 @@ Declared in library UnivMinimCompat, line 20, characters 11-18
 pair_box@{u u0 u1} :
 forall (I : Type@{u}) (J : Type@{u0}) (G : Box@{u1}),
 G = box@{max(u,u0)} (I * J) -> G = box@{max(u,u0)} (I * J)
-(* u(= in 1st binder) u0(= in 2nd binder) u1(= in 3rd, 4th binders,
-   = in type) |
+(* u(= in 1st binder, * in type) u0(= in 2nd binder, * in type) u1(= in 3rd,
+   4th binders, = in type) |
    u ≤ u1
    u0 ≤ u1 *)
 
@@ -58,3 +58,12 @@ Arguments terminal C
 terminal is transparent
 Expands to: Constant UnivMinimCompat.terminal
 Declared in library UnivMinimCompat, line 39, characters 13-21
+f@{u} :
+nodes@{u} q@{u} -> nodes@{u} q@{u}
+(* u(= (* for typing) in 1st binder, = (* for typing) in type) | *)
+
+f is universe polymorphic and cumulative
+Arguments f x
+f is transparent
+Expands to: Constant UnivMinimCompat.f
+Declared in library UnivMinimCompat, line 47, characters 11-12

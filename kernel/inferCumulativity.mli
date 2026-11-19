@@ -85,6 +85,11 @@ module Inf : sig
 
   val inferred : status -> variances
   val finish : Environ.env -> status -> UVars.variances
+
+  (** [add_irrelevant_type_occurrences ls s] records an irrelevant occurrence in the type for the
+      universes of [ls] which do not occur in the type (nor its binders) according to [s]: e.g.
+      the universes of [c] in [nodes c], which the inference reduces away. *)
+  val add_irrelevant_type_occurrences : Level.Set.t -> status -> status
 end
 
 type cumul_pb =

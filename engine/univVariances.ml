@@ -185,7 +185,14 @@ let compute_variances_type_constr env sigma ?(on_lets=false) ?let_types ?(positi
   let ctx, c = Term.decompose_prod_decls c in
   let ctx' = if on_lets then ctx else (Vars.smash_rel_context ctx) in
   let status = compute_variances_context_constr env sigma ~on_lets ?let_types ~position:ctx_position ~cumul_pb:ctx_cumul_pb ~typing_pb:ctx_typing_pb status ctx' in
-  compute_variances_constr (Environ.push_rel_context ctx env) sigma status position (cumul_pb, typing_pb) c
+  let status = compute_variances_constr (Environ.push_rel_context ctx env) sigma status position (cumul_pb, typing_pb) c in
+  (* With [Universe Minimization Compat], the universes occurring in the type, even ones the
+     inference reduces away, are not set to [Set] (see [UnivMinim]): the unification of this
+     type, unreduced, would make [Set] reach positions where it matters *)
+  if UnivMinim.get_compat_minimization () then
+    Inf.add_irrelevant_type_occurrences
+      (Vars.universes_of_constr (Term.it_mkProd_or_LetIn c ctx)) status
+  else status
 
 let compute_variances_type env sigma ?on_lets ?let_types ?(position=Position.InType) ?(ctx_position = fun x -> Position.InBinder x) ?(ctx_cumul_pb=Conv) ?(ctx_typing_pb=Conv) ?(cumul_pb=Cumul) ?typing_pb status c =
   compute_variances_type_constr env sigma ?on_lets ?let_types status ~position ~ctx_position ~ctx_cumul_pb ~ctx_typing_pb ~cumul_pb ?typing_pb

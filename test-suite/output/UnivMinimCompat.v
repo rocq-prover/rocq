@@ -39,3 +39,10 @@ Section S.
   Definition terminal := { t : ob C & forall x, hm C x t }.
 End S.
 About terminal.
+
+(* A universe occurring in the type is not set to Set, even when the inference reduces it away:
+   the type, unreduced, would make Set reach the definitions unifying with it *)
+Record Q@{a} := { nodes : Type@{a} }.
+Definition q@{a} : Q@{a} := {| nodes := nat |}.
+Definition f (x : nodes q) := x.
+About f.

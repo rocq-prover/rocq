@@ -270,6 +270,8 @@ module Inf : sig
   val inferred : status -> variances
   val finish : Environ.env -> status -> UVars.variances
 
+  val add_irrelevant_type_occurrences : Level.Set.t -> status -> status
+
 end = struct
 
   (**
@@ -287,6 +289,16 @@ end = struct
   }
 
   let univs (s : status) = s.univs
+
+  let add_irrelevant_type_occurrences ls (s : status) =
+    let add l univs =
+      Level.Map.update l (function
+          | Some ({ infer_binders = (_, (None, _)); infer_topfix_binders = (_, (None, _));
+                    infer_type = (mode, None); _ } as occ) ->
+            Some { occ with infer_type = (mode, Some VariancePair.irrelevant_pair) }
+          | occ -> occ) univs
+    in
+    { s with univs = Level.Set.fold add ls s.univs }
 
   let get_infer_mode v = v.infer_mode
   let set_infer_mode b v = if v.infer_mode == b then v else {v with infer_mode=b}
