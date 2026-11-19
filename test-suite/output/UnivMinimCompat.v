@@ -23,3 +23,9 @@ About set_box.
 (* As does one bounded from below by an algebraic universe *)
 Definition pair_box (I J : Type) (G : Box) (e : G = box (I * J)) := e.
 About pair_box.
+
+(* A universe bounded from above is identified with its lower bound too, when this does not
+   constrain the others: [v] with [u], then [w] with [u] *)
+Record Chain@{u v w | u <= v, v <= w} := { lo : Type@{u}; mid : Type@{v}; hi : Type@{w} }.
+Definition chain (x : Chain) := x.
+About chain.

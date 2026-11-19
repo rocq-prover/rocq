@@ -39,3 +39,12 @@ Arguments pair_box (I J)%_type_scope G e
 pair_box is transparent
 Expands to: Constant UnivMinimCompat.pair_box
 Declared in library UnivMinimCompat, line 24, characters 11-19
+chain@{u} :
+Chain@{u u u} -> Chain@{u u u}
+(* u(= in 1st binder, + in type) | *)
+
+chain is universe polymorphic and cumulative
+Arguments chain x
+chain is transparent
+Expands to: Constant UnivMinimCompat.chain
+Declared in library UnivMinimCompat, line 30, characters 11-16
