@@ -217,6 +217,8 @@ let has_upper_bound l g = G.has_upper_bound l g.graph
 let lower_bound l g = G.lower_bound l g.graph
 
 let substitution_entailed subst g = G.substitution_entailed subst g.graph
+let substitution_entailed_univ ?free subst g = G.substitution_entailed_univ ?free subst g.graph
+let substitution_failures_univ ?free subst g = G.substitution_failures_univ ?free subst g.graph
 
 let remove_if_entailed c g = Option.map (fun graph -> { g with graph }) (G.remove_if_entailed c g.graph)
 

@@ -546,7 +546,11 @@ it is an atomic universe (i.e. not an algebraic max() universe).
    definition but not in its type are also minimized, and identified with
    the universes they are weakly equated to by unification (e.g. those of
    the instances of the obligations of a :ref:`Program <programs>` definition) when
-   this adds no constraint between the other universes.
+   this adds no constraint between the other universes. These weak
+   equations are applied before the minimization, as the minimization
+   ignoring variances did: a universe of the body only related to one of
+   the type by a conversion up to reduction is identified with it rather
+   than minimized on its own, e.g. to :g:`Set`.
 
 .. _explicit-universes:
 

@@ -177,6 +177,8 @@ val has_upper_bound : Level.t -> t -> bool
 (** See [Loop_checking.lower_bound] and [Loop_checking.substitution_entailed] *)
 val lower_bound : Level.t -> t -> Universe.t option
 val substitution_entailed : (Level.t * Level.t) list -> t -> bool
+val substitution_entailed_univ : ?free:(Level.t -> bool) -> (Level.t * Universe.t) list -> t -> bool
+val substitution_failures_univ : ?free:(Level.t -> bool) -> (Level.t * Universe.t) list -> t -> Level.t list option
 
 (** [remove_if_entailed c g]: when the local clauses of [c] (see [set_local]) are entailed by the
   others in [g], [g] without them *)

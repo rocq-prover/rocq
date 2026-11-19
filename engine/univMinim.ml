@@ -434,7 +434,7 @@ let _pr_substitution prl m =
   let open Pp in
   prlist_with_sep spc (fun (l, u) -> prl l ++ str" := " ++ Universe.pr prl u ++ fnl ()) (Level.Map.bindings m)
 
-let new_minimize_weak partial flex weak (g, variances) =
+let new_minimize_weak ?entailed_only partial flex weak (g, variances) =
   UPairSet.fold (fun (u,v) (flex, variances, g as acc) ->
     let norm = Universe.subst_opt_fn (UGraph.normalize g) in
     let u = norm u and v = norm v in
@@ -442,6 +442,23 @@ let new_minimize_weak partial flex weak (g, variances) =
     else
       let check_le a b = UGraph.check_constraint g (a,Le,b) in
       let set a b variances =
+        (* With [Universe Minimization Compat], a universe occurring in the type of the declaration
+           only with another flexible universe: it could be identified with a global universe,
+           constraining nothing but losing its generality, e.g. when another weak constraint
+           identified a universe of the body with it *)
+        let to_flexible = match Universe.level b with
+          | Some b -> Level.Set.mem b flex
+          | None -> false
+        in
+        if not partial && get_compat_minimization () && occurs_in_type a variances && not to_flexible
+        then acc else
+        (* Before the minimization (see [early_minimize_weak]), only when this constrains no other
+           universe, and a universe relevant to the type only with another flexible universe *)
+        if (match entailed_only with
+            | None -> false
+            | Some free ->
+              not ((free a || to_flexible) && UGraph.substitution_entailed_univ ~free [(a, b)] g))
+        then acc else
         try
           let g, equivs = UGraph.set a b g in
           debug Pp.(fun () -> str"Minimize_weak: setting " ++ Level.raw_pr a ++ str" to " ++ Universe.pr Level.raw_pr b);
@@ -488,6 +505,88 @@ let new_minimize_weak partial flex weak (g, variances) =
         | Some v when Level.Set.mem v flex -> set_to v u
         | _ -> acc)
     weak (flex, variances, g)
+
+(** The weak constraints applied before the minimization with [Universe Minimization Compat], only
+  when they constrain no other universe: all the constraints on the substituted universes must
+  still hold once substituted, possibly by raising or lowering the universes irrelevant to the type
+  of the declaration, which can take any value ([UGraph.substitution_entailed_univ]). Unlike after
+  the minimization, their bounds are not resolved yet: e.g. a universe [x <= u] of the body,
+  identified with a global universe [g], would make [g <= u]. First jointly, those identifying a flexible universe
+  irrelevant to the type of the declaration with the other side, as they often cannot be
+  identified one at a time: e.g. the universes [a, b] of [cglue@{a b}] with [a ~ max(u, v, w)],
+  [b ~ max(u, v, w)], and those of its arguments, [x ~ v], [y ~ w] with [x <= a], [y <= a]. Then
+  one at a time. *)
+let early_minimize_weak flex weak (g, variances) =
+  let norm = Universe.subst_opt_fn (UGraph.normalize g) in
+  let irrelevant_to_type a =
+    Level.Set.mem a flex &&
+    let _, typev, typingv, _ = variance_info a flex variances in
+    typev == UVars.Variance.Irrelevant && typingv == UVars.Variance.Irrelevant &&
+    not (in_declared_type a variances) && not (occurs_in_type a variances)
+  in
+  let candidates = UPairSet.fold (fun (u, v) cands ->
+      let u = norm u and v = norm v in
+      let candidate a b =
+        match Universe.level a with
+        | Some a when irrelevant_to_type a && not (Level.Set.mem a (Universe.levels b))
+                      && not (Level.Map.mem a cands) -> Some (a, b)
+        | _ -> None
+      in
+      if Universe.is_type0 u || Universe.is_type0 v
+         || UGraph.check_constraint g (u, Le, v) || UGraph.check_constraint g (v, Le, u)
+      then cands
+      else match candidate u v with
+        | Some (a, b) -> Level.Map.add a b cands
+        | None -> match candidate v u with Some (a, b) -> Level.Map.add a b cands | None -> cands)
+      weak Level.Map.empty
+  in
+  (* The chains [x ~ y ~ z] are followed: the other sides are substituted too, and the candidates
+     whose substitution is cyclic are dropped *)
+  let rec resolve n b =
+    let b' = Universe.subst_opt_fn (fun l -> Level.Map.find_opt l candidates) b in
+    if Universe.equal b b' then Some b
+    else if Int.equal n 0 then None
+    else resolve (n - 1) b'
+  in
+  let bound = Level.Map.cardinal candidates in
+  let candidates = Level.Map.fold (fun a b cands ->
+      match resolve bound b with
+      | Some b when not (Level.Set.mem a (Universe.levels b)) -> (a, b) :: cands
+      | _ -> cands)
+      candidates []
+  in
+  (* The greatest entailed subset: the candidates whose constraints do not hold are removed, and
+     the others checked again without them *)
+  let rec entailed_subset n candidates =
+    if Int.equal n 0 || List.is_empty candidates then [] else
+    match UGraph.substitution_failures_univ ~free:irrelevant_to_type candidates g with
+    | None -> []
+    | Some [] -> candidates
+    | Some failures ->
+      debug Pp.(fun () -> str"Minimize_weak: not entailed jointly: " ++ prlist_with_sep spc Level.raw_pr failures);
+      let candidates = List.filter (fun (a, _) -> not (List.mem_f Level.equal a failures)) candidates in
+      (* The other sides mentioning a removed candidate are no longer substituted *)
+      let candidates = List.filter (fun (_, b) ->
+          Level.Set.for_all (fun l -> not (List.mem_f Level.equal l failures)) (Universe.levels b))
+          candidates
+      in
+      entailed_subset (n - 1) candidates
+  in
+  debug Pp.(fun () -> str"Minimize_weak: joint candidates: " ++ prlist_with_sep spc (fun (a, b) -> Level.raw_pr a ++ str" := " ++ Universe.pr Level.raw_pr b) candidates);
+  let candidates = entailed_subset (List.length candidates) candidates in
+  let acc = (flex, variances, g) in
+  let acc =
+    if List.is_empty candidates then acc
+    else List.fold_left (fun (flex, variances, g as acc) (a, b) ->
+        match UGraph.set a b g with
+        | g, equivs ->
+          debug Pp.(fun () -> str"Minimize_weak: setting jointly " ++ Level.raw_pr a ++ str" to " ++ Universe.pr Level.raw_pr b);
+          update_equivs_bound (flex, variances, g) a b equivs
+        | exception (Loop_checking.NotCanonical | UGraph.InconsistentEquality | UGraph.OccurCheck) -> acc)
+        acc candidates
+  in
+  let flex, variances, g = acc in
+  new_minimize_weak ~entailed_only:irrelevant_to_type false flex weak (g, variances)
 
 (** The universes of [parameter_only] are set to their lower bound, [Set] included whatever
   [Universe Minimization ToSet]: they only bound the types of the arguments of one occurrence of
@@ -549,6 +648,17 @@ let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false
   (* Now we construct the instantiation of each variable. *)
   let flexible_variables, variances, graph =
     (* debug Pp.(fun () -> str"Model after removal: " ++ UGraph.pr_model graph); *)
+    (* With [Universe Minimization Compat], the weak constraints are applied first, as the
+       minimization ignoring variances did: otherwise the universes of the body only weakly related
+       to the universes of the type, e.g. by a conversion of their types up to reduction, would be
+       set to [Set] as universes not occurring in the type, and the weak constraints with them
+       would be lost. Before the minimization, identifying a universe with an algebraic one, e.g.
+       [max(u, v)], could bound its lower bounds by it: these are only applied when this
+       constrains no other universe (see [early_minimize_weak]) *)
+    let flexible_variables, variances, graph =
+      if partial || not (get_compat_minimization ()) then flexible_variables, variances, graph
+      else early_minimize_weak flexible_variables weak (graph, variances)
+    in
     let flexible_variables, variances, graph =
       minimize_parameter_only solve_flexibles partial above_zero parameter_only (flexible_variables, variances, graph) in
     let internal = if minimize_internal then internal else Level.Set.empty in

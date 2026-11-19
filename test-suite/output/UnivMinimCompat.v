@@ -46,3 +46,30 @@ Record Q@{a} := { nodes : Type@{a} }.
 Definition q@{a} : Q@{a} := {| nodes := nat |}.
 Definition f (x : nodes q) := x.
 About f.
+
+(* The universes of the body only weakly related to those of the type, here by a conversion of
+   [gcar (free A)] up to reduction, are identified with them rather than set to Set: the body,
+   unfolded, would make Set reach the universes of the type *)
+Unset Universe Minimization ToSet.
+Record G@{a e} := { gcar : Type@{a}; grel : gcar -> gcar -> Type@{e} }.
+Definition free@{a} (A : Type@{a}) : G@{a 0} := {| gcar := list A; grel := fun _ _ => True |}.
+Definition gop (g : G) (x y : gcar g) : gcar g := x.
+Definition ins (A : Type) (a : A) : gcar (free A) := cons a nil.
+Definition w (A : Type) (a : A) : gcar (free A) := gop (free A) (ins A a) (ins A a).
+Print w.
+
+(* Also when the universes of the type are algebraic, e.g. [l := max(u, u0, u1)] in the type of
+   [pl], jointly: [glue@{a b}] with [a ~ l], [b ~ l], where [b] is bounded by the universe of
+   [B + C], itself only weakly related to the universes of [B] and [C] *)
+Inductive Co@{i j u | i <= u, j <= u} (B : Type@{i}) (A : Type@{j}) (f : B -> A) : Type@{u} :=
+  co : A -> Co B A f.
+Arguments co {B A f} _.
+Axiom glue@{i j} : forall (B : Type@{i}) (A : Type@{j}) (f : B -> A) (b : B),
+  @co B A f (f b) = @co B A f (f b).
+Definition Po@{i j k l} (A : Type@{i}) (B : Type@{j}) (C : Type@{k}) (f : A -> B) : Type@{l}
+  := Co@{l l l} A (B + C) (fun a => inl (f a)).
+Definition pl (A B C : Type) (f : A -> B) (b : B) : Po A B C f :=
+  @co A (B + C) (fun a => inl (f a)) (inl b).
+Definition pg (A B C : Type) (f : A -> B) (a : A) : pl A B C f (f a) = pl A B C f (f a)
+  := glue A (B + C) (fun a => inl (f a)) a.
+Print pg.
