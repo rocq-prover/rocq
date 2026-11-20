@@ -18,3 +18,4 @@ overlay trakt https://github.com/mattam82/trakt universes-and-variances-global 2
 overlay itree https://github.com/mattam82/InteractionTrees universes-and-variances-global 22721
 overlay quickchick https://github.com/mattam82/QuickChick universes-and-variances-global 22721
 overlay jasmin https://github.com/mattam82/jasmin universes-and-variances-global 22721
+overlay category_theory https://github.com/mattam82/category-theory universes-and-variances-global 22721
