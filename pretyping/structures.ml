@@ -590,10 +590,23 @@ let entries () =
     PatMap.fold (fun pat o acc -> canonical_entry_of_object p pat o :: acc) ol acc)
     !object_table []
 
+(* The answers for the current table of canonical instances: this is asked at
+   each step of unification *)
+let instances_cache = ref (GlobRefMap.empty, Names.PRmap.empty)
+
+let projection_has_instances env p =
+  let table = Summary.Ref.(!object_table) in
+  let cache = if fst !instances_cache == table then snd !instances_cache else Names.PRmap.empty in
+  match Names.PRmap.find_opt p cache with
+  | Some b -> b
+  | None ->
+    let cst = Environ.projection_repr_constant env p in
+    let b = GlobRefMap.mem env (Names.GlobRef.ConstRef cst) table in
+    instances_cache := (table, Names.PRmap.add p b cache);
+    b
+
 let rec has_canonical_instances env sigma p c =
-  let open Summary.Ref in
-  let cst = Environ.projection_repr_constant env (Names.Projection.repr p) in
-  GlobRefMap.mem env (Names.GlobRef.ConstRef cst) !object_table ||
+  projection_has_instances env (Names.Projection.repr p) ||
   match EConstr.kind sigma (fst (EConstr.decompose_app sigma c)) with
   | Constr.Proj (p, _, c) -> has_canonical_instances env sigma p c
   | _ -> false
