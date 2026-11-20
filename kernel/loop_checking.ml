@@ -2563,6 +2563,55 @@ let unbounded_above model prems concl =
   not (target concl.canon) &&
   try aux [concl.canon] (Index.Set.singleton concl.canon) 0 with Unknown -> false
 
+(** [derive_above model prems concl k] decides [concl + k <= max(prems)] when the search of
+  [unbounded_above] settles it: [`Refuted] when it is unbounded above; [`Holds] when it reaches a
+  premise [p + kp] by a path of clauses with a single premise, from [concl + k <= x + e] to
+  [concl + k <= q + (e + kq - c)] through [x + c <= q + kq], with [e <= kp]; [`Unknown]
+  otherwise. Most checks hold, and this proves the ones following the clauses of single
+  inequalities, as the ones of the kernel's conversion do, without propagating the premises. *)
+let derive_above model prems concl k =
+  let setidx = Index.find Level.set model.table in
+  let premise idx = NeList.fold (fun (p, kp) acc ->
+      if Index.equal p.canon idx then Some (match acc with None -> kp | Some k -> max k kp) else acc)
+      prems None
+  in
+  let exception Found of [ `Holds | `Unknown ] in
+  let reach q eq =
+    if Index.equal q setidx then raise_notrace (Found `Unknown)
+    else match premise q with
+      | None -> ()
+      | Some kp ->
+        match eq with
+        | Some e when e <= kp -> raise_notrace (Found `Holds)
+        | _ -> raise_notrace (Found `Unknown)
+  in
+  let rec aux todo seen n =
+    match todo with
+    | [] -> `Refuted
+    | (x, e) :: todo ->
+      let todo, seen, n = ClausesOf.fold (fun _local (c, qs) acc ->
+          let single = match qs with NeList.Tip _ -> true | NeList.Cons _ -> false in
+          NeList.fold (fun (q, kq) (todo, seen, n as acc) ->
+              if Index.Set.mem q seen then acc
+              else
+                let eq = if single then Option.map (fun e -> e + kq - c) e else None in
+                let () = reach q eq in
+                if n >= max_above then raise_notrace (Found `Unknown)
+                else ((q, eq) :: todo, Index.Set.add q seen, n + 1)) qs acc)
+          (repr model x).clauses_bwd (todo, seen, n)
+      in
+      aux todo seen n
+  in
+  match premise concl.canon with
+  | Some kp when k <= kp -> `Holds
+  | Some _ -> `Unknown
+  | None ->
+    if Index.equal concl.canon setidx then
+      (* [Set] is below every universe *)
+      if NeList.exists (fun (_, kp) -> k <= kp) prems then `Holds else `Unknown
+    else
+    try aux [concl.canon, Some k] (Index.Set.singleton concl.canon) 0 with Found r -> (r :> [ `Holds | `Refuted | `Unknown ])
+
 (* The queries of the checks of [-d loop-checking-merged] would check the invariants of the whole
    model each time *)
 let without_invariant_checks f =
@@ -3371,13 +3420,32 @@ let enforce_constraint (u, k, v) (m : t) = enforce u k v m
 
 (** {1 Checking constraints} *)
 
+(** The results of [check_leq_can] for the last model it was asked about, by physical equality:
+  the models are immutable values, and the kernel checks the same few constraints many times
+  against the graph of the environment, e.g. a universe of a library below the universes of the
+  Corelib in conversions. *)
+let leq_cache_model = ref empty_model
+let leq_cache : (Index.t * int * (Index.t * int) list, bool) Hashtbl.t = Hashtbl.create 64
+
 let check_leq_can canu canv model =
   match simplify_can_clause model (canv, canu) with
   | Trivial -> true
   | Contradictory -> false
   | Canonical (prems, (concl, k)) ->
-    not (unbounded_above model prems concl) &&
-    (check_one_clause model prems concl k || check_one_clause_complete model prems concl k)
+    let key = (concl.canon, k, NeList.to_list (NeList.map (fun (p, kp) -> (p.canon, kp)) prems)) in
+    if !leq_cache_model != model then begin
+      if Hashtbl.length leq_cache > 0 then Hashtbl.reset leq_cache;
+      leq_cache_model := model
+    end;
+    match Hashtbl.find_opt leq_cache key with
+    | Some b -> b
+    | None ->
+      let b = match derive_above model prems concl k with
+        | `Holds -> true
+        | `Refuted -> false
+        | `Unknown -> check_one_clause model prems concl k || check_one_clause_complete model prems concl k
+      in
+      Hashtbl.add leq_cache key b; b
 
 let rec check_leq_premises m (u, v) =
   let canv = canonical_premises_repr m v in
@@ -4022,26 +4090,6 @@ let remove_can_clause m ((prems, (concl, conclk)) : can_clause) =
       if fwd == idx.clauses_fwd then m else change_node m { idx with clauses_fwd = fwd })
       prems m)
 
-(** [above_reaches model (x, _) prems]: whether one of the universes of [prems], or [Set], is above
-  [x] through the clauses of [model]. Otherwise [x + kx <= max(prems)] is not entailed: adding the
-  same constant to [x] and the universes above it gives a model of the clauses (the ones between
-  these universes are invariant, the others only get larger premises) where [x] is above any bound
-  that [prems] give. This necessary condition of [entails] is much cheaper than it when [x] has few
-  universes above it, as the universes of a removed constraint often do. *)
-let above_reaches model (x, _) prems =
-  let setidx = Index.find Level.set model.table in
-  let targets = NeList.fold (fun (p, _) s -> PSet.add p.canon s) prems PSet.empty in
-  let target can = Index.equal can.canon setidx || PSet.mem can.canon targets in
-  target x ||
-  let exception Found in
-  try
-    let next e f acc =
-      fold_above model e (fun ~single:_ (y, _ as e') acc -> if target y then raise Found else f e' acc) acc
-    in
-    let _ : _ PMap.t = reach next [(x, 0)] (PMap.singleton x.canon (x, 0)) in
-    false
-  with Found -> true
-
 let remove_if_entailed cst m =
   let cls = clauses_of_constraint m cst in
   (* As in [enforce_clauses], a conclusion substituted by [max(a, b)] gives a clause for each *)
@@ -4062,8 +4110,11 @@ let remove_if_entailed cst m =
   Option.bind removed (fun m' ->
       let refresh (can, k) = (repr m' can.canon, k) in
       if List.for_all (fun (prems, concl) ->
-          let prems = NeList.map refresh prems and concl = refresh concl in
-          above_reaches m' concl prems && entails m' prems concl) cls
+          let prems = NeList.map refresh prems and (x, kx as concl) = refresh concl in
+          match derive_above m' prems x kx with
+          | `Holds -> true
+          | `Refuted -> false
+          | `Unknown -> entails m' prems concl) cls
       then Some m' else None)
 
 let remove_bwd_clauses_from model idx k other =
