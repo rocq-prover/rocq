@@ -829,9 +829,21 @@ let compute_instance_binders uctx inst =
    [v <= u], and then entail it: the constraints are kept as they are. *)
 let remove_redundant_constraints csts =
   let size u = List.length (Universe.repr u) in
+  (* A constraint [l <= r] can only be entailed by the others if each level of [l] has another
+     upper bound: it is in the left-hand side of another inequality, or in an equality *)
+  let bounds = UnivConstraints.fold (fun (l, d, r) acc ->
+      let add acc (v, _) = Level.Map.update v (fun n -> Some (Option.default 0 n + 1)) acc in
+      let acc = List.fold_left add acc (Universe.repr l) in
+      if d == Eq then
+        (* counted twice, as equalities are never removed *)
+        let acc = List.fold_left add (List.fold_left add acc (Universe.repr l)) (Universe.repr r) in
+        List.fold_left add acc (Universe.repr r)
+      else acc) csts Level.Map.empty in
+  let has_other_bound (v, _) = Level.Map.find v bounds >= 2 in
   let candidates = UnivConstraints.fold (fun (l, d, r as c) acc ->
     let n = size l + size r in
-    if d == Le then (n, c) :: acc else acc) csts [] in
+    if d == Le && List.for_all has_other_bound (Universe.repr l) then (n, c) :: acc else acc)
+    csts [] in
   if CList.is_empty candidates then csts
   else
     let candidates = List.stable_sort (fun (n, _) (n', _) -> Int.compare n' n) candidates in
