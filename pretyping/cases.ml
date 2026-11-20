@@ -2132,12 +2132,12 @@ let prepare_predicate_from_arsign_tycon ~program_mode env sigma loc tomatchs ars
         Some (sigma', p, arsign)
   with e when precatchable_exception e -> None
 
-let expected_elimination_sorts env sigma tomatchl =
+let expected_elimination_sorts env sigma tomatchl rtnsort =
   List.map_filter (fun (_,tm) -> match tm with
       | NotInd _ -> None
       | IsInd (_,IndType(indf,_),_) ->
         let (ind, u), _ = dest_ind_family indf in
-        Inductiveops.is_squashed sigma (Inductive.lookup_mind_specif env ind, u))
+        Inductiveops.is_squashed env sigma (Inductive.lookup_mind_specif env ind, u) rtnsort)
     tomatchl
 
 (* Builds the predicate. If the predicate is dependent, its context is
@@ -2200,7 +2200,7 @@ let prepare_predicate ?loc ~program_mode typing_fun env sigma tomatchs arsign ty
           sigma
       in
       let sigma = List.fold_left check_elim_sort sigma
-          (expected_elimination_sorts !!env sigma tomatchs)
+          (expected_elimination_sorts !!env sigma tomatchs rtnsort)
       in
       let predccl = nf_evar sigma predcclj.uj_val in
       [sigma, predccl, building_arsign]

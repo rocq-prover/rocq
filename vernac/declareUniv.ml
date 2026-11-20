@@ -214,9 +214,9 @@ let do_universe ~poly l =
     in
     Global.push_section_context ctx
 
-let do_sort_mono l =
+let do_sort_mono ~infos l =
   let l = List.map (fun {CAst.v=id} ->
-      let q = Global.new_global_sort () in
+      let q = Global.new_global_sort infos in
       q, (id, Sorts.Quality.QGlobal q))
       l
   in
@@ -253,8 +253,8 @@ let do_sort_poly l =
   in
   Global.push_section_context ctx
 
-let do_sort ~poly l =
-  if poly then do_sort_poly l else do_sort_mono l
+let do_sort ~poly ~infos l =
+  if poly then do_sort_poly l else do_sort_mono ~infos l
 
 let redundant_elim_warning =
   CWarnings.create

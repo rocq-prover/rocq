@@ -138,6 +138,8 @@ let check_squashed orig generated = match orig, generated with
        Condition: every quality which can make the generated inductive
        squashed must also make the original inductive squashed *)
     match s1, s2 with
+    | UIPSquashed, UIPSquashed -> true
+    | UIPSquashed, _ | _, UIPSquashed -> false
     | AlwaysSquashed, AlwaysSquashed -> true
     | AlwaysSquashed, SometimesSquashed _ -> true
     | SometimesSquashed _, AlwaysSquashed -> false

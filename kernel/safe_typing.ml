@@ -625,7 +625,23 @@ let push_context_set ~strict cst senv =
 let current_modpath senv = senv.modpath
 let current_dirpath senv = Names.ModPath.dp (current_modpath senv)
 
-let new_global_sort senv =
+type global_sort_infos = { with_uip: bool }
+let has_global_infos infos = infos.with_uip
+let make_global_infos ~uip = { with_uip = uip }
+let global_infos_with_poly_err infos =
+  let acc = [("UIP", "uip", infos.with_uip)] in
+  let acc = List.filter_map (fun (msg,attr,enabled) -> if enabled then Some (msg,attr) else None) acc in
+  let names = Pp.pr_enum Pp.str (List.map fst acc) in
+  let attrs = Pp.prlist_with_sep (fun () -> Pp.str", ") Pp.str (List.map snd acc) in
+  if not @@ List.is_empty acc
+  then
+    CErrors.user_err
+      Pp.(names ++ str" cannot be enforced on non-global sorts, " ++
+            str "use #[universes(polymorphic=no), " ++ attrs ++ str"] Sort in order to declare a global sort with " ++
+            names ++ str ".")
+  else ()
+
+let new_global_sort infos senv =
   if is_modtype senv then
     CErrors.user_err (Pp.str "Cannot declare global sort qualities inside module types.")
   else if Option.has_some senv.sections then
@@ -636,6 +652,7 @@ let new_global_sort senv =
   let s = QG.make (current_dirpath senv) uid in
   let qualities = QG.Set.add s senv.qualities in
   let env = Environ.push_qualities (Sorts.Quality.Set.singleton (QGlobal s)) senv.env in
+  let env = if infos.with_uip then Environ.add_uip_to_global s env else env in
   s, { senv with
        env;
        qualities;

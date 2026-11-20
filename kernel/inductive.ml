@@ -443,13 +443,17 @@ type 'a allow_elimination_actions =
   ; squashed_to_set_above : 'a
   ; squashed_to_quality : Quality.t -> 'a }
 
-let is_squashed_gen g nf_quality ((_,mip),u) =
+let is_squashed_gen g rtnsort_has_uip nf_quality ((_,mip),u) =
   let s = mip.mind_sort in
   match mip.mind_squashed with
   | None -> None
   | Some squash ->
     let indq = nf_quality (UVars.subst_instance_quality u @@ Sorts.quality s) in
     match squash with
+    | UIPSquashed ->
+       if rtnsort_has_uip
+       then None
+       else Some (SquashToQuality indq)
     | AlwaysSquashed ->
       begin match s with
       | Set -> Some SquashToSet
@@ -464,8 +468,8 @@ let is_squashed_gen g nf_quality ((_,mip),u) =
       then None
       else Some (SquashToQuality indq)
 
-let allowed_elimination_gen g nf_quality actions specifu s =
-  match is_squashed_gen g nf_quality specifu with
+let allowed_elimination_gen g rtnsort_has_uip nf_quality actions specifu s =
+  match is_squashed_gen g rtnsort_has_uip nf_quality specifu with
   | None -> actions.not_squashed
   | Some SquashToSet ->
     begin match s with
@@ -474,8 +478,11 @@ let allowed_elimination_gen g nf_quality actions specifu s =
     end
   | Some (SquashToQuality indq) -> actions.squashed_to_quality indq
 
-let is_squashed env specif =
-  is_squashed_gen (Environ.qualities env) Fun.id specif
+let is_squashed env specif s =
+  is_squashed_gen
+    (Environ.qualities env)
+    (Environ.sort_has_uip (Sorts.quality s) env)
+    Fun.id specif
 
 let is_allowed_elimination_actions g s =
   { not_squashed = true
@@ -488,6 +495,7 @@ let is_allowed_elimination_actions g s =
 let is_allowed_elimination env specifu s =
   let g = Environ.qualities env in
   allowed_elimination_gen g
+    (Environ.sort_has_uip (Sorts.quality s) env)
     Fun.id
     (is_allowed_elimination_actions g s)
     specifu s

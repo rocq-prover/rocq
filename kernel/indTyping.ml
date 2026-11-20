@@ -88,7 +88,7 @@ let add_squash q info =
   | Sorts.Quality.QVar _, _ | _, QVar _ ->
     begin match info.ind_squashed with
     | None -> { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.singleton q)) }
-    | Some AlwaysSquashed -> info
+    | Some AlwaysSquashed | Some UIPSquashed -> info
     | Some (SometimesSquashed qs) ->
       (* XXX dedup insertion *)
       { info with ind_squashed = Some (SometimesSquashed (Sorts.Quality.Set.add q qs)) }
@@ -142,8 +142,9 @@ let check_context_univs ~ctor env info ctx =
 let eq_squashed a b =
   match a, b with
   | SometimesSquashed a, SometimesSquashed b -> Sorts.Quality.Set.equal a b
+  | UIPSquashed, UIPSquashed -> true
   | AlwaysSquashed, AlwaysSquashed -> true
-  | (SometimesSquashed _ | AlwaysSquashed), _ -> false
+  | (SometimesSquashed _ | AlwaysSquashed | UIPSquashed), _ -> false
 
 let check_indices_matter env_params info indices =
   let with_indices = check_context_univs ~ctor:false env_params info indices in
@@ -197,12 +198,13 @@ let check_constructors ~env_params ~env_ar_par isrecord params lc (arity,indices
       (* 1 constructor with no arguments also OK in SProp (to make
          things easier on ourselves when reducing we forbid letins)
          unless ind_univ is sort polymorphic (for ease of implementation) *)
-      if (Environ.typing_flags env_ar_par).allow_uip
-           && fst (splayed_lc.(0)) = []
+      if fst (splayed_lc.(0)) = []
            && List.for_all Context.Rel.Declaration.is_local_assum params
            && List.for_all Context.Rel.Declaration.is_local_assum indices
            && Sorts.is_sprop univ_info.ind_univ
-      then univ_info
+      then
+        if (Environ.typing_flags env_ar_par).allow_uip then univ_info
+        else { univ_info with ind_squashed = Some UIPSquashed }
       (* 1 constructor with arguments must squash if SProp / sort poly
          (we could allow arguments in SProp but the reduction rule is a pain) *)
       else compute_elim_squash env_ar_par Sorts.prop univ_info
@@ -212,7 +214,7 @@ let check_constructors ~env_params ~env_ar_par isrecord params lc (arity,indices
   in
   let univ_info = Array.fold_left (check_constructor_univs env_ar_par) univ_info splayed_lc in
   let () = if univ_info.ind_template then match univ_info.ind_squashed with
-      | None | Some AlwaysSquashed -> ()
+      | None | Some AlwaysSquashed | Some UIPSquashed -> ()
       | Some (SometimesSquashed _) ->
       CErrors.user_err Pp.(str "Cannot handle sometimes squashed template polymorphic type.")
   in

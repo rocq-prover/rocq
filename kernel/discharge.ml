@@ -106,6 +106,7 @@ let cook_projection cache ~params t =
   t
 
 let lift_squashed info = let open Declarations in function
+  | UIPSquashed -> UIPSquashed
   | AlwaysSquashed -> AlwaysSquashed
   | SometimesSquashed s ->
     let s = Sorts.Quality.Set.fold (fun x acc ->

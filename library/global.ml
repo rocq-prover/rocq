@@ -83,7 +83,7 @@ let push_named_def d = globalize0 (Safe_typing.push_named_def d)
 let push_section_context c = globalize0 (Safe_typing.push_section_context c)
 let add_univ_constraints c = globalize0 (Safe_typing.push_context_set ~strict:true (Univ.Level.Set.empty, c))
 let push_context_set c = globalize0 (Safe_typing.push_context_set ~strict:true c)
-let new_global_sort () = globalize Safe_typing.new_global_sort
+let new_global_sort infos = globalize (Safe_typing.new_global_sort infos)
 let merge_elim_constraints csts = globalize0 (Safe_typing.merge_elim_constraints csts)
 
 let set_impredicative_set c = globalize0 (Safe_typing.set_impredicative_set c)

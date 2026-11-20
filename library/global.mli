@@ -68,7 +68,7 @@ val add_univ_constraints : Univ.UnivConstraints.t -> unit
 val push_context_set : Univ.ContextSet.t -> unit
 
 (** Extra sort qualities *)
-val new_global_sort : unit -> Sorts.QGlobal.t
+val new_global_sort : Safe_typing.global_sort_infos -> Sorts.QGlobal.t
 val merge_elim_constraints : Sorts.ElimConstraints.t -> unit
 
 (** Non-interactive modules and module types *)

@@ -98,14 +98,16 @@ type 'a allow_elimination_actions =
   ; squashed_to_set_above : 'a
   ; squashed_to_quality : Sorts.Quality.t -> 'a }
 
-val is_squashed_gen : QGraph.t -> (Sorts.Quality.t -> Sorts.Quality.t)
+val is_squashed_gen : QGraph.t
+  -> bool
+  -> (Sorts.Quality.t -> Sorts.Quality.t)
   -> mind_specif puniverses
   -> squash option
 
-val allowed_elimination_gen : QGraph.t -> (Sorts.Quality.t -> Sorts.Quality.t)
+val allowed_elimination_gen : QGraph.t -> bool -> (Sorts.Quality.t -> Sorts.Quality.t)
   -> 'b allow_elimination_actions -> mind_specif puniverses -> Sorts.t -> 'b
 
-val is_squashed : env -> mind_specif puniverses -> squash option
+val is_squashed : env -> mind_specif puniverses -> Sorts.t -> squash option
 
 val is_allowed_elimination_actions : QGraph.t -> Sorts.t -> bool allow_elimination_actions
 

@@ -1447,11 +1447,14 @@ let vernac_universe ~poly l =
   DeclareUniv.do_universe ~poly l
 
 let vernac_sort ~poly l =
+  let poly, infos = poly in
   if poly && not (Lib.sections_are_opened ()) then
     user_err
                  (str"Polymorphic sorts can only be declared inside sections, " ++
                   str "use #[universes(polymorphic=no)] Sort in order to declare a global sort.");
-  DeclareUniv.do_sort ~poly l
+  if poly && Safe_typing.has_global_infos infos then
+    Safe_typing.global_infos_with_poly_err infos;
+  DeclareUniv.do_sort ~poly ~infos l
 
 let vernac_constraint ~poly l =
   if poly && not (Lib.sections_are_opened ()) then
@@ -2904,7 +2907,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
     vtdefault(fun () -> vernac_universe ~poly:(only_polymorphism atts) l)
 
   | VernacSort l ->
-    vtdefault(fun () -> vernac_sort ~poly:(only_polymorphism atts) l)
+    vtdefault(fun () -> vernac_sort ~poly:(polymorphism_or_infos atts) l)
 
   | VernacConstraint l ->
     vtdefault(fun () -> vernac_constraint ~poly:(only_polymorphism atts) l)

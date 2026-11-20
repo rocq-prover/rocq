@@ -429,6 +429,9 @@ val push_subgraph : Univ.ContextSet.t -> env -> env
    also checks that they do not imply new transitive constraints
    between pre-existing universes in [env]. *)
 
+val add_uip_to_global : Sorts.QGlobal.t -> env -> env
+val sort_has_uip : Sorts.Quality.t -> env -> bool
+
 val set_typing_flags : typing_flags -> env -> env
 val set_impredicative_set : bool -> env -> env
 val set_type_in_type : bool -> env -> env
