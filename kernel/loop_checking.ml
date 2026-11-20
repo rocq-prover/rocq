@@ -4022,6 +4022,26 @@ let remove_can_clause m ((prems, (concl, conclk)) : can_clause) =
       if fwd == idx.clauses_fwd then m else change_node m { idx with clauses_fwd = fwd })
       prems m)
 
+(** [above_reaches model (x, _) prems]: whether one of the universes of [prems], or [Set], is above
+  [x] through the clauses of [model]. Otherwise [x + kx <= max(prems)] is not entailed: adding the
+  same constant to [x] and the universes above it gives a model of the clauses (the ones between
+  these universes are invariant, the others only get larger premises) where [x] is above any bound
+  that [prems] give. This necessary condition of [entails] is much cheaper than it when [x] has few
+  universes above it, as the universes of a removed constraint often do. *)
+let above_reaches model (x, _) prems =
+  let setidx = Index.find Level.set model.table in
+  let targets = NeList.fold (fun (p, _) s -> PSet.add p.canon s) prems PSet.empty in
+  let target can = Index.equal can.canon setidx || PSet.mem can.canon targets in
+  target x ||
+  let exception Found in
+  try
+    let next e f acc =
+      fold_above model e (fun ~single:_ (y, _ as e') acc -> if target y then raise Found else f e' acc) acc
+    in
+    let _ : _ PMap.t = reach next [(x, 0)] (PMap.singleton x.canon (x, 0)) in
+    false
+  with Found -> true
+
 let remove_if_entailed cst m =
   let cls = clauses_of_constraint m cst in
   (* As in [enforce_clauses], a conclusion substituted by [max(a, b)] gives a clause for each *)
@@ -4041,7 +4061,9 @@ let remove_if_entailed cst m =
       (Some m) cls in
   Option.bind removed (fun m' ->
       let refresh (can, k) = (repr m' can.canon, k) in
-      if List.for_all (fun (prems, concl) -> entails m' (NeList.map refresh prems) (refresh concl)) cls
+      if List.for_all (fun (prems, concl) ->
+          let prems = NeList.map refresh prems and concl = refresh concl in
+          above_reaches m' concl prems && entails m' prems concl) cls
       then Some m' else None)
 
 let remove_bwd_clauses_from model idx k other =
