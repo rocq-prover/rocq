@@ -340,6 +340,19 @@ let refold_proj sigma (t, sk) =
   | args, Stack.Proj (p, r) :: sk -> Some (mkProj (p, r, Stack.zip sigma (t, args)), sk)
   | _, ((Stack.App _ | Stack.Case _ | Stack.Fix _ | Stack.Primitive _) :: _ | []) -> None
 
+(* [tried] are the stacks of a first-order unification of a pending
+   projection which failed: stacks ending with them would fail again. *)
+let known_stack_failure tried sk sk' =
+  match tried with
+  | None -> false
+  | Some (sk0, sk0') ->
+    let rec aux sk sk' =
+      (sk0 == sk && sk0' == sk') ||
+      match sk, sk' with
+      | _ :: sk, _ :: sk' -> aux sk sk'
+      | _, _ -> false in
+    aux sk sk'
+
 let has_stuck_proj sk =
   match Stack.strip_app sk with
   | _, Stack.Proj _ :: _ -> true
@@ -970,7 +983,7 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
           | _ -> default ()
         end
 
-and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
+and evar_eqappr_x ?(rhs_is_already_stuck = false) ?tried_proj flags env evd pbty
     keys (* canonical structure keys cache *)
     lastUnfolded (* tells which side was last unfolded, if any, where `true` means RHS. *)
     orig (term1, sk1 as appr1) (term2, sk2 as appr2) =
@@ -1345,11 +1358,17 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         ise_try evd [f1; f2]
 
         | Proj (p, _, c), Proj (p', _, c') when QProjection.Repr.equal env (Projection.repr p) (Projection.repr p') ->
+          let stacks_failed = ref None in
           let f1 i =
+            if known_stack_failure tried_proj sk1 sk2 then quick_fail i else
             ise_and i
             [(fun i -> evar_conv_x flags env i CONV c c');
-             (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
+             (fun i ->
+                match exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2 with
+                | Success _ as x -> x
+                | UnifFailure _ as x -> stacks_failed := Some (sk1, sk2); x)]
           and f2 i =
+            let tried_proj = match !stacks_failed with None -> tried_proj | x -> x in
             let out1 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk1'
             and out2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk2' in
             (* A projection stuck on an evar is kept folded while the other
@@ -1363,10 +1382,10 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
               || CSTable.has_canonical_instances env i p' c' in
             let stuck (t, sk) = canonical && isEvar i t && has_stuck_proj sk in
             if stuck out2 && not (stuck out1) then
-              evar_eqappr_x flags env i pbty keys (Some false) orig out1 appr2
+              evar_eqappr_x ?tried_proj flags env i pbty keys (Some false) orig out1 appr2
             else if stuck out1 && not (stuck out2) then
-              evar_eqappr_x flags env i pbty keys (Some true) orig appr1 out2
-            else evar_eqappr_x flags env i pbty keys None orig out1 out2
+              evar_eqappr_x ?tried_proj flags env i pbty keys (Some true) orig appr1 out2
+            else evar_eqappr_x ?tried_proj flags env i pbty keys None orig out1 out2
           in
             ise_try evd [f1; f2]
 
@@ -1395,6 +1414,11 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         | _, _ ->
         (* We remember if the LHS is a reducible projection to decide if we unfold left first. *)
         let no_cs1 = ref false in
+        (* We remember the stacks of a pending projection which failed to
+           unify: they are not unified again while the records under the
+           projection are unfolded. *)
+        let stacks_failed = ref None in
+        let tried_next () = match !stacks_failed with None -> tried_proj | x -> x in
         let f1 i =
           (* Gather the universe constraints that would make term1 and term2 equal.
              If these only involve unifications of flexible universes to other universes,
@@ -1435,10 +1459,14 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
               match Retyping.get_type_of ~lax:true env i c, Retyping.get_type_of ~lax:true env i c' with
               | ty, ty' -> evar_conv_x flags env i CONV ty ty'
               | exception Retyping.RetypeError _ -> Success i in
+            if known_stack_failure tried_proj sk sk' then quick_fail i else
             ise_and i
               [params;
                (fun i -> evar_conv_x flags env i CONV c c');
-               (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk sk')]
+               (fun i ->
+                  match exact_ise_stack2 env i (evar_conv_x flags) sk sk' with
+                  | Success _ as x -> x
+                  | UnifFailure _ as x -> stacks_failed := Some (sk, sk'); x)]
           | _ -> quick_fail i
         and f3 i =
            if not flags.with_cs then UnifFailure (i,NoCanonicalStructure)
@@ -1481,14 +1509,14 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           ise_try i [
             (fun i ->
               if b || !no_cs1 then
-                evar_eqappr_x flags env i pbty keys (Some false) orig
+                evar_eqappr_x ?tried_proj:(tried_next ()) flags env i pbty keys (Some false) orig
                   (whd_betaiota_deltazeta_for_iota_state
                      flags.open_ts env i vsk1')
                   appr2
               else quick_fail i);
             fun i ->
               if b then quick_fail i else
-              evar_eqappr_x flags env i pbty keys (Some true) orig appr1
+              evar_eqappr_x ?tried_proj:(tried_next ()) flags env i pbty keys (Some true) orig appr1
                 (whd_betaiota_deltazeta_for_iota_state
                    flags.open_ts env i vsk2')]
         in
@@ -1794,6 +1822,9 @@ and eta_constructor flags env evd ((ind, i), u) sk1 (term2,sk2) =
            UnifFailure(evd,NotSameHead))
       end
     | _ -> UnifFailure (evd,NotSameHead)
+
+let evar_eqappr_x ?rhs_is_already_stuck flags env evd pbty keys lastUnfolded orig appr1 appr2 =
+  evar_eqappr_x ?rhs_is_already_stuck flags env evd pbty keys lastUnfolded orig appr1 appr2
 
 let evar_conv_x flags env evd pbty term1 term2 =
   debug_unification Pp.(fun () ->
