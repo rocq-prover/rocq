@@ -45,7 +45,7 @@ let coq_JMeq_ind  () =
   match Rocqlib.lib_ref_opt "core.JMeq.type" with
   | Some r -> r
   | None ->
-    user_err (Pp.str "cannot find Stdlib.Logic.JMeq.JMeq; maybe library Stdlib.Logic.JMeq has to be required first.")
+    user_err (Pp.str "Cannot find core.JMeq.type; maybe library Stdlib.Logic.JMeq has to be required first.")
 let coq_JMeq_refl () = Rocqlib.lib_ref "core.JMeq.refl"
 
 let unsafe_fold_right f = function
