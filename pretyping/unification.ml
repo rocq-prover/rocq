@@ -1392,7 +1392,17 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       let f2, l2 = expand_proj f2 f1 l2 in
       let opta = {opt with at_top = true; with_types = false} in
       let optf = {opt with at_top = true; with_types = true} in
+      let is_flex c = isMeta sigma c || isEvar sigma c in
+      let rigid_split = not (Int.equal (Array.length l1) (Array.length l2))
+        && not (is_flex f1 || is_flex f2)
+      in
       let (f1,l1,f2,l2) = adjust_app_array_size f1 l1 f2 l2 in
+      let () =
+        let subst = (substn.subst_metam, substn.subst_metas, substn.subst_evars) in
+        let is_open c = Option.is_empty (subst_defined_metas_evars sigma subst c) in
+        if rigid_split && (is_open f1 || is_open f2)
+        then error_cannot_unify (fst curenvnb) sigma (cM,cN)
+      in
         if Array.length l1 == 0 then error_cannot_unify (fst curenvnb) sigma (cM,cN)
         else
           Array.fold_left2 (unirec_rec curenvnb CONV opta ~nargs:0)
