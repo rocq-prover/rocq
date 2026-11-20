@@ -42,8 +42,9 @@ let mk_coq_not env sigma x =
   sigma, EConstr.mkApp (notc, [| x |])
 
 let coq_JMeq_ind  () =
-  try Rocqlib.lib_ref "core.JMeq.type"
-  with Not_found ->
+  match Rocqlib.lib_ref_opt "core.JMeq.type" with
+  | Some r -> r
+  | None ->
     user_err (Pp.str "cannot find Stdlib.Logic.JMeq.JMeq; maybe library Stdlib.Logic.JMeq has to be required first.")
 let coq_JMeq_refl () = Rocqlib.lib_ref "core.JMeq.refl"
 
