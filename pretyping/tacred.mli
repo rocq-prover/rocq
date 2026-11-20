@@ -74,7 +74,7 @@ val unfoldn :
   (occurrences * Evaluable.t) list ->  reduction_function
 
 (** Fold *)
-val fold_commands : constr list ->  reduction_function
+val fold_commands : constr list -> e_reduction_function
 
 (** Pattern *)
 val pattern_occs : (occurrences * constr) list -> change_function

@@ -1336,17 +1336,28 @@ let fold_one_com com env sigma c =
   (* Reason first on the beta-iota-zeta normal form of the constant as
      unfold produces it, so that the "unfold f; fold f" configuration works
      to refold fix expressions *)
-  let a = subst_term sigma (clos_norm_flags unfold_side_red env sigma rcom) c in
-  if not (EConstr.eq_constr sigma a c) then
-    Vars.subst1 com a
-  else
+  let abstract t =
+    let a = subst_term sigma t c in
+    if not (EConstr.eq_constr sigma a c) then Some (sigma, a)
+    else
+      (* Up to the universe instances, which may differ by flexible
+         universes, e.g. when cumulativity introduced copies of them *)
+      let a, sigma =
+        Find_subterm.subst_closed_term_occ env sigma Locus.(AtOccs AllOccurrences) t c in
+      if EConstr.eq_constr sigma a c then None else Some (sigma, a)
+  in
+  match abstract (clos_norm_flags unfold_side_red env sigma rcom) with
+  | Some (sigma, a) -> sigma, Vars.subst1 com a
+  | None ->
     (* Then reason on the non beta-iota-zeta form for compatibility -
        even if it is probably a useless configuration *)
-    let a = subst_term sigma rcom c in
-    Vars.subst1 com a
+    match abstract rcom with
+    | Some (sigma, a) -> sigma, Vars.subst1 com a
+    | None -> sigma, Vars.subst1 com (subst_term sigma rcom c)
 
 let fold_commands cl env sigma c =
-  List.fold_right (fun com c -> fold_one_com com env sigma c) (List.rev cl) c
+  List.fold_right (fun com (sigma, c) -> fold_one_com com env sigma c)
+    (List.rev cl) (sigma, c)
 
 
 (* call by value reduction functions *)
