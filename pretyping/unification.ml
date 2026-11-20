@@ -1453,6 +1453,9 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
   and unify_app curenvnb pb opt (substn : subst0) ~orig cM f1 l1 cN f2 l2 =
     try unify_app_fo curenvnb pb opt substn cM f1 l1 cN f2 l2
     with ex when precatchable_exception ex ->
+    unify_app_no_fo curenvnb pb opt substn ~orig cM f1 l1 cN f2 l2
+
+  and unify_app_no_fo curenvnb pb opt (substn : subst0) ~orig cM f1 l1 cN f2 l2 =
     let reduced = ref None in
     try reduce ~reduced curenvnb pb {opt with with_types = false} substn ~orig cM cN
     with ex when precatchable_exception ex ->
@@ -1552,6 +1555,8 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
        one expanded here, that reduction is not tried again on the expanded
        problem: the projection is reduced once the other side has no key
        left.
+     - Unfolding a folded projection leads to the same first-order problem,
+       which is not tried again either.
      Otherwise the same failing problems would be explored again at each
      step of two chains of definitions, which is exponential in their
      lengths. *)
@@ -1621,34 +1626,37 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       | None ->
       let metas = substn.subst_metam in
       let cf1 = key_of curenv sigma opt flags f1 and cf2 = key_of curenv sigma opt flags f2 in
+      (* Unfolding a folded projection does not change the first-order
+         problem, which already failed *)
+      let only_unfolds = function
+        | Some (IsProj (p, _, c)) -> not (Projection.unfolded p) && has_canonical_instances env sigma p c
+        | _ -> false in
+      let left cf (f, l) =
+        let cM' = whd_betaiotazeta ~metas:(Meta.meta_handler metas) curenv sigma (mkApp (f, l)) in
+        if only_unfolds cf && (Array.length l > 0 || Array.length l2 > 0) then
+          unify_app_no_fo curenvnb pb opt substn ~orig:(orig_left env sigma orig cM) cM' f l cN f2 l2
+        else unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM) cM' cN in
+      let right cf (f, l) =
+        let cN' = whd_betaiotazeta ~metas:(Meta.meta_handler metas) curenv sigma (mkApp (f, l)) in
+        if only_unfolds cf && (Array.length l > 0 || Array.length l1 > 0) then
+          unify_app_no_fo curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM f1 l1 cN' f l
+        else unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM cN' in
         match oracle_order curenv sigma cf1 cf2 with
         | None -> error_cannot_unify curenv sigma (cM,cN)
         | Some true ->
             (match expand_key ~metas flags.modulo_delta curenv sigma l1 cf1 with
-            | Some c_l1 ->
-              let metas = Meta.meta_handler metas in
-                unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM)
-                  (whd_betaiotazeta ~metas curenv sigma (mkApp c_l1)) cN
+            | Some c_l1 -> left cf1 c_l1
             | None ->
                 (match expand_key ~metas flags.modulo_delta curenv sigma l2 cf2 with
-                | Some c_l2 ->
-                  let metas = Meta.meta_handler metas in
-                    unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM
-                      (whd_betaiotazeta ~metas curenv sigma (mkApp c_l2))
+                | Some c_l2 -> right cf2 c_l2
                 | None ->
                     error_cannot_unify curenv sigma (cM,cN)))
         | Some false ->
             (match expand_key ~metas flags.modulo_delta curenv sigma l2 cf2 with
-            | Some c_l2 ->
-              let metas = Meta.meta_handler metas in
-                unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM
-                  (whd_betaiotazeta ~metas curenv sigma (mkApp c_l2))
+            | Some c_l2 -> right cf2 c_l2
             | None ->
                 (match expand_key ~metas flags.modulo_delta curenv sigma l1 cf1 with
-                | Some c_l1 ->
-                  let metas = Meta.meta_handler metas in
-                    unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM)
-                      (whd_betaiotazeta ~metas curenv sigma (mkApp c_l1)) cN
+                | Some c_l1 -> left cf1 c_l1
                 | None ->
                     error_cannot_unify curenv sigma (cM,cN)))
 
