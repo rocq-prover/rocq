@@ -598,6 +598,10 @@ let rec has_canonical_instances env sigma p c =
   | Constr.Proj (p, _, c) -> has_canonical_instances env sigma p c
   | _ -> false
 
+let is_canonical_projection env cst =
+  let open Summary.Ref in
+  GlobRefMap.mem env (Names.GlobRef.ConstRef cst) !object_table
+
 let entries_for env ~projection:p =
   let open Summary.Ref in
   try

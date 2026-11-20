@@ -1159,6 +1159,12 @@ let is_kept_projection env sigma c =
   | Proj (p, _, r) -> Projection.unfolded p && has_canonical_instances env sigma p r
   | _ -> false
 
+(* The same for a projection in any form *)
+let is_canonical_projection env sigma c =
+  match EConstr.kind sigma (fst (decompose_app sigma c)) with
+  | Proj (p, _, r) -> has_canonical_instances env sigma p r
+  | _ -> false
+
 let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n =
   let mk_expand_subst substn =
     let metasubst = if flags.use_metas_eagerly_in_conv_on_closed_terms then substn.subst_metas else subst.subst_metas in
@@ -1463,6 +1469,18 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
     with ex when precatchable_exception ex ->
     expand ~reduced:!reduced curenvnb pb {opt with with_types = false} substn ~orig cM f1 l1 cN f2 l2
 
+  (* The problem comes from one on which every step failed, by unfolding the
+     folded projection of [side]: this changes neither the first-order
+     problem, nor canonical structure inference, nor conversion, nor the
+     reduction of the other side. [prev] is the reduction which failed, if
+     any. *)
+  and unify_app_unfolded ~side ~prev curenvnb pb opt (substn : subst0) ~orig cM f1 l1 cN f2 l2 =
+    let reduced = ref None in
+    try reduce ~only:side ~reduced curenvnb pb opt substn ~orig cM cN
+    with ex when precatchable_exception ex ->
+    let reduced = match !reduced with None -> prev | r -> r in
+    expand ~conv:false ~reduced curenvnb pb opt substn ~orig cM f1 l1 cN f2 l2
+
   (* First-order unification of two applications *)
   and unify_app_fo (curenv, nb as curenvnb) pb opt (substn : subst0) cM f1 l1 cN f2 l2 =
     let sigma = substn.subst_sigma in
@@ -1525,13 +1543,16 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
   (* [reduced] is set to the side which got reduced and the problem the
      reduction led to, if any. A kept projection whose reduction was already
      tried is not reduced, see [expand]. *)
-  and reduce ?(reduced = ref None) curenvnb pb opt substn ~orig cM cN =
+  and reduce ?only ?(reduced = ref None) curenvnb pb opt substn ~orig cM cN =
     let sigma = substn.subst_sigma in
     let metas = substn.subst_metam in
     let (_, _, tried) = orig in
     let do_reduce side c =
       let skip = match tried, side with
-        | Some SideM, SideM | Some SideN, SideN -> is_kept_projection env sigma c
+        | Some SideM, SideM | Some SideN, SideN -> is_canonical_projection env sigma c
+        | _ -> false in
+      let skip = skip || match only, side with
+        | Some SideM, SideN | Some SideN, SideM -> true
         | _ -> false in
       if skip then c else do_reduce ~metas flags.modulo_delta curenvnb sigma c in
     if flags.modulo_betaiota && not (subterm_restriction opt flags) then
@@ -1560,7 +1581,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
      Otherwise the same failing problems would be explored again at each
      step of two chains of definitions, which is exponential in their
      lengths. *)
-  and expand ?(reduced=None) (curenv,_ as curenvnb) pb opt (substn : subst0) ~orig cM f1 l1 cN f2 l2 =
+  and expand ?(conv=true) ?(reduced=None) (curenv,_ as curenvnb) pb opt (substn : subst0) ~orig cM f1 l1 cN f2 l2 =
     let sigma = substn.subst_sigma in
     let unirec_rec curenvnb pb opt substn ~orig cM' cN' =
       match reduced with
@@ -1590,7 +1611,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
          (it is used by apply and rewrite); it might now be redundant
          with the support for delta-expansion (which is used
          essentially for apply)... *)
-      if subterm_restriction opt flags then None else
+      if not conv || subterm_restriction opt flags then None else
       match flags.modulo_conv_on_closed_terms with
       | None -> None
       | Some convflags ->
@@ -1631,15 +1652,66 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       let only_unfolds = function
         | Some (IsProj (p, _, c)) -> not (Projection.unfolded p) && has_canonical_instances env sigma p c
         | _ -> false in
+      (* The reduction of a projection which failed before unfolding it is
+         the one of the unfolded projection *)
+      let unfolded_orig side c' (om, on, tried) =
+        match reduced, side with
+        | Some (SideM, _, _), SideM | Some (SideN, _, _), SideN -> (om, on, Some side), reduced
+        | Some (SideN, rM, rN), SideM when EConstr.eq_constr sigma rM cM -> (om, on, Some SideN), Some (SideN, c', rN)
+        | Some (SideM, rM, rN), SideN when EConstr.eq_constr sigma rN cN -> (om, on, Some SideM), Some (SideM, rM, c')
+        | _ -> (om, on, tried), None in
+      (* While the reduction of a kept projection is pending, the
+         unfoldings of the other side can only matter when they expose
+         the same projection, for first-order unification, a projection
+         canonical structure inference applies to, or a meta or an evar. The other ones are skipped, and
+         when there is none the problem fails, as the reduction of the
+         projection did. *)
+      let whd c = whd_betaiotazeta ~metas:(Meta.meta_handler metas) curenv sigma c in
+      let rec skip kept c =
+        let f, l = decompose_app sigma c in
+        let same cst = match EConstr.kind sigma (fst (decompose_app sigma kept)) with
+          | Proj (p, _, _) ->
+            Environ.QConstant.equal env cst (Environ.projection_repr_constant env (Projection.repr p))
+          | _ -> false in
+        let canonical cst =
+          same cst || CanonicalSolution.is_open_canonical_projection ~metas:(Meta.meta_handler metas) curenv sigma c in
+        let relevant = match EConstr.kind sigma f with
+          | Meta _ | Evar _ -> true
+          | Proj (p, _, r) when has_canonical_instances env sigma p r ->
+            canonical (Environ.projection_repr_constant env (Projection.repr p))
+          | Const (cst, _) when Structures.CSTable.is_canonical_projection env cst -> canonical cst
+          | _ -> false in
+        if relevant then c, true else
+          let c' =
+            if flags.modulo_betaiota && not (subterm_restriction opt flags) then
+              do_reduce ~metas flags.modulo_delta curenvnb sigma c
+            else c in
+          if not (EConstr.eq_constr sigma c c') then skip kept c' else
+          match expand_key ~metas flags.modulo_delta curenv sigma l (key_of curenv sigma opt flags f) with
+          | Some (f, l) -> skip kept (whd (mkApp (f, l)))
+          | None -> c, false in
+      let pending side c = match tried, side with
+        | Some SideM, SideM | Some SideN, SideN -> is_kept_projection env sigma c
+        | _ -> false in
       let left cf (f, l) =
-        let cM' = whd_betaiotazeta ~metas:(Meta.meta_handler metas) curenv sigma (mkApp (f, l)) in
-        if only_unfolds cf && (Array.length l > 0 || Array.length l2 > 0) then
-          unify_app_no_fo curenvnb pb opt substn ~orig:(orig_left env sigma orig cM) cM' f l cN f2 l2
+        let cM' = whd (mkApp (f, l)) in
+        if only_unfolds cf then
+          let orig, prev = unfolded_orig SideM cM' (orig_left env sigma orig cM) in
+          unify_app_unfolded ~side:SideM ~prev curenvnb pb opt substn ~orig cM' f l cN f2 l2
+        else if pending SideN cN then
+          match skip cN cM' with
+          | cM', true -> unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM) cM' cN
+          | _, false -> error_cannot_unify curenv sigma (cM,cN)
         else unirec_rec curenvnb pb opt substn ~orig:(orig_left env sigma orig cM) cM' cN in
       let right cf (f, l) =
-        let cN' = whd_betaiotazeta ~metas:(Meta.meta_handler metas) curenv sigma (mkApp (f, l)) in
-        if only_unfolds cf && (Array.length l > 0 || Array.length l1 > 0) then
-          unify_app_no_fo curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM f1 l1 cN' f l
+        let cN' = whd (mkApp (f, l)) in
+        if only_unfolds cf then
+          let orig, prev = unfolded_orig SideN cN' (orig_right env sigma orig cN) in
+          unify_app_unfolded ~side:SideN ~prev curenvnb pb opt substn ~orig cM f1 l1 cN' f l
+        else if pending SideM cM then
+          match skip cM cN' with
+          | cN', true -> unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM cN'
+          | _, false -> error_cannot_unify curenv sigma (cM,cN)
         else unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM cN' in
         match oracle_order curenv sigma cf1 cf2 with
         | None -> error_cannot_unify curenv sigma (cM,cN)
