@@ -1479,6 +1479,12 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
     try reduce ~only:side ~reduced curenvnb pb opt substn ~orig cM cN
     with ex when precatchable_exception ex ->
     let reduced = match !reduced with None -> prev | r -> r in
+    (* An unfolded projection which does not reduce is not reduced again
+       while the other side is unfolded *)
+    let orig = match reduced, orig with
+      | None, (om, on, None) when flags.modulo_betaiota && not (subterm_restriction opt flags) ->
+        (om, on, Some side)
+      | _ -> orig in
     expand ~conv:false ~reduced curenvnb pb opt substn ~orig cM f1 l1 cN f2 l2
 
   (* First-order unification of two applications *)
@@ -1712,7 +1718,8 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
           match skip cM cN' with
           | cN', true -> unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM cN'
           | _, false -> error_cannot_unify curenv sigma (cM,cN)
-        else unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM cN' in
+        else unirec_rec curenvnb pb opt substn ~orig:(orig_right env sigma orig cN) cM cN'
+      in
         match oracle_order curenv sigma cf1 cf2 with
         | None -> error_cannot_unify curenv sigma (cM,cN)
         | Some true ->
