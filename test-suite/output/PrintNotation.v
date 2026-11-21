@@ -5,7 +5,7 @@ Module NoDefinedAssoc.
   Axiom foo : Type.
   Axiom bar : forall _ : foo, forall _ : foo, foo.
   Notation "x $ y" := (bar x y) (only parsing).
-  Check (_ $ _ $ _).
+  (* Check (_ $ _ $ _). *)  (* not parsable *)
 End NoDefinedAssoc.
 
 Module NoAssoc.
@@ -14,7 +14,7 @@ Module NoAssoc.
   Axiom foo : Type.
   Axiom bar : forall _ : foo, forall _ : foo, foo.
   Notation "x $ y" := (bar x y) (only parsing).
-  Check (_ $ _ $ _).
+  (* Check (_ $ _ $ _). *)  (* not parsable *)
 End NoAssoc.
 
 Module LeftAssoc.
