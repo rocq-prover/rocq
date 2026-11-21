@@ -34,10 +34,6 @@ external fc_mk_const : Constant.t -> UVars.Instance.t -> fhandle = "rconv_fc_mk_
 external fc_mkfapp : fhandle -> fhandle array -> fhandle = "rconv_fc_mkfapp"
 external fc_mk_array : UVars.Instance.t -> fhandle Parray.t -> fhandle -> fhandle = "rconv_fc_mk_array"
 
-let enabled = ref (match Sys.getenv_opt "ROCQ_RUST_CONV" with
-  | None | Some ("" | "0") -> false
-  | Some _ -> true)
-
 (** Primitive operations, over handles to Rust closures *)
 
 module RNativeEntries =

@@ -10,10 +10,6 @@
 
 (** Rust implementation of the kernel conversion. *)
 
-val enabled : bool ref
-(** Whether [Conversion] uses the Rust implementation. Initially set from
-    the [ROCQ_RUST_CONV] environment variable. *)
-
 val conv : typed:bool -> RedFlags.reds -> int -> bool -> CClosure.evar_handler ->
   Environ.env -> UGraph.t -> 'a -> 'check -> Constr.t -> Constr.t ->
   ('a, 'err option) result

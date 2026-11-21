@@ -998,31 +998,14 @@ and convert_list l2r infos lft1 lft2 v1 v2 cuniv = match v1, v2 with
   convert_list l2r infos lft1 lft2 v1 v2 cuniv
 | _, _ -> raise NotConvertible
 
-let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 =
+let clos_gen_conv ~typed trans cv_pb l2r evars env graph univs t1 t2 =
   NewProfile.profile "Conversion" begin fun () ->
       let reds = RedFlags.red_add_transparent RedFlags.betaiotazeta trans in
-      if !Rconv.enabled then
-        let cv = match cv_pb with CONV -> 0 | CUMUL -> 1 in
-        let (state, check) = univs in
-        match Rconv.conv ~typed reds cv l2r evars env graph state check t1 t2 with
-        | Result.Ok state -> Result.Ok (state, check)
-        | Result.Error e -> Result.Error e
-      else
-      let infos = create_conv_infos ~univs:graph ~evars reds env in
-      let module Error = struct type payload += Error of err end in
-      let box e = Error.Error e in
-      let infos = {
-        cnv_inf = infos;
-        cnv_typ = typed;
-        lft_tab = create_tab ();
-        rgt_tab = create_tab ();
-        err_ret = box;
-      } in
-      try Result.Ok (ccnv cv_pb l2r infos el_id el_id (inject t1) (inject t2) univs)
-      with
-      | NotConvertible -> Result.Error None
-      | NotConvertibleTrace (Error.Error e) -> Result.Error (Some e)
-      | NotConvertibleTrace _ -> assert false
+      let cv = match cv_pb with CONV -> 0 | CUMUL -> 1 in
+      let (state, check) = univs in
+      match Rconv.conv ~typed reds cv l2r evars env graph state check t1 t2 with
+      | Result.Ok state -> Result.Ok (state, check)
+      | Result.Error e -> Result.Error e
   end ()
 
 let check_eq qeq state u u' =
