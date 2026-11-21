@@ -215,29 +215,18 @@ let add_conv_oriented_pb ?(tail=true) (pbty,env,t1,t2) evd =
 exception IllTypedInstance of env * evar_map * EConstr.types option * EConstr.types
 exception IllTypedInstanceFun of env * evar_map * EConstr.constr * EConstr.types
 
-let checked_appvect, checked_appvect_hook = Hook.make ()
+let type_of, type_of_hook = Hook.make ()
 
-let recheck_applications unify flags env sigma t =
-  let evdref = ref sigma in
-  let rec aux env t =
-    (* the order matters: if the sub-applications are incorrect, checked_appvect may fail badly *)
-    iter_with_full_binders env !evdref (fun d env -> push_rel d env) aux env t;
-    match EConstr.kind !evdref t with
-    | App (f, args) ->
-      let sigma, _ = Hook.get checked_appvect env !evdref f args in
-      evdref := sigma
-    | _ -> ()
-  in
-  try
-    let () = aux env t in
-    !evdref
-  with PretypeError (env, sigma, e) ->
+let recheck_applications env sigma evi t =
+  let evenv = evar_env env evi in
+  try fst (Hook.get type_of evenv sigma t)
+  with PretypeError (env, sigma', e) ->
   match e with
   | CantApplyBadTypeExplained (((_,expected,argty),_,_),_) ->
-    raise (IllTypedInstance (env,sigma,Some argty, expected))
+    raise (IllTypedInstance (env,sigma',Some argty, expected))
   | TypingError (CantApplyNonFunctional (fj,_)) ->
-    raise (IllTypedInstanceFun (env,sigma,fj.uj_val,fj.uj_type))
-  | _ -> assert false
+    raise (IllTypedInstanceFun (env,sigma',fj.uj_val,fj.uj_type))
+  | _ -> raise (IllTypedInstance (evenv,sigma,None,Evd.evar_concl evi))
 
 
 (*------------------------------------*
@@ -1685,7 +1674,7 @@ let project_variable unify flags define_fun ~progress ~choose env sigma aliases 
 
 let rec invert_definition unify flags choose imitate_defs
                           env evd pbty (evk,argsv as ev) rhs =
-  let EvarInfo evi = Evd.find evd evk in
+  let evi = Evd.find_undefined evd evk in
   let sign = evar_filtered_context evi in
   let rhs = whd_beta env evd rhs (* heuristic *) in
   let fast =
@@ -1828,7 +1817,7 @@ let rec invert_definition unify flags choose imitate_defs
 
   let (progress, sigma), t' = imitate (env, 0) (false, evd) rhs in
   if progress then
-    let sigma = recheck_applications unify flags (evar_env env evi) sigma t' in
+    let sigma = recheck_applications env sigma evi t' in
     (sigma, t')
   else (sigma, t')
 
