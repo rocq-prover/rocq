@@ -61,6 +61,7 @@ val poly_def : PolyFlags.t attribute
 
 val program : bool attribute
 val template : bool option attribute
+val template_poly : (bool option * PolyFlags.t) attribute
 val unfold_fix : bool attribute
 val locality : bool option attribute
 val option_locality : Goptions.option_locality attribute
