@@ -1,48 +1,85 @@
-UNIVERSES:
- {w v u} | u <= v
-           v <= w
-ALGEBRAIC UNIVERSES:
- {}
-FLEXIBLE UNIVERSES:
+UNIVERSE VARIABLES:
+ {w v u}
+DEFINED LOCAL VARIABLES:
  
+UNIVERSES:
+ 0 ≤ u
+   ≤ v
+   ≤ w
+   < sig.u0
+   < sig2.u0
+   < sigT.u0
+   < sigT.u1
+   < eq.u0
+   < option.u0
+   < sigT2.u0
+   < sigT2.u1
+   < sigT2.u2
+   < sum.u0
+   < sum.u1
+   < prod.u0
+   < prod.u1
+   < list.u0
+   < sumor.u0
+ u ≤ v
+ v ≤ w
 SORTS:
   |= Prop -> SProp
      Type -> Prop
           -> SProp
      
+
+VARIANCES:
+ w; v; u
 WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {w v u} | u <= v
-           v <= w
+ {w v u} | u ≤ v
+           v ≤ w
+UNIVERSE VARIABLES:
+ {?ShowUnivs:25 ?ShowUnivs:24 ?ShowUnivs:23 ShowUnivs:22 ?ShowUnivs:21}
+DEFINED LOCAL VARIABLES:
+ 
 UNIVERSES:
- {ShowUnivs:28 ShowUnivs:27 ShowUnivs:26 ShowUnivs:25 ShowUnivs:24} |
-   ShowUnivs:25 < ShowUnivs:26
-   ShowUnivs:26 < ShowUnivs:27
-   ShowUnivs:26 <= ShowUnivs:28
-   ShowUnivs:27 <= ShowUnivs:24
-   ShowUnivs:28 <= ShowUnivs:24
-ALGEBRAIC UNIVERSES:
- {ShowUnivs:28 ShowUnivs:27 ShowUnivs:24}
-FLEXIBLE UNIVERSES:
- ShowUnivs:28
- ShowUnivs:27
- ShowUnivs:26
- ShowUnivs:24
+ 0 ≤ ShowUnivs:21
+   ≤ ShowUnivs:22
+   ≤ ShowUnivs:23
+   ≤ ShowUnivs:24
+   ≤ ShowUnivs:25
+   < sig.u0
+   < sig2.u0
+   < sigT.u0
+   < sigT.u1
+   < eq.u0
+   < option.u0
+   < sigT2.u0
+   < sigT2.u1
+   < sigT2.u2
+   < sum.u0
+   < sum.u1
+   < prod.u0
+   < prod.u1
+   < list.u0
+   < sumor.u0
+ ShowUnivs:22 < ShowUnivs:25
+ ShowUnivs:23 ≤ ShowUnivs:21
+ ShowUnivs:24 ≤ ShowUnivs:21
+ ShowUnivs:25 ≤ ShowUnivs:24
+              < ShowUnivs:23
 SORTS:
  α1 := Type
  α2 := Type
- α3 := α1 |=
-   α1 <-> Type
-   α2 <-> Type
-   α3 <-> α1
-   Prop -> SProp
-   Type -> Prop
-        -> SProp
-   
+ α3 := α1 |= Prop -> SProp
+             Type -> Prop
+                  -> SProp
+             
+
+VARIANCES:
+ ShowUnivs:25: infer: = in term, predicative; ShowUnivs:24; ShowUnivs:23;
+ ShowUnivs:22: infer: = in term, predicative; ShowUnivs:21
 WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {ShowUnivs:26 ShowUnivs:25} | ShowUnivs:25 < ShowUnivs:26
+ {ShowUnivs:25 ShowUnivs:22} | ShowUnivs:22 < ShowUnivs:25

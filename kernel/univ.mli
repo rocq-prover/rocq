@@ -89,11 +89,28 @@ sig
     val pr : (key -> Pp.t) -> ('a -> Pp.t) -> 'a t -> Pp.t
     (** Pretty-printing *)
   end
+end
 
+module LevelExpr :
+sig
+  type t = Level.t * int
+
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+
+  val addn : t -> int -> t
+
+  val pr : (Level.t -> Pp.t) -> t -> Pp.t
+
+  val hash : t -> int
+
+  module Set : CSet.ExtS with type elt  = t
+  module Map : CMap.ExtS with type key = t and module Set := Set
 end
 
 module Universe :
 sig
+
   type t
   (** Type of universes. A universe is defined as a set of level expressions.
       A level expression is built from levels and successors of level expressions, i.e.:
@@ -121,6 +138,12 @@ sig
   val maken : Level.t -> int -> t
   (** Composition of [make] and iterated [super]. *)
 
+  val of_expr : LevelExpr.t -> t
+  (** Create a singleton universe from a level expression *)
+
+  val of_list : LevelExpr.t list -> t
+  (** Create a universe representing the maximum of some non-empty level expressions. *)
+
   val pr : (Level.t -> Pp.t) -> t -> Pp.t
   (** Pretty-printing *)
 
@@ -140,8 +163,14 @@ sig
   (** Get the levels inside the universe, forgetting about increments,
       and add them to [init] (default empty) *)
 
+  val mem : Level.t -> t -> bool
+  (** Does a level appear in a universe? *)
+
   val super : t -> t
   (** The universe strictly above *)
+
+  val addn : t -> int -> t
+  (** [addn u n] represents u + n (n is required to be >= 0) *)
 
   val sup   : t -> t -> t
   (** The l.u.b. of 2 universes *)
@@ -152,15 +181,29 @@ sig
   val type1 : t
   (** the universe of the type of Prop/Set *)
 
-  val is_type0 : t -> bool
+  val var : int -> t
+  (** The universe variable n *)
 
+  val is_type0 : t -> bool
+  val is_typen : int -> t -> bool
+
+  val sort : (Level.t * int) list -> t
   val exists : (Level.t * int -> bool) -> t -> bool
   val for_all : (Level.t * int -> bool) -> t -> bool
 
-  val repr : t -> (Level.t * int) list
-  val unrepr : (Level.t * int) list -> t
+  val repr : t -> LevelExpr.t list
+  val unrepr : LevelExpr.t list -> t
 
-  val map : (Level.t -> Level.t) -> t -> t
+  val decompose_succ : t -> t option
+  (** [decompose_succ u] returns [Some v] if [u = v + 1], otherwise [None] *)
+
+  val make_subst_fn : t Level.Map.t -> (Level.t -> t)
+
+  val subst_fn : (Level.t -> t) -> t -> t
+
+  val subst_opt_fn : (Level.t -> t option) -> t -> t
+  (** [subst_opt_fn fn u] substitutes the levels [l] of [u] such that [fn l = Some v] by [v];
+      it returns [u] itself when there is none. *)
 
   module Set : CSet.ExtS with type elt  = t
   module Map : CMap.ExtS with type key = t and module Set := Set
@@ -179,10 +222,15 @@ val univ_level_rem : Level.t -> Universe.t -> Universe.t -> Universe.t
 (** {6 UnivConstraints. } *)
 
 module UnivConstraint : sig
-  type kind = AcyclicGraph.constraint_type = Lt | Le | Eq
+  type kind = Le | Eq
   val compare_kind : kind -> kind -> int
   val pr_kind : kind -> Pp.t
-  type t = Level.t * kind * Level.t
+  type t = Universe.t * kind * Universe.t
+
+  val levels : t -> Level.Set.t
+
+  val pr : (Level.t -> Pp.t) -> t -> Pp.t
+  (** Prints [l + k ≤ v] with [k > 0] as [l + (k - 1) < v] *)
 end
 
 module UnivConstraints : sig
@@ -190,11 +238,29 @@ module UnivConstraints : sig
 
   val pr : (Level.t -> Pp.t) -> t -> Pp.t
 
+  (** [pr_group lhs rhs] prints a group of constraints with the same
+      left-hand side [lhs]: [lhs] followed by one line per right-hand side
+      in [rhs] (each one starting with its relation), aligned under the
+      relation of the first one ([u ≤ v], then [< w] under [≤]).
+      When [lhs] is long, the right-hand sides are put on the next lines,
+      indented by 2. *)
+  val pr_group : Pp.t -> Pp.t list -> Pp.t
+
+  (** Prints the constraints grouped by left-hand side, using [pr_group]. *)
+  val pr_grouped : (Level.t -> Pp.t) -> t -> Pp.t
+
   val hcons : t Hashcons.f
+
+  val levels : ?init:Level.Set.t -> t -> Level.Set.t
 end
 
 (** Enforcing UnivConstraints.t. *)
 type 'a constraint_function = 'a -> 'a -> UnivConstraints.t -> UnivConstraints.t
+
+val enforce : Universe.t -> UnivConstraint.kind -> Universe.t -> UnivConstraints.t -> UnivConstraints.t
+
+val enforce_eq : Universe.t constraint_function
+val enforce_leq : Universe.t constraint_function
 
 val enforce_eq_level : Level.t constraint_function
 val enforce_leq_level : Level.t constraint_function

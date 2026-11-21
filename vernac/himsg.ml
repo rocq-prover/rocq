@@ -980,8 +980,8 @@ let explain_bad_invert env =
 let explain_bad_variance env sigma ~lev ~expected ~actual =
   fmt "Incorrect variance for universe %t:@ expected %t@ but cannot be less restrictive than %t."
     (fun () -> Termops.pr_evd_level sigma lev)
-    (fun () -> UVars.Variance.pr expected)
-    (fun () -> UVars.Variance.pr actual)
+    (fun () -> UVars.VariancePos.pr expected)
+    (fun () -> UVars.VariancePos.pr actual)
 
 let explain_undeclared_used_variables env sigma ~declared_vars ~type_vars ~inferred_vars =
   let valid_exprs = Proof_using.valid_exprs env ~type_vars ~used:inferred_vars in
@@ -1357,8 +1357,11 @@ let explain_not_match_error = function
     str "but expected" ++ spc() ++ h (pr_auctx expect) ++
     (if not (UVars.eq_sizes (AbstractContext.size got) (AbstractContext.size expect)) then mt() else
        fnl() ++ str "(incompatible constraints)")
-  | IncompatibleVariance ->
-    str "incompatible variance information"
+  | IncompatibleVariance { got; expect } ->
+    str "incompatible variance information: " ++ spc () ++ h (UVars.Variances.pr got) ++ spc() ++
+    str "but expected" ++ spc () ++ h (UVars.Variances.pr expect) ++
+    (if not (UVars.Variances.eq_sizes got expect) then mt() else
+        fnl() ++ str "(incompatible variances)")
   | NotConvertibleRewriteRule (env, t1, t2) ->
     let evd = Evd.from_env env in
     let t1, t2 = pr_explicit env evd (EConstr.of_constr t1) (EConstr.of_constr t2) in
@@ -1614,7 +1617,7 @@ let error_inductive_missing_constraints env (us,ind_univ) =
   let pr_sort u = Flags.with_option PrintingFlags.print_universes (Printer.pr_sort sigma) u in
   str "Missing universe constraint declared for inductive type:" ++ spc()
   ++ v 0 (prlist_with_sep spc (fun u ->
-      hov 0 (pr_sort u ++ str " <= " ++ pr_sort ind_univ))
+      hov 0 (pr_sort u ++ str " ≤ " ++ pr_sort ind_univ))
       us)
 
 (* Inductive constructions errors *)
