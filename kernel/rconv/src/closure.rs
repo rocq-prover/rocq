@@ -310,11 +310,9 @@ pub fn stack_args_size(s: &Stack) -> usize {
 
 /* Infos */
 
+/// [RedFlags.reds] with its flag bits; one word.
 #[derive(Clone)]
-pub struct Flags {
-    pub v: OVal,
-    pub bits: isize,
-}
+pub struct Flags(Rc<(OVal, isize)>);
 
 pub const F_BETA: isize = 0b000001;
 pub const F_DELTA: isize = 0b000010;
@@ -326,11 +324,15 @@ pub const F_ZETA: isize = 0b100000;
 impl Flags {
     pub fn new(v: OVal) -> Flags {
         let bits = v.field_int(0);
-        Flags { v, bits }
+        Flags(Rc::new((v, bits)))
+    }
+    #[inline]
+    pub fn v(&self) -> &OVal {
+        &self.0 .0
     }
     #[inline]
     pub fn red_set(&self, f: isize) -> bool {
-        self.bits & f != 0
+        self.0 .1 & f != 0
     }
 }
 
@@ -806,7 +808,7 @@ fn value_of(info: &Infos, k: &TableKey) -> TableVal {
     let (tag, a, b) = key_args(k);
     let r = call(
         &VALUE_OF,
-        &[A::O(info.env()), A::O(&info.cache.evars), A::O(&info.flags.v), A::I(tag), A::O(&a), A::O(&b)],
+        &[A::O(info.env()), A::O(&info.cache.evars), A::O(&info.flags.v()), A::I(tag), A::O(&a), A::O(&b)],
     );
     if r.is_long() {
         match r.as_int() {
@@ -1353,7 +1355,7 @@ pub fn contract_fix_vect(fix: &FTerm) -> (USubs, OVal) {
 }
 
 pub fn unfold_projection(info: &Infos, p: &OVal, r: &OVal) -> Option<Z> {
-    let o = call(&UNFOLD_PROJECTION, &[A::O(&info.flags.v), A::O(p)]);
+    let o = call(&UNFOLD_PROJECTION, &[A::O(&info.flags.v()), A::O(p)]);
     o.as_option().map(|repr| Z::Proj(repr, r.clone()))
 }
 
@@ -1913,6 +1915,7 @@ pub fn unfold_ref_with_args(infos: &Infos, tab: &Tab, fl: &TableKey, v: &Stack) 
     }
 }
 
+#[inline(never)]
 pub fn get_ref_mask(info: &Infos, tab: &Tab, fl: &TableKey) -> Option<OVal> {
     match &*table_lookup(info, tab, fl) {
         TableVal::Def(_, mask) => mask.clone(),

@@ -4,31 +4,46 @@ use std::rc::Rc;
 
 /* Lifts */
 
+pub enum LiftNode {
+    Shft(Lift, isize),
+    Lft(isize, Lift),
+}
+
+/// [ELID] is [None]; one word.
 #[derive(Clone)]
-pub enum Lift {
-    Id,
-    Shft(Rc<Lift>, isize),
-    Lft(isize, Rc<Lift>),
+pub struct Lift(Option<Rc<LiftNode>>);
+
+fn shft(el: Lift, n: isize) -> Lift {
+    Lift(Some(Rc::new(LiftNode::Shft(el, n))))
+}
+
+fn lft(n: isize, el: Lift) -> Lift {
+    Lift(Some(Rc::new(LiftNode::Lft(n, el))))
 }
 
 pub fn el_id() -> Lift {
-    Lift::Id
+    Lift(None)
 }
 
 pub fn eq_lift(a: &Lift, b: &Lift) -> bool {
-    match (a, b) {
-        (Lift::Id, Lift::Id) => true,
-        (Lift::Shft(a, i), Lift::Shft(b, j)) => i == j && eq_lift(a, b),
-        (Lift::Lft(i, a), Lift::Lft(j, b)) => i == j && eq_lift(a, b),
+    match (&a.0, &b.0) {
+        (None, None) => true,
+        (Some(x), Some(y)) => match (&**x, &**y) {
+            (LiftNode::Shft(a, i), LiftNode::Shft(b, j)) => i == j && eq_lift(a, b),
+            (LiftNode::Lft(i, a), LiftNode::Lft(j, b)) => i == j && eq_lift(a, b),
+            _ => false,
+        },
         _ => false,
     }
 }
 
 fn el_shft_rec(n: isize, el: &Lift) -> Lift {
-    match el {
-        Lift::Shft(el, k) => Lift::Shft(el.clone(), k + n),
-        el => Lift::Shft(Rc::new(el.clone()), n),
+    if let Some(x) = &el.0 {
+        if let LiftNode::Shft(el2, k) = &**x {
+            return shft(el2.clone(), k + n);
+        }
     }
+    shft(el.clone(), n)
 }
 
 pub fn el_shft(n: isize, el: &Lift) -> Lift {
@@ -40,10 +55,12 @@ pub fn el_shft(n: isize, el: &Lift) -> Lift {
 }
 
 fn el_liftn_rec(n: isize, el: &Lift) -> Lift {
-    match el {
-        Lift::Id => Lift::Id,
-        Lift::Lft(k, el) => Lift::Lft(n + k, el.clone()),
-        el => Lift::Lft(n, Rc::new(el.clone())),
+    match &el.0 {
+        None => Lift(None),
+        Some(x) => match &**x {
+            LiftNode::Lft(k, el2) => lft(n + k, el2.clone()),
+            LiftNode::Shft(..) => lft(n, el.clone()),
+        },
     }
 }
 
@@ -64,21 +81,23 @@ pub fn reloc_rel(n: isize, el: &Lift) -> isize {
     let mut el = el;
     let mut acc = 0;
     loop {
-        match el {
-            Lift::Id => return n + acc,
-            Lift::Lft(k, e) => {
-                if n <= *k {
-                    return n + acc;
-                } else {
-                    n -= k;
-                    acc += k;
+        match &el.0 {
+            None => return n + acc,
+            Some(x) => match &**x {
+                LiftNode::Lft(k, e) => {
+                    if n <= *k {
+                        return n + acc;
+                    } else {
+                        n -= k;
+                        acc += k;
+                        el = e;
+                    }
+                }
+                LiftNode::Shft(e, k) => {
+                    n += k;
                     el = e;
                 }
-            }
-            Lift::Shft(e, k) => {
-                n += k;
-                el = e;
-            }
+            },
         }
     }
 }

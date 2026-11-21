@@ -73,14 +73,13 @@ fn el_stack(el: &Lift, stk: &Stack) -> Lift {
     el_shft(n, el)
 }
 
+#[inline(never)]
 fn compare_stack_shape(s1: &Stack, s2: &Stack) -> bool {
     let mut bal: isize = 0;
-    let mut a = s1.clone();
-    let mut b = s2.clone();
+    let mut a = s1;
+    let mut b = s2;
     loop {
-        let za = a.uncons().map(|(z, t)| (z.clone(), t.clone()));
-        let zb = b.uncons().map(|(z, t)| (z.clone(), t.clone()));
-        match (za, zb) {
+        match (a.uncons(), b.uncons()) {
             (None, None) => return bal == 0,
             (Some((Z::Update(_), t)), _) | (Some((Z::Shift(_), t)), _) => a = t,
             (_, Some((Z::Update(_), t))) | (_, Some((Z::Shift(_), t))) => b = t,
@@ -100,14 +99,14 @@ fn compare_stack_shape(s1: &Stack, s2: &Stack) -> bool {
                 b = t2;
             }
             (Some((Z::Fix(_, a1), t1)), Some((Z::Fix(_, a2), t2))) => {
-                if bal != 0 || !compare_stack_shape(&a1, &a2) {
+                if bal != 0 || !compare_stack_shape(a1, a2) {
                     return false;
                 }
                 a = t1;
                 b = t2;
             }
             (Some((Z::Primitive(op1, _, _, rargs1, _), t1)), Some((Z::Primitive(op2, _, _, rargs2, _), t2))) => {
-                if !(bal == 0 && eq(EQ_PRIM, &op1, &op2) && rargs1.len() == rargs2.len()) {
+                if !(bal == 0 && eq(EQ_PRIM, op1, op2) && rargs1.len() == rargs2.len()) {
                     return false;
                 }
                 a = t1;
@@ -165,10 +164,12 @@ fn pure_rec(lfts: &Lift, stk: &Stack) -> (Lift, Vec<Zl>) {
     (l, out)
 }
 
+#[inline(never)]
 fn pure_stack(lfts: &Lift, stk: &Stack) -> Vec<Zl> {
     pure_rec(lfts, stk).1
 }
 
+#[inline(never)]
 fn fail_check(r: OVal) -> R<OVal> {
     if r.tag() == 0 {
         Ok(r.field(0))
@@ -234,6 +235,7 @@ fn convert_constructors(infos: &CInfos, ctor: &OVal, nargs: isize, u1: &OVal, u2
     }
 }
 
+#[inline(never)]
 fn conv_table_key(infos: &CInfos, nargs: isize, k1: &TableKey, k2: &TableKey, cuniv: OVal) -> R<OVal> {
     match (k1, k2) {
         (TableKey::Const(cst, u), TableKey::Const(cst2, u2)) if eq(EQ_CONSTANT_CAN, cst, cst2) => {
@@ -242,7 +244,7 @@ fn conv_table_key(infos: &CInfos, nargs: isize, k1: &TableKey, k2: &TableKey, cu
             } else if nargs == 1 && call(&IS_ARRAY_TYPE, &[A::O(infos.env()), A::O(cst)]).as_bool() {
                 Ok(cuniv)
             } else {
-                let flex = call(&CONV_FLEX, &[A::O(infos.env()), A::O(&infos.inf.flags.v), A::O(cst)]).as_bool();
+                let flex = call(&CONV_FLEX, &[A::O(infos.env()), A::O(&infos.inf.flags.v()), A::O(cst)]).as_bool();
                 fail_check(convert_instances(infos, flex, &u.v, &u2.v, &cuniv))
             }
         }
@@ -252,6 +254,7 @@ fn conv_table_key(infos: &CInfos, nargs: isize, k1: &TableKey, k2: &TableKey, cu
     }
 }
 
+#[inline(never)]
 fn same_args_size(sk1: &Stack, sk2: &Stack) -> R<isize> {
     let n = stack_args_size(sk1);
     if n == stack_args_size(sk2) {
@@ -271,6 +274,7 @@ fn eta_expand_constructor(infos: &CInfos, c: &OVal, u: &UInst) -> FC {
     injectu(&t, &infos.inf.cache.empty_inst)
 }
 
+#[inline(never)]
 fn irr_flex(infos: &Infos, fl: &TableKey) -> bool {
     let (tag, a, b) = key_args(fl);
     call(&IRR_FLEX, &[A::O(infos.env()), A::O(&infos.cache.evars), A::I(tag), A::O(&a), A::O(&b)]).as_bool()
@@ -412,6 +416,7 @@ fn compare_under(e1: &USubs, c1: &OVal, e2: &USubs, c2: &OVal) -> bool {
     }
 }
 
+#[inline(never)]
 fn fast_test(lft1: &Lift, term1: &FC, lft2: &Lift, term2: &FC) -> bool {
     let mut lft1 = lft1.clone();
     let mut lft2 = lft2.clone();
@@ -490,7 +495,7 @@ fn eqappr(cv_pb: isize, l2r: bool, infos: CInfos, st1: Side, st2: Side, cuniv: O
 }
 
 fn all_transparent(infos: &Infos) -> Infos {
-    let f = call(&ALL_TRANSPARENT, &[A::O(&infos.flags.v)]);
+    let f = call(&ALL_TRANSPARENT, &[A::O(&infos.flags.v())]);
     infos.with_reds(&Flags::new(f))
 }
 
@@ -618,7 +623,7 @@ fn eq_rel(_cv_pb: isize, l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cun
 }
 
 /// The [try ... with] part of the (FFlex, FFlex) case.
-#[inline(never)]
+#[inline(always)]
 fn flex_flex_first_order(l2r: bool, infos: &CInfos, appr1: &Side, appr2: &Side, cuniv: OVal) -> R<OVal> {
     heads!(t1, t2, appr1, appr2);
     let (FTerm::Flex(fl1), FTerm::Flex(fl2)) = (&*t1, &*t2) else { unreachable!() };
@@ -1142,55 +1147,29 @@ fn convert_stacks(mask: Option<OVal>, l2r: bool, infos: &CInfos, lft1: &Lift, lf
 
 #[inline(always)]
 fn f_lf(l2r: bool, infos: &CInfos, a: &LF, b: &LF, cu: OVal) -> R<OVal> {
-    ccnv(CONV, l2r, infos, &a.0, &b.0, &a.1, &b.1, cu)
+    let s1 = Side { lft: a.0.clone(), hd: a.1.clone(), stk: Stack::nil() };
+    let s2 = Side { lft: b.0.clone(), hd: b.1.clone(), stk: Stack::nil() };
+    ccnv_tail(CONV, l2r, infos.clone(), s1, s2, cu)
 }
 
 #[allow(clippy::too_many_arguments)]
 fn cmp_rec(mask: &Option<OVal>, l2r: bool, infos: &CInfos, nargs: isize, p1: &[Zl], p2: &[Zl], cuniv: OVal) -> R<OVal> {
     let k = std::cmp::min(p1.len(), p2.len());
-    let mut nargsv: Vec<isize> = Vec::with_capacity(k);
-    let mut na = nargs;
-    for z in p1.iter().take(k) {
-        nargsv.push(na);
-        na = match z {
-            Zl::App(a) => {
-                if na < 0 {
-                    -1
-                } else {
-                    na + a.len() as isize
-                }
-            }
-            _ => -1,
-        };
-    }
+    let app_len = |z: &Zl| match z {
+        Zl::App(a) => a.len() as isize,
+        _ => 0,
+    };
+    let first_non_app = (0..k).find(|&i| !matches!(p1[i], Zl::App(_))).unwrap_or(k);
+    let m = if k == 0 { 0 } else { std::cmp::min(first_non_app, k - 1) };
+    let mut prefix: isize = p1[0..m].iter().map(app_len).sum();
     let mut cu = cuniv;
     for i in (0..k).rev() {
-        let nargs = nargsv[i];
+        let nargs = if nargs < 0 || i > first_non_app { -1 } else { nargs + prefix };
+        if i <= m && i > 0 {
+            prefix -= app_len(&p1[i - 1]);
+        }
         cu = match (&p1[i], &p2[i]) {
-            (Zl::App(a1), Zl::App(a2)) => {
-                if nargs < 0 {
-                    if a1.len() != a2.len() {
-                        panic!("Invalid_argument");
-                    }
-                    let mut cu = cu;
-                    for j in (0..a1.len()).rev() {
-                        cu = f_lf(l2r, infos, &a1[j], &a2[j], cu)?;
-                    }
-                    cu
-                } else {
-                    let m = mask.as_ref().unwrap();
-                    let mlen = m.size() as isize;
-                    let mut cu = cu;
-                    for j in (0..a1.len()).rev() {
-                        let idx = nargs + j as isize;
-                        if idx < mlen && !m.field(idx as usize).as_bool() {
-                            continue;
-                        }
-                        cu = f_lf(l2r, infos, &a1[j], &a2[j], cu)?;
-                    }
-                    cu
-                }
-            }
+            (Zl::App(a1), Zl::App(a2)) => cmp_app(mask, l2r, infos, nargs, a1, a2, cu)?,
             (Zl::Proj(c1), Zl::Proj(c2)) => {
                 if !eq(EQ_PROJ_REPR_CAN, c1, c2) {
                     return nc();
@@ -1202,6 +1181,27 @@ fn cmp_rec(mask: &Option<OVal>, l2r: bool, infos: &CInfos, nargs: isize, p1: &[Z
             (Zl::Primitive(op1, rargs1, kargs1), Zl::Primitive(op2, rargs2, kargs2)) => cmp_prim(l2r, infos, op1, rargs1, kargs1, op2, rargs2, kargs2, cu)?,
             _ => panic!("assert false"),
         };
+    }
+    Ok(cu)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(always)]
+fn cmp_app(mask: &Option<OVal>, l2r: bool, infos: &CInfos, nargs: isize, a1: &[LF], a2: &[LF], cu: OVal) -> R<OVal> {
+    if nargs < 0 && a1.len() != a2.len() {
+        panic!("Invalid_argument");
+    }
+    let mask = if nargs < 0 { None } else { mask.as_ref() };
+    let mlen = mask.map_or(0, |m| m.size() as isize);
+    let mut cu = cu;
+    for j in (0..a1.len()).rev() {
+        let idx = nargs + j as isize;
+        if let Some(m) = mask {
+            if idx < mlen && !m.field(idx as usize).as_bool() {
+                continue;
+            }
+        }
+        cu = f_lf(l2r, infos, &a1[j], &a2[j], cu)?;
     }
     Ok(cu)
 }
