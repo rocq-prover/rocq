@@ -349,7 +349,7 @@ fn try_unfoldfix(_info: &Infos, _tab: &Tab, ps: PS, b: bool, m: &FC, stk: &Stack
     if let Some((Z::Fix(fx, par), s)) = stack.uncons() {
         let a: Rc<[FC]> = Rc::from(vec![rarg]);
         let stk2 = stack_app(par, &append_stack(&a, s));
-        let (fxe, fxbd) = contract_fix_vect(&fx.term());
+        let (fxe, fxbd) = contract_fix_vect(&fx.term_clone());
         St::Knit(fxe, fxbd, stk2, ps)
     } else {
         St::Ret(m.clone(), stk.clone(), true, ps)
@@ -413,7 +413,7 @@ fn match_elim(info: &Infos, tab: &Tab, ps: PS, next: &Next, depth: isize, states
                 stk = s;
             }
             Z::Update(m) => {
-                update(&m, head.mark(), head.term());
+                update(&m, head.mark(), head.term_clone());
                 stk = s;
             }
             Z::CaseT(cd) => {
@@ -546,7 +546,7 @@ fn instance_pattern_match(pu: &OVal, u: &OVal, subst: &OVal) -> Option<OVal> {
 
 #[allow(clippy::too_many_arguments)]
 fn match_head(info: &Infos, tab: &Tab, ps: PS, next: &Rc<Loc>, depth: isize, states: &States, patterns: &[Option<Rc<HeadElim>>], t: &FC, stk: &Stack) -> St {
-    let tm = t.term();
+    let tm = &t.term_clone();
     let start = |elims: Vec<Option<EList>>, stack: Stack| {
         Rc::new(Loc::Start { elims, depth, head: t.clone(), stack, next: Next::Continue(next.clone()) })
     };

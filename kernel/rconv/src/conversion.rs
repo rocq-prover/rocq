@@ -428,19 +428,23 @@ fn fast_test(lft1: &Lift, term1: &FC, lft2: &Lift, term2: &FC) -> bool {
     let mut term1 = term1.clone();
     let mut term2 = term2.clone();
     loop {
-        let t1 = term1.term();
-        let t2 = term2.term();
-        match (&*t1, &*t2) {
-            (FTerm::Lift(i, a), FTerm::Lift(..)) | (FTerm::Lift(i, a), FTerm::Clos(..)) => {
-                lft1 = el_shft(*i, &lft1);
-                term1 = a.clone();
+        let (n1, n2) = {
+            let t1 = term1.term();
+            let t2 = term2.term();
+            match (&*t1, &*t2) {
+                (FTerm::Lift(i, a), FTerm::Lift(..)) | (FTerm::Lift(i, a), FTerm::Clos(..)) => (Some((*i, a.clone())), None),
+                (FTerm::Clos(..), FTerm::Lift(j, b)) => (None, Some((*j, b.clone()))),
+                (FTerm::Clos(c1, e1), FTerm::Clos(c2, e2)) => return eq_lift(&lft1, &lft2) && compare_under(e1, c1, e2, c2),
+                _ => return false,
             }
-            (FTerm::Clos(..), FTerm::Lift(j, b)) => {
-                lft2 = el_shft(*j, &lft2);
-                term2 = b.clone();
-            }
-            (FTerm::Clos(c1, e1), FTerm::Clos(c2, e2)) => return eq_lift(&lft1, &lft2) && compare_under(e1, c1, e2, c2),
-            _ => return false,
+        };
+        if let Some((i, a)) = n1 {
+            lft1 = el_shft(i, &lft1);
+            term1 = a;
+        }
+        if let Some((j, b)) = n2 {
+            lft2 = el_shft(j, &lft2);
+            term2 = b;
         }
     }
 }
@@ -668,8 +672,8 @@ fn eqwhnf(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Side, app
 
 macro_rules! heads {
     ($t1:ident, $t2:ident, $a1:expr, $a2:expr) => {
-        let $t1 = $a1.hd.term();
-        let $t2 = $a2.hd.term();
+        let $t1 = &$a1.hd.term_clone();
+        let $t2 = &$a2.hd.term_clone();
     };
 }
 
@@ -790,7 +794,6 @@ fn eq_flex_flex_unfold(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, app
             (appr1, Side { lft: appr2.lft, hd: h, stk: s })
         }
     };
-    drop((t1, t2));
     become eqwhnf(w, cv_pb, l2r, infos, appr1, appr2, cuniv)
 }
 
@@ -800,13 +803,11 @@ fn eq_proj_proj(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Sid
     match unfold_projection(&infos.inf, p1, r1) {
         Some(s1) => {
             let a1 = Side { lft: appr1.lft.clone(), hd: c1.clone(), stk: appr1.stk.cons(s1) };
-            drop((t1, t2));
             become eqappr(w, cv_pb, l2r, infos, a1, appr2, cuniv)
         }
         None => match unfold_projection(&infos.inf, p2, r2) {
             Some(s2) => {
                 let a2 = Side { lft: appr2.lft.clone(), hd: c2.clone(), stk: appr2.stk.cons(s2) };
-                drop((t1, t2));
                 become eqappr(w, cv_pb, l2r, infos, appr1, a2, cuniv)
             }
             None => {
@@ -833,14 +834,12 @@ fn eq_proj_left(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Sid
     match unfold_projection(&infos.inf, p1, r1) {
         Some(s1) => {
             let a1 = Side { lft: appr1.lft.clone(), hd: c1.clone(), stk: appr1.stk.cons(s1) };
-            drop((t1, t2));
             become eqappr(w, cv_pb, l2r, infos, a1, appr2, cuniv)
         }
         None => match &*t2 {
             FTerm::Flex(fl2) => match unfold_ref_with_args(&infos.inf, &infos.sh.rgt_tab, fl2, &appr2.stk) {
                 Some((h, s)) => {
                     let a2 = Side { lft: appr2.lft.clone(), hd: h, stk: s };
-                    drop((t1, t2));
                     become eqappr(w, cv_pb, l2r, infos, appr1, a2, cuniv)
                 }
                 None => nc(),
@@ -856,14 +855,12 @@ fn eq_proj_right(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Si
     match unfold_projection(&infos.inf, p2, r2) {
         Some(s2) => {
             let a2 = Side { lft: appr2.lft.clone(), hd: c2.clone(), stk: appr2.stk.cons(s2) };
-            drop((t1, t2));
             become eqappr(w, cv_pb, l2r, infos, appr1, a2, cuniv)
         }
         None => match &*t1 {
             FTerm::Flex(fl1) => match unfold_ref_with_args(&infos.inf, &infos.sh.lft_tab, fl1, &appr1.stk) {
                 Some((h, s)) => {
                     let a1 = Side { lft: appr1.lft.clone(), hd: h, stk: s };
-                    drop((t1, t2));
                     become eqappr(w, cv_pb, l2r, infos, a1, appr2, cuniv)
                 }
                 None => nc(),
@@ -940,7 +937,7 @@ fn eq_flex_left(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Sid
             let all = all_transparent(&infos.inf);
             let (h, s) = whd_stack(&all, &infos.sh.lft_tab, &def1, &v1);
             let a1 = Side { lft: appr1.lft.clone(), hd: h, stk: s };
-            drop((t1, t2, all, def1, v1));
+            drop((all, def1, v1));
             become eqwhnf(w, cv_pb, l2r, infos, a1, appr2, cuniv)
         }
         None => match &*t2 {
@@ -967,7 +964,7 @@ fn eq_flex_right(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Si
             let all = all_transparent(&infos.inf);
             let (h, s) = whd_stack(&all, &infos.sh.rgt_tab, &def2, &v2);
             let a2 = Side { lft: appr2.lft.clone(), hd: h, stk: s };
-            drop((t1, t2, all, def2, v2));
+            drop((all, def2, v2));
             become eqwhnf(w, cv_pb, l2r, infos, appr1, a2, cuniv)
         }
         None => match &*t1 {
@@ -1005,7 +1002,7 @@ fn eq_ind(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Side, app
         Err(MustExpand) => {
             let a1 = Side { lft: appr1.lft.clone(), hd: eta_expand_ind(&infos, ind1, u1), stk: appr1.stk.clone() };
             let a2 = Side { lft: appr2.lft.clone(), hd: eta_expand_ind(&infos, ind2, u2), stk: appr2.stk.clone() };
-            drop((t1, t2, appr1, appr2));
+            drop((appr1, appr2));
             become eqappr(w, cv_pb, l2r, infos, a1, a2, cuniv)
         }
     }
@@ -1039,7 +1036,7 @@ fn eq_construct(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Sid
         Err(MustExpand) => {
             let a1 = Side { lft: appr1.lft.clone(), hd: eta_expand_constructor(&infos, c1, u1), stk: v1 };
             let a2 = Side { lft: appr2.lft.clone(), hd: eta_expand_constructor(&infos, c2, u2), stk: v2 };
-            drop((t1, t2, appr1, appr2));
+            drop((appr1, appr2));
             become eqappr(w, cv_pb, l2r, infos, a1, a2, cuniv)
         }
     }

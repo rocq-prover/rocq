@@ -1,4 +1,4 @@
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::num::NonZeroUsize;
 use std::ffi::{c_char, c_int, c_void};
 use std::rc::Rc;
@@ -71,23 +71,18 @@ pub unsafe fn field(v: Value, i: usize) -> Value {
 
 /// A GC root to an OCaml value, in one word. Immediate values are stored as
 /// is (their low bit is set) and are not rooted. Other values are rooted by a
-/// boxroot, shared through a reference-counted [RootBox] (8-byte aligned, so
-/// its address has a low bit of 0).
+/// boxroot owned by the [OVal]: the address of a boxroot slot is a pointer to
+/// a word, so its low bit is 0. Cloning creates a new boxroot.
 pub struct OVal(NonZeroUsize);
-
-struct RootBox {
-    rc: Cell<usize>,
-    slot: *mut Value,
-}
 
 impl Clone for OVal {
     #[inline]
     fn clone(&self) -> OVal {
-        if self.0.get() & 1 == 0 {
-            let b = unsafe { &*(self.0.get() as *const RootBox) };
-            b.rc.set(b.rc.get() + 1);
+        if self.0.get() & 1 != 0 {
+            OVal(self.0)
+        } else {
+            OVal::root(self.get())
         }
-        OVal(self.0)
     }
 }
 
@@ -95,32 +90,26 @@ impl Drop for OVal {
     #[inline]
     fn drop(&mut self) {
         if self.0.get() & 1 == 0 {
-            unsafe {
-                let p = self.0.get() as *mut RootBox;
-                let n = (*p).rc.get() - 1;
-                if n == 0 {
-                    boxroot_delete((*p).slot);
-                    drop(Box::from_raw(p));
-                } else {
-                    (*p).rc.set(n);
-                }
-            }
+            unsafe { boxroot_delete(self.0.get() as *mut Value) }
         }
     }
 }
 
 impl OVal {
     #[inline]
+    fn root(v: Value) -> OVal {
+        let r = unsafe { boxroot_create(v) };
+        if r.is_null() {
+            panic!("rconv: boxroot allocation failure");
+        }
+        OVal(unsafe { NonZeroUsize::new_unchecked(r as usize) })
+    }
+    #[inline]
     pub fn new(v: Value) -> OVal {
         if is_long(v) {
             OVal(unsafe { NonZeroUsize::new_unchecked(v as usize) })
         } else {
-            let r = unsafe { boxroot_create(v) };
-            if r.is_null() {
-                panic!("rconv: boxroot allocation failure");
-            }
-            let b = Box::into_raw(Box::new(RootBox { rc: Cell::new(1), slot: r }));
-            OVal(unsafe { NonZeroUsize::new_unchecked(b as usize) })
+            OVal::root(v)
         }
     }
     #[inline]
@@ -132,7 +121,7 @@ impl OVal {
         if self.0.get() & 1 != 0 {
             self.0.get() as Value
         } else {
-            unsafe { *(*(self.0.get() as *const RootBox)).slot }
+            unsafe { *(self.0.get() as *const Value) }
         }
     }
     #[inline]

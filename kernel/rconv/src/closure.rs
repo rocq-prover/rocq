@@ -30,7 +30,7 @@ pub fn is_red(m: Red) -> bool {
 
 pub struct FCell {
     mark: Cell<Red>,
-    term: RefCell<Rc<FTerm>>,
+    term: RefCell<FTerm>,
 }
 
 pub type FC = Rc<FCell>;
@@ -40,24 +40,25 @@ impl FCell {
     pub fn mark(&self) -> Red {
         self.mark.get()
     }
+    /// The term of the cell, borrowed: the cell must not be updated while
+    /// the borrow is alive.
     #[inline]
-    pub fn term(&self) -> Rc<FTerm> {
+    pub fn term(&self) -> std::cell::Ref<'_, FTerm> {
+        self.term.borrow()
+    }
+    #[inline]
+    pub fn term_clone(&self) -> FTerm {
         self.term.borrow().clone()
     }
 }
 
 #[inline]
 pub fn mk(mark: Red, t: FTerm) -> FC {
-    Rc::new(FCell { mark: Cell::new(mark), term: RefCell::new(Rc::new(t)) })
-}
-
-#[inline]
-pub fn mk_rc(mark: Red, t: Rc<FTerm>) -> FC {
     Rc::new(FCell { mark: Cell::new(mark), term: RefCell::new(t) })
 }
 
 #[inline]
-pub fn update(v: &FC, mark: Red, t: Rc<FTerm>) {
+pub fn update(v: &FC, mark: Red, t: FTerm) {
     v.mark.set(mark);
     *v.term.borrow_mut() = t;
 }
@@ -164,6 +165,7 @@ impl LamTys {
     }
 }
 
+#[derive(Clone)]
 pub enum FTerm {
     Rel(isize),
     Atom(OVal),
@@ -490,42 +492,48 @@ pub fn lft_fconstr(n: isize, ft: &FC) -> FC {
     let mut n = n;
     let mut ft = ft.clone();
     loop {
-        let t = ft.term();
-        match &*t {
-            FTerm::Ind(..)
-            | FTerm::Flex(TableKey::Const(..))
-            | FTerm::Flex(TableKey::Var(_))
-            | FTerm::Int(_)
-            | FTerm::Float(_)
-            | FTerm::String(_)
-            | FTerm::Irrelevant => return ft,
-            FTerm::Construct(_, _, args) if args.is_empty() => return ft,
-            FTerm::Rel(i) => return mk(ft.mark(), FTerm::Rel(i + n)),
-            FTerm::Lambda(k, tys, f, e) => {
-                return mk(Red::Cstr, FTerm::Lambda(*k, tys.clone(), f.clone(), usubs_shft(n, e)))
+        let next = {
+            let t = ft.term();
+            match &*t {
+                FTerm::Ind(..)
+                | FTerm::Flex(TableKey::Const(..))
+                | FTerm::Flex(TableKey::Var(_))
+                | FTerm::Int(_)
+                | FTerm::Float(_)
+                | FTerm::String(_)
+                | FTerm::Irrelevant => None,
+                FTerm::Construct(_, _, args) if args.is_empty() => None,
+                FTerm::Rel(i) => return mk(ft.mark(), FTerm::Rel(i + n)),
+                FTerm::Lambda(k, tys, f, e) => {
+                    return mk(Red::Cstr, FTerm::Lambda(*k, tys.clone(), f.clone(), usubs_shft(n, e)))
+                }
+                FTerm::Fix(fx, e) => return mk(Red::Cstr, FTerm::Fix(fx.clone(), usubs_shft(n, e))),
+                FTerm::CoFix(fx, e) => return mk(Red::Cstr, FTerm::CoFix(fx.clone(), usubs_shft(n, e))),
+                FTerm::Lift(k, m) => Some((*k, m.clone())),
+                FTerm::Construct(c, u, args) => {
+                    let args: Rc<[FC]> = args.iter().map(|a| lft_fconstr(n, a)).collect();
+                    return mk(Red::Cstr, FTerm::Construct(c.clone(), u.clone(), args));
+                }
+                FTerm::Array(u, ar, ty, l) => return mk(Red::Cstr, FTerm::Array(u.clone(), ar.clone(), ty.clone(), l + n)),
+                FTerm::Locked => panic!("assert false"),
+                FTerm::Flex(TableKey::Rel(_))
+                | FTerm::Atom(_)
+                | FTerm::App(..)
+                | FTerm::Proj(..)
+                | FTerm::CaseT(..)
+                | FTerm::CaseInvert(..)
+                | FTerm::Prod(..)
+                | FTerm::LetIn(..)
+                | FTerm::Evar(..)
+                | FTerm::Clos(..) => return mk(ft.mark(), FTerm::Lift(n, ft.clone())),
             }
-            FTerm::Fix(fx, e) => return mk(Red::Cstr, FTerm::Fix(fx.clone(), usubs_shft(n, e))),
-            FTerm::CoFix(fx, e) => return mk(Red::Cstr, FTerm::CoFix(fx.clone(), usubs_shft(n, e))),
-            FTerm::Lift(k, m) => {
+        };
+        match next {
+            None => return ft,
+            Some((k, m)) => {
                 n += k;
-                ft = m.clone();
+                ft = m;
             }
-            FTerm::Construct(c, u, args) => {
-                let args: Rc<[FC]> = args.iter().map(|a| lft_fconstr(n, a)).collect();
-                return mk(Red::Cstr, FTerm::Construct(c.clone(), u.clone(), args));
-            }
-            FTerm::Array(u, ar, ty, l) => return mk(Red::Cstr, FTerm::Array(u.clone(), ar.clone(), ty.clone(), l + n)),
-            FTerm::Locked => panic!("assert false"),
-            FTerm::Flex(TableKey::Rel(_))
-            | FTerm::Atom(_)
-            | FTerm::App(..)
-            | FTerm::Proj(..)
-            | FTerm::CaseT(..)
-            | FTerm::CaseInvert(..)
-            | FTerm::Prod(..)
-            | FTerm::LetIn(..)
-            | FTerm::Evar(..)
-            | FTerm::Clos(..) => return mk(ft.mark(), FTerm::Lift(n, ft.clone())),
         }
     }
 }
@@ -660,7 +668,7 @@ fn compact_stack(head: &FC, stk: &Stack) -> Stack {
             }
             Some((Z::Update(m), s)) => {
                 let h2 = lft_fconstr(depth, head);
-                update(m, h2.mark(), h2.term());
+                update(m, h2.mark(), h2.term_clone());
                 stk = s.clone();
             }
             _ => return zshift(depth, &stk),
@@ -671,7 +679,7 @@ fn compact_stack(head: &FC, stk: &Stack) -> Stack {
 pub fn zupdate(info: &Infos, m: &FC, s: &Stack) -> Stack {
     if info.cache.share && is_red(m.mark()) {
         let s2 = compact_stack(m, s);
-        *m.term.borrow_mut() = Rc::new(FTerm::Locked);
+        *m.term.borrow_mut() = FTerm::Locked;
         s2.cons_owned(Z::Update(m.clone()))
     } else {
         s.clone()
@@ -915,7 +923,7 @@ pub fn zip(m: &FC, stk: &Stack) -> FC {
                 stk = s;
             }
             Z::Update(rf) => {
-                update(&rf, m.mark(), m.term());
+                update(&rf, m.mark(), m.term_clone());
                 m = rf;
                 stk = s;
             }
@@ -951,7 +959,7 @@ pub fn strip_update_shift_absorb_app(head: &FC, stk: &Stack) -> (FC, Stack) {
                 stk = s;
             }
             Z::Update(m) => {
-                update(&m, h.mark(), h.term());
+                update(&m, h.mark(), h.term_clone());
                 h = m;
                 stk = s;
             }
@@ -984,7 +992,7 @@ pub fn strip_update_shift_app_red(head: &FC, stk: &Stack) -> (isize, FC, Stack, 
                 stk = s;
             }
             Z::Update(m) => {
-                update(&m, h.mark(), h.term());
+                update(&m, h.mark(), h.term_clone());
                 h = m;
                 stk = s;
             }
@@ -1036,7 +1044,7 @@ pub fn get_nth_arg(head: &FC, n: isize, stk: &Stack) -> (Option<(Stack, FC)>, St
                 }
             }
             Z::Update(m) => {
-                update(&m, h.mark(), h.term());
+                update(&m, h.mark(), h.term_clone());
                 h = m;
                 stk = s;
             }
@@ -1064,7 +1072,7 @@ pub fn get_args(n: isize, tys: &LamTys, f: &OVal, e: &USubs, stk: &Stack) -> (Ar
         };
         match z {
             Z::Update(r) => {
-                update(&r, Red::Cstr, Rc::new(FTerm::Lambda(n, tys.clone(), f.clone(), e.clone())));
+                update(&r, Red::Cstr, FTerm::Lambda(n, tys.clone(), f.clone(), e.clone()));
                 stk = s;
             }
             Z::Shift(k) => {
@@ -1182,7 +1190,7 @@ fn get_native_args(info: &Infos, op: &OVal, c: &TableKey, stk: &Stack) -> ((Vec<
                 }
             }
             Z::Update(m) => {
-                update(&m, h.mark(), h.term());
+                update(&m, h.mark(), h.term_clone());
                 h = m;
                 stk = s;
             }
@@ -1391,7 +1399,7 @@ pub fn skip_irrelevant_stack(info: &Infos, stk: &Stack) -> Stack {
             Z::Primitive(..) => panic!("assert false"),
             Z::Update(m) => {
                 let irr = mk_irrelevant();
-                update(&m, irr.mark(), irr.term());
+                update(&m, irr.mark(), irr.term_clone());
                 stk = s;
             }
         }
@@ -1431,53 +1439,81 @@ fn knh_gen(info: &Infos, st: H) -> (FC, Stack) {
     loop {
         st = match st {
             H::H(m, stk) => {
-                let t = m.term();
-                match &*t {
-                    FTerm::Lift(k, a) => H::H(a.clone(), zshift(*k, &stk)),
-                    FTerm::Clos(t, e) => {
-                        let s = zupdate(info, &m, &stk);
-                        H::T(e.clone(), t.clone(), s)
-                    }
-                    FTerm::Locked => panic!("assert false"),
-                    FTerm::App(a, b) => {
-                        let s = zupdate(info, &m, &stk);
-                        H::H(a.clone(), append_stack(b, &s))
-                    }
-                    FTerm::CaseT(cd, t) => {
-                        let r2 = usubst_relevance(&cd.e, &cd.p.field(1));
-                        if is_irrelevant(info, &r2) {
-                            return irr_ret(info, &stk);
-                        } else {
-                            let s = zupdate(info, &m, &stk);
-                            H::H(t.clone(), s.cons_owned(Z::CaseT(cd.clone())))
-                        }
-                    }
-                    FTerm::Fix(fx, e) => {
-                        let na = fx.names().field(fx.i as usize);
-                        if is_irrelevant(info, &usubst_relevance(e, &constr::binder_relevance(&na))) {
-                            return irr_ret(info, &stk);
-                        } else {
-                            match get_nth_arg(&m, fx.rec_arg(fx.i), &stk) {
-                                (Some((pars, arg)), stk2) => H::H(arg, stk2.cons_owned(Z::Fix(m.clone(), pars))),
-                                (None, stk2) => return (m, stk2),
+                /* The term of [m] is only borrowed while deciding what to do,
+                   since [zupdate] overwrites it. */
+                enum Act {
+                    Go(H),
+                    Ret(Stack),
+                    Irr,
+                    Absorb,
+                    Clos(OVal, USubs),
+                    App(FC, Rc<[FC]>),
+                    CaseT(Rc<CaseData>, FC),
+                    Proj(FC, Z),
+                }
+                let act = {
+                    let t = m.term();
+                    match &*t {
+                        FTerm::Lift(k, a) => Act::Go(H::H(a.clone(), zshift(*k, &stk))),
+                        FTerm::Clos(t, e) => Act::Clos(t.clone(), e.clone()),
+                        FTerm::Locked => panic!("assert false"),
+                        FTerm::App(a, b) => Act::App(a.clone(), b.clone()),
+                        FTerm::CaseT(cd, t) => {
+                            let r2 = usubst_relevance(&cd.e, &cd.p.field(1));
+                            if is_irrelevant(info, &r2) {
+                                Act::Irr
+                            } else {
+                                Act::CaseT(cd.clone(), t.clone())
                             }
                         }
-                    }
-                    FTerm::Proj(p, r, c) => {
-                        if is_irrelevant(info, r) {
-                            return irr_ret(info, &stk);
-                        } else {
-                            match unfold_projection(info, p, r) {
-                                None => return (m, stk),
-                                Some(s) => {
-                                    let s2 = zupdate(info, &m, &stk);
-                                    H::H(c.clone(), s2.cons_owned(s))
+                        FTerm::Fix(fx, e) => {
+                            let na = fx.names().field(fx.i as usize);
+                            if is_irrelevant(info, &usubst_relevance(e, &constr::binder_relevance(&na))) {
+                                Act::Irr
+                            } else {
+                                let rarg = fx.rec_arg(fx.i);
+                                drop(t);
+                                match get_nth_arg(&m, rarg, &stk) {
+                                    (Some((pars, arg)), stk2) => Act::Go(H::H(arg, stk2.cons_owned(Z::Fix(m.clone(), pars)))),
+                                    (None, stk2) => Act::Ret(stk2),
                                 }
                             }
                         }
+                        FTerm::Proj(p, r, c) => {
+                            if is_irrelevant(info, r) {
+                                Act::Irr
+                            } else {
+                                match unfold_projection(info, p, r) {
+                                    None => Act::Ret(stk.clone()),
+                                    Some(z) => Act::Proj(c.clone(), z),
+                                }
+                            }
+                        }
+                        FTerm::Construct(..) => Act::Absorb,
+                        _ => Act::Ret(stk.clone()),
                     }
-                    FTerm::Construct(..) => return strip_update_shift_absorb_app(&m, &stk),
-                    _ => return (m, stk),
+                };
+                match act {
+                    Act::Go(h) => h,
+                    Act::Ret(stk) => return (m, stk),
+                    Act::Irr => return irr_ret(info, &stk),
+                    Act::Absorb => return strip_update_shift_absorb_app(&m, &stk),
+                    Act::Clos(t, e) => {
+                        let s = zupdate(info, &m, &stk);
+                        H::T(e, t, s)
+                    }
+                    Act::App(a, b) => {
+                        let s = zupdate(info, &m, &stk);
+                        H::H(a, append_stack(&b, &s))
+                    }
+                    Act::CaseT(cd, t) => {
+                        let s = zupdate(info, &m, &stk);
+                        H::H(t, s.cons_owned(Z::CaseT(cd)))
+                    }
+                    Act::Proj(c, z) => {
+                        let s2 = zupdate(info, &m, &stk);
+                        H::H(c, s2.cons_owned(z))
+                    }
                 }
             }
             H::T(e, t, stk) => match constr::kind(&t) {
@@ -1734,8 +1770,10 @@ pub fn kni(info: &Infos, tab: &Tab, m: &FC, stk: &Stack) -> (FC, Stack) {
 }
 
 fn knr(info: &Infos, tab: &Tab, ps: pattern::PS, m: &FC, stk: &Stack) -> St {
-    let t = m.term();
-    match &*t {
+    /* A copy: stripping the stack may update [m] itself, e.g. for the
+       [Zupdate a] pushed by [unfold_ref_with_args]. */
+    let t = &m.term_clone();
+    match t {
         FTerm::Lambda(n, tys, f, e) if info.flags.red_set(F_BETA) => match get_args(*n, tys, f, e, stk) {
             (Args::Subst(e2), s) => St::Knit(e2, f.clone(), s, ps),
             (Args::Lam(lam), s) => St::Ret(lam, s, false, ps),
