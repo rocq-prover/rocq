@@ -1,0 +1,106 @@
+same_box@{u u0} :
+forall (I : Type@{u}) (G : Box@{u0}), G = box@{u} I -> G = box@{u} I
+(* u(= in 1st binder) u0(= in 2nd, 3rd binders, = in type) |
+   u ≤ u0 *)
+
+same_box is universe polymorphic and cumulative
+Arguments same_box I%_type_scope G e
+same_box is transparent
+Expands to: Constant UnivMinimCompat.same_box
+Declared in library UnivMinimCompat, line 10, characters 11-19
+same_box'@{u} :
+forall (I : Type@{u}) (G : Box@{u}), G = box@{u} I -> G = box@{u} I
+(* u(= in 1st, 2nd, 3rd binders, = in type) | *)
+
+same_box' is universe polymorphic and cumulative
+Arguments same_box' I%_type_scope G e
+same_box' is transparent
+Expands to: Constant UnivMinimCompat.same_box'
+Declared in library UnivMinimCompat, line 16, characters 11-20
+set_box@{u} :
+forall G : Box@{u}, G = box@{0} nat -> G = box@{0} nat
+(* u(= in 1st, 2nd binders, = in type) | *)
+
+set_box is universe polymorphic and cumulative
+Arguments set_box G e
+set_box is transparent
+Expands to: Constant UnivMinimCompat.set_box
+Declared in library UnivMinimCompat, line 20, characters 11-18
+pair_box@{u u0 u1} :
+forall (I : Type@{u}) (J : Type@{u0}) (G : Box@{u1}),
+G = box@{max(u,u0)} (I * J) -> G = box@{max(u,u0)} (I * J)
+(* u(= in 1st binder, * in type) u0(= in 2nd binder, * in type) u1(= in 3rd,
+   4th binders, = in type) |
+   u ≤ u1
+   u0 ≤ u1 *)
+
+pair_box is universe polymorphic and cumulative
+Arguments pair_box (I J)%_type_scope G e
+pair_box is transparent
+Expands to: Constant UnivMinimCompat.pair_box
+Declared in library UnivMinimCompat, line 24, characters 11-19
+chain@{u} :
+Chain@{u u u} -> Chain@{u u u}
+(* u(= in 1st binder, + in type) | *)
+
+chain is universe polymorphic and cumulative
+Arguments chain x
+chain is transparent
+Expands to: Constant UnivMinimCompat.chain
+Declared in library UnivMinimCompat, line 30, characters 11-16
+terminal@{u u0} :
+Cat@{u u0 u0} -> Type@{max(u,u0)}
+(* u(= in 1st binder, = (* for typing) in term, + in type)
+   u0(= in 1st binder, = (* for typing) in term, + in type) | *)
+
+terminal is universe polymorphic
+Arguments terminal C
+terminal is transparent
+Expands to: Constant UnivMinimCompat.terminal
+Declared in library UnivMinimCompat, line 39, characters 13-21
+f@{u} :
+nodes@{u} q@{u} -> nodes@{u} q@{u}
+(* u(= (* for typing) in 1st binder, = (* for typing) in type) | *)
+
+f is universe polymorphic and cumulative
+Arguments f x
+f is transparent
+Expands to: Constant UnivMinimCompat.f
+Declared in library UnivMinimCompat, line 47, characters 11-12
+w@{u u0} =
+fun (A : Type@{u}) (a : A) =>
+gop@{u u0} (free@{u} A) (ins@{u u0} A a) (ins@{u u0} A a)
+     : forall A : Type@{u}, A -> gcar@{u u0} (free@{u} A)
+(* u(= in 1st binder, = (* for typing) in type)
+   u0*(= (* for typing) in type) | *)
+
+Arguments w A%_type_scope a
+pg@{u u0 u1} =
+fun (A : Type@{u}) (B : Type@{u0}) (C : Type@{u1}) (f : A -> B) (a : A) =>
+glue@{max(u,u0,u1) max(u,u0,u1)} A (B + C) (fun a0 : A => inl (f a0)) a
+     : forall (A : Type@{u}) (B : Type@{u0}) (C : Type@{u1}) 
+         (f : A -> B) (a : A),
+       pl@{u u0 u1} A B C f (f a) = pl@{u u0 u1} A B C f (f a)
+(* u(= in 1st binder, = (* for typing) in term, * in type)
+   u0(= in 2nd binder, = (* for typing) in term, * in type)
+   u1(= in 3rd binder, = (* for typing) in term, * in type) | *)
+
+Arguments pg (A B C)%_type_scope f%_function_scope a
+fx@{u} :
+nodes@{u} q@{u} -> nodes@{u} q@{u}
+(* u(= (* for typing) in 1st binder, = (* for typing) in type) | *)
+
+fx is universe polymorphic and cumulative
+Arguments fx x
+fx is transparent
+Expands to: Constant UnivMinimCompat.fx
+Declared in library UnivMinimCompat, line 81, characters 13-15
+use_g@{u} : forall A : Type@{u}, A -> A
+(* u(= in 1st binder) |
+   u ≤ g *)
+
+use_g is universe polymorphic and cumulative
+Arguments use_g A%_type_scope a
+use_g is transparent
+Expands to: Constant UnivMinimCompat.use_g
+Declared in library UnivMinimCompat, line 89, characters 11-16

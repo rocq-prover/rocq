@@ -44,16 +44,19 @@ type glob_sort_name =
       is OK, just don't try to reinterp it. *)
 
 type 'a glob_sort_gen =
-  | UAnonymous of { rigid : UState.rigid } (** not rigid = unifiable by minimization *)
+  | UAnonymous of { rigid : UState.rigid option } (** not rigid = unifiable by minimization.
+                                                      Not specified: flexible in univ poly mode, rigid otherwise *)
   | UNamed of 'a
 
-(** levels, occurring in universe instances *)
-type glob_level = glob_sort_name glob_sort_gen
+type glob_instance_univ = (glob_sort_name * int) list
+
+(** universes, occurring in universe instances *)
+type glob_univ = glob_instance_univ glob_sort_gen
 
 type glob_instance = {
   qualities : glob_quality list;
   extensible_qualities : bool;
-  univlevels : glob_level list;
+  univlevels : glob_univ list;
   extensible_univlevels : bool;
 }
 

@@ -136,12 +136,14 @@ Type@{u}
 Type@{u}
      : Type@{u+1}
 Prop
-     : Type@{Set+1}
+     : Type@{1}
 (* {Notations:143} | 
+Minimized universes:
+ Notations:143 := 0
 Normalized constraints:
- {Notations:143} |  *)
+  *)
 Prop
-     : Type@{Set+1}
+     : Type@{1}
 Type@{Notations:144}
      : Type@{Notations:144+1}
 (* {Notations:144} | 

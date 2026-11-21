@@ -1,0 +1,15 @@
+f_obligation_1@{u} :
+Type@{u} -> True
+(* u(= in 1st binder, = in term, = in type) | *)
+
+f_obligation_1 is universe polymorphic
+Arguments f_obligation_1 A%_type_scope
+f_obligation_1 is opaque
+Expands to: Constant PolyObligationPrivateUniverses.f_obligation_1
+Declared in library PolyObligationPrivateUniverses, line 11, characters 0-81
+f@{u} =
+fun A : Type@{u} => exist (fun _ : Type@{u} => True) A (f_obligation_1@{u} A)
+     : Type@{u} -> {_ : Type@{u} | True}
+(* u(= in 1st binder, = in term, = in type) | *)
+
+Arguments f A%_type_scope

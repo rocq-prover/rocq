@@ -836,6 +836,11 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
    On the other hand, when an unfolded function applied to its argument has been
    reduced, the :tacn:`fold` tactic doesn't do anything.
 
+   Occurrences are first looked for syntactically. If there are none, they are
+   looked for up to the universe instances, adding the universe equalities this
+   requires: this finds, for instance, the occurrences whose instances only differ
+   by the copies of universes introduced by :ref:`cumulativity <cumulative>`.
+
    :tacn:`fold` :n:`@one_term__1 @one_term__2` is equivalent to
    :n:`fold @one_term__1; fold @one_term__2`.
 

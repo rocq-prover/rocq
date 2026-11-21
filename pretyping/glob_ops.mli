@@ -25,10 +25,12 @@ val glob_Set_sort : glob_sort
 val glob_sort_gen_eq : ('a -> 'a -> bool) -> 'a glob_sort_gen -> 'a glob_sort_gen -> bool
 
 val glob_sort_eq : Glob_term.glob_sort -> Glob_term.glob_sort -> bool
+val glob_sort_eq_upto_rigid : Glob_term.glob_sort -> Glob_term.glob_sort -> bool
+(** Same, ignoring the rigidity of anonymous universes *)
 
 val glob_quality_eq :  glob_quality -> glob_quality -> bool
 
-val glob_level_eq : Glob_term.glob_level -> Glob_term.glob_level -> bool
+val glob_univ_eq : Glob_term.glob_univ -> Glob_term.glob_univ -> bool
 
 val relevance_info_eq : relevance_info -> relevance_info -> bool
 

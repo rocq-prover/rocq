@@ -26,10 +26,10 @@ sort: [
 | "Prop"
 | "SProp"
 | "Type"
-| "Type" "@{" test_sort_qvar reference ";" universe "}"
-| "Type" "@{" universe "}"
-| "Univ" "@{" test_sort_qvar reference ";" universe "}"
-| "Univ" "@{" OPT [ "_" ";" ] universe "}"
+| "Type" "@{" test_sort_qvar reference ";" universe_opt "}"
+| "Type" "@{" universe_opt "}"
+| "Univ" "@{" test_sort_qvar reference ";" universe_opt "}"
+| "Univ" "@{" OPT [ "_" ";" ] universe_opt "}"
 | "Univ"
 ]
 
@@ -47,8 +47,19 @@ sort_quality_var: [
 | reference
 ]
 
+universe_opt: [
+| universe
+| "*"
+| "_"
+]
+
+universe: [
+| "max" "(" LIST1 universe_expr SEP "," ")"
+| universe_expr
+]
+
 universe_increment: [
-| "+" natural
+| test_level_expr "+" natural
 |
 ]
 
@@ -61,12 +72,6 @@ universe_name: [
 universe_expr: [
 | universe_name universe_increment
 | natural
-]
-
-universe: [
-| "max" "(" LIST1 universe_expr SEP "," ")"
-| "_"
-| universe_expr
 ]
 
 lconstr: [
@@ -203,18 +208,18 @@ evar_instance: [
 ]
 
 univ_annot: [
-| "@{" LIST0 univ_level_or_quality OPT "+" OPT [ ";" LIST0 univ_level_or_quality OPT "+" ] "}"
+| "@{" LIST0 univ_or_quality OPT "+" OPT [ ";" LIST0 univ_or_quality OPT "+" ] "}"
 |
 ]
 
-univ_level_or_quality: [
+univ_or_quality: [
 | NUMBER "0"
 | "Set"
 | "SProp"
 | "Prop"
 | "Type"
 | "_"
-| global
+| universe
 ]
 
 fix_decls: [
@@ -543,6 +548,7 @@ command: [
 | "Show" natural
 | "Show" qualid
 | "Show" "Existentials"
+| "Show" "Global" "Universes"
 | "Show" "Universes"
 | "Show" "Conjectures"
 | "Show" "Proof"
@@ -940,6 +946,7 @@ gallina: [
 | "Sort" LIST1 identref
 | "Sorts" LIST1 identref
 | "Constraint" LIST1 sort_constraint SEP ","
+| "Cumulativity" "Transparent" global
 | "Rewrite" "Rule" identref ":=" OPT "|" LIST1 rewrite_rule SEP "|"
 | "Rewrite" "Rules" identref ":=" OPT "|" LIST1 rewrite_rule SEP "|"
 ]
@@ -987,7 +994,7 @@ inline: [
 ]
 
 sort_constraint: [
-| test_univ_cst universe_name [ "<" | "=" | "<=" ] universe_name
+| test_univ_cst universe [ "<" | "=" | "<=" ] universe
 | sort_quality_var "->" sort_quality_var
 ]
 
@@ -996,13 +1003,9 @@ univ_decl_constraints: [
 | [ "}" | bar_cbrace ]
 ]
 
-univ_decl: [
-| "@{" LIST0 identref OPT "+" ";" LIST0 identref OPT "+" univ_decl_constraints
-| "@{" LIST0 identref OPT "+" univ_decl_constraints
-]
-
 variance: [
 | "+"
+| "-"
 | "="
 | "*"
 ]
@@ -1012,17 +1015,17 @@ variance_identref: [
 | test_variance_ident variance identref
 ]
 
-cumul_univ_decl: [
-| "@{" test_semicolon_cumul_univ_decl LIST0 identref OPT "+" ";" LIST0 variance_identref OPT "+" univ_decl_constraints
-| "@{" LIST0 variance_identref OPT "+" univ_decl_constraints
+variances_opt: [
+| LIST0 variance_identref
+]
+
+univ_decl: [
+| "@{" test_semicolon_univ_decl LIST0 identref OPT "+" ";" variances_opt OPT "+" univ_decl_constraints
+| "@{" variances_opt OPT "+" univ_decl_constraints
 ]
 
 ident_decl: [
 | identref OPT univ_decl
-]
-
-cumul_ident_decl: [
-| identref OPT cumul_univ_decl
 ]
 
 inductive_token: [
@@ -1068,7 +1071,7 @@ opt_constructors_or_fields: [
 ]
 
 inductive_or_record_definition: [
-| opt_coercion cumul_ident_decl binders OPT [ "|" binders ] OPT [ ":" lconstr ] opt_constructors_or_fields decl_notations
+| opt_coercion ident_decl binders OPT [ "|" binders ] OPT [ ":" lconstr ] opt_constructors_or_fields decl_notations
 ]
 
 constructors_or_record: [
@@ -1417,6 +1420,7 @@ toplevel_selector: [
 query_command: [
 | "Eval" red_expr "in" lconstr "."
 | "Compute" lconstr "."
+| "Check" "Constraint" LIST1 sort_constraint SEP "," "."
 | "Check" lconstr "."
 | "About" LIST1 [ smart_global OPT univ_name_list ] SEP "," "."
 | "SearchPattern" constr_pattern in_or_out_modules "."

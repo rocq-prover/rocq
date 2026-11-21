@@ -324,7 +324,7 @@ let pr_pmap sep pr map =
   let cmp (q1, _) (q2, _) = Quality.compare q1 q2 in
   Pp.prlist_with_sep sep pr (List.sort cmp (Quality.Map.bindings map))
 
-let pr_arc prq =
+let pr_arc ?(skip_alias = fun _ _ -> false) prq =
   let open Pp in
   function
   | q1, G.Node ltle ->
@@ -337,7 +337,8 @@ let pr_arc prq =
             ltle) ++
       fnl ()
   | q1, G.Alias q2 ->
-    Quality.pr prq q1  ++ str " <-> " ++ Quality.pr prq q2 ++ fnl ()
+    if skip_alias q1 q2 then mt ()
+    else Quality.pr prq q1  ++ str " <-> " ++ Quality.pr prq q2 ++ fnl ()
 
 let repr g = G.repr g.graph
 
@@ -353,7 +354,7 @@ let constraints_for ~kept g =
   in
   G.constraints_for ~kept g.graph add ElimConstraints.empty
 
-let pr_qualities prq g = pr_pmap Pp.mt (pr_arc prq) (repr g)
+let pr_qualities ?skip_alias prq g = pr_pmap Pp.mt (pr_arc ?skip_alias prq) (repr g)
 
 let explain_quality_inconsistency prv r =
   let open Pp in

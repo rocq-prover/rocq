@@ -12,7 +12,7 @@
 
 (** #<style> .doc { font-family: monospace; white-space: pre; } </style># **)
 
-Require Import ssrmatching.
+From Corelib Require Import ssrmatching.
 Declare ML Module "rocq-runtime.plugins.ssreflect".
 
 (**
