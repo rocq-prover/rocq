@@ -71,18 +71,59 @@ pub unsafe fn field(v: Value, i: usize) -> Value {
 
 /// A GC root to an OCaml value, in one word. Immediate values are stored as
 /// is (their low bit is set) and are not rooted. Other values are rooted by a
-/// boxroot owned by the [OVal]: the address of a boxroot slot is a pointer to
-/// a word, so its low bit is 0. Cloning creates a new boxroot.
+/// boxroot, shared through a reference-counted [RootBox] (aligned, so its
+/// address has a low bit of 0). [RootBox]es come from a free list, so that
+/// rooting a value does not go through the allocator.
 pub struct OVal(NonZeroUsize);
+
+struct RootBox {
+    rc: usize,
+    /// The boxroot when in use, the next free [RootBox] otherwise.
+    slot: *mut Value,
+}
+
+/* The free list of [RootBox]es. The OCaml runtime lock is held whenever
+   Rust code runs, so there is no concurrent access. */
+static mut FREE: *mut RootBox = std::ptr::null_mut();
+
+const CHUNK: usize = 4096;
+
+#[cold]
+unsafe fn refill() {
+    let chunk: &'static mut [RootBox] = Vec::leak(
+        (0..CHUNK).map(|_| RootBox { rc: 0, slot: std::ptr::null_mut() }).collect::<Vec<_>>(),
+    );
+    for b in chunk.iter_mut() {
+        b.slot = FREE as *mut Value;
+        FREE = b as *mut RootBox;
+    }
+}
+
+#[inline]
+unsafe fn alloc_box(slot: *mut Value) -> *mut RootBox {
+    if FREE.is_null() {
+        refill();
+    }
+    let b = FREE;
+    FREE = (*b).slot as *mut RootBox;
+    (*b).rc = 1;
+    (*b).slot = slot;
+    b
+}
+
+#[inline]
+unsafe fn free_box(b: *mut RootBox) {
+    (*b).slot = FREE as *mut Value;
+    FREE = b;
+}
 
 impl Clone for OVal {
     #[inline]
     fn clone(&self) -> OVal {
-        if self.0.get() & 1 != 0 {
-            OVal(self.0)
-        } else {
-            OVal::root(self.get())
+        if self.0.get() & 1 == 0 {
+            unsafe { (*(self.0.get() as *mut RootBox)).rc += 1 }
         }
+        OVal(self.0)
     }
 }
 
@@ -90,26 +131,29 @@ impl Drop for OVal {
     #[inline]
     fn drop(&mut self) {
         if self.0.get() & 1 == 0 {
-            unsafe { boxroot_delete(self.0.get() as *mut Value) }
+            unsafe {
+                let b = self.0.get() as *mut RootBox;
+                (*b).rc -= 1;
+                if (*b).rc == 0 {
+                    boxroot_delete((*b).slot);
+                    free_box(b);
+                }
+            }
         }
     }
 }
 
 impl OVal {
     #[inline]
-    fn root(v: Value) -> OVal {
-        let r = unsafe { boxroot_create(v) };
-        if r.is_null() {
-            panic!("rconv: boxroot allocation failure");
-        }
-        OVal(unsafe { NonZeroUsize::new_unchecked(r as usize) })
-    }
-    #[inline]
     pub fn new(v: Value) -> OVal {
         if is_long(v) {
             OVal(unsafe { NonZeroUsize::new_unchecked(v as usize) })
         } else {
-            OVal::root(v)
+            let r = unsafe { boxroot_create(v) };
+            if r.is_null() {
+                panic!("rconv: boxroot allocation failure");
+            }
+            OVal(unsafe { NonZeroUsize::new_unchecked(alloc_box(r) as usize) })
         }
     }
     #[inline]
@@ -121,7 +165,7 @@ impl OVal {
         if self.0.get() & 1 != 0 {
             self.0.get() as Value
         } else {
-            unsafe { *(self.0.get() as *const Value) }
+            unsafe { *(*(self.0.get() as *const RootBox)).slot }
         }
     }
     #[inline]

@@ -254,11 +254,21 @@ impl Stack {
         }
         v
     }
+    /// The elements of the stack, top first, by reference.
+    pub fn to_refs(&self) -> Vec<&Z> {
+        let mut v = vec![];
+        let mut s = self;
+        while let Some((z, tl)) = s.uncons() {
+            v.push(z);
+            s = tl;
+        }
+        v
+    }
     /// [l @ self] where [l] is given top first
-    pub fn prepend(&self, l: &[Z]) -> Stack {
+    pub fn prepend(&self, l: Vec<Z>) -> Stack {
         let mut s = self.clone();
-        for z in l.iter().rev() {
-            s = s.cons_owned(z.clone());
+        for z in l.into_iter().rev() {
+            s = s.cons_owned(z);
         }
         s
     }
@@ -269,7 +279,11 @@ pub fn stack_app(a: &Stack, b: &Stack) -> Stack {
     if a.is_nil() {
         return b.clone();
     }
-    b.prepend(&a.to_vec())
+    let mut s = b.clone();
+    for z in a.to_refs().into_iter().rev() {
+        s = s.cons_owned(z.clone());
+    }
+    s
 }
 
 pub fn append_stack(v: &Rc<[FC]>, s: &Stack) -> Stack {
@@ -890,48 +904,51 @@ pub fn proj_make(p: &OVal) -> OVal {
     call(&PROJ_MAKE, &[A::O(p)])
 }
 
+/// The top node of a stack and the rest of it.
+#[inline]
+fn pop(stk: &Stack) -> Option<(Rc<SNode>, Stack)> {
+    stk.0.as_ref().map(|nd| (nd.clone(), nd.tl.clone()))
+}
+
 pub fn zip(m: &FC, stk: &Stack) -> FC {
     let mut m = m.clone();
     let mut stk = stk.clone();
     loop {
-        let (z, s) = match stk.uncons() {
-            None => return m,
-            Some((z, s)) => (z.clone(), s.clone()),
-        };
-        match z {
+        let Some((nd, s)) = pop(&stk) else { return m };
+        match &nd.hd {
             Z::App(args) => {
-                m = mk_fapp(&m, &args);
+                m = mk_fapp(&m, args);
                 stk = s;
             }
             Z::CaseT(cd) => {
                 let mark = neutr(m.mark());
-                m = mk(mark, FTerm::CaseT(cd, m.clone()));
+                m = mk(mark, FTerm::CaseT(cd.clone(), m.clone()));
                 stk = s;
             }
             Z::Proj(p, r) => {
                 let mark = neutr(m.mark());
-                m = mk(mark, FTerm::Proj(proj_make(&p), r, m.clone()));
+                m = mk(mark, FTerm::Proj(proj_make(p), r.clone(), m.clone()));
                 stk = s;
             }
             Z::Fix(fx, par) => {
                 let a: Rc<[FC]> = Rc::from(vec![m.clone()]);
-                stk = stack_app(&par, &append_stack(&a, &s));
-                m = fx;
+                stk = stack_app(par, &append_stack(&a, &s));
+                m = fx.clone();
             }
             Z::Shift(n) => {
-                m = lift_fconstr(n, &m);
+                m = lift_fconstr(*n, &m);
                 stk = s;
             }
             Z::Update(rf) => {
-                update(&rf, m.mark(), m.term_clone());
-                m = rf;
+                update(rf, m.mark(), m.term_clone());
+                m = rf.clone();
                 stk = s;
             }
             Z::Primitive(_op, c, u, rargs, kargs) => {
                 let mut args: Vec<FC> = rargs.iter().rev().cloned().collect();
                 args.push(m.clone());
                 args.extend(kargs.iter().map(|(_, a)| a.clone()));
-                let f = mk(Red::Red, FTerm::Flex(TableKey::Const(c, u)));
+                let f = mk(Red::Red, FTerm::Flex(TableKey::Const(c.clone(), u.clone())));
                 m = mk(neutr(m.mark()), FTerm::App(f, args.into()));
                 stk = s;
             }
@@ -945,26 +962,17 @@ pub fn strip_update_shift_absorb_app(head: &FC, stk: &Stack) -> (FC, Stack) {
     let mut h = head.clone();
     let mut stk = stk.clone();
     loop {
-        let (z, s) = match stk.uncons() {
-            Some((z, s)) => (z.clone(), s.clone()),
-            None => return (h, stk),
-        };
-        match z {
-            Z::Shift(k) => {
-                h = lift_fconstr(k, &h);
-                stk = s;
-            }
-            Z::App(args) => {
-                h = mk_fapp(&h, &args);
-                stk = s;
-            }
+        let Some((nd, s)) = pop(&stk) else { return (h, stk) };
+        match &nd.hd {
+            Z::Shift(k) => h = lift_fconstr(*k, &h),
+            Z::App(args) => h = mk_fapp(&h, args),
             Z::Update(m) => {
-                update(&m, h.mark(), h.term_clone());
-                h = m;
-                stk = s;
+                update(m, h.mark(), h.term_clone());
+                h = m.clone();
             }
             _ => return (h, stk),
         }
+        stk = s;
     }
 }
 
@@ -974,32 +982,26 @@ pub fn strip_update_shift_app_red(head: &FC, stk: &Stack) -> (isize, FC, Stack, 
     let mut h = head.clone();
     let mut depth = 0;
     let mut stk = stk.clone();
-    loop {
-        let (z, s) = match stk.uncons() {
-            Some((z, s)) => (z.clone(), s.clone()),
-            None => break,
-        };
-        match z {
+    while let Some((nd, s)) = pop(&stk) {
+        match &nd.hd {
             Z::Shift(k) => {
-                rstk.push(Z::Shift(k));
-                h = lift_fconstr(k, &h);
+                rstk.push(Z::Shift(*k));
+                h = lift_fconstr(*k, &h);
                 depth += k;
-                stk = s;
             }
             Z::App(args) => {
-                h = mk_fapp(&h, &args);
-                rstk.push(Z::App(args));
-                stk = s;
+                h = mk_fapp(&h, args);
+                rstk.push(Z::App(args.clone()));
             }
             Z::Update(m) => {
-                update(&m, h.mark(), h.term_clone());
-                h = m;
-                stk = s;
+                update(m, h.mark(), h.term_clone());
+                h = m.clone();
             }
             _ => break,
         }
+        stk = s;
     }
-    (depth, h, Stack::nil().prepend(&rstk), stk)
+    (depth, h, Stack::nil().prepend(rstk), stk)
 }
 
 pub fn strip_update_shift_app(head: &FC, stk: &Stack) -> (isize, FC, Stack, Stack) {
@@ -1014,24 +1016,18 @@ pub fn get_nth_arg(head: &FC, n: isize, stk: &Stack) -> (Option<(Stack, FC)>, St
     let mut h = head.clone();
     let mut n = n;
     let mut stk = stk.clone();
-    loop {
-        let (z, s) = match stk.uncons() {
-            Some((z, s)) => (z.clone(), s.clone()),
-            None => break,
-        };
-        match z {
+    while let Some((nd, s)) = pop(&stk) {
+        match &nd.hd {
             Z::Shift(k) => {
-                rstk.push(Z::Shift(k));
-                h = lift_fconstr(k, &h);
-                stk = s;
+                rstk.push(Z::Shift(*k));
+                h = lift_fconstr(*k, &h);
             }
             Z::App(args) => {
                 let q = args.len() as isize;
                 if n >= q {
-                    h = mk_fapp(&h, &args);
-                    rstk.push(Z::App(args));
+                    h = mk_fapp(&h, args);
+                    rstk.push(Z::App(args.clone()));
                     n -= q;
-                    stk = s;
                 } else {
                     let nu = n as usize;
                     let bef: Rc<[FC]> = args[0..nu].iter().cloned().collect();
@@ -1039,19 +1035,19 @@ pub fn get_nth_arg(head: &FC, n: isize, stk: &Stack) -> (Option<(Stack, FC)>, St
                     if n != 0 {
                         rstk.push(Z::App(bef));
                     }
-                    let stk2 = Stack::nil().prepend(&rstk);
+                    let stk2 = Stack::nil().prepend(rstk);
                     return (Some((stk2, args[nu].clone())), append_stack(&aft, &s));
                 }
             }
             Z::Update(m) => {
-                update(&m, h.mark(), h.term_clone());
-                h = m;
-                stk = s;
+                update(m, h.mark(), h.term_clone());
+                h = m.clone();
             }
             _ => break,
         }
+        stk = s;
     }
-    (None, stk.prepend(&rstk))
+    (None, stk.prepend(rstk))
 }
 
 pub enum Args {
@@ -1065,36 +1061,30 @@ pub fn get_args(n: isize, tys: &LamTys, f: &OVal, e: &USubs, stk: &Stack) -> (Ar
     let mut tys = tys.clone();
     let mut e = e.clone();
     let mut stk = stk.clone();
-    loop {
-        let (z, s) = match stk.uncons() {
-            Some((z, s)) => (z.clone(), s.clone()),
-            None => break,
-        };
-        match z {
+    while let Some((nd, s)) = pop(&stk) {
+        match &nd.hd {
             Z::Update(r) => {
-                update(&r, Red::Cstr, FTerm::Lambda(n, tys.clone(), f.clone(), e.clone()));
-                stk = s;
+                update(r, Red::Cstr, FTerm::Lambda(n, tys.clone(), f.clone(), e.clone()));
             }
             Z::Shift(k) => {
-                e = usubs_shft(k, &e);
-                stk = s;
+                e = usubs_shft(*k, &e);
             }
             Z::App(l) => {
                 let na = l.len() as isize;
                 if n == na {
-                    return (Args::Subst(usubs_consn(&l, 0, na as usize, &e)), s);
+                    return (Args::Subst(usubs_consn(l, 0, na as usize, &e)), s);
                 } else if n < na {
                     let eargs: Rc<[FC]> = l[n as usize..].iter().cloned().collect();
-                    return (Args::Subst(usubs_consn(&l, 0, n as usize, &e)), s.cons(Z::App(eargs)));
+                    return (Args::Subst(usubs_consn(l, 0, n as usize, &e)), s.cons(Z::App(eargs)));
                 } else {
                     tys = tys.skipn(na as usize);
-                    e = usubs_consn(&l, 0, na as usize, &e);
+                    e = usubs_consn(l, 0, na as usize, &e);
                     n -= na;
-                    stk = s;
                 }
             }
             _ => break,
         }
+        stk = s;
     }
     (Args::Lam(mk(Red::Cstr, FTerm::Lambda(n, tys, f.clone(), e))), stk)
 }
@@ -1154,14 +1144,11 @@ fn get_native_args(info: &Infos, op: &OVal, c: &TableKey, stk: &Stack) -> ((Vec<
     let mut h = mk(Red::Red, FTerm::Flex(c.clone()));
     let mut stk = stk.clone();
     loop {
-        let (z, s) = match stk.uncons() {
-            Some((z, s)) => (z.clone(), s.clone()),
-            None => panic!("assert false"),
-        };
-        match z {
+        let Some((nd, s)) = pop(&stk) else { panic!("assert false") };
+        match &nd.hd {
             Z::Shift(k) => {
-                rnargs = rnargs.iter().map(|(kd, f)| (*kd, lift_fconstr(k, f))).collect();
-                h = lift_fconstr(k, &h);
+                rnargs = rnargs.iter().map(|(kd, f)| (*kd, lift_fconstr(*k, f))).collect();
+                h = lift_fconstr(*k, &h);
                 stk = s;
             }
             Z::App(args) => {
@@ -1190,8 +1177,8 @@ fn get_native_args(info: &Infos, op: &OVal, c: &TableKey, stk: &Stack) -> ((Vec<
                 }
             }
             Z::Update(m) => {
-                update(&m, h.mark(), h.term_clone());
-                h = m;
+                update(m, h.mark(), h.term_clone());
+                h = m.clone();
                 stk = s;
             }
             _ => panic!("assert false"),
@@ -1381,28 +1368,23 @@ pub fn unfold_projection(info: &Infos, p: &OVal, r: &OVal) -> Option<Z> {
 pub fn skip_irrelevant_stack(info: &Infos, stk: &Stack) -> Stack {
     let mut stk = stk.clone();
     loop {
-        let (z, s) = match stk.uncons() {
-            None => return Stack::nil(),
-            Some((z, s)) => (z.clone(), s.clone()),
-        };
-        match z {
-            Z::Shift(_) | Z::App(_) => stk = s,
-            Z::Fix(..) | Z::Proj(..) => stk = s,
+        let Some((nd, s)) = pop(&stk) else { return Stack::nil() };
+        match &nd.hd {
+            Z::Shift(_) | Z::App(_) => (),
+            Z::Fix(..) | Z::Proj(..) => (),
             Z::CaseT(cd) => {
                 let r = usubst_relevance(&cd.e, &cd.p.field(1));
-                if is_irrelevant(info, &r) {
-                    stk = s
-                } else {
+                if !is_irrelevant(info, &r) {
                     return stk;
                 }
             }
             Z::Primitive(..) => panic!("assert false"),
             Z::Update(m) => {
                 let irr = mk_irrelevant();
-                update(&m, irr.mark(), irr.term_clone());
-                stk = s;
+                update(m, irr.mark(), irr.term_clone());
             }
         }
+        stk = s;
     }
 }
 

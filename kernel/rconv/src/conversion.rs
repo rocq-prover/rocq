@@ -129,7 +129,7 @@ enum Zl {
 
 /// Returns the pure stack, top first.
 fn pure_rec(lfts: &Lift, stk: &Stack) -> (Lift, Vec<Zl>) {
-    let elems = stk.to_vec();
+    let elems = stk.to_refs();
     let mut l = lfts.clone();
     let mut out: Vec<Zl> = vec![];
     for z in elems.iter().rev() {
