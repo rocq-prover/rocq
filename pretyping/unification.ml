@@ -1498,6 +1498,23 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       | None ->
       let metas = substn.subst_metam in
       let cf1 = key_of curenv sigma opt flags f1 and cf2 = key_of curenv sigma opt flags f2 in
+      let both = match cf1, cf2 with
+      | Some (IsKey (ConstKey (c1, _))), Some (IsKey (ConstKey (c2, _)))
+        when Environ.QConstant.equal curenv c1 c2 ->
+        begin match expand_key ~metas flags.modulo_delta curenv sigma l1 cf1,
+                    expand_key ~metas flags.modulo_delta curenv sigma l2 cf2 with
+        | Some c_l1, Some c_l2 -> Some (c_l1, c_l2)
+        | _ -> None
+        end
+      | _ -> None
+      in
+      match both with
+      | Some (c_l1, c_l2) ->
+        let metas = Meta.meta_handler metas in
+        unirec_rec curenvnb pb opt substn
+          (whd_betaiotazeta ~metas curenv sigma (mkApp c_l1))
+          (whd_betaiotazeta ~metas curenv sigma (mkApp c_l2))
+      | None ->
         match oracle_order curenv cf1 cf2 with
         | None -> error_cannot_unify curenv sigma (cM,cN)
         | Some true ->
