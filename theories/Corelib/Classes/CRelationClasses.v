@@ -176,10 +176,11 @@ Section Defs.
   Class RewriteRelation (RA : crelation A).
 
   (** Any [Equivalence] declared in the context is automatically considered
-   a rewrite crelation. *)
-    
-  Global Instance equivalence_rewrite_crelation `(Equivalence eqA) : RewriteRelation eqA.
-  Defined.
+   a rewrite crelation. This only applies if the crelation is at least partially
+   defined: setoid_rewrite won't try to infer arbitrary user rewrite crelations. *)
+
+  Definition equivalence_rewrite_crelation `(Equivalence eqA) : RewriteRelation eqA :=
+    Build_RewriteRelation _.
 
   (** Leibniz equality. *)
   Section Leibniz.
@@ -198,12 +199,26 @@ End Defs.
 
 (** Default rewrite crelations handled by [setoid_rewrite]. *)
 #[global]
-Instance: RewriteRelation impl.
-Defined.
+Instance inverse_impl_rewrite_relation@{u r} : RewriteRelation@{u r} (flip impl) | 3 := {}.
+#[global]
+Instance impl_rewrite_relation@{u r} : RewriteRelation@{u r} impl | 3 := {}.
+#[global]
+Instance iff_rewrite_relation@{u r} : RewriteRelation@{u r} iff | 2 := {}.
 
 #[global]
-Instance: RewriteRelation iff.
-Defined.
+Instance inverse_arrow_rewrite_relation@{u u0 u1 u2 | u1 < u, u2 < u0, u1 <= u2} :
+  RewriteRelation@{u u2} (@flip@{u u u0} Type@{u1} Type@{u1} Type@{u2} arrow@{u1 u1}) | 3 := {}.
+#[global]
+Instance arrow_rewrite_relation@{u u0 | u0 < u} : RewriteRelation@{u u0} arrow@{u0 u0} | 3 := {}.
+#[global]
+Instance iffT_rewrite_relation@{u u0 | u0 < u} : RewriteRelation@{u u0} iffT@{u0 u0} | 2 := {}.
+
+Ltac equiv_rewrite_relation R :=
+  tryif is_evar R then fail
+  else class_apply equivalence_rewrite_crelation.
+
+#[global]
+Hint Extern 10 (@RewriteRelation ?A ?R) => equiv_rewrite_relation R : typeclass_instances.
 
 (** Hints to drive the typeclass resolution avoiding loops
  due to the use of full unification. *)
@@ -319,6 +334,12 @@ Proof. firstorder. Defined.
 #[global]
 Instance iffT_Transitive : Transitive iffT.
 Proof. firstorder. Defined.
+#[global]
+Instance iffT_equivalence@{u u0 | u0 < u} : Equivalence@{u u0} iffT@{u0 u0} := {|
+  Equivalence_Reflexive := iffT_Reflexive;
+  Equivalence_Symmetric := fun A B '(f, g) => (g, f);
+  Equivalence_Transitive := fun A B C '(f, g) '(f', g') =>
+    (fun x => f' (f x), fun x => g (g' x)) |}.
 
 (** We now develop a generalization of results on crelations for arbitrary predicates.
    The resulting theory can be applied to homogeneous binary crelations but also to
@@ -330,13 +351,14 @@ Local Open Scope list_scope.
 
 (** We define the various operations which define the algebra on binary crelations *)
 Section Binary.
-  Context {A : Type}.
+  Universe u.
+  Context {A : Type@{u}}.
 
   Definition relation_equivalence : crelation (crelation A) :=
     fun R R' => forall x y, iffT (R x y) (R' x y).
 
-  Global Instance: RewriteRelation relation_equivalence.
-  Defined.
+  Global Instance relation_equivalence_rewrite_relation@{u0 u1 u2 | u2 < u0, u <= u0, u <= u1, u2 <= u1} :
+    RewriteRelation@{u0 u1} relation_equivalence@{u0 u1 u2} := {}.
 
   Definition relation_conjunction (R : crelation A) (R' : crelation A) : crelation A :=
     fun x y => prod (R x y) (R' x y).
