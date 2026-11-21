@@ -895,6 +895,52 @@ let strip_update_shift_absorb_app head stk =
   in
   strip_rec head stk
 
+let rec has_shift = function
+  | Zshift _ :: _ -> true
+  | (Zapp _ | ZcaseT _ | Zproj _ | Zupdate _) :: s -> has_shift s
+  | (Zfix _ | Zprimitive _) :: _ | [] -> false
+
+let push_shifts_to_head head stk =
+  let rec push h = function
+    | (Zapp args as z) :: s ->
+      let n, s = push (zip h [z]) s in
+      n, Zapp (Array.Fun1.map lift_fconstr n args) :: s
+    | (ZcaseT (ci, u, pms, p, br, e) as z) :: s ->
+      let n, s = push (zip h [z]) s in
+      n, ZcaseT (ci, u, pms, p, br, usubs_shft (n, e)) :: s
+    | (Zproj _ as z) :: s ->
+      let n, s = push (zip h [z]) s in
+      n, z :: s
+    | Zshift k :: s ->
+      let n, s = push (lift_fconstr k h) s in
+      n + k, s
+    | Zupdate m :: s as stk ->
+      if has_shift s then
+        let () = update m h.mark h.term in
+        push m s
+      else 0, stk
+    | ((Zfix _ | Zprimitive _) :: _ | []) as s -> 0, s
+  in
+  (* The head is a result of knh, and the rewrite rule matcher inspects its
+     shape. The lift must thus preserve the head constructors that
+     [match_head] matches on, which [lift_fconstr] does not do for [FProd]
+     and [FAtom]. Other heads are never inspected and can be lifted
+     generically. *)
+  let lift_head n h = match h.term with
+    | FInd _ | FFlex (ConstKey _ | VarKey _) | FAtom _
+    | FInt _ | FFloat _ | FString _ | FIrrelevant -> h
+    | FConstruct _ | FRel _ | FLambda _ -> lift_fconstr n h
+    | FProd (na, ty, c, e) ->
+      { h with term = FProd (na, lift_fconstr n ty, c, usubs_shft (n, e)) }
+    | FFlex (RelKey _) | FLetIn _ | FEvar _ | FCaseInvert _
+    | FFix _ | FCoFix _ | FProj _ | FArray _ -> lift_fconstr n h
+    | FLOCKED | FCLOS _ | FApp _ | FCaseT _ | FLIFT _ -> assert false
+  in
+  if has_shift stk then
+    let n, stk = push head stk in
+    lift_head n head, stk
+  else head, stk
+
 (* optimised for the case where there are no shifts... *)
 let strip_update_shift_app_red head stk =
   let rec strip_rec rstk h depth = function
@@ -1919,6 +1965,7 @@ and match_arg : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> 
     match_main red info tab ~pat_state states next
 
 and match_head red info tab ~pat_state next depth states patterns t stk =
+  let t, stk = push_shifts_to_head t stk in
   match [@ocaml.warning "-4"] t.term with
   | FInd (ind', u) ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
@@ -2055,6 +2102,7 @@ let match_symbol red info tab ~pat_state fl (u, b, r) stk =
     ) (Array.of_list r)
   in
   let m = { mark = Red; term = FFlex fl } in
+  let m, stk = push_shifts_to_head m stk in
   let loc = LocStart { elims; depth=0; head = m; stack = stk; next = Return (unfold_fix, m, stk) } in
   match_main red info tab ~pat_state states loc
 

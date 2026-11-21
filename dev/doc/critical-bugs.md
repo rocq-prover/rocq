@@ -105,6 +105,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [VM conversion entered a mutual fixpoint with the block's last component](#vm-conversion-entered-a-mutual-fixpoint-with-the-blocks-last-component)
       - [kernel reduction drops the lift on a primitive array](#kernel-reduction-drops-the-lift-on-a-primitive-array)
       - [VM conversion of stuck matches shifted the arguments of constructors with extended tags](#vm-conversion-of-stuck-matches-shifted-the-arguments-of-constructors-with-extended-tags)
+      - [rewrite rule matching forgets to lift pattern variables across shifts](#rewrite-rule-matching-forgets-to-lift-pattern-variables-across-shifts)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -1238,6 +1239,21 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - exploit: see issue
 - risk: needs a VM conversion of matches stuck on a variable, over an inductive
   type with at least 246 non-constant constructors
+
+#### rewrite rule matching forgets to lift pattern variables across shifts
+
+- component: lazy reduction, rewrite rules
+- introduced: V8.20 ([#18038](https://github.com/rocq-prover/rocq/pull/18038))
+- impacted released versions: V8.20 to V9.3.0
+- impacted coqchk versions: same
+- fixed in: V9.4
+- found by: Pierre-Marie Pédrot
+- exploit: test-suite/bugs/bug_22827.v
+- GH issue number: rocq-prover/rocq#22827
+- risk: when a rewrite rule is matched against a lifted term whose head is
+  not a constructor, the pattern variables are not lifted, producing wrong
+  reducts and letting the kernel accept ill-typed terms; requires rewrite
+  rules to be allowed
 
 ### Side-effects
 
