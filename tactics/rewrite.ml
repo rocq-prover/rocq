@@ -1782,9 +1782,10 @@ module Strategies =
 
     let inj_open hint = (); fun _env sigma ->
       let (ctx, lemma) = Autorewrite.RewRule.rew_lemma hint in
-      let subst, ctx = UnivGen.fresh_sort_context_instance ctx in
+      (* XXX suspicious: the other refreshings of hint instances (autorewrite,
+         hints, clenv) make the fresh levels flexible, not rigid *)
+      let sigma, subst = Evd.fresh_sort_context_instance ~rigid:UnivRigid sigma ctx in
       let lemma = Vars.subst_univs_level_constr subst (EConstr.of_constr lemma) in
-      let sigma = Evd.merge_sort_context_set UnivRigid ~src:UState.Internal sigma ctx in
       (sigma, lemma)
 
     let old_hints (db : string) : strategy =

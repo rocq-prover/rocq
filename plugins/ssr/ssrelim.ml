@@ -200,7 +200,7 @@ let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
         let c = Option.get oc in
         let c_ty = Retyping.get_type_of env sigma c in
         let pc = match c_gen with
-          | Some p -> interp_cpattern env sigma p None
+          | Some p -> interp_cpattern env (in_extension_namespace sigma) p None
           | _ -> mkTpat env sigma (sigma, c) in
         Some(c, c_ty, pattern_extension ~env ~base:sigma pc), sigma in
     sigma, seed, cty, elim, elimty, elim_args, n_elim_args, elim_is_dep, is_rec, pred, predty
@@ -251,7 +251,7 @@ let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
     let pred = get_nth_arg pred_id elim_args in
     let predty = get_nth_arg_type pred_id elim_args in
     let pc = match n_c_args, c_gen with
-      | 0, Some p -> interp_cpattern env sigma p None
+      | 0, Some p -> interp_cpattern env (in_extension_namespace sigma) p None
       | _ -> mkTpat env sigma (sigma, c) in
     let cty = Some (c, c_ty, pattern_extension ~env ~base:sigma pc) in
     let elimty = Reductionops.whd_all env sigma elimty in
@@ -429,7 +429,7 @@ let compute_patterns env sigma0 what c_is_head_p cty deps inf_deps_r occ orig_cl
   let rec loop patterns clr i = function
     | [],[] -> patterns, clr, sigma
     | ((oclr, occ), t):: deps, inf_t :: inf_deps ->
-        let p = interp_cpattern env sigma0 t None in
+        let p = interp_cpattern env (in_extension_namespace sigma0) t None in
         let clr_t =
           interp_clr sigma (oclr,(tag_of_cpattern t, fst (redex_of_pattern env p))) in
         (* if we are the index for the equation we do not clear *)
