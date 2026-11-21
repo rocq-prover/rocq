@@ -769,7 +769,7 @@ let build_beq_scheme env handle kn =
                 let prev = EConstr.Unsafe.to_rel_context (List.lastn (nb_cstr_args-ndx) constrs.(0).cs_args) in
                 let cc = expand_letins prev cc in
                 if Vars.noccur_between 1 (nb_cstr_args-ndx) cc then
-                  let cc = lift (ndx-nb_cstr_args) cc in
+                  let cc = Termops.strengthen_betweenC 1 (nb_cstr_args-ndx) cc in
                   match translate_term_eq env_lift_recparams_fix_nonrecparams_tomatch cc with
                   | None -> raise (EqUnknown "type") (* A supported type should have an eq *)
                   | Some eqA ->
@@ -804,7 +804,7 @@ let build_beq_scheme env handle kn =
                      else
                        let cc = expand_letins (EConstr.Unsafe.to_rel_context (List.lastn (nb_cstr_args-ndx) constrs.(j).cs_args)) cc in
                        if Vars.noccur_between 1 (nb_cstr_args-ndx) cc then
-                         let cc = lift (ndx-nb_cstr_args) cc in
+                         let cc = Termops.strengthen_betweenC 1 (nb_cstr_args-ndx) cc in
                          match translate_term_eq env_lift_recparams_fix_nonrecparams_tomatch_csargsij cc with
                          | None -> raise (EqUnknown "type") (* A supported type should have an eq *)
                          | Some eqA ->
