@@ -531,6 +531,12 @@ module Internal : sig
 
   val is_above_prop : env -> Sorts.QVar.t -> bool
 
+  val has_irrelevant_constants : env -> bool
+  (** Whether [constant_relevance] can return something else than [Relevant]. *)
+
+  val has_irrelevant_inductives : env -> bool
+  (** Whether [ind_relevance] can return something else than [Relevant]. *)
+
   module View :
   sig
     type t = {

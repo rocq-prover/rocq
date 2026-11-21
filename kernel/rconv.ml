@@ -578,6 +578,10 @@ let register () =
       RedFlags.(red_add_transparent all (red_transparent flags)));
   r "rconv_std_flags" (fun (_ : int) -> (RedFlags.all, RedFlags.betaiotazeta, UVars.Instance.empty));
   r "rconv_share" (fun env -> (Environ.typing_flags env).Declarations.share_reduction);
+  r "rconv_irr_maps" (fun env ->
+      (Environ.Internal.has_irrelevant_constants env, Environ.Internal.has_irrelevant_inductives env));
+  r "rconv_interrupt_ref" Control.interrupt;
+  r "rconv_thread_delay_ref" Control.enable_thread_delay;
   r "rconv_conv_flex" (fun env flags cst ->
       evaluable_constant cst env && RedFlags.red_set flags (RedFlags.fCONST cst));
   r "rconv_is_array_type" (fun env cst -> is_array_type env cst);

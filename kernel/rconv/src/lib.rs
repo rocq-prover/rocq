@@ -96,6 +96,7 @@ pub extern "C" fn rconv_conv(args: Value) -> Value {
         drop(a);
         let std = call(&STD_FLAGS, &[A::I(0)]);
         let share = call(&SHARE, &[A::O(&env)]).as_bool();
+        let irr = call(&IRR_MAPS, &[A::O(&env)]);
         let cache = Rc::new(Cache {
             env,
             evars,
@@ -104,6 +105,8 @@ pub extern "C" fn rconv_conv(args: Value) -> Value {
             all: Flags::new(std.field(0)),
             betaiotazeta: Flags::new(std.field(1)),
             empty_inst: std.field(2),
+            irr_consts: irr.field(0).as_bool(),
+            irr_inds: irr.field(1).as_bool(),
             prim_cache: RefCell::new(HashMap::new()),
         });
         let empty = cache.empty_inst.clone();

@@ -344,6 +344,9 @@ pub struct Cache {
     pub all: Flags,
     pub betaiotazeta: Flags,
     pub empty_inst: OVal,
+    /// Whether the environment has irrelevant constants / inductives.
+    pub irr_consts: bool,
+    pub irr_inds: bool,
     pub prim_cache: RefCell<HashMap<isize, (isize, Rc<Vec<isize>>)>>,
 }
 
@@ -382,7 +385,15 @@ pub fn anomaly(k: isize) -> ! {
     unreachable!()
 }
 
+/// Equality of names: all the equalities below [EQ_UINT63] are reflexive,
+/// and inductives are pairs of a [MutInd.t] and an integer.
 pub fn eq(k: isize, a: &OVal, b: &OVal) -> bool {
+    if k < EQ_UINT63 && a.phys_eq(b) {
+        return true;
+    }
+    if (k == EQ_IND_CAN || k == EQ_IND_USER) && a.field_int(1) == b.field_int(1) && a.field(0).phys_eq(&b.field(0)) {
+        return true;
+    }
     call(&EQ, &[A::I(k), A::O(a), A::O(b)]).as_bool()
 }
 
@@ -1388,6 +1399,9 @@ pub fn skip_irrelevant_stack(info: &Infos, stk: &Stack) -> Stack {
 }
 
 fn is_irrelevant_constructor(info: &Infos, cstr: &OVal, u: &UInst) -> bool {
+    if !info.cache.irr_inds {
+        return false;
+    }
     let ind = cstr.field(0);
     let r = call(&IND_RELEVANCE, &[A::O(info.env()), A::O(&ind), A::O(&u.v)]);
     is_irrelevant(info, &r)

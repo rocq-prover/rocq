@@ -276,6 +276,11 @@ fn eta_expand_constructor(infos: &CInfos, c: &OVal, u: &UInst) -> FC {
 
 #[inline(never)]
 fn irr_flex(infos: &Infos, fl: &TableKey) -> bool {
+    if let TableKey::Const(..) = fl {
+        if !infos.cache.irr_consts {
+            return false;
+        }
+    }
     let (tag, a, b) = key_args(fl);
     call(&IRR_FLEX, &[A::O(infos.env()), A::O(&infos.cache.evars), A::I(tag), A::O(&a), A::O(&b)]).as_bool()
 }
@@ -573,7 +578,7 @@ fn ccnv_tail(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, st1: Side, st
 /// Conversion between [lft1](hd1 v1) and [lft2](hd2 v2)
 #[inline(never)]
 fn eqappr(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, st1: Side, st2: Side, cuniv: OVal) -> R<OVal> {
-    call(&CHECK_FOR_INTERRUPT, &[A::I(0)]);
+    check_for_interrupt();
     let ninfos = infos.inf.with_reds(&infos.inf.cache.betaiotazeta);
     let (h1, v1) = whd_stack(&ninfos, &infos.sh.lft_tab, &st1.hd, &st1.stk);
     let (h2, v2) = whd_stack(&ninfos, &infos.sh.rgt_tab, &st2.hd, &st2.stk);
@@ -581,6 +586,19 @@ fn eqappr(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, st1: Side, st2: 
     let appr1 = Side { lft: st1.lft, hd: h1, stk: v1 };
     let appr2 = Side { lft: st2.lft, hd: h2, stk: v2 };
     become eqwhnf(w, cv_pb, l2r, infos, appr1, appr2, cuniv)
+}
+
+/// [Control.check_for_interrupt] does nothing unless one of these
+/// references is set.
+#[inline]
+fn check_for_interrupt() {
+    let set = unsafe {
+        crate::ffi::field(INTERRUPT_REF.value(), 0) != crate::ffi::VAL_FALSE
+            || crate::ffi::field(THREAD_DELAY_REF.value(), 0) != crate::ffi::VAL_FALSE
+    };
+    if set {
+        call(&CHECK_FOR_INTERRUPT, &[A::I(0)]);
+    }
 }
 
 fn all_transparent(infos: &Infos) -> Infos {
@@ -748,7 +766,7 @@ fn eq_flex_flex_unfold(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, app
         (None, None) => return nc(),
         (Some((t1, v1)), Some((t2, v2))) => {
             let ninfos = infos.inf.with_reds(&infos.inf.cache.betaiotazeta);
-            call(&CHECK_FOR_INTERRUPT, &[A::I(0)]);
+            check_for_interrupt();
             let ta = key_args(fl1);
             let tb = key_args(fl2);
             let unfold_left =

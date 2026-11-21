@@ -224,6 +224,10 @@ impl Callback {
     pub const fn new(name: &'static [u8]) -> Callback {
         Callback { name, ptr: AtomicPtr::new(std::ptr::null_mut()) }
     }
+    /// The registered value itself (for registered references).
+    pub fn value(&self) -> Value {
+        self.closure()
+    }
     fn closure(&self) -> Value {
         let mut p = self.ptr.load(Ordering::Relaxed);
         if p.is_null() {
