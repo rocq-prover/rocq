@@ -262,25 +262,25 @@ val is_conv_nounivs : ?reds:TransparentState.t -> env -> evar_map -> constr -> c
     @raise UniverseInconsistency iff catch_incon is set to false,
     otherwise returns false in that case.
  *)
-val infer_conv : ?catch_incon:bool -> ?pb:conv_pb -> ?ts:TransparentState.t ->
+val infer_conv : ?catch_incon:bool -> ?pb:conv_pb -> ?use_cache:bool -> ?ts:TransparentState.t ->
   env -> evar_map -> constr -> constr -> evar_map option
 
 (** Conversion with inference of universe constraints *)
-val vm_infer_conv : ?pb:conv_pb -> env -> evar_map -> constr -> constr ->
+val vm_infer_conv : ?pb:conv_pb -> ?use_cache:bool -> env -> evar_map -> constr -> constr ->
   evar_map option
 
-val native_infer_conv : ?pb:conv_pb -> env -> evar_map -> constr -> constr ->
+val native_infer_conv : ?pb:conv_pb -> ?use_cache:bool -> env -> evar_map -> constr -> constr ->
   evar_map option
 
 type genconv = {
-  genconv : 'a 'err. conv_pb -> l2r:bool -> Evd.evar_map -> TransparentState.t ->
+  genconv : 'a 'err. conv_pb -> l2r:bool -> use_cache:bool -> Evd.evar_map -> TransparentState.t ->
     Environ.env -> ('a, 'err) Conversion.generic_conversion_function
 }
 
 (** [infer_conv_gen] behaves like [infer_conv] but is parametrized by a
 conversion function. Used to pretype vm and native casts. *)
 val infer_conv_gen : genconv ->
-  ?catch_incon:bool -> ?pb:conv_pb -> ?ts:TransparentState.t -> env ->
+  ?catch_incon:bool -> ?pb:conv_pb -> ?use_cache:bool -> ?ts:TransparentState.t -> env ->
   evar_map -> constr -> constr -> evar_map option
 
 (** {6 Heuristic for Conversion with Evar } *)
