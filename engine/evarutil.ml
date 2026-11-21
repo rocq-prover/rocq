@@ -88,23 +88,28 @@ let nf_evar_map_undefined evm =
  *)
 
 let has_undefined_evars evd t =
-  let rec f h t =
-    let (h, knd) = EConstr.Expand.kind evd h t in
-    match knd with
-    | Evar _ -> raise NotInstantiatedEvar
-    | _ -> EConstr.Expand.iter evd f h knd
-  in
-  let h, t = EConstr.Expand.make t in
-  try let _ = f h t in false
-  with (Not_found | NotInstantiatedEvar) -> true
+  if not (Constr.may_have_evar (EConstr.Unsafe.to_constr t)) then false
+  else
+    let rec f h t =
+      let (h, knd) = EConstr.Expand.kind evd h t in
+      match knd with
+      | Evar _ -> raise NotInstantiatedEvar
+      | _ -> EConstr.Expand.iter evd f h knd
+    in
+    let h, t = EConstr.Expand.make t in
+    try let _ = f h t in false
+    with (Not_found | NotInstantiatedEvar) -> true
 
 let has_undefined_evars_or_metas evd t =
-  let rec has_ev t =
-    match EConstr.kind evd t with
-    | Evar _ | Meta _ -> raise NotInstantiatedEvar
-    | _ -> EConstr.iter evd has_ev t in
-  try let _ = has_ev t in false
-  with (Not_found | NotInstantiatedEvar) -> true
+  let t' = EConstr.Unsafe.to_constr t in
+  if not (Constr.may_have_evar t' || Constr.may_have_meta t') then false
+  else
+    let rec has_ev t =
+      match EConstr.kind evd t with
+      | Evar _ | Meta _ -> raise NotInstantiatedEvar
+      | _ -> EConstr.iter evd has_ev t in
+    try let _ = has_ev t in false
+    with (Not_found | NotInstantiatedEvar) -> true
 
 let is_ground_term evd t =
   not (has_undefined_evars evd t)
@@ -663,14 +668,16 @@ let reachable_from_evars sigma evars =
     [nf_evar]. *)
 
 let undefined_evars_of_term evd t =
-  let rec evrec acc c =
-    match EConstr.kind evd c with
-      | Evar (n, l) ->
-        let acc = Evar.Set.add n acc in
-        SList.Skip.fold evrec acc l
-      | _ -> EConstr.fold evd evrec acc c
-  in
-  evrec Evar.Set.empty t
+  if not (Constr.may_have_evar (EConstr.Unsafe.to_constr t)) then Evar.Set.empty
+  else
+    let rec evrec acc c =
+      match EConstr.kind evd c with
+        | Evar (n, l) ->
+          let acc = Evar.Set.add n acc in
+          SList.Skip.fold evrec acc l
+        | _ -> EConstr.fold evd evrec acc c
+    in
+    evrec Evar.Set.empty t
 
 let undefined_evars_of_named_context evd nc =
   Context.Named.fold_outside
@@ -727,11 +734,13 @@ let filtered_undefined_evars_of_evar_info (type a) ?cache sigma (evi : a evar_in
    [evar_map]. If unification only need to check superficially, tactics
    do not have this luxury, and need the more complete version. *)
 let occur_evar_upto sigma n c =
-  let rec occur_rec c = match EConstr.kind sigma c with
-    | Evar (evk, _) -> if Evar.equal evk n then raise Occur
-    | _ -> EConstr.iter sigma occur_rec c
-  in
-  try occur_rec c; false with Occur -> true
+  if not (Constr.may_have_evar (EConstr.Unsafe.to_constr c)) then false
+  else
+    let rec occur_rec c = match EConstr.kind sigma c with
+      | Evar (evk, _) -> if Evar.equal evk n then raise Occur
+      | _ -> EConstr.iter sigma occur_rec c
+    in
+    try occur_rec c; false with Occur -> true
 
 (* We don't try to guess in which sort the type should be defined, since
    any type has type Type. May cause some trouble, but not so far... *)

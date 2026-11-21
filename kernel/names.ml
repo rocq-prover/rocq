@@ -28,13 +28,26 @@ open Util
 (** Representation and operations on identifiers. *)
 module Id =
 struct
-  type t = string
+  (* Keep the hash first so that hashing an identifier is a field access. *)
+  type t = int * string
 
-  let equal = String.equal
+  let equal id1 id2 =
+    id1 == id2 ||
+    (Int.equal (fst id1) (fst id2) && String.equal (snd id1) (snd id2))
 
-  let compare = String.compare
+  let compare (_, s1) (_, s2) = String.compare s1 s2
 
-  let hash = String.hash
+  let hash = fst
+
+  module HId = Hashcons.Make(struct
+    type nonrec t = t
+    let hashcons id = hash id, id
+    let eq = equal
+  end)
+
+  let hcons = Hashcons.simple_hcons HId.generate HId.hcons ()
+
+  let make s = snd (hcons (String.hash s, s))
 
   let check_valid ?(strict=true) x =
     let iter (fatal, x) = if fatal || strict then CErrors.user_err Pp.(str x) in
@@ -51,27 +64,38 @@ struct
   let of_bytes s =
     let s = Bytes.to_string s in
     check_valid s;
-    snd @@ String.hcons s
+    make s
 
   let of_string s =
     let () = check_valid s in
-    snd @@ String.hcons s
+    make s
 
   let of_string_soft s =
     let () = check_valid ~strict:false s in
-    snd @@ String.hcons s
+    make s
 
-  let to_string id = id
+  let to_string = snd
 
-  let print id = str id
+  let print (_, s) = str s
 
-  module Set = CString.Set
-  module Map = CString.Map
-  module Pred = CString.Pred
+  module Self = struct
+    type nonrec t = t
+    let compare = compare
+  end
 
-  module List = String.List
+  module Set = CSet.Make(Self)
+  module Map = CMap.Make(Self)
+  module Pred = Predicate.Make(Self)
 
-  let hcons = String.hcons
+  module List = struct
+    type elt = t
+    let mem id l = List.exists (fun id' -> equal id id') l
+    let assoc id l = CList.assoc_f equal id l
+    let remove_assoc id l = CList.remove_assoc_f equal id l
+    let mem_assoc id l = List.exists (fun (id', _) -> equal id id') l
+    let mem_assoc_sym id l = List.exists (fun (_, id') -> equal id id') l
+    let equal l l' = CList.equal equal l l'
+  end
 
 end
 
@@ -99,7 +123,7 @@ struct
 
   let equal n1 n2 = match n1, n2 with
     | Anonymous, Anonymous -> true
-    | Name id1, Name id2 -> String.equal id1 id2
+    | Name id1, Name id2 -> Id.equal id1 id2
     | _ -> false
 
   let hash = function
@@ -178,7 +202,7 @@ struct
 
   let print dp = str (to_string dp)
 
-  let dummy = [dummy_module_name]
+  let dummy = [Id.of_string_soft dummy_module_name]
 
   module Hdir = Hashcons.Hlist(Id)
 
@@ -209,10 +233,10 @@ struct
   let repr mbid = mbid
 
   let to_string (_i, s, p) =
-    DirPath.to_string p ^ "." ^ s
+    DirPath.to_string p ^ "." ^ Id.to_string s
 
   let debug_to_string (i, s, p) =
-    "<"^DirPath.to_string p ^"#" ^ s ^"#"^ string_of_int i^">"
+    "<"^DirPath.to_string p ^"#" ^ Id.to_string s ^"#"^ string_of_int i^">"
 
   let compare (x : t) (y : t) =
     if x == y then 0
@@ -302,7 +326,7 @@ module ModPath = struct
       | MPfile p1, MPfile p2 -> DirPath.compare p1 p2
       | MPbound id1, MPbound id2 -> MBId.compare id1 id2
       | MPdot (mp1, l1), MPdot (mp2, l2) ->
-        let c = String.compare l1 l2 in
+        let c = Id.compare l1 l2 in
         if not (Int.equal c 0) then c
         else compare mp1 mp2
       | MPfile _, _ -> -1
@@ -314,7 +338,7 @@ module ModPath = struct
     match mp1, mp2 with
     | MPfile p1, MPfile p2 -> DirPath.equal p1 p2
     | MPbound id1, MPbound id2 -> MBId.equal id1 id2
-    | MPdot (mp1, l1), MPdot (mp2, l2) -> String.equal l1 l2 && equal mp1 mp2
+    | MPdot (mp1, l1), MPdot (mp2, l2) -> Id.equal l1 l2 && equal mp1 mp2
     | (MPfile _ | MPbound _ | MPdot _), _ -> false
 
   let rec subpath mp mp' =
@@ -417,7 +441,7 @@ module KerName = struct
   let compare (kn1 : kernel_name) (kn2 : kernel_name) =
     if kn1 == kn2 then 0
     else
-      let c = String.compare kn1.knlabel kn2.knlabel in
+      let c = Id.compare kn1.knlabel kn2.knlabel in
       if not (Int.equal c 0) then c
       else
         ModPath.compare kn1.modpath kn2.modpath
@@ -530,8 +554,8 @@ module KerPair = struct
   let change_label kp lbl =
     let (mp1,l1) = KerName.repr (user kp)
     and (mp2,l2) = KerName.repr (canonical kp) in
-    assert (String.equal l1 l2);
-    if String.equal lbl l1 then kp
+    assert (Id.equal l1 l2);
+    if Id.equal lbl l1 then kp
     else
       let kn = KerName.make mp1 lbl in
       if mp1 == mp2 then same kn

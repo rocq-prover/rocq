@@ -1595,18 +1595,20 @@ let solve_candidates unify flags env evd (evk,argsv) rhs =
       | l, [] -> evd
 
 let occur_evar_upto_types sigma n c =
-  let seen = ref Evar.Set.empty in
-  let rec occur_rec c = match EConstr.kind sigma c with
-    | Evar (sp,_) when Evar.equal sp n -> raise Occur
-    | Evar (sp,args as e) ->
-       if Evar.Set.mem sp !seen then
-         SList.Skip.iter occur_rec args
-       else (
-         seen := Evar.Set.add sp !seen;
-         occur_rec (Evd.existential_type sigma e))
-    | _ -> EConstr.iter sigma occur_rec c
-  in
-  try occur_rec c; false with Occur -> true
+  if not (Constr.may_have_evar (EConstr.Unsafe.to_constr c)) then false
+  else
+    let seen = ref Evar.Set.empty in
+    let rec occur_rec c = match EConstr.kind sigma c with
+      | Evar (sp,_) when Evar.equal sp n -> raise Occur
+      | Evar (sp,args as e) ->
+         if Evar.Set.mem sp !seen then
+           SList.Skip.iter occur_rec args
+         else (
+           seen := Evar.Set.add sp !seen;
+           occur_rec (Evd.existential_type sigma e))
+      | _ -> EConstr.iter sigma occur_rec c
+    in
+    try occur_rec c; false with Occur -> true
 
 let instantiate_evar unify flags env evd evk body =
   (* Check instance freezing the evar to be defined, as

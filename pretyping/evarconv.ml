@@ -242,21 +242,23 @@ type result = Rigid of bool | Normal of bool | Reducible
 let rigid_normal_occ = function Rigid b -> b | Normal b -> b | _ -> false
 
 let occur_rigidly flags env evd (evk,_) t =
-  let rec aux t =
-    match EConstr.kind evd t with
-    | App (f, c) ->
-      (match aux f with
-      | Rigid b -> Rigid (b || Array.exists (fun x -> rigid_normal_occ (aux x)) c)
-      | Normal b -> Normal (b || Array.exists (fun x -> rigid_normal_occ (aux x)) c)
-      | Reducible -> Reducible)
-    | Construct _ -> Normal false
-    | Ind _ | Sort _ -> Rigid false
-    | Proj (p, _, c) ->
-       let rigid =
-         let p = Projection.repr p in
-         not (TransparentState.is_transparent_projection flags.open_ts p)
-       in
-       if rigid then aux c
+  if not (Constr.may_have_evar (EConstr.Unsafe.to_constr t)) then false
+  else
+    let rec aux t =
+      match EConstr.kind evd t with
+      | App (f, c) ->
+        (match aux f with
+        | Rigid b -> Rigid (b || Array.exists (fun x -> rigid_normal_occ (aux x)) c)
+        | Normal b -> Normal (b || Array.exists (fun x -> rigid_normal_occ (aux x)) c)
+        | Reducible -> Reducible)
+      | Construct _ -> Normal false
+      | Ind _ | Sort _ -> Rigid false
+      | Proj (p, _, c) ->
+        let rigid =
+          let p = Projection.repr p in
+          not (TransparentState.is_transparent_projection flags.open_ts p)
+        in
+        if rigid then aux c
         else (* if the evar appears rigidly in c then this elimination
                 cannot reduce and we have a rigid occurrence, otherwise
                 we don't know. *)
@@ -264,32 +266,32 @@ let occur_rigidly flags env evd (evk,_) t =
           | Rigid _ as res -> res
           | Normal b -> Reducible
           | Reducible -> Reducible)
-    | Evar (evk',l) ->
-      if Evar.equal evk evk' then Rigid true
-      else if is_evar_allowed flags evd evk' then
-        Reducible
+      | Evar (evk',l) ->
+        if Evar.equal evk evk' then Rigid true
+        else if is_evar_allowed flags evd evk' then
+          Reducible
         else Rigid (SList.Skip.exists (fun x -> rigid_normal_occ (aux x)) l)
-    | Cast (p, _, _) -> aux p
-    | Lambda (na, t, b) -> aux b
-    | LetIn (na, _, _, b) -> aux b
-    | Const (c,_) ->
-      if Structures.PrimitiveProjections.is_transparent_constant flags.open_ts c then Reducible
-      else Rigid false
-    | Prod (_, b, t) ->
-      let b' = aux b and t' = aux t in
-      if rigid_normal_occ b' || rigid_normal_occ t' then Rigid true
-      else Reducible
-    | Rel _ | Var _ -> Reducible
-    | Case (_,_,_,_,_,c,_) ->
-      (match aux c with
-      | Rigid b -> Rigid b
-      | _ -> Reducible)
-    | Meta _ | Fix _ | CoFix _ | Int _ | Float _ | String _ | Array _ -> Reducible
-  in
-    match aux t with
-    | Rigid b -> b
-    | Normal b -> b
-    | Reducible -> false
+      | Cast (p, _, _) -> aux p
+      | Lambda (_, _, b) -> aux b
+      | LetIn (_, _, _, b) -> aux b
+      | Const (c,_) ->
+        if Structures.PrimitiveProjections.is_transparent_constant flags.open_ts c then Reducible
+        else Rigid false
+      | Prod (_, b, t) ->
+        let b' = aux b and t' = aux t in
+        if rigid_normal_occ b' || rigid_normal_occ t' then Rigid true
+        else Reducible
+      | Rel _ | Var _ -> Reducible
+      | Case (_,_,_,_,_,c,_) ->
+        (match aux c with
+        | Rigid b -> Rigid b
+        | _ -> Reducible)
+      | Meta _ | Fix _ | CoFix _ | Int _ | Float _ | String _ | Array _ -> Reducible
+    in
+      match aux t with
+      | Rigid b -> b
+      | Normal b -> b
+      | Reducible -> false
 
 type hook = Environ.env -> Evd.evar_map -> ((Names.Constant.t * EConstr.EInstance.t) * EConstr.t list option * EConstr.t) -> (EConstr.t * EConstr.t list) -> (Evd.evar_map * Structures.CanonicalSolution.t) option
 
@@ -1730,7 +1732,9 @@ let default_occurrences_selection ?(allowed_evars=AllowedEvars.all) ts n =
    List.init n (fun _ -> default_occurrence_selection))
 
 let occur_evars sigma evs c =
-  if Evar.Set.is_empty evs then false
+  if Evar.Set.is_empty evs ||
+     not (Constr.may_have_evar (EConstr.Unsafe.to_constr c))
+  then false
   else
     let rec occur_rec c = match EConstr.kind sigma c with
       | Evar (sp, args) ->

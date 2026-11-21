@@ -793,57 +793,73 @@ let fold_map_constr_with_full_binders env sigma g f l acc cstr =
 
 exception Occur
 
+let may_have_evar c =
+  Constr.may_have_evar (EConstr.Unsafe.to_constr c)
+
+let may_have_meta c =
+  Constr.may_have_meta (EConstr.Unsafe.to_constr c)
+
 let occur_meta sigma c =
-  let rec occrec h c =
-    let h, knd = EConstr.Expand.kind sigma h c in
-    match knd with
-    | Meta _ -> raise Occur
-    | Evar (evk, args) ->
-      let evi = Evd.find_undefined sigma evk in
-      let args = EConstr.Expand.expand_instance ~skip:true evi h args in
-      SList.Skip.iter (fun c -> occrec h c) args
-    | _ -> EConstr.Expand.iter sigma occrec h knd
-  in
-  let h, c = EConstr.Expand.make c in
-  try occrec h c; false with Occur -> true
+  if not (may_have_evar c || may_have_meta c) then false
+  else
+    let rec occrec h c =
+      let h, knd = EConstr.Expand.kind sigma h c in
+      match knd with
+      | Meta _ -> raise Occur
+      | Evar (evk, args) ->
+        let evi = Evd.find_undefined sigma evk in
+        let args = EConstr.Expand.expand_instance ~skip:true evi h args in
+        SList.Skip.iter (fun c -> occrec h c) args
+      | _ -> EConstr.Expand.iter sigma occrec h knd
+    in
+    let h, c = EConstr.Expand.make c in
+    try occrec h c; false with Occur -> true
 
 let occur_existential sigma c =
-  let rec occrec h c =
-    let h, knd = EConstr.Expand.kind sigma h c in
-    match knd with
-    | Evar _ -> raise Occur
-    | _ -> EConstr.Expand.iter sigma occrec h knd
-  in
-  let h, c = EConstr.Expand.make c in
-  try occrec h c; false with Occur -> true
+  if not (may_have_evar c) then false
+  else
+    let rec occrec h c =
+      let h, knd = EConstr.Expand.kind sigma h c in
+      match knd with
+      | Evar _ -> raise Occur
+      | _ -> EConstr.Expand.iter sigma occrec h knd
+    in
+    let h, c = EConstr.Expand.make c in
+    try occrec h c; false with Occur -> true
 
 let occur_meta_or_existential sigma c =
-  let rec occrec h c =
-    let h, knd = EConstr.Expand.kind sigma h c in
-    match knd with
-    | Evar _ -> raise Occur
-    | Meta _ -> raise Occur
-    | _ -> EConstr.Expand.iter sigma occrec h knd
-  in
-  let h, c = EConstr.Expand.make c in
-  try occrec h c; false with Occur -> true
+  if not (may_have_evar c || may_have_meta c) then false
+  else
+    let rec occrec h c =
+      let h, knd = EConstr.Expand.kind sigma h c in
+      match knd with
+      | Evar _ -> raise Occur
+      | Meta _ -> raise Occur
+      | _ -> EConstr.Expand.iter sigma occrec h knd
+    in
+    let h, c = EConstr.Expand.make c in
+    try occrec h c; false with Occur -> true
 
 let occur_metavariable sigma m c =
-  let rec occrec c = match EConstr.kind sigma c with
-  | Meta m' -> if Int.equal m m' then raise Occur
-  | Evar (_, args) -> SList.Skip.iter occrec args
-  | _ -> EConstr.iter sigma occrec c
-  in
-  try occrec c; false with Occur -> true
+  if not (may_have_evar c || may_have_meta c) then false
+  else
+    let rec occrec c = match EConstr.kind sigma c with
+    | Meta m' -> if Int.equal m m' then raise Occur
+    | Evar (_, args) -> SList.Skip.iter occrec args
+    | _ -> EConstr.iter sigma occrec c
+    in
+    try occrec c; false with Occur -> true
 
 let occur_evar sigma n c =
-  let rec occur_rec c = match EConstr.kind sigma c with
-    | Evar (sp, args) ->
-      if Evar.equal sp n then raise Occur
-      else SList.Skip.iter occur_rec args
-    | _ -> EConstr.iter sigma occur_rec c
-  in
-  try occur_rec c; false with Occur -> true
+  if not (may_have_evar c) then false
+  else
+    let rec occur_rec c = match EConstr.kind sigma c with
+      | Evar (sp, args) ->
+        if Evar.equal sp n then raise Occur
+        else SList.Skip.iter occur_rec args
+      | _ -> EConstr.iter sigma occur_rec c
+    in
+    try occur_rec c; false with Occur -> true
 
 let occur_in_global env id constr =
   let vars = vars_of_global env constr in
@@ -897,24 +913,36 @@ let local_occur_var_in_decl sigma hyp decl =
   (* returns the list of free debruijn indices in a term *)
 
 let free_rels sigma m =
-  let rec frec depth acc c = match EConstr.kind sigma c with
-    | Rel n       -> if n >= depth then Int.Set.add (n-depth+1) acc else acc
-    | Evar (_, args) -> SList.Skip.fold (fun acc c -> frec depth acc c) acc args
-    | _ -> EConstr.fold_with_binders sigma succ frec depth acc c
-  in
-  frec 1 Int.Set.empty m
+  let raw = EConstr.Unsafe.to_constr m in
+  (* [EConstr.kind] can unfold defined evars, so closedness alone is not
+     sufficient: a syntactic Evar may unfold to a term with free Rels. *)
+  if not (Constr.may_have_evar raw)
+     && (match Constr.closedn_status 0 raw with Constr.Closed -> true | _ -> false)
+  then Int.Set.empty
+  else
+    let rec frec depth acc c = match EConstr.kind sigma c with
+      | Rel n       -> if n >= depth then Int.Set.add (n-depth+1) acc else acc
+      | Evar (_, args) -> SList.Skip.fold (fun acc c -> frec depth acc c) acc args
+      | _ -> EConstr.fold_with_binders sigma succ frec depth acc c
+    in
+    frec 1 Int.Set.empty m
 
 (* collects all metavar occurrences, in left-to-right order, preserving
  * repetitions and all. *)
 
 let collect_metas sigma c =
-  let rec collrec acc c =
-    match EConstr.kind sigma c with
-      | Meta mv -> List.add_set Int.equal mv acc
-      | Evar (_, args) -> SList.Skip.fold collrec acc args
-      | _       -> EConstr.fold sigma collrec acc c
-  in
-  List.rev (collrec [] c)
+  let raw = EConstr.Unsafe.to_constr c in
+  (* A defined Evar can unfold to a Meta, hence both raw summaries are
+     required for this negative fast path. *)
+  if not (Constr.may_have_evar raw || Constr.may_have_meta raw) then []
+  else
+    let rec collrec acc c =
+      match EConstr.kind sigma c with
+        | Meta mv -> List.add_set Int.equal mv acc
+        | Evar (_, args) -> SList.Skip.fold collrec acc args
+        | _       -> EConstr.fold sigma collrec acc c
+    in
+    List.rev (collrec [] c)
 
 (* collects all vars; warning: this is only visible vars, not dependencies in
    all section variables; for the latter, use global_vars_set *)
