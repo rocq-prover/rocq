@@ -440,9 +440,7 @@ pub fn ccnv(cv_pb: isize, l2r: bool, infos: &CInfos, lft1: &Lift, lft2: &Lift, t
     if fast_test(lft1, term1, lft2, term2) {
         return Ok(cuniv);
     }
-    let s1 = Side { lft: lft1.clone(), hd: term1.clone(), stk: Stack::nil() };
-    let s2 = Side { lft: lft2.clone(), hd: term2.clone(), stk: Stack::nil() };
-    conv_loop(cv_pb, l2r, infos.clone(), s1, s2, cuniv, true)
+    conv_loop(cv_pb, l2r, infos, lft1, lft2, term1, term2, cuniv)
 }
 
 #[derive(Clone)]
@@ -456,45 +454,62 @@ fn side(lft: &Lift, hd: &FC, stk: &Stack) -> Side {
     Side { lft: lft.clone(), hd: hd.clone(), stk: stk.clone() }
 }
 
-enum Next {
-    Done(OVal),
-    /// eqappr
-    Appr(isize, CInfos, Side, Side, OVal),
-    /// eqwhnf
-    Whnf(isize, CInfos, Side, Side, OVal),
+/// Arguments of the pending [eqappr] / [eqwhnf] call, updated in place.
+struct ConvState {
+    cv_pb: isize,
+    infos: CInfos,
+    a1: Side,
+    a2: Side,
 }
 
-fn conv_loop(cv_pb: isize, l2r: bool, infos: CInfos, a1: Side, a2: Side, cuniv: OVal, appr: bool) -> R<OVal> {
-    let (mut cv_pb, mut infos, mut a1, mut a2, mut cuniv, mut appr) = (cv_pb, infos, a1, a2, cuniv, appr);
+/// What to do next with the updated [ConvState]:
+/// return, tail-call [eqappr], or tail-call [eqwhnf].
+enum Step {
+    Done(OVal),
+    Appr(OVal),
+    Whnf(OVal),
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn conv_loop(cv_pb: isize, l2r: bool, infos: &CInfos, lft1: &Lift, lft2: &Lift, term1: &FC, term2: &FC, cuniv: OVal) -> R<OVal> {
+    let mut st = ConvState {
+        cv_pb,
+        infos: infos.clone(),
+        a1: side(lft1, term1, &Stack::nil()),
+        a2: side(lft2, term2, &Stack::nil()),
+    };
+    let mut cuniv = cuniv;
+    let mut appr = true;
     loop {
         if appr {
-            call(&CHECK_FOR_INTERRUPT, &[A::I(0)]);
-            let ninfos = infos.inf.with_reds(&infos.inf.cache.betaiotazeta);
-            let (h1, v1) = whd_stack(&ninfos, &infos.lft_tab, &a1.hd, &a1.stk);
-            let (h2, v2) = whd_stack(&ninfos, &infos.rgt_tab, &a2.hd, &a2.stk);
-            a1 = Side { lft: a1.lft, hd: h1, stk: v1 };
-            a2 = Side { lft: a2.lft, hd: h2, stk: v2 };
+            whd_both(&mut st);
         }
-        match eqwhnf(cv_pb, l2r, &infos, &a1, &a2, cuniv)? {
-            Next::Done(c) => return Ok(c),
-            Next::Appr(pb, inf, s1, s2, c) => {
-                cv_pb = pb;
-                infos = inf;
-                a1 = s1;
-                a2 = s2;
+        match eqwhnf(l2r, &mut st, cuniv)? {
+            Step::Done(c) => return Ok(c),
+            Step::Appr(c) => {
                 cuniv = c;
                 appr = true;
             }
-            Next::Whnf(pb, inf, s1, s2, c) => {
-                cv_pb = pb;
-                infos = inf;
-                a1 = s1;
-                a2 = s2;
+            Step::Whnf(c) => {
                 cuniv = c;
                 appr = false;
             }
         }
     }
+}
+
+/// The head-reduction part of [eqappr].
+#[inline(never)]
+fn whd_both(st: &mut ConvState) {
+    call(&CHECK_FOR_INTERRUPT, &[A::I(0)]);
+    let ninfos = st.infos.inf.with_reds(&st.infos.inf.cache.betaiotazeta);
+    let (h1, v1) = whd_stack(&ninfos, &st.infos.lft_tab, &st.a1.hd, &st.a1.stk);
+    let (h2, v2) = whd_stack(&ninfos, &st.infos.rgt_tab, &st.a2.hd, &st.a2.stk);
+    st.a1.hd = h1;
+    st.a1.stk = v1;
+    st.a2.hd = h2;
+    st.a2.stk = v2;
 }
 
 fn all_transparent(infos: &Infos) -> Infos {
@@ -506,422 +521,58 @@ fn rel_relevance(infos: &Infos, n: isize) -> OVal {
     infos.relevances.get(n - 1)
 }
 
-fn eqwhnf(cv_pb: isize, l2r: bool, infos: &CInfos, appr1: &Side, appr2: &Side, cuniv: OVal) -> R<Next> {
-    let lft1 = &appr1.lft;
-    let lft2 = &appr2.lft;
-    let hd1 = &appr1.hd;
-    let hd2 = &appr2.hd;
-    let v1 = &appr1.stk;
-    let v2 = &appr2.stk;
-    let t1 = hd1.term();
-    let t2 = hd2.term();
-    let done = |r: R<OVal>| r.map(Next::Done);
+fn stacks(l2r: bool, st: &ConvState, cuniv: OVal) -> R<Step> {
+    let (a1, a2) = (&st.a1, &st.a2);
+    Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &a1.lft, &a2.lft, &a1.stk, &a2.stk, cuniv)?))
+}
+
+/// [eqwhnf]: dispatch on the heads, each case is handled out of line so that
+/// the recursive path only pays for the frame of the case it takes.
+fn eqwhnf(l2r: bool, st: &mut ConvState, cuniv: OVal) -> R<Step> {
+    let t1 = st.a1.hd.term();
+    let t2 = st.a2.hd.term();
     match (&*t1, &*t2) {
-        (FTerm::Atom(a1), FTerm::Atom(a2)) => {
-            let k1 = constr::kind(a1);
-            let k2 = constr::kind(a2);
-            if k1 == constr::SORT && k2 == constr::SORT {
-                if !(is_empty_stack(v1) && is_empty_stack(v2)) {
-                    return nc();
-                }
-                done(fail_check(sort_cmp_universes(infos, cv_pb, &a1.field(0), &a2.field(0), &cuniv)))
-            } else if k1 == constr::META && k2 == constr::META {
-                if a1.field_int(0) == a2.field_int(0) {
-                    done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-                } else {
-                    nc()
-                }
-            } else {
-                nc()
-            }
-        }
-        (FTerm::Evar(ev1, args1, env1), FTerm::Evar(ev2, args2, env2)) => {
-            if eq(EQ_EVAR, ev1, ev2) {
-                let el1 = el_stack(lft1, v1);
-                let el2 = el_stack(lft2, v2);
-                let cuniv = convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv)?;
-                let a1: Vec<FC> = args1.list_to_vec().iter().map(|a| mk_clos(env1, a)).collect();
-                let a2: Vec<FC> = args2.list_to_vec().iter().map(|a| mk_clos(env2, a)).collect();
-                done(convert_list(l2r, infos, &el1, &el2, &a1, &a2, cuniv))
-            } else {
-                nc()
-            }
-        }
-        (FTerm::Rel(n), FTerm::Rel(m)) => {
-            let el1 = el_stack(lft1, v1);
-            let el2 = el_stack(lft2, v2);
-            let n = reloc_rel(*n, &el1);
-            let m = reloc_rel(*m, &el2);
-            let rn = rel_relevance(&infos.inf, n);
-            let rm = rel_relevance(&infos.inf, m);
-            if is_irrelevant(&infos.inf, &rn) && is_irrelevant(&infos.inf, &rm) {
-                let v1 = skip_irrelevant_stack(&infos.inf, v1);
-                let v2 = skip_irrelevant_stack(&infos.inf, v2);
-                done(convert_stacks(None, l2r, infos, lft1, lft2, &v1, &v2, cuniv))
-            } else if n == m {
-                done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-            } else {
-                nc()
-            }
-        }
-        (FTerm::Flex(fl1), FTerm::Flex(fl2)) => {
-            let attempt = (|| -> R<OVal> {
-                let nargs = same_args_size(v1, v2)?;
-                let cuniv = conv_table_key(infos, nargs, fl1, fl2, cuniv.clone())?;
-                if irr_flex(&infos.inf, fl1) {
-                    return nc();
-                }
-                let mask = if infos.typ {
-                    match fl1 {
-                        TableKey::Const(..) => get_ref_mask(&infos.inf, &infos.lft_tab, fl1),
-                        _ => None,
-                    }
-                } else {
-                    None
-                };
-                convert_stacks(mask, l2r, infos, lft1, lft2, v1, v2, cuniv)
-            })();
-            if let Ok(c) = attempt {
-                return Ok(Next::Done(c));
-            }
-            let r1 = unfold_ref_with_args(&infos.inf, &infos.lft_tab, fl1, v1);
-            let r2 = unfold_ref_with_args(&infos.inf, &infos.rgt_tab, fl2, v2);
-            match (r1, r2) {
-                (None, None) => nc(),
-                (Some((t1, v1)), Some((t2, v2))) => {
-                    let ninfos = infos.inf.with_reds(&infos.inf.cache.betaiotazeta);
-                    call(&CHECK_FOR_INTERRUPT, &[A::I(0)]);
-                    let ta = key_args(fl1);
-                    let tb = key_args(fl2);
-                    let unfold_left = call(
-                        &UNFOLD_LEFT,
-                        &[A::O(infos.env()), A::I(ta.0), A::O(&ta.1), A::I(tb.0), A::O(&tb.1), A::B(l2r)],
-                    )
-                    .as_bool();
-                    if unfold_left {
-                        let (h, s) = whd_stack(&ninfos, &infos.lft_tab, &t1, &v1);
-                        Ok(Next::Whnf(cv_pb, infos.clone(), side(lft1, &h, &s), appr2.clone(), cuniv))
-                    } else {
-                        let (h, s) = whd_stack(&ninfos, &infos.rgt_tab, &t2, &v2);
-                        Ok(Next::Whnf(cv_pb, infos.clone(), appr1.clone(), side(lft2, &h, &s), cuniv))
-                    }
-                }
-                (Some((t1, v1)), None) => {
-                    let all = all_transparent(&infos.inf);
-                    let (h, s) = whd_stack(&all, &infos.lft_tab, &t1, &v1);
-                    Ok(Next::Whnf(cv_pb, infos.clone(), side(lft1, &h, &s), appr2.clone(), cuniv))
-                }
-                (None, Some((t2, v2))) => {
-                    let all = all_transparent(&infos.inf);
-                    let (h, s) = whd_stack(&all, &infos.rgt_tab, &t2, &v2);
-                    Ok(Next::Whnf(cv_pb, infos.clone(), appr1.clone(), side(lft2, &h, &s), cuniv))
-                }
-            }
-        }
-        (FTerm::Proj(p1, r1, c1), FTerm::Proj(p2, r2, c2)) => match unfold_projection(&infos.inf, p1, r1) {
-            Some(s1) => Ok(Next::Appr(cv_pb, infos.clone(), side(lft1, c1, &v1.cons(s1)), appr2.clone(), cuniv)),
-            None => match unfold_projection(&infos.inf, p2, r2) {
-                Some(s2) => Ok(Next::Appr(cv_pb, infos.clone(), appr1.clone(), side(lft2, c2, &v2.cons(s2)), cuniv)),
-                None => {
-                    if eq(EQ_PROJ_REPR_CAN, &p1.field(0), &p2.field(0)) && compare_stack_shape(v1, v2) {
-                        let el1 = el_stack(lft1, v1);
-                        let el2 = el_stack(lft2, v2);
-                        let u1 = ccnv(CONV, l2r, infos, &el1, &el2, c1, c2, cuniv)?;
-                        done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, u1))
-                    } else {
-                        nc()
-                    }
-                }
-            },
-        },
-        (FTerm::Proj(p1, r1, c1), t2) => match unfold_projection(&infos.inf, p1, r1) {
-            Some(s1) => Ok(Next::Appr(cv_pb, infos.clone(), side(lft1, c1, &v1.cons(s1)), appr2.clone(), cuniv)),
-            None => match t2 {
-                FTerm::Flex(fl2) => match unfold_ref_with_args(&infos.inf, &infos.rgt_tab, fl2, v2) {
-                    Some((h, s)) => Ok(Next::Appr(cv_pb, infos.clone(), appr1.clone(), side(lft2, &h, &s), cuniv)),
-                    None => nc(),
-                },
-                _ => nc(),
-            },
-        },
-        (t1, FTerm::Proj(p2, r2, c2)) => match unfold_projection(&infos.inf, p2, r2) {
-            Some(s2) => Ok(Next::Appr(cv_pb, infos.clone(), appr1.clone(), side(lft2, c2, &v2.cons(s2)), cuniv)),
-            None => match t1 {
-                FTerm::Flex(fl1) => match unfold_ref_with_args(&infos.inf, &infos.lft_tab, fl1, v1) {
-                    Some((h, s)) => Ok(Next::Appr(cv_pb, infos.clone(), side(lft1, &h, &s), appr2.clone(), cuniv)),
-                    None => nc(),
-                },
-                _ => nc(),
-            },
-        },
-        (FTerm::Lambda(..), FTerm::Lambda(..)) => {
-            if !(is_empty_stack(v1) && is_empty_stack(v2)) {
-                anomaly(AN_LAMBDA_ILLTYPED);
-            }
-            let (x1, ty1, bd1) = dest_flambda(hd1);
-            let (_, ty2, bd2) = dest_flambda(hd2);
-            let el1 = el_stack(lft1, v1);
-            let el2 = el_stack(lft2, v2);
-            let cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &ty1, &ty2, cuniv)?;
-            done(ccnv(CONV, l2r, &infos.push_relevance(&x1), &el_lift(&el1), &el_lift(&el2), &bd1, &bd2, cuniv))
-        }
-        (FTerm::Prod(x1, c1, c2, e), FTerm::Prod(_, c12, c22, e2)) => {
-            if !(is_empty_stack(v1) && is_empty_stack(v2)) {
-                return nc();
-            }
-            let el1 = el_stack(lft1, v1);
-            let el2 = el_stack(lft2, v2);
-            let cuniv = ccnv(CONV, l2r, infos, &el1, &el2, c1, c12, cuniv)?;
-            let x1 = usubst_binder(e, x1);
-            let b1 = mk_clos(&usubs_lift(e), c2);
-            let b2 = mk_clos(&usubs_lift(e2), c22);
-            done(ccnv(cv_pb, l2r, &infos.push_relevance(&x1), &el_lift(&el1), &el_lift(&el2), &b1, &b2, cuniv))
-        }
-        (FTerm::Lambda(..), _) => {
-            if !v1.is_nil() {
-                anomaly(AN_LAMBDA_UNREDUCED);
-            }
-            let (x1, _ty1, bd1) = dest_flambda(hd1);
-            let infos = infos.push_relevance(&x1);
-            let s2 = eta_expand_stack(&infos.inf, &x1, v2);
-            Ok(Next::Appr(CONV, infos.clone(), side(&el_lift(lft1), &bd1, &Stack::nil()), side(&el_lift(lft2), hd2, &s2), cuniv))
-        }
-        (_, FTerm::Lambda(..)) => {
-            if !v2.is_nil() {
-                anomaly(AN_LAMBDA_UNREDUCED);
-            }
-            let (x2, _ty2, bd2) = dest_flambda(hd2);
-            let infos = infos.push_relevance(&x2);
-            let s1 = eta_expand_stack(&infos.inf, &x2, v1);
-            Ok(Next::Appr(CONV, infos.clone(), side(&el_lift(lft1), hd1, &s1), side(&el_lift(lft2), &bd2, &Stack::nil()), cuniv))
-        }
-        (FTerm::Flex(fl1), c2) => match unfold_ref_with_args(&infos.inf, &infos.lft_tab, fl1, v1) {
-            Some((def1, v1)) => {
-                let all = all_transparent(&infos.inf);
-                let (h, s) = whd_stack(&all, &infos.lft_tab, &def1, &v1);
-                Ok(Next::Whnf(cv_pb, infos.clone(), side(lft1, &h, &s), appr2.clone(), cuniv))
-            }
-            None => match c2 {
-                FTerm::Construct(c, u2, args2) if c.field_int(1) == 1 => {
-                    assert_reduced_constructor(v2);
-                    match eta_expand_ind_stack(&infos.inf, &c.field(0), u2, args2, hd1, v1) {
-                        Some((v2, v1)) => done(convert_stacks(None, l2r, infos, lft1, lft2, &v1, &v2, cuniv)),
-                        None => nc(),
-                    }
-                }
-                _ => nc(),
-            },
-        },
-        (c1, FTerm::Flex(fl2)) => match unfold_ref_with_args(&infos.inf, &infos.rgt_tab, fl2, v2) {
-            Some((def2, v2)) => {
-                let all = all_transparent(&infos.inf);
-                let (h, s) = whd_stack(&all, &infos.rgt_tab, &def2, &v2);
-                Ok(Next::Whnf(cv_pb, infos.clone(), appr1.clone(), side(lft2, &h, &s), cuniv))
-            }
-            None => match c1 {
-                FTerm::Construct(c, u1, args1) if c.field_int(1) == 1 => {
-                    assert_reduced_constructor(v1);
-                    match eta_expand_ind_stack(&infos.inf, &c.field(0), u1, args1, hd2, v2) {
-                        Some((v1, v2)) => done(convert_stacks(None, l2r, infos, lft1, lft2, &v1, &v2, cuniv)),
-                        None => nc(),
-                    }
-                }
-                _ => nc(),
-            },
-        },
-        (FTerm::Ind(ind1, u1), FTerm::Ind(ind2, u2)) => {
-            if eq(EQ_IND_CAN, ind1, ind2) {
-                if u1.empty || u2.empty {
-                    let cuniv = fail_check(convert_instances(infos, false, &u1.v, &u2.v, &cuniv))?;
-                    done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-                } else {
-                    let nargs = same_args_size(v1, v2)?;
-                    match convert_inductives(infos, cv_pb, ind1, nargs, &u1.v, &u2.v, &cuniv) {
-                        Ok(r) => {
-                            let cuniv = fail_check(r)?;
-                            done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-                        }
-                        Err(MustExpand) => {
-                            let h1 = eta_expand_ind(infos, ind1, u1);
-                            let h2 = eta_expand_ind(infos, ind2, u2);
-                            Ok(Next::Appr(cv_pb, infos.clone(), side(lft1, &h1, v1), side(lft2, &h2, v2), cuniv))
-                        }
-                    }
-                }
-            } else {
-                nc()
-            }
-        }
-        (FTerm::Construct(c1, u1, args1), FTerm::Construct(c2, u2, args2)) => {
-            assert_reduced_constructor(v1);
-            assert_reduced_constructor(v2);
-            let nargs = args1.len();
-            if nargs != args2.len() {
-                return nc();
-            }
-            let v1 = append_stack(args1, v1);
-            let v2 = append_stack(args2, v2);
-            if c1.field_int(1) == c2.field_int(1) && eq(EQ_IND_CAN, &c1.field(0), &c2.field(0)) {
-                if u1.empty || u2.empty {
-                    let cuniv = fail_check(convert_instances(infos, false, &u1.v, &u2.v, &cuniv))?;
-                    done(convert_stacks(None, l2r, infos, lft1, lft2, &v1, &v2, cuniv))
-                } else {
-                    match convert_constructors(infos, c1, nargs as isize, &u1.v, &u2.v, &cuniv) {
-                        Ok(r) => {
-                            let cuniv = fail_check(r)?;
-                            done(convert_stacks(None, l2r, infos, lft1, lft2, &v1, &v2, cuniv))
-                        }
-                        Err(MustExpand) => {
-                            let h1 = eta_expand_constructor(infos, c1, u1);
-                            let h2 = eta_expand_constructor(infos, c2, u2);
-                            Ok(Next::Appr(cv_pb, infos.clone(), side(lft1, &h1, &v1), side(lft2, &h2, &v2), cuniv))
-                        }
-                    }
-                }
-            } else {
-                nc()
-            }
-        }
-        (FTerm::Construct(c1, u1, args1), _) => {
-            assert_reduced_constructor(v1);
-            if c1.field_int(1) != 1 {
-                return nc();
-            }
-            match eta_expand_ind_stack(&infos.inf, &c1.field(0), u1, args1, hd2, v2) {
-                Some((v1, v2)) => done(convert_stacks(None, l2r, infos, lft1, lft2, &v1, &v2, cuniv)),
-                None => nc(),
-            }
-        }
-        (_, FTerm::Construct(c2, u2, args2)) => {
-            assert_reduced_constructor(v2);
-            if c2.field_int(1) != 1 {
-                return nc();
-            }
-            match eta_expand_ind_stack(&infos.inf, &c2.field(0), u2, args2, hd1, v1) {
-                Some((v2, v1)) => done(convert_stacks(None, l2r, infos, lft1, lft2, &v1, &v2, cuniv)),
-                None => nc(),
-            }
-        }
+        (FTerm::Atom(a1), FTerm::Atom(a2)) => eq_atom(l2r, st, a1, a2, cuniv),
+        (FTerm::Evar(ev1, args1, env1), FTerm::Evar(ev2, args2, env2)) => eq_evar(l2r, st, ev1, args1, env1, ev2, args2, env2, cuniv),
+        (FTerm::Rel(n), FTerm::Rel(m)) => eq_rel(l2r, st, *n, *m, cuniv),
+        (FTerm::Flex(fl1), FTerm::Flex(fl2)) => eq_flex_flex(l2r, st, fl1, fl2, cuniv),
+        (FTerm::Proj(p1, r1, c1), FTerm::Proj(p2, r2, c2)) => eq_proj_proj(l2r, st, p1, r1, c1, p2, r2, c2, cuniv),
+        (FTerm::Proj(p1, r1, c1), t2) => eq_proj_left(st, p1, r1, c1, t2, cuniv),
+        (t1, FTerm::Proj(p2, r2, c2)) => eq_proj_right(st, t1, p2, r2, c2, cuniv),
+        (FTerm::Lambda(..), FTerm::Lambda(..)) => eq_lambda_lambda(l2r, st, cuniv),
+        (FTerm::Prod(x1, c1, c2, e), FTerm::Prod(_, c12, c22, e2)) => eq_prod_prod(l2r, st, x1, c1, c2, e, c12, c22, e2, cuniv),
+        (FTerm::Lambda(..), _) => eq_eta_left(st, cuniv),
+        (_, FTerm::Lambda(..)) => eq_eta_right(st, cuniv),
+        (FTerm::Flex(fl1), c2) => eq_flex_left(l2r, st, fl1, c2, cuniv),
+        (c1, FTerm::Flex(fl2)) => eq_flex_right(l2r, st, c1, fl2, cuniv),
+        (FTerm::Ind(ind1, u1), FTerm::Ind(ind2, u2)) => eq_ind(l2r, st, ind1, u1, ind2, u2, cuniv),
+        (FTerm::Construct(c1, u1, args1), FTerm::Construct(c2, u2, args2)) => eq_construct(l2r, st, c1, u1, args1, c2, u2, args2, cuniv),
+        (FTerm::Construct(c1, u1, args1), _) => eq_record_left(l2r, st, c1, u1, args1, cuniv),
+        (_, FTerm::Construct(c2, u2, args2)) => eq_record_right(l2r, st, c2, u2, args2, cuniv),
         (FTerm::Fix(f1, e1), FTerm::Fix(f2, e2)) => {
             let (op1, op2) = (&f1.ri, &f2.ri);
             let same_op = op1.size() == op2.size() && (0..op1.size()).all(|i| op1.field_int(i) == op2.field_int(i));
             if f1.i == f2.i && same_op {
-                done(convert_fix(l2r, infos, appr1, appr2, f1, e1, f2, e2, cuniv))
+                Ok(Step::Done(convert_fix(l2r, &st.infos, &st.a1, &st.a2, f1, e1, f2, e2, cuniv)?))
             } else {
                 nc()
             }
         }
         (FTerm::CoFix(f1, e1), FTerm::CoFix(f2, e2)) => {
             if f1.i == f2.i {
-                done(convert_fix(l2r, infos, appr1, appr2, f1, e1, f2, e2, cuniv))
+                Ok(Step::Done(convert_fix(l2r, &st.infos, &st.a1, &st.a2, f1, e1, f2, e2, cuniv)?))
             } else {
                 nc()
             }
         }
-        (FTerm::Int(i1), FTerm::Int(i2)) => {
-            if eq(EQ_UINT63, i1, i2) {
-                done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-            } else {
-                nc()
-            }
-        }
-        (FTerm::Float(f1), FTerm::Float(f2)) => {
-            if eq(EQ_FLOAT64, f1, f2) {
-                done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-            } else {
-                nc()
-            }
-        }
-        (FTerm::String(s1), FTerm::String(s2)) => {
-            if eq(EQ_PSTRING, s1, s2) {
-                done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-            } else {
-                nc()
-            }
-        }
-        (FTerm::CaseInvert(cd1, iv1, _), FTerm::CaseInvert(cd2, iv2, _)) => {
-            let ind = constr::ci_ind(&cd1.ci);
-            if !eq(EQ_IND_CAN, &ind, &constr::ci_ind(&cd2.ci)) {
-                return nc();
-            }
-            let el1 = el_stack(lft1, v1);
-            let el2 = el_stack(lft2, v2);
-            let (e1, e2) = (&cd1.e, &cd2.e);
-            let u1 = usubst_instance(e1, &cd1.u);
-            let u2 = usubst_instance(e2, &cd2.u);
-            let cuniv = {
-                let nargs = call(&IND_CUMUL_INFO, &[A::O(infos.env()), A::O(&ind)]).field_int(1);
-                match convert_inductives(infos, CONV, &ind, nargs, &u1, &u2, &cuniv) {
-                    Ok(r) => fail_check(r)?,
-                    Err(MustExpand) => panic!("rconv: uncaught MustExpand"),
-                }
-            };
-            let pms1 = mk_clos_vect(e1, &cd1.pms);
-            let pms2 = mk_clos_vect(e2, &cd2.pms);
-            let mut cuniv = cuniv;
-            if pms1.len() != pms2.len() {
-                panic!("Invalid_argument");
-            }
-            for i in (0..pms1.len()).rev() {
-                cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &pms1[i], &pms2[i], cuniv)?;
-            }
-            if iv1.len() != iv2.len() {
-                panic!("Invalid_argument");
-            }
-            for i in (0..iv1.len()).rev() {
-                cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &iv1[i], &iv2[i], cuniv)?;
-            }
-            let cuniv = convert_return_clause(l2r, infos, &ind, e1, e2, &el1, &el2, &u1, &u2, &pms1, &pms2, &cd1.p, &cd2.p, cuniv)?;
-            let cuniv = convert_branches(l2r, infos, &ind, e1, e2, &el1, &el2, &u1, &u2, &pms1, &pms2, &cd1.br, &cd2.br, cuniv)?;
-            done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-        }
-        (FTerm::Array(u1, t1, ty1, alft1), FTerm::Array(u2, t2, ty2, alft2)) => {
-            let len = call(&PARRAY_LENGTH, &[A::O(t1)]).as_int();
-            if len != call(&PARRAY_LENGTH, &[A::O(t2)]).as_int() {
-                return nc();
-            }
-            let var = call(&ARRAY_VARIANCE, &[A::I(0)]);
-            let cuniv = fail_check(convert_instances_cumul(infos, CONV, &var, &u1.v, &u2.v, &cuniv))?;
-            let el1 = el_stack(lft1, v1);
-            let el2 = el_stack(lft2, v2);
-            let mut cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &lift_fconstr(*alft1, ty1), &lift_fconstr(*alft2, ty2), cuniv)?;
-            let r1 = call(&PARRAY_TO_ARRAY, &[A::O(t1)]);
-            let r2 = call(&PARRAY_TO_ARRAY, &[A::O(t2)]);
-            let (a1, a2) = (r1.field(0), r2.field(0));
-            if a1.size() != a2.size() {
-                panic!("Parray.fold_left2");
-            }
-            for i in 0..a1.size() {
-                let x1 = crate::ffi::handle_to_fc(&a1.field(i));
-                let x2 = crate::ffi::handle_to_fc(&a2.field(i));
-                cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &lift_fconstr(*alft1, &x1), &lift_fconstr(*alft2, &x2), cuniv)?;
-            }
-            let d1 = crate::ffi::handle_to_fc(&r1.field(1));
-            let d2 = crate::ffi::handle_to_fc(&r2.field(1));
-            let cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &lift_fconstr(*alft1, &d1), &lift_fconstr(*alft2, &d2), cuniv)?;
-            done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv))
-        }
-        (FTerm::Rel(n1), FTerm::Irrelevant) => {
-            let n1 = reloc_rel(*n1, &el_stack(lft1, v1));
-            let r1 = rel_relevance(&infos.inf, n1);
-            if is_irrelevant(&infos.inf, &r1) {
-                let v1 = skip_irrelevant_stack(&infos.inf, v1);
-                done(convert_stacks(None, l2r, infos, lft1, lft2, &v1, v2, cuniv))
-            } else {
-                nc()
-            }
-        }
-        (FTerm::Irrelevant, FTerm::Rel(n2)) => {
-            let n2 = reloc_rel(*n2, &el_stack(lft2, v2));
-            let r2 = rel_relevance(&infos.inf, n2);
-            if is_irrelevant(&infos.inf, &r2) {
-                let v2 = skip_irrelevant_stack(&infos.inf, v2);
-                done(convert_stacks(None, l2r, infos, lft1, lft2, v1, &v2, cuniv))
-            } else {
-                nc()
-            }
-        }
-        (FTerm::Irrelevant, FTerm::Irrelevant) => done(convert_stacks(None, l2r, infos, lft1, lft2, v1, v2, cuniv)),
+        (FTerm::Int(i1), FTerm::Int(i2)) => eq_prim_value(l2r, st, EQ_UINT63, i1, i2, cuniv),
+        (FTerm::Float(f1), FTerm::Float(f2)) => eq_prim_value(l2r, st, EQ_FLOAT64, f1, f2, cuniv),
+        (FTerm::String(s1), FTerm::String(s2)) => eq_prim_value(l2r, st, EQ_PSTRING, s1, s2, cuniv),
+        (FTerm::CaseInvert(cd1, iv1, _), FTerm::CaseInvert(cd2, iv2, _)) => eq_case_invert(l2r, st, cd1, iv1, cd2, iv2, cuniv),
+        (FTerm::Array(u1, t1, ty1, alft1), FTerm::Array(u2, t2, ty2, alft2)) => eq_array(l2r, st, u1, t1, ty1, *alft1, u2, t2, ty2, *alft2, cuniv),
+        (FTerm::Rel(n1), FTerm::Irrelevant) => eq_rel_irr(l2r, st, *n1, true, cuniv),
+        (FTerm::Irrelevant, FTerm::Rel(n2)) => eq_rel_irr(l2r, st, *n2, false, cuniv),
+        (FTerm::Irrelevant, FTerm::Irrelevant) => stacks(l2r, st, cuniv),
         (FTerm::LetIn(..), _)
         | (FTerm::CaseT(..), _)
         | (FTerm::App(..), _)
@@ -936,6 +587,480 @@ fn eqwhnf(cv_pb: isize, l2r: bool, infos: &CInfos, appr1: &Side, appr2: &Side, c
         | (_, FTerm::Locked) => panic!("assert false"),
         _ => nc(),
     }
+}
+
+#[inline(never)]
+fn eq_atom(l2r: bool, st: &mut ConvState, a1: &OVal, a2: &OVal, cuniv: OVal) -> R<Step> {
+    let k1 = constr::kind(a1);
+    let k2 = constr::kind(a2);
+    if k1 == constr::SORT && k2 == constr::SORT {
+        if !(is_empty_stack(&st.a1.stk) && is_empty_stack(&st.a2.stk)) {
+            return nc();
+        }
+        Ok(Step::Done(fail_check(sort_cmp_universes(&st.infos, st.cv_pb, &a1.field(0), &a2.field(0), &cuniv))?))
+    } else if k1 == constr::META && k2 == constr::META {
+        if a1.field_int(0) == a2.field_int(0) {
+            stacks(l2r, st, cuniv)
+        } else {
+            nc()
+        }
+    } else {
+        nc()
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn eq_evar(l2r: bool, st: &mut ConvState, ev1: &OVal, args1: &OVal, env1: &USubs, ev2: &OVal, args2: &OVal, env2: &USubs, cuniv: OVal) -> R<Step> {
+    if eq(EQ_EVAR, ev1, ev2) {
+        let infos = &st.infos;
+        let el1 = el_stack(&st.a1.lft, &st.a1.stk);
+        let el2 = el_stack(&st.a2.lft, &st.a2.stk);
+        let cuniv = convert_stacks(None, l2r, infos, &st.a1.lft, &st.a2.lft, &st.a1.stk, &st.a2.stk, cuniv)?;
+        let a1: Vec<FC> = args1.list_to_vec().iter().map(|a| mk_clos(env1, a)).collect();
+        let a2: Vec<FC> = args2.list_to_vec().iter().map(|a| mk_clos(env2, a)).collect();
+        Ok(Step::Done(convert_list(l2r, infos, &el1, &el2, &a1, &a2, cuniv)?))
+    } else {
+        nc()
+    }
+}
+
+#[inline(never)]
+fn eq_rel(l2r: bool, st: &mut ConvState, n: isize, m: isize, cuniv: OVal) -> R<Step> {
+    let el1 = el_stack(&st.a1.lft, &st.a1.stk);
+    let el2 = el_stack(&st.a2.lft, &st.a2.stk);
+    let n = reloc_rel(n, &el1);
+    let m = reloc_rel(m, &el2);
+    let inf = &st.infos.inf;
+    let rn = rel_relevance(inf, n);
+    let rm = rel_relevance(inf, m);
+    if is_irrelevant(inf, &rn) && is_irrelevant(inf, &rm) {
+        let v1 = skip_irrelevant_stack(inf, &st.a1.stk);
+        let v2 = skip_irrelevant_stack(inf, &st.a2.stk);
+        Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &st.a1.lft, &st.a2.lft, &v1, &v2, cuniv)?))
+    } else if n == m {
+        stacks(l2r, st, cuniv)
+    } else {
+        nc()
+    }
+}
+
+#[inline(never)]
+fn eq_flex_flex(l2r: bool, st: &mut ConvState, fl1: &TableKey, fl2: &TableKey, cuniv: OVal) -> R<Step> {
+    let attempt = (|| -> R<OVal> {
+        let infos = &st.infos;
+        let nargs = same_args_size(&st.a1.stk, &st.a2.stk)?;
+        let cuniv = conv_table_key(infos, nargs, fl1, fl2, cuniv.clone())?;
+        if irr_flex(&infos.inf, fl1) {
+            return nc();
+        }
+        let mask = if infos.typ {
+            match fl1 {
+                TableKey::Const(..) => get_ref_mask(&infos.inf, &infos.lft_tab, fl1),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        convert_stacks(mask, l2r, infos, &st.a1.lft, &st.a2.lft, &st.a1.stk, &st.a2.stk, cuniv)
+    })();
+    if let Ok(c) = attempt {
+        return Ok(Step::Done(c));
+    }
+    let r1 = unfold_ref_with_args(&st.infos.inf, &st.infos.lft_tab, fl1, &st.a1.stk);
+    let r2 = unfold_ref_with_args(&st.infos.inf, &st.infos.rgt_tab, fl2, &st.a2.stk);
+    match (r1, r2) {
+        (None, None) => nc(),
+        (Some((t1, v1)), Some((t2, v2))) => {
+            let ninfos = st.infos.inf.with_reds(&st.infos.inf.cache.betaiotazeta);
+            call(&CHECK_FOR_INTERRUPT, &[A::I(0)]);
+            let ta = key_args(fl1);
+            let tb = key_args(fl2);
+            let unfold_left = call(
+                &UNFOLD_LEFT,
+                &[A::O(st.infos.env()), A::I(ta.0), A::O(&ta.1), A::I(tb.0), A::O(&tb.1), A::B(l2r)],
+            )
+            .as_bool();
+            if unfold_left {
+                let (h, s) = whd_stack(&ninfos, &st.infos.lft_tab, &t1, &v1);
+                st.a1.hd = h;
+                st.a1.stk = s;
+            } else {
+                let (h, s) = whd_stack(&ninfos, &st.infos.rgt_tab, &t2, &v2);
+                st.a2.hd = h;
+                st.a2.stk = s;
+            }
+            Ok(Step::Whnf(cuniv))
+        }
+        (Some((t1, v1)), None) => {
+            let all = all_transparent(&st.infos.inf);
+            let (h, s) = whd_stack(&all, &st.infos.lft_tab, &t1, &v1);
+            st.a1.hd = h;
+            st.a1.stk = s;
+            Ok(Step::Whnf(cuniv))
+        }
+        (None, Some((t2, v2))) => {
+            let all = all_transparent(&st.infos.inf);
+            let (h, s) = whd_stack(&all, &st.infos.rgt_tab, &t2, &v2);
+            st.a2.hd = h;
+            st.a2.stk = s;
+            Ok(Step::Whnf(cuniv))
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn eq_proj_proj(l2r: bool, st: &mut ConvState, p1: &OVal, r1: &OVal, c1: &FC, p2: &OVal, r2: &OVal, c2: &FC, cuniv: OVal) -> R<Step> {
+    match unfold_projection(&st.infos.inf, p1, r1) {
+        Some(s1) => {
+            st.a1.stk = st.a1.stk.cons(s1);
+            st.a1.hd = c1.clone();
+            Ok(Step::Appr(cuniv))
+        }
+        None => match unfold_projection(&st.infos.inf, p2, r2) {
+            Some(s2) => {
+                st.a2.stk = st.a2.stk.cons(s2);
+                st.a2.hd = c2.clone();
+                Ok(Step::Appr(cuniv))
+            }
+            None => {
+                let (v1, v2) = (&st.a1.stk, &st.a2.stk);
+                if eq(EQ_PROJ_REPR_CAN, &p1.field(0), &p2.field(0)) && compare_stack_shape(v1, v2) {
+                    let el1 = el_stack(&st.a1.lft, v1);
+                    let el2 = el_stack(&st.a2.lft, v2);
+                    let u1 = ccnv(CONV, l2r, &st.infos, &el1, &el2, c1, c2, cuniv)?;
+                    stacks(l2r, st, u1)
+                } else {
+                    nc()
+                }
+            }
+        },
+    }
+}
+
+#[inline(never)]
+fn eq_proj_left(st: &mut ConvState, p1: &OVal, r1: &OVal, c1: &FC, t2: &FTerm, cuniv: OVal) -> R<Step> {
+    match unfold_projection(&st.infos.inf, p1, r1) {
+        Some(s1) => {
+            st.a1.stk = st.a1.stk.cons(s1);
+            st.a1.hd = c1.clone();
+            Ok(Step::Appr(cuniv))
+        }
+        None => match t2 {
+            FTerm::Flex(fl2) => match unfold_ref_with_args(&st.infos.inf, &st.infos.rgt_tab, fl2, &st.a2.stk) {
+                Some((h, s)) => {
+                    st.a2.hd = h;
+                    st.a2.stk = s;
+                    Ok(Step::Appr(cuniv))
+                }
+                None => nc(),
+            },
+            _ => nc(),
+        },
+    }
+}
+
+#[inline(never)]
+fn eq_proj_right(st: &mut ConvState, t1: &FTerm, p2: &OVal, r2: &OVal, c2: &FC, cuniv: OVal) -> R<Step> {
+    match unfold_projection(&st.infos.inf, p2, r2) {
+        Some(s2) => {
+            st.a2.stk = st.a2.stk.cons(s2);
+            st.a2.hd = c2.clone();
+            Ok(Step::Appr(cuniv))
+        }
+        None => match t1 {
+            FTerm::Flex(fl1) => match unfold_ref_with_args(&st.infos.inf, &st.infos.lft_tab, fl1, &st.a1.stk) {
+                Some((h, s)) => {
+                    st.a1.hd = h;
+                    st.a1.stk = s;
+                    Ok(Step::Appr(cuniv))
+                }
+                None => nc(),
+            },
+            _ => nc(),
+        },
+    }
+}
+
+#[inline(never)]
+fn eq_lambda_lambda(l2r: bool, st: &mut ConvState, cuniv: OVal) -> R<Step> {
+    let (v1, v2) = (&st.a1.stk, &st.a2.stk);
+    if !(is_empty_stack(v1) && is_empty_stack(v2)) {
+        anomaly(AN_LAMBDA_ILLTYPED);
+    }
+    let (x1, ty1, bd1) = dest_flambda(&st.a1.hd);
+    let (_, ty2, bd2) = dest_flambda(&st.a2.hd);
+    let el1 = el_stack(&st.a1.lft, v1);
+    let el2 = el_stack(&st.a2.lft, v2);
+    let cuniv = ccnv(CONV, l2r, &st.infos, &el1, &el2, &ty1, &ty2, cuniv)?;
+    Ok(Step::Done(ccnv(CONV, l2r, &st.infos.push_relevance(&x1), &el_lift(&el1), &el_lift(&el2), &bd1, &bd2, cuniv)?))
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn eq_prod_prod(l2r: bool, st: &mut ConvState, x1: &OVal, c1: &FC, c2: &OVal, e: &USubs, c12: &FC, c22: &OVal, e2: &USubs, cuniv: OVal) -> R<Step> {
+    let (v1, v2) = (&st.a1.stk, &st.a2.stk);
+    if !(is_empty_stack(v1) && is_empty_stack(v2)) {
+        return nc();
+    }
+    let el1 = el_stack(&st.a1.lft, v1);
+    let el2 = el_stack(&st.a2.lft, v2);
+    let cuniv = ccnv(CONV, l2r, &st.infos, &el1, &el2, c1, c12, cuniv)?;
+    let x1 = usubst_binder(e, x1);
+    let b1 = mk_clos(&usubs_lift(e), c2);
+    let b2 = mk_clos(&usubs_lift(e2), c22);
+    Ok(Step::Done(ccnv(st.cv_pb, l2r, &st.infos.push_relevance(&x1), &el_lift(&el1), &el_lift(&el2), &b1, &b2, cuniv)?))
+}
+
+#[inline(never)]
+fn eq_eta_left(st: &mut ConvState, cuniv: OVal) -> R<Step> {
+    if !st.a1.stk.is_nil() {
+        anomaly(AN_LAMBDA_UNREDUCED);
+    }
+    let (x1, _ty1, bd1) = dest_flambda(&st.a1.hd);
+    st.infos = st.infos.push_relevance(&x1);
+    let s2 = eta_expand_stack(&st.infos.inf, &x1, &st.a2.stk);
+    st.cv_pb = CONV;
+    st.a1 = Side { lft: el_lift(&st.a1.lft), hd: bd1, stk: Stack::nil() };
+    st.a2.lft = el_lift(&st.a2.lft);
+    st.a2.stk = s2;
+    Ok(Step::Appr(cuniv))
+}
+
+#[inline(never)]
+fn eq_eta_right(st: &mut ConvState, cuniv: OVal) -> R<Step> {
+    if !st.a2.stk.is_nil() {
+        anomaly(AN_LAMBDA_UNREDUCED);
+    }
+    let (x2, _ty2, bd2) = dest_flambda(&st.a2.hd);
+    st.infos = st.infos.push_relevance(&x2);
+    let s1 = eta_expand_stack(&st.infos.inf, &x2, &st.a1.stk);
+    st.cv_pb = CONV;
+    st.a1.lft = el_lift(&st.a1.lft);
+    st.a1.stk = s1;
+    st.a2 = Side { lft: el_lift(&st.a2.lft), hd: bd2, stk: Stack::nil() };
+    Ok(Step::Appr(cuniv))
+}
+
+#[inline(never)]
+fn eq_flex_left(l2r: bool, st: &mut ConvState, fl1: &TableKey, c2: &FTerm, cuniv: OVal) -> R<Step> {
+    match unfold_ref_with_args(&st.infos.inf, &st.infos.lft_tab, fl1, &st.a1.stk) {
+        Some((def1, v1)) => {
+            let all = all_transparent(&st.infos.inf);
+            let (h, s) = whd_stack(&all, &st.infos.lft_tab, &def1, &v1);
+            st.a1.hd = h;
+            st.a1.stk = s;
+            Ok(Step::Whnf(cuniv))
+        }
+        None => match c2 {
+            FTerm::Construct(c, u2, args2) if c.field_int(1) == 1 => {
+                assert_reduced_constructor(&st.a2.stk);
+                match eta_expand_ind_stack(&st.infos.inf, &c.field(0), u2, args2, &st.a1.hd, &st.a1.stk) {
+                    Some((v2, v1)) => Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &st.a1.lft, &st.a2.lft, &v1, &v2, cuniv)?)),
+                    None => nc(),
+                }
+            }
+            _ => nc(),
+        },
+    }
+}
+
+#[inline(never)]
+fn eq_flex_right(l2r: bool, st: &mut ConvState, c1: &FTerm, fl2: &TableKey, cuniv: OVal) -> R<Step> {
+    match unfold_ref_with_args(&st.infos.inf, &st.infos.rgt_tab, fl2, &st.a2.stk) {
+        Some((def2, v2)) => {
+            let all = all_transparent(&st.infos.inf);
+            let (h, s) = whd_stack(&all, &st.infos.rgt_tab, &def2, &v2);
+            st.a2.hd = h;
+            st.a2.stk = s;
+            Ok(Step::Whnf(cuniv))
+        }
+        None => match c1 {
+            FTerm::Construct(c, u1, args1) if c.field_int(1) == 1 => {
+                assert_reduced_constructor(&st.a1.stk);
+                match eta_expand_ind_stack(&st.infos.inf, &c.field(0), u1, args1, &st.a2.hd, &st.a2.stk) {
+                    Some((v1, v2)) => Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &st.a1.lft, &st.a2.lft, &v1, &v2, cuniv)?)),
+                    None => nc(),
+                }
+            }
+            _ => nc(),
+        },
+    }
+}
+
+#[inline(never)]
+fn eq_ind(l2r: bool, st: &mut ConvState, ind1: &OVal, u1: &UInst, ind2: &OVal, u2: &UInst, cuniv: OVal) -> R<Step> {
+    if !eq(EQ_IND_CAN, ind1, ind2) {
+        return nc();
+    }
+    if u1.empty || u2.empty {
+        let cuniv = fail_check(convert_instances(&st.infos, false, &u1.v, &u2.v, &cuniv))?;
+        return stacks(l2r, st, cuniv);
+    }
+    let nargs = same_args_size(&st.a1.stk, &st.a2.stk)?;
+    match convert_inductives(&st.infos, st.cv_pb, ind1, nargs, &u1.v, &u2.v, &cuniv) {
+        Ok(r) => {
+            let cuniv = fail_check(r)?;
+            stacks(l2r, st, cuniv)
+        }
+        Err(MustExpand) => {
+            st.a1.hd = eta_expand_ind(&st.infos, ind1, u1);
+            st.a2.hd = eta_expand_ind(&st.infos, ind2, u2);
+            Ok(Step::Appr(cuniv))
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn eq_construct(l2r: bool, st: &mut ConvState, c1: &OVal, u1: &UInst, args1: &Rc<[FC]>, c2: &OVal, u2: &UInst, args2: &Rc<[FC]>, cuniv: OVal) -> R<Step> {
+    assert_reduced_constructor(&st.a1.stk);
+    assert_reduced_constructor(&st.a2.stk);
+    let nargs = args1.len();
+    if nargs != args2.len() {
+        return nc();
+    }
+    let v1 = append_stack(args1, &st.a1.stk);
+    let v2 = append_stack(args2, &st.a2.stk);
+    if !(c1.field_int(1) == c2.field_int(1) && eq(EQ_IND_CAN, &c1.field(0), &c2.field(0))) {
+        return nc();
+    }
+    if u1.empty || u2.empty {
+        let cuniv = fail_check(convert_instances(&st.infos, false, &u1.v, &u2.v, &cuniv))?;
+        return Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &st.a1.lft, &st.a2.lft, &v1, &v2, cuniv)?));
+    }
+    match convert_constructors(&st.infos, c1, nargs as isize, &u1.v, &u2.v, &cuniv) {
+        Ok(r) => {
+            let cuniv = fail_check(r)?;
+            Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &st.a1.lft, &st.a2.lft, &v1, &v2, cuniv)?))
+        }
+        Err(MustExpand) => {
+            st.a1.hd = eta_expand_constructor(&st.infos, c1, u1);
+            st.a1.stk = v1;
+            st.a2.hd = eta_expand_constructor(&st.infos, c2, u2);
+            st.a2.stk = v2;
+            Ok(Step::Appr(cuniv))
+        }
+    }
+}
+
+#[inline(never)]
+fn eq_record_left(l2r: bool, st: &mut ConvState, c1: &OVal, u1: &UInst, args1: &Rc<[FC]>, cuniv: OVal) -> R<Step> {
+    assert_reduced_constructor(&st.a1.stk);
+    if c1.field_int(1) != 1 {
+        return nc();
+    }
+    match eta_expand_ind_stack(&st.infos.inf, &c1.field(0), u1, args1, &st.a2.hd, &st.a2.stk) {
+        Some((v1, v2)) => Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &st.a1.lft, &st.a2.lft, &v1, &v2, cuniv)?)),
+        None => nc(),
+    }
+}
+
+#[inline(never)]
+fn eq_record_right(l2r: bool, st: &mut ConvState, c2: &OVal, u2: &UInst, args2: &Rc<[FC]>, cuniv: OVal) -> R<Step> {
+    assert_reduced_constructor(&st.a2.stk);
+    if c2.field_int(1) != 1 {
+        return nc();
+    }
+    match eta_expand_ind_stack(&st.infos.inf, &c2.field(0), u2, args2, &st.a1.hd, &st.a1.stk) {
+        Some((v2, v1)) => Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &st.a1.lft, &st.a2.lft, &v1, &v2, cuniv)?)),
+        None => nc(),
+    }
+}
+
+#[inline(never)]
+fn eq_prim_value(l2r: bool, st: &mut ConvState, k: isize, x1: &OVal, x2: &OVal, cuniv: OVal) -> R<Step> {
+    if eq(k, x1, x2) {
+        stacks(l2r, st, cuniv)
+    } else {
+        nc()
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn eq_case_invert(l2r: bool, st: &mut ConvState, cd1: &CaseData, iv1: &Rc<[FC]>, cd2: &CaseData, iv2: &Rc<[FC]>, cuniv: OVal) -> R<Step> {
+    let infos = &st.infos;
+    let ind = constr::ci_ind(&cd1.ci);
+    if !eq(EQ_IND_CAN, &ind, &constr::ci_ind(&cd2.ci)) {
+        return nc();
+    }
+    let el1 = el_stack(&st.a1.lft, &st.a1.stk);
+    let el2 = el_stack(&st.a2.lft, &st.a2.stk);
+    let (e1, e2) = (&cd1.e, &cd2.e);
+    let u1 = usubst_instance(e1, &cd1.u);
+    let u2 = usubst_instance(e2, &cd2.u);
+    let cuniv = {
+        let nargs = call(&IND_CUMUL_INFO, &[A::O(infos.env()), A::O(&ind)]).field_int(1);
+        match convert_inductives(infos, CONV, &ind, nargs, &u1, &u2, &cuniv) {
+            Ok(r) => fail_check(r)?,
+            Err(MustExpand) => panic!("rconv: uncaught MustExpand"),
+        }
+    };
+    let pms1 = mk_clos_vect(e1, &cd1.pms);
+    let pms2 = mk_clos_vect(e2, &cd2.pms);
+    let mut cuniv = cuniv;
+    if pms1.len() != pms2.len() {
+        panic!("Invalid_argument");
+    }
+    for i in (0..pms1.len()).rev() {
+        cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &pms1[i], &pms2[i], cuniv)?;
+    }
+    if iv1.len() != iv2.len() {
+        panic!("Invalid_argument");
+    }
+    for i in (0..iv1.len()).rev() {
+        cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &iv1[i], &iv2[i], cuniv)?;
+    }
+    let cuniv = convert_return_clause(l2r, infos, &ind, e1, e2, &el1, &el2, &u1, &u2, &pms1, &pms2, &cd1.p, &cd2.p, cuniv)?;
+    let cuniv = convert_branches(l2r, infos, &ind, e1, e2, &el1, &el2, &u1, &u2, &pms1, &pms2, &cd1.br, &cd2.br, cuniv)?;
+    stacks(l2r, st, cuniv)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn eq_array(l2r: bool, st: &mut ConvState, u1: &UInst, t1: &OVal, ty1: &FC, alft1: isize, u2: &UInst, t2: &OVal, ty2: &FC, alft2: isize, cuniv: OVal) -> R<Step> {
+    let infos = &st.infos;
+    let len = call(&PARRAY_LENGTH, &[A::O(t1)]).as_int();
+    if len != call(&PARRAY_LENGTH, &[A::O(t2)]).as_int() {
+        return nc();
+    }
+    let var = call(&ARRAY_VARIANCE, &[A::I(0)]);
+    let cuniv = fail_check(convert_instances_cumul(infos, CONV, &var, &u1.v, &u2.v, &cuniv))?;
+    let el1 = el_stack(&st.a1.lft, &st.a1.stk);
+    let el2 = el_stack(&st.a2.lft, &st.a2.stk);
+    let mut cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &lift_fconstr(alft1, ty1), &lift_fconstr(alft2, ty2), cuniv)?;
+    let r1 = call(&PARRAY_TO_ARRAY, &[A::O(t1)]);
+    let r2 = call(&PARRAY_TO_ARRAY, &[A::O(t2)]);
+    let (a1, a2) = (r1.field(0), r2.field(0));
+    if a1.size() != a2.size() {
+        panic!("Parray.fold_left2");
+    }
+    for i in 0..a1.size() {
+        let x1 = crate::ffi::handle_to_fc(&a1.field(i));
+        let x2 = crate::ffi::handle_to_fc(&a2.field(i));
+        cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &lift_fconstr(alft1, &x1), &lift_fconstr(alft2, &x2), cuniv)?;
+    }
+    let d1 = crate::ffi::handle_to_fc(&r1.field(1));
+    let d2 = crate::ffi::handle_to_fc(&r2.field(1));
+    let cuniv = ccnv(CONV, l2r, infos, &el1, &el2, &lift_fconstr(alft1, &d1), &lift_fconstr(alft2, &d2), cuniv)?;
+    stacks(l2r, st, cuniv)
+}
+
+/// [(FRel n, FIrrelevant)] when [left], [(FIrrelevant, FRel n)] otherwise.
+#[inline(never)]
+fn eq_rel_irr(l2r: bool, st: &mut ConvState, n: isize, left: bool, cuniv: OVal) -> R<Step> {
+    let s = if left { &st.a1 } else { &st.a2 };
+    let n = reloc_rel(n, &el_stack(&s.lft, &s.stk));
+    let inf = &st.infos.inf;
+    let r = rel_relevance(inf, n);
+    if !is_irrelevant(inf, &r) {
+        return nc();
+    }
+    let v = skip_irrelevant_stack(inf, &s.stk);
+    let (v1, v2) = if left { (&v, &st.a2.stk) } else { (&st.a1.stk, &v) };
+    Ok(Step::Done(convert_stacks(None, l2r, &st.infos, &st.a1.lft, &st.a2.lft, v1, v2, cuniv)?))
 }
 
 #[allow(clippy::too_many_arguments)]
