@@ -119,38 +119,93 @@ fn compare_stack_shape(s1: &Stack, s2: &Stack) -> bool {
 
 type LF = (Lift, FC);
 
+/// The arguments of a pure application level: segments of machine
+/// arguments, each under its own lift, outermost first. The argument
+/// arrays are shared with the machine stack.
+#[derive(Clone)]
+enum Args {
+    One(Lift, Rc<[FC]>),
+    Many(Vec<(Lift, Rc<[FC]>)>),
+}
+
+impl Args {
+    fn len(&self) -> usize {
+        match self {
+            Args::One(_, a) => a.len(),
+            Args::Many(v) => v.iter().map(|(_, a)| a.len()).sum(),
+        }
+    }
+    fn get(&self, j: usize) -> (&Lift, &FC) {
+        match self {
+            Args::One(l, a) => (l, &a[j]),
+            Args::Many(v) => {
+                let mut j = j;
+                for (l, a) in v {
+                    if j < a.len() {
+                        return (l, &a[j]);
+                    }
+                    j -= a.len();
+                }
+                panic!("index out of bounds")
+            }
+        }
+    }
+    /// [zlapp]: the new arguments come first.
+    fn prepend(&mut self, l: Lift, a: Rc<[FC]>) {
+        match self {
+            Args::One(l0, a0) => *self = Args::Many(vec![(l, a), (l0.clone(), a0.clone())]),
+            Args::Many(v) => v.insert(0, (l, a)),
+        }
+    }
+}
+
+#[derive(Clone)]
 enum Zl {
-    App(Vec<LF>),
+    App(Args),
     Proj(OVal),
-    Fix(LF, Rc<Vec<Zl>>),
+    Fix(LF, Vec<Zl>),
     Case(Rc<CaseData>, Lift),
     Primitive(OVal, Vec<LF>, Vec<(isize, LF)>),
 }
 
+const SMALL: usize = 32;
+
 /// Returns the pure stack, top first.
 fn pure_rec(lfts: &Lift, stk: &Stack) -> (Lift, Vec<Zl>) {
-    let elems = stk.to_refs();
+    /* The elements are processed from the bottom of the stack: collect
+       them, on the Rust stack for small stacks. */
+    let mut small: [Option<&Z>; SMALL] = [None; SMALL];
+    let mut spill: Vec<&Z> = Vec::new();
+    let mut n = 0;
+    let mut s = stk;
+    while let Some((z, tl)) = s.uncons() {
+        if n < SMALL {
+            small[n] = Some(z);
+        } else {
+            spill.push(z);
+        }
+        n += 1;
+        s = tl;
+    }
     let mut l = lfts.clone();
     let mut out: Vec<Zl> = vec![];
-    for z in elems.iter().rev() {
+    for i in (0..n).rev() {
+        let z = if i < SMALL { small[i].unwrap() } else { spill[i - SMALL] };
         match z {
             Z::Update(_) => (),
             Z::Shift(n) => l = el_shft(*n, &l),
             Z::App(a) => {
                 assert!(!a.is_empty());
-                let items: Vec<LF> = a.iter().map(|t| (l.clone(), t.clone())).collect();
                 if let Some(Zl::App(v2)) = out.last_mut() {
-                    let mut items = items;
-                    items.append(v2);
-                    *v2 = items;
+                    v2.prepend(l.clone(), a.clone());
                 } else {
-                    out.push(Zl::App(items));
+                    out.push(Zl::App(Args::One(l.clone(), a.clone())));
                 }
             }
             Z::Proj(p, _) => out.push(Zl::Proj(p.clone())),
             Z::Fix(fx, a) => {
                 let (lfx, pa) = pure_rec(&l, a);
-                out.push(Zl::Fix((lfx, fx.clone()), Rc::new(pa)));
+                out.push(Zl::Fix((lfx, fx.clone()), pa));
             }
             Z::CaseT(cd) => out.push(Zl::Case(cd.clone(), l.clone())),
             Z::Primitive(op, _, _, rargs, kargs) => {
@@ -477,11 +532,11 @@ pub struct Side {
 }
 
 /// The levels of a pair of pure stacks being compared by [cmp_rec], with
-/// the number of arguments preceding each level ([-1] when not relevant).
+/// the number of arguments preceding each level when there is a mask.
 pub struct Levels {
-    p1: Rc<Vec<Zl>>,
-    p2: Rc<Vec<Zl>>,
-    nargs: Vec<isize>,
+    p1: Vec<Zl>,
+    p2: Vec<Zl>,
+    nargs: Option<Vec<isize>>,
     mask: Option<OVal>,
 }
 
@@ -1239,38 +1294,131 @@ fn push_stacks(w: &mut Work, mask: Option<OVal>, infos: &CInfos, lft1: &Lift, lf
     if !compare_stack_shape(stk1, stk2) {
         return nc();
     }
+    /* Same shape: if [stk1] has no argument nor elimination, neither has
+       [stk2], and the pure stacks are empty. */
+    if is_empty_stack(stk1) {
+        return Ok(());
+    }
     let mask = match mask {
         Some(m) if m.size() > 0 => Some(m),
         _ => None,
     };
+    if only_apps(stk1) && only_apps(stk2) {
+        push_app_stacks(w, mask.as_ref(), infos, lft1, lft2, stk1, stk2);
+        return Ok(());
+    }
     let nargs = if mask.is_none() { -1 } else { 0 };
     let p1 = pure_stack(lft1, stk1);
     let p2 = pure_stack(lft2, stk2);
-    push_levels(w, infos, nargs, mask, Rc::new(p1), Rc::new(p2));
+    push_levels(w, infos, nargs, mask, p1, p2);
     Ok(())
 }
 
+/// Whether the stack only contains arguments, shifts and updates.
+fn only_apps(s: &Stack) -> bool {
+    let mut s = s;
+    while let Some((z, tl)) = s.uncons() {
+        match z {
+            Z::App(_) | Z::Shift(_) | Z::Update(_) => s = tl,
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// The arguments of a stack that only contains arguments, shifts and
+/// updates, from the top, each with the lift that [pure_rec] gives it:
+/// the initial one, shifted by the shifts below the argument.
+struct ArgCursor<'a> {
+    s: &'a Stack,
+    base: &'a Lift,
+    arr: Option<(&'a Rc<[FC]>, usize, Lift)>,
+    above: isize,
+    total: isize,
+}
+
+impl<'a> ArgCursor<'a> {
+    fn new(base: &'a Lift, s: &'a Stack) -> ArgCursor<'a> {
+        let mut total = 0;
+        let mut t = s;
+        while let Some((z, tl)) = t.uncons() {
+            if let Z::Shift(k) = z {
+                total += k;
+            }
+            t = tl;
+        }
+        ArgCursor { s, base, arr: None, above: 0, total }
+    }
+    fn next(&mut self) -> Option<(Lift, FC)> {
+        loop {
+            if let Some((a, i, l)) = &mut self.arr {
+                if *i < a.len() {
+                    let r = (l.clone(), a[*i].clone());
+                    *i += 1;
+                    return Some(r);
+                }
+                self.arr = None;
+            }
+            let (z, tl) = self.s.uncons()?;
+            match z {
+                Z::Shift(k) => self.above += k,
+                Z::Update(_) => (),
+                Z::App(a) => self.arr = Some((a, 0, el_shft(self.total - self.above, self.base))),
+                _ => unreachable!(),
+            }
+            self.s = tl;
+        }
+    }
+}
+
+/// [convert_stacks] on stacks that only contain arguments: [cmp_rec] then
+/// converts the arguments from the last one to the first one, skipping
+/// those masked out.
+fn push_app_stacks(w: &mut Work, mask: Option<&OVal>, infos: &CInfos, lft1: &Lift, lft2: &Lift, stk1: &Stack, stk2: &Stack) {
+    let mut c1 = ArgCursor::new(lft1, stk1);
+    let mut c2 = ArgCursor::new(lft2, stk2);
+    let mlen = mask.map_or(0, |m| m.size());
+    let mut j = 0;
+    while let Some((l1, t1)) = c1.next() {
+        let (l2, t2) = c2.next().expect("Invalid_argument");
+        let skip = match mask {
+            Some(m) => j < mlen && !m.field(j).as_bool(),
+            None => false,
+        };
+        if !skip {
+            w.push(Item::Ccnv { cv_pb: CONV, infos: infos.clone(), l1, t1, l2, t2 });
+        }
+        j += 1;
+    }
+    assert!(c2.next().is_none());
+}
+
 /// Start a [cmp_rec nargs p1 p2] traversal.
-fn push_levels(w: &mut Work, infos: &CInfos, nargs: isize, mask: Option<OVal>, p1: Rc<Vec<Zl>>, p2: Rc<Vec<Zl>>) {
+fn push_levels(w: &mut Work, infos: &CInfos, nargs: isize, mask: Option<OVal>, p1: Vec<Zl>, p2: Vec<Zl>) {
     let k = std::cmp::min(p1.len(), p2.len());
     if k == 0 {
         return;
     }
-    let mut nargsv: Vec<isize> = Vec::with_capacity(k);
-    let mut na = nargs;
-    for z in p1.iter().take(k) {
-        nargsv.push(na);
-        na = match z {
-            Zl::App(a) => {
-                if na < 0 {
-                    -1
-                } else {
-                    na + a.len() as isize
+    let nargsv = if nargs < 0 {
+        None
+    } else {
+        let mut v: Vec<isize> = Vec::with_capacity(k);
+        let mut na = nargs;
+        for z in p1.iter().take(k) {
+            v.push(na);
+            na = match z {
+                Zl::App(a) => {
+                    if na < 0 {
+                        -1
+                    } else {
+                        na + a.len() as isize
+                    }
                 }
-            }
-            _ => -1,
-        };
-    }
+                _ => -1,
+            };
+        }
+        Some(v)
+    };
     let lv = Rc::new(Levels { p1, p2, nargs: nargsv, mask });
     w.push(Item::Level { infos: infos.clone(), lv, i: k - 1 });
 }
@@ -1284,7 +1432,7 @@ fn level(w: &mut Work, _l2r: bool, infos: CInfos, lv: Rc<Levels>, i: usize, cuni
     if i > 0 {
         w.push(Item::Level { infos: infos.clone(), lv: lv.clone(), i: i - 1 });
     }
-    let nargs = lv.nargs[i];
+    let nargs = lv.nargs.as_ref().map_or(-1, |v| v[i]);
     match (&lv.p1[i], &lv.p2[i]) {
         (Zl::App(a1), Zl::App(a2)) => {
             if nargs < 0 && a1.len() != a2.len() {
@@ -1300,7 +1448,9 @@ fn level(w: &mut Work, _l2r: bool, infos: CInfos, lv: Rc<Levels>, i: usize, cuni
                         continue;
                     }
                 }
-                w.push(lf_item(&infos, &a1[j], &a2[j]));
+                let (l1, t1) = a1.get(j);
+                let (l2, t2) = a2.get(j);
+                w.push(ccnv_item(CONV, &infos, l1, l2, t1, t2));
             }
             Ok(cuniv)
         }
