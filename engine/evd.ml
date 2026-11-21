@@ -32,52 +32,18 @@ sig
   val equal : t -> t -> bool
   val identity : t
   val filter_list : t -> 'a list -> 'a list
-  val filter_array : t -> 'a array -> 'a array
   val filter_slist : t -> 'a SList.t -> 'a SList.t
-  val extend : int -> t -> t
-  val compose : t -> t -> t
-  val apply_subfilter : t -> bool list -> t
-  val restrict_upon : t -> int -> (int -> bool) -> t option
-  val map_along : (bool -> 'a -> bool) -> t -> 'a list -> t
+  val restrict_upon : int -> (int -> bool) -> t option
   val make : bool list -> t
   val repr :  t -> bool list option
-
-  type compact =
-  | Empty
-  | TCons of int * compact
-  | FCons of int * compact
-
-  val unfold : t -> compact option
-
 end =
 struct
 
-  type compact =
-  | Empty
-  | TCons of int * compact
-  | FCons of int * compact
-
-  let rec compact l = match l with
-  | [] -> Empty
-  | true :: l ->
-    begin match compact l with
-    | TCons (n, c) -> TCons (n + 1, c)
-    | (Empty | FCons _ as c) -> TCons (1, c)
-    end
-  | false :: l ->
-    begin match compact l with
-    | FCons (n, c) -> FCons (n + 1, c)
-    | (Empty | TCons _ as c) -> FCons (1, c)
-    end
-
-  type t = {
-    data : bool list option;
-    compact : compact;
-  }
+  type t = bool list option
   (** We guarantee through the interface that if a filter is [Some _] then it
       contains at least one [false] somewhere. *)
 
-  let identity = { data = None; compact = Empty }
+  let identity = None
 
   let rec equal l1 l2 = match l1, l2 with
   | [], [] -> true
@@ -85,7 +51,7 @@ struct
     (if h1 then h2 else not h2) && equal l1 l2
   | _ -> false
 
-  let equal l1 l2 = match l1.data, l2.data with
+  let equal l1 l2 = match l1, l2 with
   | None, None -> true
   | Some _, None | None, Some _ -> false
   | Some l1, Some l2 -> equal l1 l2
@@ -95,19 +61,15 @@ struct
   | true :: l -> is_identity l
   | false :: _ -> false
 
-  let normalize f =
+  let make f =
     if is_identity f then identity
-    else { data = Some f; compact = compact f }
+    else Some f
 
-  let filter_list f l = match f.data with
+  let filter_list f l = match f with
   | None -> l
   | Some f -> CList.filter_with f l
 
-  let filter_array f v = match f.data with
-  | None -> v
-  | Some f -> CArray.filter_with f v
-
-  let filter_slist f l = match f.data with
+  let filter_slist f l = match f with
   | None -> l
   | Some f ->
     let rec filter f l = match f, SList.view l with
@@ -118,69 +80,12 @@ struct
     in
     filter f l
 
-  let rec extend n l =
-    if n = 0 then l
-    else extend (pred n) (true :: l)
+  let restrict_upon len p =
+    let newfilter = List.init len p in
+    if List.for_all (fun b -> b) newfilter then None
+    else Some (Some newfilter)
 
-  let extend n f =  match f.data with
-  | None -> identity
-  | Some f0 ->
-    let compact = match f.compact with
-    | Empty -> assert false
-    | TCons (m, c) -> TCons (n + m, c)
-    | c -> TCons (n, c)
-    in
-    { data = Some (extend n f0); compact }
-
-  let compose f1 f2 = match f1.data with
-  | None -> f2
-  | Some f1 ->
-    match f2.data with
-    | None -> identity
-    | Some f2 -> normalize (CList.filter_with f1 f2)
-
-  let apply_subfilter_array filter subfilter =
-    (* In both cases we statically know that the argument will contain at
-       least one [false] *)
-    match filter.data with
-    | None ->
-      let l = Array.to_list subfilter in
-      { data = Some l; compact = compact l }
-    | Some f ->
-    let len = Array.length subfilter in
-    let fold b (i, ans) =
-      if b then
-        let () = assert (0 <= i) in
-        (pred i, Array.unsafe_get subfilter i :: ans)
-      else
-        (i, false :: ans)
-    in
-    let data = snd (List.fold_right fold f (pred len, [])) in
-    { data = Some data; compact = compact data }
-
-  let apply_subfilter filter subfilter =
-    apply_subfilter_array filter (Array.of_list subfilter)
-
-  let restrict_upon f len p =
-    let newfilter = Array.init len p in
-    if Array.for_all (fun id -> id) newfilter then None
-    else
-      Some (apply_subfilter_array f newfilter)
-
-  let map_along f flt l =
-    let ans = match flt.data with
-    | None -> List.map (fun x -> f true x) l
-    | Some flt -> List.map2 f flt l
-    in
-    normalize ans
-
-  let make l = normalize l
-
-  let repr f = f.data
-
-  let unfold f = match f.data with
-  | None -> None
-  | Some _ -> Some f.compact
+  let repr f = f
 
 end
 
@@ -220,7 +125,6 @@ type 'a evar_info = {
   evar_concl : ('a, constr) when_undefined;
   evar_hyps : named_context_val;
   evar_body : 'a evar_body;
-  evar_filter : Filter.t;
   evar_abstract_arguments : ('a, Abstraction.t) when_undefined;
   evar_source : Evar_kinds.t Loc.located;
   evar_candidates : ('a, constr list option) when_undefined; (* if not None, list of allowed instances *)
@@ -235,14 +139,11 @@ let instance_mismatch () =
 let evar_concl evi = match evi.evar_concl with
 | Undefined c -> c
 
-let evar_filter evi = evi.evar_filter
-
 let evar_body evi = evi.evar_body
 
 let evar_context evi = named_context_of_val evi.evar_hyps
 
-let evar_filtered_context evi =
-  Filter.filter_list (evar_filter evi) (evar_context evi)
+let evar_filtered_context = evar_context
 
 let evar_candidates evi = match evi.evar_candidates with
 | Undefined c -> c
@@ -254,30 +155,15 @@ let evar_relevance evi = evi.evar_relevance
 
 let evar_hyps evi = evi.evar_hyps
 
-let evar_filtered_hyps evi = match Filter.repr (evar_filter evi) with
-| None -> evar_hyps evi
-| Some filter ->
-  let rec make_hyps filter ctxt = match filter, match_named_context_val ctxt with
-  | [], None -> empty_named_context_val
-  | false :: filter, Some (_, _,  ctxt) -> make_hyps filter ctxt
-  | true :: filter, Some (status, decl, ctxt) ->
-    let hyps = make_hyps filter ctxt in
-    push_named_context_val status decl hyps
-  | _ -> instance_mismatch ()
-  in
-  make_hyps filter (evar_hyps evi)
+let evar_filtered_hyps = evar_hyps
 
 let evar_env env evi =
   Environ.reset_with_named_context evi.evar_hyps env
 
-let evar_filtered_env env evi = Environ.reset_with_named_context (evar_filtered_hyps evi) env
+let evar_filtered_env = evar_env
 
 let evar_identity_subst evi =
-  let len = match Filter.repr evi.evar_filter with
-  | None -> List.length @@ Environ.named_context_of_val evi.evar_hyps
-  | Some f -> List.count (fun b -> b) f
-  in
-  SList.defaultn len SList.empty
+  SList.defaultn (Environ.nb_named evi.evar_hyps) SList.empty
 
 let map_evar_body (type a) f : a evar_body -> a evar_body = function
   | Evar_empty -> Evar_empty
@@ -299,35 +185,15 @@ exception NotInstantiatedEvar
 
 (* Note: let-in contributes to the instance *)
 let evar_instance_array empty push info args =
-  let rec instrec pos filter args = match filter with
-  | Filter.Empty -> if SList.is_empty args then empty else instance_mismatch ()
-  | Filter.TCons (n, filter) -> instpush pos n filter args
-  | Filter.FCons (n, filter) -> instrec (pos + n) filter args
-  and instpush pos n filter args =
-    if n <= 0 then instrec pos filter args
-    else match args with
-    | SList.Nil -> assert false
-    | SList.Cons (c, args) ->
-      let d = Environ.lookup_named_ctxt_pos pos info.evar_hyps in
-      let id = NamedDecl.get_id d in
-      push id c (instpush (pos + 1) (n - 1) filter args)
-    | SList.Default (m, args) ->
-      if m <= n then instpush (pos + m) (n - m) filter args
-      else instrec (pos + n) filter (SList.defaultn (m - n) args)
+  let rec instance pos args = match args with
+  | SList.Nil -> empty
+  | SList.Cons (c, args) ->
+    let d = Environ.lookup_named_ctxt_pos pos info.evar_hyps in
+    let id = NamedDecl.get_id d in
+    push id c (instance (pos + 1) args)
+  | SList.Default (n, args) -> instance (pos + n) args
   in
-  match Filter.unfold (evar_filter info) with
-  | None ->
-    let rec instance pos args = match args with
-    | SList.Nil -> empty
-    | SList.Cons (c, args) ->
-      let d = Environ.lookup_named_ctxt_pos pos info.evar_hyps in
-      let id = NamedDecl.get_id d in
-      push id c (instance (pos + 1) args)
-    | SList.Default (n, args) -> instance (pos + n) args
-    in
-    instance 0 args
-  | Some filter ->
-    instrec 0 filter args
+  instance 0 args
 
 let make_evar_instance_array info args =
   if SList.is_default args then []
@@ -537,7 +403,7 @@ let replace_vars sigma var_alist x =
       end
     | Constr.Evar (evk, args) ->
       let EvarInfo evi = find sigma evk in
-      let args' = substrec_instance n (evar_filtered_context evi) args in
+      let args' = substrec_instance n (evar_context evi) args in
       if args' == args then c
       else Constr.mkEvar (evk, args')
     | _ -> Constr.map_with_binders succ substrec n c
@@ -561,6 +427,27 @@ let replace_vars sigma var_alist x =
     in
     substrec 0 x
 
+
+let filter_hyps sigma filter hyps = match Filter.repr filter with
+| None -> hyps, []
+| Some filter ->
+  let rec make_hyps filter ctxt = match filter, match_named_context_val ctxt with
+  | [], None -> empty_named_context_val, []
+  | false :: filter, Some (_, decl,  ctxt) ->
+    let hyps, subst = make_hyps filter ctxt in
+    let subst = match decl with
+    | LocalAssum _ -> subst
+    | LocalDef (id, c, _) -> (id.binder_name, replace_vars sigma subst c) :: subst
+    in
+    hyps, subst
+  | true :: filter, Some (status, decl, ctxt) ->
+    let hyps, subst = make_hyps filter ctxt in
+    let decl = NamedDecl.map_constr (fun c -> replace_vars sigma subst c) decl in
+    push_named_context_val status decl hyps, subst
+  | _ -> instance_mismatch ()
+  in
+  make_hyps filter hyps
+
 let instantiate_evar_array sigma info c args =
   let inst = make_evar_instance_array info args in
   match inst with
@@ -575,7 +462,7 @@ let expand_existential sigma (evk, args) =
   | decl :: ctx, Some (None, args) -> mkVar (NamedDecl.get_id decl) :: expand ctx args
   | [], Some _ | _ :: _, None -> instance_mismatch ()
   in
-  expand (evar_filtered_context evi) args
+  expand (evar_context evi) args
 
 let expand_existential0 = expand_existential
 
@@ -784,7 +671,7 @@ let mkLEvar sigma (evk, args) =
     if isVarId (NamedDecl.get_id decl) arg then SList.default accu
     else SList.cons arg accu
   in
-  let args = List.fold_right2 fold (evar_filtered_context evi) args SList.empty in
+  let args = List.fold_right2 fold (evar_context evi) args SList.empty in
   mkEvar (evk, args)
 
 let is_relevance_irrelevant sigma r =
@@ -1376,11 +1263,13 @@ let pr_shelf evd =
 let new_pure_evar ?(src=default_source) ?(filter = Filter.identity) ~relevance
   ?(abstract_arguments = Abstraction.identity) ?candidates
   ?name ?parent ?(typeclass_candidate = false) ?(rrpat = false) sign evd typ =
+  let sign, subst = filter_hyps evd filter sign in
+  let typ = replace_vars evd subst typ in
+  let candidates = Option.map (List.map (replace_vars evd subst)) candidates in
   let evi = {
     evar_hyps = sign;
     evar_concl = Undefined typ;
     evar_body = Evar_empty;
-    evar_filter = filter;
     evar_abstract_arguments = Undefined abstract_arguments;
     evar_source = src;
     evar_candidates = Undefined candidates;
@@ -1441,10 +1330,14 @@ let define_with_evar evk body evd =
 let restrict evk filter ?candidates ?src evd =
   let evk' = new_untyped_evar () in
   let evar_info = EvMap.find evk evd.undf_evars in
-  let len = Environ.nb_named evar_info.evar_hyps in
-  let id_inst = Filter.filter_slist filter (SList.defaultn len SList.empty) in
+  let evar_hyps, subst = filter_hyps evd filter evar_info.evar_hyps in
+  let id_inst = SList.defaultn (Environ.nb_named evar_hyps) SList.empty in
+  let evar_concl = match evar_info.evar_concl with
+  | Undefined c -> Undefined (replace_vars evd subst c)
+  in
+  let candidates = Option.map (List.map (replace_vars evd subst)) candidates in
   let evar_info' =
-    { evar_info with evar_filter = filter;
+    { evar_info with evar_hyps; evar_concl;
       evar_candidates = Undefined candidates;
       evar_source = (match src with None -> evar_info.evar_source | Some src -> src);
     } in
@@ -1665,7 +1558,7 @@ let expand0 sigma h c =
       push decl c (expand ctx args)
     | [], Some _ | _ :: _, None -> instance_mismatch ()
     in
-    let args = expand (evar_filtered_context evi) args in
+    let args = expand (evar_context evi) args in
     mkEvar (evk, args)
   | _ -> Constr.map_with_binders lift aux h c
   in
@@ -1696,7 +1589,7 @@ let expand_instance ~skip (evi : undefined evar_info) h (args : Constr.t SList.t
       else SList.cons c args
     | [], Some _ | _ :: _, None -> instance_mismatch ()
     in
-    expand (evar_filtered_context evi) args
+    expand (evar_context evi) args
 
 end
 
@@ -1835,7 +1728,7 @@ module MiniEConstr = struct
             SList.cons_opt c (inst ctx args)
           | _ :: _, None | [], Some _ -> instance_mismatch ()
           in
-          let args' = inst (evar_filtered_context evi) args in
+          let args' = inst (evar_context evi) args in
           if args == args' then c else mkEvar (evk, args')
         end
       | Some info ->
@@ -1920,7 +1813,7 @@ let evars_of_named_context evd nc =
     nc
     ~init:Evar.Set.empty
 
-let evars_of_filtered_evar_info (type a) evd (evi : a evar_info) =
+let evars_of_evar_info (type a) evd (evi : a evar_info) =
   let concl = match evi.evar_concl with
   | Undefined c -> evars_of_term evd c
   | Defined -> Evar.Set.empty
@@ -1930,7 +1823,9 @@ let evars_of_filtered_evar_info (type a) evd (evi : a evar_info) =
        (match evi.evar_body with
        | Evar_empty -> Evar.Set.empty
        | Evar_defined b -> evars_of_term evd b)
-       (evars_of_named_context evd (evar_filtered_context evi)))
+       (evars_of_named_context evd (evar_context evi)))
+
+let evars_of_filtered_evar_info = evars_of_evar_info
 
 let drop_new_defined ~original sigma =
   NewProfile.profile "drop_new_defined" (fun () ->

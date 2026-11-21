@@ -1702,7 +1702,7 @@ let choose_less_dependent_instance evd term (evk, args) =
     if EConstr.eq_constr evd arg term then NamedDecl.get_id decl :: accu
     else accu
   in
-  let subst = get_subst [] (evar_filtered_context evi) args in
+  let subst = get_subst [] (evar_context evi) args in
   match subst with
   | [] -> None
   | id :: _ -> Some (Evd.define evk (mkVar id) evd)
@@ -1871,9 +1871,9 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
   let evi = Evd.find_undefined evd evk in
   let evi = nf_evar_info evd evi in
   let env_evar_unf = evar_env env_rhs evi in
-  let env_evar = evar_filtered_env env_rhs evi in
+  let env_evar = evar_env env_rhs evi in
   let sign = named_context_val env_evar in
-  let ctxt = evar_filtered_context evi in
+  let ctxt = evar_context evi in
   debug_ho_unification (fun () ->
      Pp.(str"rhs env: " ++ Termops.Internal.print_env env_rhs evd ++ fnl () ++
          str"evar env: " ++ Termops.Internal.print_env env_evar evd));
@@ -1942,6 +1942,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
             else evd, evty in
           (* XXX incorrect relevance *)
           let typeclass_candidate = Typeclasses.is_maybe_class_type env_evar evd evty in
+          let filter = Evarutil.close_filter evd sign evty filter in
           let (evd, evk) = new_pure_evar ~typeclass_candidate sign evd ~relevance:ERelevance.relevant evty ~filter in
           let EvarInfo evi = Evd.find evd evk in
           let instance = Evd.evar_identity_subst evi in
@@ -1996,11 +1997,10 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
          (* and we use typing to propagate this instantiation *)
          (* We avoid making an arbitrary choice by leaving candidates *)
          (* if both can work *)
-         let evi = Evd.find_undefined evd evk in
          let vid = mkVar id in
          let candidates = [inst; vid] in
            try
-             let evd, ev = Evarutil.restrict_evar evd evk (Evd.evar_filter evi) (Some candidates) in
+             let evd, ev = Evarutil.restrict_evar evd evk Evd.Filter.identity (Some candidates) in
              let evi = Evd.find_undefined evd ev in
                (match evar_candidates evi with
                | Some [t] ->

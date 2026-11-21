@@ -236,9 +236,9 @@ fun x : J' ?T ?p => match x with
                     end
      : J' ?T ?p -> nat
 where
-?T : [x : J' ?T ?p |- Type] (x cannot be used)
-?T0 : [x : J' ?T ?p |- Type] (x cannot be used)
-?p : [x : J' ?T ?p |- (?T * ?T0)%type] (x cannot be used)
+?T : [ |- Type]
+?T0 : [ |- Type]
+?p : [ |- (?T * ?T0)%type]
 File "./output/Cases.v", line 287, characters 33-45:
 The command has indeed failed with message:
 The constructor D' (in type J') is expected to be applied to 2 arguments (or

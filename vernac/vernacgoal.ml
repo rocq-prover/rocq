@@ -48,7 +48,7 @@ let current_combined = PrintingFlags.current
 
 let goal_repr sigma g =
   let EvarInfo evi = Evd.find sigma g in
-  let env = Evd.evar_filtered_env (Global.env ()) evi in
+  let env = Evd.evar_env (Global.env ()) evi in
   let concl = match Evd.evar_body evi with
   | Evd.Evar_empty -> Evd.evar_concl evi
   | Evd.Evar_defined b -> Retyping.get_type_of env sigma b
@@ -223,7 +223,7 @@ let process_dependent_evar q acc evm is_dependent e =
   | Evar_empty ->
     queue_term q true (Evd.evar_concl evi)
   | Evar_defined b ->
-    let env = Evd.evar_filtered_env (Global.env ()) evi in
+    let env = Evd.evar_env (Global.env ()) evi in
     queue_term q true (Retyping.get_type_of env evm b)
   in
   List.iter begin fun decl ->

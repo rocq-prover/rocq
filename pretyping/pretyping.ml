@@ -470,7 +470,7 @@ let adjust_evar_source sigma na c =
      | loc, Evar_kinds.QuestionMark ({ Evar_kinds.qm_name=Anonymous } as qm) ->
        let src = (loc,Evar_kinds.QuestionMark { qm with Evar_kinds.qm_name=na }) in
        (* Evd.update_source doesn't work for some reason, cf test bug_18260_1.v *)
-       let (sigma, evk') = Evd.restrict evk (evar_filter evi) ~src sigma in
+       let (sigma, evk') = Evd.restrict evk Filter.identity ~src sigma in
        sigma, mkEvar (evk',args)
      | _ -> sigma, c
      end
@@ -778,7 +778,7 @@ struct
               error_evar_not_found ?loc:locid !!env sigma id
       in
       let EvarInfo evi = Evd.find sigma evk in
-      let hyps = evar_filtered_context evi in
+      let hyps = evar_context evi in
       let sigma, args = pretype_instance self ~flags env sigma loc hyps evk inst in
       let c = mkLEvar sigma (evk, args) in
       let j = Retyping.get_judgment_of !!env sigma c in

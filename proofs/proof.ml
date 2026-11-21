@@ -299,7 +299,7 @@ let start_subproof gln p =
           let sigma, g' =
             Evd.new_pure_evar
               ~relevance:(Evd.evar_relevance evi)
-              (Evd.evar_filtered_hyps evi)
+              (Evd.evar_hyps evi)
               sigma
               (Evd.evar_concl evi)
           in
@@ -544,7 +544,7 @@ let solve ?with_end_tac env gi info_lvl tac pr =
 let get_goal_context_gen pf i =
   let { sigma; goals } = data pf in
   let goal = try List.nth goals (i-1) with Failure _ -> raise (NoSuchGoal None) in
-  let env = Evd.evar_filtered_env (Global.env ()) (Evd.find_undefined sigma goal) in
+  let env = Evd.evar_env (Global.env ()) (Evd.find_undefined sigma goal) in
   (sigma, env)
 
 let get_proof_context p =

@@ -47,7 +47,7 @@ let w_refine evk rawc env sigma =
       let () = assert (Evd.mem sigma evk) in
       user_err Pp.(str "Instantiate called on already-defined evar")
   in
-  let env = Evd.evar_filtered_env env evi in
+  let env = Evd.evar_env env evi in
   let sigma',typed_c =
     let flags = Pretyping.{
       use_coercions = true;

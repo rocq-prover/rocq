@@ -1970,7 +1970,7 @@ let w_merge env with_types flags (substn : subst0) =
 
   and mimick_undefined_evar metas0 evd flags hdc args sp =
     let ev = Evd.find_undefined evd sp in
-    let sp_env = reset_with_named_context (evar_filtered_hyps ev) env in
+    let sp_env = reset_with_named_context (evar_hyps ev) env in
     let (evd', c) = applyHead ~metas:metas0 sp_env evd hdc args in
     let { subst_sigma = evd''; subst_metas = mc; subst_evars = ec; subst_metam = metas0 } =
       unify_0 ~metas:metas0 sp_env evd' CUMUL flags

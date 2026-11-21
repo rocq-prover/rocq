@@ -568,7 +568,7 @@ let map_instance sigma f evk args =
   | [], Some _ | _ :: _, None -> assert false
   in
   let EvarInfo evi = Evd.find sigma evk in
-  let ctx = Evd.evar_filtered_context evi in
+  let ctx = Evd.evar_context evi in
   map ctx args
 
 let map sigma f c =

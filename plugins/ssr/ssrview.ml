@@ -331,7 +331,7 @@ Goal.enter_one ~__LOC__ begin fun g ->
   let sigma0 = Proofview.Goal.sigma s0 in
   let und0 = (* Unassigned evars in the initial goal *)
     let EvarInfo g0info = Evd.find sigma0 (Proofview.Goal.goal s0) in
-    let g0 = Evd.evars_of_filtered_evar_info sigma0 g0info in
+    let g0 = Evd.evars_of_evar_info sigma0 g0info in
     List.filter (fun k -> Evar.Set.mem k g0)
       (List.map fst (Evar.Map.bindings (Evd.undefined_map sigma0))) in
   let rigid = rigid_of und0 in

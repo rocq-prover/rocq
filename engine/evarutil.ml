@@ -232,7 +232,7 @@ let csubst_subst sigma { csubst_len = k; csubst_var = v; csubst_rel = s } c =
     begin try Id.Map.find id v with Not_found -> c end
   | Evar (evk, args) ->
     let EvarInfo evi = Evd.find sigma evk in
-    let args' = subst_instance n (evar_filtered_context evi) args in
+    let args' = subst_instance n (evar_context evi) args in
     if args' == args then c else Constr.mkEvar (evk, args') (* FIXME: preserve sharing *)
   | _ -> Constr.map_with_binders succ subst n c
 
@@ -398,6 +398,41 @@ let next_evar_name naming = match naming with
 | IntroFresh id -> Some (id, true)
 | IntroIdentifier id -> Some (id, false)
 
+let prune_dependents sigma needed f ctxt =
+  let rec prune = function
+  | [], [] -> Id.Set.empty, []
+  | b :: f, decl :: ctxt ->
+    let dropped, f = prune (f, ctxt) in
+    let id = NamedDecl.get_id decl in
+    let mentions_dropped () =
+      NamedDecl.fold_constr (fun c acc -> acc || not (Id.Set.is_empty (Id.Set.inter (collect_vars sigma c) dropped))) decl false
+    in
+    let tainted = mentions_dropped () in
+    let keep = b && (Id.Set.mem id needed || not tainted) in
+    let is_assum = match decl with LocalAssum _ -> true | LocalDef _ -> false in
+    (if keep || not (is_assum || tainted) then dropped else Id.Set.add id dropped), keep :: f
+  | _ -> assert false
+  in
+  snd (prune (f, ctxt))
+
+let close_filter sigma sign typ filter = match Filter.repr filter with
+| None -> filter
+| Some f ->
+  let ctxt = EConstr.named_context_of_val sign in
+  let rec needed_closure needed = function
+  | [] -> needed
+  | decl :: ctxt ->
+    let needed =
+      if Id.Set.mem (NamedDecl.get_id decl) needed then
+        NamedDecl.fold_constr (fun c vars -> Id.Set.union (collect_vars sigma c) vars) decl needed
+      else needed
+    in
+    needed_closure needed ctxt
+  in
+  let needed = needed_closure (collect_vars sigma typ) ctxt in
+  let f = List.map2 (fun b decl -> b || Id.Set.mem (NamedDecl.get_id decl) needed) f ctxt in
+  Filter.make (prune_dependents sigma needed f ctxt)
+
 (* [new_evar] declares a new existential in an env env with type typ *)
 (* Converting the env into the sign of the evar to define *)
 let new_evar ?src ?filter ?relevance ?abstract_arguments ?candidates ?(naming = IntroAnonymous) ?parent ?typeclass_candidate
@@ -406,6 +441,7 @@ let new_evar ?src ?filter ?relevance ?abstract_arguments ?candidates ?(naming = 
   let sign,typ',instance,subst = push_rel_context_to_named_context env evd typ in
   let map c = csubst_subst evd subst c in
   let candidates = Option.map (fun l -> List.map map l) candidates in
+  let filter = Option.map (close_filter evd sign typ') filter in
   let instance =
     match filter with
     | None -> instance
@@ -538,7 +574,7 @@ let rec check_and_clear_in_constr env evdref err ids ~global c =
                corresponding to e where hypotheses of ids have been
                removed *)
             let evi = Evd.find_undefined !evdref evk in
-            let ctxt = Evd.evar_filtered_context evi in
+            let ctxt = Evd.evar_context evi in
             let rec fold accu ctxt args = match ctxt, SList.view args with
             | [], Some _ | _ :: _, None -> assert false
             | [], None -> accu
@@ -573,15 +609,14 @@ let rec check_and_clear_in_constr env evdref err ids ~global c =
               let _nconcl : EConstr.t =
                 try
                   let nids = Id.Map.domain rids in
-                  let env = evar_filtered_env env evi in
+                  let env = evar_env env evi in
                   let global = Id.Set.exists (is_section_variable_env env) nids in
                   let concl = evar_concl evi in
                   check_and_clear_in_constr env evdref (EvarTypingBreak ev) nids ~global concl
                 with ClearDependencyError (rid,err,where) ->
                   raise (ClearDependencyError (Id.Map.find rid rids,err,where))
               in
-              let origfilter = Evd.evar_filter evi in
-              let filter = Evd.Filter.apply_subfilter origfilter filter in
+              let filter = Evd.Filter.make filter in
               let evd = !evdref in
               let candidates = Evd.evar_candidates evi in
               let (evd,_) = restrict_evar evd evk filter candidates in
@@ -710,7 +745,7 @@ let cached_evar_of_hyp cache sigma decl accu = match cache with
   in
   Evar.Set.fold Evar.Set.add evs accu
 
-let filtered_undefined_evars_of_evar_info (type a) ?cache sigma (evi : a evar_info) =
+let undefined_evars_of_evar_info (type a) ?cache sigma (evi : a evar_info) =
   let evars_of_named_context cache accu nc =
     let fold decl accu = cached_evar_of_hyp cache sigma (EConstr.of_named_decl decl) accu in
     Context.Named.fold_outside fold nc ~init:accu
@@ -719,8 +754,10 @@ let filtered_undefined_evars_of_evar_info (type a) ?cache sigma (evi : a evar_in
   | Evar_empty -> undefined_evars_of_term sigma (Evd.evar_concl evi)
   | Evar_defined b -> evars_of_term sigma b
   in
-  let ctxt = EConstr.Unsafe.to_named_context (evar_filtered_context evi) in
+  let ctxt = EConstr.Unsafe.to_named_context (evar_context evi) in
   evars_of_named_context cache accu ctxt
+
+let filtered_undefined_evars_of_evar_info = undefined_evars_of_evar_info
 
 (* spiwack: this is a more complete version of
    {!Termops.occur_evar}. The latter does not look recursively into an

@@ -786,7 +786,7 @@ let rec explain_evar_kind env sigma evk ty =
 let explain_typeclass_resolution env sigma evi k =
   match Typeclasses.class_of_constr env sigma (Evd.evar_concl evi) with
   | Some _ ->
-    let env = Evd.evar_filtered_env env evi in
+    let env = Evd.evar_env env evi in
       str "Could not find an instance for " ++
       pr_leconstr_env env sigma (Evd.evar_concl evi) ++
       pr_trailing_ne_context_of env sigma
@@ -803,7 +803,7 @@ let explain_placeholder_kind env sigma c e =
 
 let explain_unsolvable_implicit env sigma evk explain =
   let evi = Evarutil.nf_evar_info sigma (Evd.find_undefined sigma evk) in
-  let env = Evd.evar_filtered_env env evi in
+  let env = Evd.evar_env env evi in
   let type_of_hole = pr_leconstr_env env sigma (Evd.evar_concl evi) in
   let pe = pr_trailing_ne_context_of env sigma in
   strbrk "Cannot infer " ++

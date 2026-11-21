@@ -44,7 +44,7 @@ val generate_goal_names : unit -> bool
 module Filter :
 sig
   type t
-  (** Evar filters, seen as bitmasks. *)
+  (** Masks over a named context, used to restrict evars to a subcontext. *)
 
   val equal : t -> t -> bool
   (** Equality over filters *)
@@ -55,28 +55,12 @@ sig
   val filter_list : t -> 'a list -> 'a list
   (** Filter a list. Sizes must coincide. *)
 
-  val filter_array : t -> 'a array -> 'a array
-  (** Filter an array. Sizes must coincide. *)
-
   val filter_slist : t  -> 'a SList.t -> 'a SList.t
   (** Filter a sparse list. Sizes must coincide. *)
 
-  val extend : int -> t -> t
-  (** [extend n f] extends [f] on the left with [n]-th times [true]. *)
-
-  val compose : t -> t -> t
-  (** Horizontal composition : [compose f1 f2] only keeps parts of [f2] where
-      [f1] is set. In particular, [f1] and [f2] must have the same length. *)
-
-  val apply_subfilter : t -> bool list -> t
-  (** [apply_subfilter f1 f2] applies filter [f2] where [f1] is [true]. In
-      particular, the length of [f2] is the number of times [f1] is [true] *)
-
-  val restrict_upon : t -> int -> (int -> bool) -> t option
-  (** Ad-hoc primitive. *)
-
-  val map_along : (bool -> 'a -> bool) -> t -> 'a list -> t
-  (** Apply the function on the filter and the list. Sizes must coincide. *)
+  val restrict_upon : int -> (int -> bool) -> t option
+  (** [restrict_upon n p] is the filter of length [n] keeping the indices
+      satisfying [p], or [None] if it is the identity. *)
 
   val make : bool list -> t
   (** Create out of a list *)
@@ -130,11 +114,6 @@ val evar_candidates : undefined evar_info -> econstr list option
 
 val evar_source : 'a evar_info -> Evar_kinds.t located
 
-val evar_filter : 'a evar_info -> Filter.t
-(** Boolean mask over {!evar_hyps}. Should have the same length.
-    When filtered out, the corresponding variable is not allowed to occur
-    in the solution *)
-
 val evar_abstract_arguments : undefined evar_info -> Abstraction.t
 (** Boolean information over {!evar_hyps}, telling if an hypothesis instance
     can be imitated or should stay abstract in HO unification problems
@@ -145,11 +124,15 @@ val evar_relevance : 'a evar_info -> erelevance
 
 (** {6 Derived projections} *)
 
-val evar_filtered_context : 'a evar_info -> (econstr, etypes, erelevance) Context.Named.pt
-val evar_filtered_hyps : 'a evar_info -> named_context_val
 val evar_env : env -> 'a evar_info -> env
-val evar_filtered_env : env -> 'a evar_info -> env
 val evar_identity_subst : 'a evar_info -> econstr SList.t
+
+val evar_filtered_context : 'a evar_info -> (econstr, etypes, erelevance) Context.Named.pt
+[@@ocaml.deprecated "(9.4) Use [evar_context]."]
+val evar_filtered_hyps : 'a evar_info -> named_context_val
+[@@ocaml.deprecated "(9.4) Use [evar_hyps]."]
+val evar_filtered_env : env -> 'a evar_info -> env
+[@@ocaml.deprecated "(9.4) Use [evar_env]."]
 
 val map_evar_body : (econstr -> econstr) -> 'a evar_body -> 'a evar_body
 val map_evar_info : (econstr -> econstr) -> 'a evar_info -> 'a evar_info
@@ -211,7 +194,8 @@ val new_pure_evar :
   named_context_val -> evar_map -> etypes -> evar_map * Evar.t
 (** Low-level interface to create an evar.
   @param src User-facing source for the evar
-  @param filter See {!Evd.Filter}, must be the same length as [named_context_val]
+  @param filter See {!Evd.Filter}, must be the same length as [named_context_val].
+    The evar is created in the filtered context, as in {!restrict}.
   @param name A name for the evar
   @param named_context_val The context of the evar
   @param types The type of conclusion of the evar
@@ -331,7 +315,11 @@ val restrict : Evar.t-> Filter.t -> ?candidates:econstr list ->
   ?src:Evar_kinds.t located -> evar_map -> evar_map * Evar.t
 (** Restrict an undefined evar into a new evar by filtering context and
     possibly limiting the instances to a set of candidates (candidates
-    are filtered according to the filter) *)
+    are filtered according to the filter). The bodies of the local
+    definitions that are filtered out are inlined in the remaining
+    declarations, the conclusion and the candidates. The caller is
+    responsible for the filter not removing any other variable they
+    mention. *)
 
 val update_source : evar_map -> Evar.t -> Evar_kinds.t located -> evar_map
 (** To update the source a posteriori, e.g. when an evar type of
@@ -536,7 +524,10 @@ val evars_of_term : evar_map -> econstr -> Evar.Set.t
 
 val evars_of_named_context : evar_map -> (econstr, etypes, erelevance) Context.Named.pt -> Evar.Set.t
 
+val evars_of_evar_info : evar_map -> 'a evar_info -> Evar.Set.t
+
 val evars_of_filtered_evar_info : evar_map -> 'a evar_info -> Evar.Set.t
+[@@ocaml.deprecated "(9.4) Use [evars_of_evar_info]."]
 
 (** {5 FIXME: Nothing to do here} *)
 

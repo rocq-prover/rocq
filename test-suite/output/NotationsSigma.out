@@ -21,7 +21,7 @@
 {'(x, _) : nat * ?T | x = 1}
      : Type
 where
-?T : [pat : nat * ?T |- Type] (pat cannot be used)
+?T : [ |- Type]
 {'(x, y) : nat * nat | x = 1 & y = 0}
      : Set
 {'(x, _) : nat * nat | x = 1}
@@ -31,7 +31,7 @@ where
 {'(x, _) : nat * ?T & x = 1}
      : Type
 where
-?T : [pat : nat * ?T |- Type] (pat cannot be used)
+?T : [ |- Type]
 {'(x, y) : nat * nat & x = 1 & y = 0}
      : Type
 {'(x, _) : nat * nat & x = 1}

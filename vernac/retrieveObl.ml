@@ -168,7 +168,7 @@ let evar_dependencies evm oev =
     Evar.Set.fold
       (fun ev s ->
         let evi = Evd.find_undefined evm ev in
-        let deps' = Evd.evars_of_filtered_evar_info evm evi in
+        let deps' = Evd.evars_of_evar_info evm evi in
         if Evar.Set.mem oev deps' then
           invalid_arg
             ( "Ill-formed evar map: cycle detected for evar "
@@ -236,7 +236,7 @@ let retrieve_obligations env name evm fs ?deps ?status t ty =
     (* Remove existential variables in types and build the corresponding products *)
     List.fold_right
       (fun (id, (n, nstr), ev) evs ->
-        let hyps = Evd.evar_filtered_context ev in
+        let hyps = Evd.evar_context ev in
         (* XXX ignore vars based on secvar status + names of recursive functions
            instead of length of global context + number of recursive functions *)
         let hyps = trunc_named_context nc_len hyps in

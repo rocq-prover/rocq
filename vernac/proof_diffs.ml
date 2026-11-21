@@ -235,7 +235,7 @@ type goal = { ty: EConstr.t; env : Environ.env; sigma : Evd.evar_map; }
 (* open Proofview *)
 let make_goal env sigma g =
   let evi = Evd.find_undefined sigma g in
-  let env = Evd.evar_filtered_env env evi in
+  let env = Evd.evar_env env evi in
   let ty  = Evd.evar_concl evi in
   { ty; env; sigma }
 

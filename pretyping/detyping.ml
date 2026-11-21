@@ -882,7 +882,7 @@ and detype_r d flags avoid env sigma t =
           in
           let info = Evd.find_undefined sigma evk in
           let cl = Evd.expand_existential sigma (evk, cl) in
-          let ctx = Evd.evar_filtered_context info in
+          let ctx = Evd.evar_context info in
           let get_instance f =
             let fold d c acc = if f d c then acc else (get_id d, c) :: acc in
             List.fold_right2 fold ctx cl []
