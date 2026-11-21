@@ -80,6 +80,7 @@ Definition bad_norm :=
   m.[1 <- m.[1].[0 <- true]].[0 <- m.[0]].
 
 Goal True.
+Proof.
   let x := eval lazy in bad_norm in
-    constr_eq x [| [| false | false : bool |]; [| true | false : bool |] | [| false | false : bool |] : array bool |].
+    constr_eq x [| [| false | false |]; [| true | false |] | [| false | false |] |].
 Abort.
