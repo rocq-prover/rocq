@@ -69,13 +69,18 @@ let out fmt = Printf.fprintf ch fmt in
 let ndata = Array.length data_files in
 
 let totals = Array.fold_left (fun acc (_,data) ->
-    Array.map2 (fun acc d -> Q.add acc d.time.q) acc data)
+    match data with
+    | None -> acc
+    | Some data -> Array.map2 (fun acc d -> Q.add acc d.time.q) acc data)
     (Array.make ndata Q.zero)
     all_data
 in
 
 let maxtime =
   Array.fold_left (fun max (_,data) ->
+      match data with
+      | None -> max
+      | Some data ->
       Array.fold_left (fun max d ->
           let dq = d.time.q in
           if Q.lt max dq then dq
@@ -87,6 +92,9 @@ in
 
 let maxheap =
   Array.fold_left (fun max (_,data) ->
+      match data with
+      | None -> max
+      | Some data ->
       Array.fold_left (fun max d ->
           Option.fold_left (fun max mem ->
               Option.fold_left (fun max heap -> Stdlib.max max heap)
@@ -182,17 +190,19 @@ let line_id fmt l =
 in
 
 let () = all_data |> Array.iteri (fun j (loc,data) ->
-    let () = out {|<div class="code" title="File: %s
+    let () = out {|<div class="code"|} in
+    let () = if Option.has_some data then
+        out {| title="File: %s
 Line: %d
 
 |} vname loc.line
     in
-    let () = data |> Array.iteri (fun k d ->
+    let () = data |> Option.iter @@ Array.iteri (fun k d ->
         out "Time%d: %ss%a%a\n" (k+1) d.time.str pp_instr d.instructions pp_memory d.memory)
     in
     let () = out {|">|} in
 
-    let () = data |> Array.iteri (fun k d ->
+    let () = data |> Option.iter @@ Array.iteri (fun k d ->
         out {|<div class="measure%d time" style="width: %f%%"></div>|}
           (k+1)
           (percentage d.time.q ~max:maxtime);
@@ -234,6 +244,7 @@ in
 
 let raw_output ch ~min_diff all_data =
   all_data |> Array.iteri @@ fun j (loc,data) ->
+  data |> Option.iter @@ fun data ->
   let d1, d2 = match data with
     | [|d1; d2|] -> d1, d2
     | _ -> die "-raw-o only supports 2 data files, got %d" (Array.length data)
