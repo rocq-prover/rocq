@@ -28,6 +28,10 @@ type 'a check_function = t -> 'a -> 'a -> bool
 val check_leq : Universe.t check_function
 val check_eq : Universe.t check_function
 
+val with_check_cache : (unit -> 'a) -> 'a
+(** [with_check_cache f] runs [f ()] keeping the answers of the checks in the graphs, for the
+  typechecking of the kernel, see [Loop_checking.with_check_cache] *)
+
 (** The initial graph of universes: Prop < Set *)
 val initial_universes : t
 

@@ -61,6 +61,8 @@ let check_leq g u u' =
 let check_eq g u v =
   type_in_type g || Universe.equal u v || graph_check_eq g u v
 
+let with_check_cache = G.with_check_cache
+
 let empty_universes = {
   graph=G.empty;
   type_in_type=false;
