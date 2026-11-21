@@ -1275,16 +1275,33 @@ let unfold_match env sigma sk app =
 
 let is_rew_cast = function RewCast _ -> true | _ -> false
 
+let dependent_arguments env sigma m args =
+  let n = Array.length args in
+  let deps = Array.make n false in
+  let rec aux ty i =
+    if i < n then
+      let ty = Reductionops.whd_all env sigma ty in
+      match EConstr.kind sigma ty with
+      | Prod (_, _, b) ->
+        let b = Reductionops.nf_betaiota env sigma b in
+        let () = deps.(i) <- not (noccurn sigma 1 b) in
+        aux (subst1 args.(i) b) (i + 1)
+      | _ -> ()
+  in
+  let () = aux (Retyping.get_type_of env sigma m) 0 in
+  deps
+
 let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
   let aux { state ; env ; ext_ctx ; unfresh ;
                 term1 = t ; ty1 = ty ; cstr = (prop, cstr) ; evars } =
     let cstr' = Option.map (fun c -> (ty, Some c)) cstr in
       match EConstr.kind (goalevars evars) t with
       | App (m, args) ->
+          let deps = lazy (dependent_arguments env (goalevars evars) m args) in
           let rewrite_args state success =
             let state, (args', evars', progress) =
-              Array.fold_left
-                (fun (state, (acc, evars, progress)) arg ->
+              Array.fold_left_i
+                (fun i (state, (acc, evars, progress)) arg ->
                   if not (Option.is_empty progress) && not all then
                     state, (None :: acc, evars, progress)
                   else
@@ -1300,7 +1317,10 @@ let subterm all flags (s : 'a pure_strategy) : 'a pure_strategy =
                         let progress = if Option.is_empty progress then Some false else progress in
                           (None :: acc, evars, progress)
                       | Success r ->
-                        (Some r :: acc, r.rew_evars, Some true)
+                        if not (is_rew_cast r.rew_prf) && (Lazy.force deps).(i) then
+                          (None :: acc, evars, progress)
+                        else
+                          (Some r :: acc, r.rew_evars, Some true)
                       | Fail -> (None :: acc, evars, progress)
                     in state, res')
                 (state, ([], evars, success)) args
