@@ -417,8 +417,13 @@ let abs_evars env sigma0 ?(rigid = []) (sigma, c0) =
     Evarutil.nf_evar sigma t in
   let rec put evlist c = match EConstr.kind sigma c with
   | Evar (k, a) ->
-    if List.mem_assoc k evlist || Evd.mem sigma0 k || List.mem k rigid then evlist else
-    let n = max 0 (SList.length a - nenv) in
+    if Evd.mem sigma0 k || List.mem k rigid then evlist else
+    let n = match List.assoc_opt k evlist with
+    | Some (n, _) -> n
+    | None -> max 0 (SList.length a - nenv) in
+    let args = CList.firstn n (Evd.expand_existential sigma (k, a)) in
+    let evlist = List.fold_left put evlist args in
+    if List.mem_assoc k evlist then evlist else
     let t = abs_evar n k in (k, (n, t)) :: put evlist t
   | _ -> EConstr.fold sigma put evlist c in
   let evlist = put [] c0 in
