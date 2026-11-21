@@ -1,0 +1,3 @@
+File "./output/bug_20927.v", line 2, characters 0-95:
+The command has indeed failed with message:
+Cannot find core.JMeq.type; maybe library Stdlib.Logic.JMeq has to be required first.
