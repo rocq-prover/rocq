@@ -153,7 +153,9 @@ let whd_decompose_lambda_decls ?evars env =
   in
   lamec_rec env Context.Rel.empty
 
-let whd_decompose_lambda_n_assum ?evars env n =
+exception NotEnoughLambda
+
+let whd_decompose_lambda_n_assum_gen ?evars env n =
   let rec lamec_rec env n l c =
     if Int.equal n 0 then l,c
     else
@@ -168,10 +170,19 @@ let whd_decompose_lambda_n_assum ?evars env n =
     | _               ->
         let c' = whd_all ?evars env c in
         if not (isLambda c' || isLetIn c') then
-          anomaly (Pp.str "whd_decompose_lambda_n_assum: not enough abstractions")
+          raise_notrace NotEnoughLambda
         else lamec_rec env n l c'
   in
   lamec_rec env n Context.Rel.empty
+
+let whd_decompose_lambda_n_assum ?evars env n t =
+  try whd_decompose_lambda_n_assum_gen ?evars env n t
+  with NotEnoughLambda -> anomaly (Pp.str "whd_decompose_lambda_n_assum: not enough abstractions")
+
+let whd_decompose_lambda_n_assum_opt ?evars env n t =
+  try Some (whd_decompose_lambda_n_assum_gen ?evars env n t)
+  with NotEnoughLambda -> None
+
 
 exception NotArity
 
