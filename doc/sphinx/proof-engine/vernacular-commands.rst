@@ -170,6 +170,13 @@ described elsewhere
       once in the pattern, all occurrences in the subterm must be
       identical.  See :ref:`this example <search-pattern>`.
 
+      .. flag:: Search Mod Unfolding
+
+        This :term:`flag` makes :cmd:`Search` match patterns modulo
+        unfolding of constants (i.e. modulo delta-reduction).
+        Repeated :n:`?@ident` occurrences also match if they
+        are identical modulo unfolding. It is off by default.
+
    :n:`@string {? % @scope_key }`
       - If :n:`@string` is a substring of a valid identifier and no
         :n:`% @scope_key` is provided, search for objects whose name

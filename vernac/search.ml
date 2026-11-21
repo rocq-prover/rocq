@@ -290,6 +290,9 @@ let string_contains_upto ?limit ~pattern s =
     let d = CString.edit_distance_substring ~limit:(limit+1) ~pattern s in
      d <= limit
 
+let { Goptions.get = search_mod_unfolding } =
+  Goptions.declare_bool_option_and_ref ~key:["Search";"Mod";"Unfolding"] ~value:false ()
+
 let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> match query with
 | GlobSearchSubPattern (where,head,pat,subterm_cache) ->
   let open Context.Rel.Declaration in
@@ -304,8 +307,9 @@ let search_filter : _ -> filter_function = fun query gr kind env sigma typ -> ma
   | Anywhere -> if head then let hyps, ccl = collect env [] typ in ccl :: hyps else [env,typ] in
   List.exists (fun (env,typ) ->
       let f =
-        if head then Constr_matching.is_matching_head
-        else Constr_matching.is_matching_appsubterm_cached (Option.get subterm_cache) in
+        let mod_unfolding = search_mod_unfolding () in
+        if head then Constr_matching.is_matching_head ~mod_unfolding
+        else Constr_matching.is_matching_appsubterm_cached ~mod_unfolding (Option.get subterm_cache) in
       f env sigma pat (EConstr.of_constr typ)) typl
 | GlobSearchString s -> string_contains_upto ~pattern:s (name_of_reference gr)
 | GlobSearchKind k -> (match kind with None -> false | Some k' -> k = k')

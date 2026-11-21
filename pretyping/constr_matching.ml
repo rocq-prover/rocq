@@ -58,11 +58,11 @@ let warn_meta_collision =
             strbrk " and a metavariable of same name.")
 
 
-let constrain sigma n (ids, m) ((names,seen as names_seen), terms as subst) =
+let constrain env sigma mod_unfolding n (ids, m) ((names,seen as names_seen), terms as subst) =
   let open EConstr in
   try
     let (ids', m') = Id.Map.find n terms in
-    if List.equal Id.equal ids ids' && eq_constr sigma m m' then subst
+    if List.equal Id.equal ids ids' && (if mod_unfolding then eq_constr_mod_unfolding env sigma m m' else eq_constr sigma m m') then subst
     else raise PatternMatchingFailure
   with Not_found ->
     let () = if Id.Map.mem n names then warn_meta_collision n in
@@ -216,7 +216,7 @@ let rec match_under_common_fix_binders sorec sigma binding_vars ctx ctx' env env
   | _ ->
      sorec ctx' env' (sorec ctx env subst t1 t2) b1 b2
 
-let merge_binding sigma allow_bound_rels ctx n cT subst =
+let merge_binding env sigma allow_bound_rels mod_unfolding ctx n cT subst =
   let c = match ctx with
   | [] -> (* Optimization *)
     ([], cT)
@@ -235,9 +235,9 @@ let merge_binding sigma allow_bound_rels ctx n cT subst =
         ([], Vars.lift (- depth) cT)
       else raise PatternMatchingFailure
   in
-  constrain sigma n c subst
+  constrain env sigma mod_unfolding n c subst
 
-let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
+let matches_core env sigma allow_bound_rels ?(mod_unfolding=false) (binding_vars, pat) c =
   let open EConstr in
   let rec sorec ctx env subst p t = match p, EConstr.kind sigma t with
   | _, Cast (t, _, _) -> sorec ctx env subst p t
@@ -251,11 +251,11 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     let relargs, relset = List.fold_left fold ([], Int.Set.empty) args in
     let frels = free_rels sigma t in
     if Int.Set.subset frels relset then
-      constrain sigma n ([], build_lambda sigma relargs ctx t) subst
+      constrain env sigma mod_unfolding n ([], build_lambda sigma relargs ctx t) subst
     else
       raise PatternMatchingFailure
 
-  | PMeta (Some n), _ -> merge_binding sigma allow_bound_rels ctx n t subst
+  | PMeta (Some n), _ -> merge_binding env sigma allow_bound_rels mod_unfolding ctx n t subst
 
   | PMeta None, _ -> subst
 
@@ -268,8 +268,24 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     else raise PatternMatchingFailure
 
   | PRef (GlobRef.ConstRef cst1), Const (cst2, _) ->
-    if Environ.QConstant.equal env cst1 cst2 then subst
-    else raise PatternMatchingFailure
+    if Environ.QConstant.equal env cst1 cst2 then
+      subst
+    else if mod_unfolding then
+      (* unfold both consts *)
+      let constant1 = EConstr.lookup_constant env sigma cst1 in
+      (match constant1.const_body with
+      | Declarations.Def pdef ->
+        let constant2 = EConstr.lookup_constant env sigma cst2 in
+        (match constant2.const_body with
+        | Declarations.Def tdef ->
+          if eq_constr_mod_unfolding env sigma (EConstr.of_constr pdef) (EConstr.of_constr tdef) then
+            subst
+          else
+            raise PatternMatchingFailure
+        | _ -> raise PatternMatchingFailure)
+      | _ -> raise PatternMatchingFailure)
+    else
+      raise PatternMatchingFailure
 
   | PRef (GlobRef.IndRef ind1), Ind (ind2, _) ->
     if Environ.QInd.equal env ind1 ind2 then subst
@@ -299,7 +315,7 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
       let c = mkApp (c2, args21) in
       let subst = match meta with
       | None -> subst
-      | Some n -> merge_binding sigma allow_bound_rels ctx n c subst
+      | Some n -> merge_binding env sigma allow_bound_rels mod_unfolding ctx n c subst
       in
       Array.fold_left2 (sorec ctx env) subst args1 args22
     else begin match EConstr.kind sigma c2 with
@@ -458,6 +474,23 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     let () = if not (Int.equal (Array.length pt) (Array.length t)) then raise PatternMatchingFailure in
     sorec ctx env (sorec ctx env (Array.fold_left2 (sorec ctx env) subst pt t) pdef def) pty ty
 
+  | PRef (GlobRef.ConstRef cst), _ when mod_unfolding ->
+    let constant = EConstr.lookup_constant env sigma cst in
+    (match constant.const_body with
+    | Declarations.Def def ->
+      if eq_constr_mod_unfolding env sigma (EConstr.of_constr def) t then
+        subst
+      else
+        raise PatternMatchingFailure
+    | _ -> raise PatternMatchingFailure)
+
+  | _, Const (cst, _) when mod_unfolding ->
+    let constant = EConstr.lookup_constant env sigma cst in
+    (match constant.const_body with
+    | Declarations.Def c ->
+      sorec ctx env subst p (EConstr.of_constr c)
+    | _ -> raise PatternMatchingFailure)
+
   | (PRef _ | PVar _ | PRel _ | PApp _ | PProj _ | PLambda _
       | PProd _ | PLetIn _ | PSort _ | PIf _ | PCase _
       | PFix _ | PCoFix _| PEvar _ | PInt _ | PFloat _
@@ -468,16 +501,16 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
   in
   sorec [] env ((Id.Map.empty, Id.Set.empty), Id.Map.empty) pat c
 
-let matches_core_closed env sigma pat c =
-  let names, subst = matches_core env sigma false pat c in
+let matches_core_closed env sigma mod_unfolding pat c =
+  let names, subst = matches_core env sigma false ~mod_unfolding pat c in
   (fst names, Id.Map.map snd subst)
 
 let extended_matches env sigma pat c =
-  let (names,_), subst = matches_core env sigma true pat c in
+  let (names,_), subst = matches_core env sigma true ~mod_unfolding:false pat c in
   names, subst
 
-let matches env sigma pat c =
-  snd (matches_core_closed env sigma (Id.Set.empty,pat) c)
+let matches ?(mod_unfolding=false) env sigma pat c =
+  snd (matches_core_closed env sigma mod_unfolding (Id.Set.empty,pat) c)
 
 type context = constr Lazy.t
 
@@ -498,7 +531,7 @@ let mkresult s c n = IStream.Cons ( { m_sub=s; m_ctx=c; } , (IStream.thunk n) )
 
 let isPMeta = function PMeta _ -> true | _ -> false
 
-let matches_head env sigma pat c =
+let matches_head ?(mod_unfolding=false) env sigma pat c =
   let open EConstr in
   let head =
     match pat, EConstr.kind sigma c with
@@ -508,12 +541,12 @@ let matches_head env sigma pat c =
         if n1 < Array.length arg2 then mkApp (c2,Array.sub arg2 0 n1) else c
     | c1, App (c2,arg2) when not (isPMeta c1) -> c2
     | _ -> c in
-  matches env sigma pat head
+  matches ~mod_unfolding env sigma pat head
 
 (* Tells if it is an authorized occurrence and if the instance is closed *)
 let authorized_occ env sigma closed pat c mk_ctx =
   try
-    let subst = matches_core_closed env sigma pat c in
+    let subst = matches_core_closed env sigma false pat c in
     if closed && Id.Map.exists (fun _ c -> not (closed0 sigma c)) (snd subst)
     then (fun next -> next ())
     else (fun next -> mkresult subst (lazy (mk_ctx (mkMeta special_meta))) next)
@@ -640,8 +673,8 @@ let is_matching env sigma pat c =
   try let _ = matches env sigma pat c in true
   with PatternMatchingFailure -> false
 
-let is_matching_head env sigma pat c =
-  try let _ = matches_head env sigma pat c in true
+let is_matching_head ?(mod_unfolding=false) env sigma pat c =
+  try let _ = matches_head env sigma ~mod_unfolding pat c in true
   with PatternMatchingFailure -> false
 
 let is_matching_appsubterm ?(closed=true) env sigma pat c =
@@ -698,7 +731,7 @@ let rec hash_top n sigma c =
 
 let hash_top sigma c = hash_top 3 sigma c
 
-let sub_match_cached cache env sigma pat c =
+let sub_match_cached mod_unfolding cache env sigma pat c =
   let open EConstr in
   let rec aux env c =
   let hash = hash_top sigma c land (cache_size - 1) in
@@ -711,7 +744,7 @@ let sub_match_cached cache env sigma pat c =
     cached_result
   else begin
     let here = (try
-      let _ = matches_core_closed env sigma pat c in true
+      let _ = matches_core_closed env sigma mod_unfolding pat c in true
     with PatternMatchingFailure -> false)
     in
     let next () = match EConstr.kind sigma c with
@@ -760,6 +793,16 @@ let sub_match_cached cache env sigma pat c =
     | Array(u, t, def, ty) ->
       let sub = (env,def) :: (env,ty) :: subargs env t in
       try_aux sub
+    | Const (cst, instance) when mod_unfolding ->
+      (* projections can cause an infinite loop of unfolding so skip unfolding them *)
+      if Structures.Structure.is_projection cst then
+        false
+      else
+        let constant = EConstr.lookup_constant env sigma cst in
+        (match constant.const_body with
+        (* Unfold the definition: *)
+        | Declarations.Def c -> try_aux [env, (EConstr.of_constr c)]
+        | _ -> false)
     | Construct _|Ind _|Evar _|Const _|Rel _|Meta _|Var _|Sort _|Int _|Float _|String _ -> false
     in
     let result = here || next() in
@@ -777,6 +820,6 @@ let sub_match_cached cache env sigma pat c =
     try_sub_match_rec lc in
   aux env c
 
-let is_matching_appsubterm_cached cache env sigma pat c =
+let is_matching_appsubterm_cached ?(mod_unfolding=false) cache env sigma pat c =
   let pat = (Id.Set.empty,pat) in
-  sub_match_cached cache env sigma pat c
+  sub_match_cached mod_unfolding cache env sigma pat c
