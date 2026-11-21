@@ -625,8 +625,7 @@ let check_ucontext ctx env =
 
 let add_universes_set ~strict (lvl, cstr) g =
   let g = Univ.Level.Set.fold
-            (* Be lenient, module typing reintroduces universes and constraints due to includes *)
-            (fun v g -> try UGraph.add_universe ~strict v g with UGraph.AlreadyDeclared -> g)
+            (fun v g -> UGraph.add_universe ~strict v g)
             lvl g
   in
   UGraph.merge_constraints cstr g
