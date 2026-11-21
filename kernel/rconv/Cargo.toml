@@ -1,0 +1,18 @@
+[package]
+name = "rconv"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "rconv_rs"
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+
+[profile.release]
+opt-level = 3
+debug = false
+panic = "unwind"
+codegen-units = 1

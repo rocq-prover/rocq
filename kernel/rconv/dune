@@ -1,0 +1,15 @@
+(rule
+ (targets librconv_rs.a dllrconv_rs.so)
+ (deps
+  Cargo.toml
+  build.rs
+  (source_tree src)
+  (source_tree boxroot))
+ (action
+  (progn
+   (setenv
+    OCAML_WHERE
+    %{ocaml_where}
+    (run cargo build --release --offline --quiet --target-dir target))
+   (run cp target/release/librconv_rs.a librconv_rs.a)
+   (run cp target/release/librconv_rs.so dllrconv_rs.so))))
