@@ -311,8 +311,12 @@ let cumulative kind =
      (* Not yet supported *)
      return None
 
-let poly kind =
-  (polymorphic ++ cumulative kind ++ collapse_sort_variables) >>= fun ((univ_poly, cumulative), collapse_sort_variables) ->
+let poly_gen ~default kind =
+  (qualify_attribute ukey (bool_attribute ~name:"polymorphic") ++ cumulative kind ++ collapse_sort_variables) >>= fun ((univ_poly, cumulative), collapse_sort_variables) ->
+  let univ_poly = match univ_poly with
+    | Some b -> b
+    | None -> default ()
+  in
   let cumulative =
     match cumulative with
     | None -> if univ_poly then is_polymorphic_inductive_cumulativity() else false
@@ -331,11 +335,22 @@ let poly kind =
   in
   return (PolyFlags.make ~univ_poly ~cumulative ~collapse_sort_variables)
 
+let poly kind = poly_gen ~default:is_universe_polymorphism kind
+
 let poly_def = poly PolyFlags.Definition
 
 let template =
   qualify_attribute ukey
     (bool_attribute ~name:"template")
+
+let template_poly =
+  template >>= fun template ->
+  let default () = match template with
+    | Some true -> false
+    | Some false | None -> is_universe_polymorphism ()
+  in
+  poly_gen ~default PolyFlags.Inductive >>= fun poly ->
+  return (template, poly)
 
 let unfold_fix =
   enable_attribute ~key:"unfold_fix" ~default:(fun () -> false)
