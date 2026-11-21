@@ -18,6 +18,11 @@ le_ind:
   P n ->
   (forall m : nat, n <= m -> P m -> P (S m)) ->
   forall n0 : nat, n <= n0 -> P n0
+le_poly_rec:
+  forall (n : nat) (P : forall n0 : nat, n <= n0 -> Univ@{β0 ; _}),
+  P n (le_n n) ->
+  (forall (m : nat) (l : n <= m), P m l -> P (S m) (le_S n m l)) ->
+  forall (n0 : nat) (l : n <= n0), P n0 l
 true: bool
 false: bool
 negb: bool -> bool
@@ -69,6 +74,8 @@ bool_sind:
   forall P : bool -> SProp, P true -> P false -> forall b : bool, P b
 bool_rect: forall P : bool -> Type, P true -> P false -> forall b : bool, P b
 bool_rec: forall P : bool -> Set, P true -> P false -> forall b : bool, P b
+bool_poly_rec:
+  forall P : bool -> Univ@{β0 ; _}, P true -> P false -> forall b : bool, P b
 bool_ind: forall P : bool -> Prop, P true -> P false -> forall b : bool, P b
 bool_of_sumbool:
   forall [A B : Prop], {A} + {B} -> {b : bool | if b then A else B}
@@ -118,6 +125,9 @@ eq_true_rew_fwd_dep:
 eq_true_rew_dep:
   forall P : forall b : bool, eq_true b -> Type,
   P true is_eq_true -> forall [b : bool] (e : eq_true b), P b e
+eq_true_poly_rec:
+  forall P : forall b : bool, eq_true b -> Univ@{β0 ; _},
+  P true is_eq_true -> forall [b : bool] (e : eq_true b), P b e
 Hexadecimal.internal_uint_dec_lb0:
   forall x : Hexadecimal.uint,
   (fun x0 : Hexadecimal.uint =>
@@ -166,11 +176,21 @@ reflect_rec:
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
+reflect_poly_rec:
+  forall [P : Prop] (P0 : forall b : bool, reflect P b -> Univ@{β0 ; _}),
+  (forall p : P, P0 true (ReflectT P p)) ->
+  (forall n : ~ P, P0 false (ReflectF P n)) ->
+  forall [b : bool] (r : reflect P b), P0 b r
 reflect_ind:
   forall [P : Prop] (P0 : forall b : bool, reflect P b -> Prop),
   (forall p : P, P0 true (ReflectT P p)) ->
   (forall n : ~ P, P0 false (ReflectF P n)) ->
   forall [b : bool] (r : reflect P b), P0 b r
+BoolSpec_poly_rec:
+  forall [P Q : Prop] (P0 : forall b : bool, BoolSpec P Q b -> Univ@{β0 ; _}),
+  (forall p : P, P0 true (BoolSpecT Q p)) ->
+  (forall q : Q, P0 false (BoolSpecF P q)) ->
+  forall [b : bool] (b0 : BoolSpec P Q b), P0 b b0
 Byte.to_bits_of_bits:
   forall
     b : bool * (bool * (bool * (bool * (bool * (bool * (bool * bool)))))),

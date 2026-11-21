@@ -4,12 +4,14 @@ Rocq <
 Rocq < 
 Rocq < 
 Rocq < Rocq < T is defined
+T_poly_rec is defined
 T_rect is defined
 T_ind is defined
 T_rec is defined
 T_sind is defined
 
 Rocq < Parsing is defined
+Parsing_poly_rec is defined
 Parsing_rect is defined
 Parsing_ind is defined
 Parsing_rec is defined

@@ -15,8 +15,8 @@ type nat =
 let m1 a f =
   f a
 
-(** val m0__O : (__ -> nat) -> nat **)
+(** val m0__E : (__ -> nat) -> nat **)
 
-let m0__O f =
+let m0__E f =
   f __
 

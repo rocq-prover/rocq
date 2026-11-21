@@ -7,6 +7,9 @@ nat_rect:
 nat_rec:
   forall P : nat -> Set,
   P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+nat_poly_rec:
+  forall P : nat -> Univ@{β0 ; _},
+  P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
 nat_ind:
   forall P : nat -> Prop,
   P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
@@ -20,3 +23,8 @@ le_ind:
   P n ->
   (forall m : nat, n <= m -> P m -> P (S m)) ->
   forall n0 : nat, n <= n0 -> P n0
+le_poly_rec:
+  forall (n : nat) (P : forall n0 : nat, n <= n0 -> Univ@{β0 ; _}),
+  P n (le_n n) ->
+  (forall (m : nat) (l : n <= m), P m l -> P (S m) (le_S n m l)) ->
+  forall (n0 : nat) (l : n <= n0), P n0 l
