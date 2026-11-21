@@ -20,21 +20,26 @@ pub type R<T> = Result<T, NC>;
 
 struct MustExpand;
 
-#[derive(Clone)]
-pub struct CInfos {
-    pub inf: Infos,
+/// The parts of [conv_tab] that do not change during a conversion problem.
+pub struct ConvShared {
     pub typ: bool,
     pub lft_tab: Tab,
     pub rgt_tab: Tab,
     pub check: OVal,
 }
 
+#[derive(Clone)]
+pub struct CInfos {
+    pub inf: Infos,
+    pub sh: Rc<ConvShared>,
+}
+
 impl CInfos {
     fn push_relevance(&self, na: &OVal) -> CInfos {
-        CInfos { inf: self.inf.push_relevance(na), ..self.clone() }
+        CInfos { inf: self.inf.push_relevance(na), sh: self.sh.clone() }
     }
     fn push_relevances(&self, nas: &[OVal]) -> CInfos {
-        CInfos { inf: self.inf.push_relevances(nas), ..self.clone() }
+        CInfos { inf: self.inf.push_relevances(nas), sh: self.sh.clone() }
     }
     fn env(&self) -> &OVal {
         self.inf.env()
@@ -176,15 +181,15 @@ fn fail_check(r: OVal) -> R<OVal> {
 }
 
 fn sort_cmp_universes(infos: &CInfos, pb: isize, s0: &OVal, s1: &OVal, cuniv: &OVal) -> OVal {
-    call(&COMPARE_SORTS, &[A::O(&infos.check), A::I(pb), A::O(s0), A::O(s1), A::O(cuniv)])
+    call(&COMPARE_SORTS, &[A::O(&infos.sh.check), A::I(pb), A::O(s0), A::O(s1), A::O(cuniv)])
 }
 
 fn convert_instances(infos: &CInfos, flex: bool, u: &OVal, u2: &OVal, cuniv: &OVal) -> OVal {
-    call(&COMPARE_INSTANCES, &[A::O(&infos.check), A::B(flex), A::O(u), A::O(u2), A::O(cuniv)])
+    call(&COMPARE_INSTANCES, &[A::O(&infos.sh.check), A::B(flex), A::O(u), A::O(u2), A::O(cuniv)])
 }
 
 fn convert_instances_cumul(infos: &CInfos, pb: isize, var: &OVal, u: &OVal, u2: &OVal, cuniv: &OVal) -> OVal {
-    call(&COMPARE_CUMUL_INSTANCES, &[A::O(&infos.check), A::I(pb), A::O(var), A::O(u), A::O(u2), A::O(cuniv)])
+    call(&COMPARE_CUMUL_INSTANCES, &[A::O(&infos.sh.check), A::I(pb), A::O(var), A::O(u), A::O(u2), A::O(cuniv)])
 }
 
 fn result_ok(s: &OVal) -> OVal {
@@ -504,8 +509,8 @@ fn conv_loop(cv_pb: isize, l2r: bool, infos: &CInfos, lft1: &Lift, lft2: &Lift, 
 fn whd_both(st: &mut ConvState) {
     call(&CHECK_FOR_INTERRUPT, &[A::I(0)]);
     let ninfos = st.infos.inf.with_reds(&st.infos.inf.cache.betaiotazeta);
-    let (h1, v1) = whd_stack(&ninfos, &st.infos.lft_tab, &st.a1.hd, &st.a1.stk);
-    let (h2, v2) = whd_stack(&ninfos, &st.infos.rgt_tab, &st.a2.hd, &st.a2.stk);
+    let (h1, v1) = whd_stack(&ninfos, &st.infos.sh.lft_tab, &st.a1.hd, &st.a1.stk);
+    let (h2, v2) = whd_stack(&ninfos, &st.infos.sh.rgt_tab, &st.a2.hd, &st.a2.stk);
     st.a1.hd = h1;
     st.a1.stk = v1;
     st.a2.hd = h2;
@@ -654,9 +659,9 @@ fn eq_flex_flex(l2r: bool, st: &mut ConvState, fl1: &TableKey, fl2: &TableKey, c
         if irr_flex(&infos.inf, fl1) {
             return nc();
         }
-        let mask = if infos.typ {
+        let mask = if infos.sh.typ {
             match fl1 {
-                TableKey::Const(..) => get_ref_mask(&infos.inf, &infos.lft_tab, fl1),
+                TableKey::Const(..) => get_ref_mask(&infos.inf, &infos.sh.lft_tab, fl1),
                 _ => None,
             }
         } else {
@@ -667,8 +672,8 @@ fn eq_flex_flex(l2r: bool, st: &mut ConvState, fl1: &TableKey, fl2: &TableKey, c
     if let Ok(c) = attempt {
         return Ok(Step::Done(c));
     }
-    let r1 = unfold_ref_with_args(&st.infos.inf, &st.infos.lft_tab, fl1, &st.a1.stk);
-    let r2 = unfold_ref_with_args(&st.infos.inf, &st.infos.rgt_tab, fl2, &st.a2.stk);
+    let r1 = unfold_ref_with_args(&st.infos.inf, &st.infos.sh.lft_tab, fl1, &st.a1.stk);
+    let r2 = unfold_ref_with_args(&st.infos.inf, &st.infos.sh.rgt_tab, fl2, &st.a2.stk);
     match (r1, r2) {
         (None, None) => nc(),
         (Some((t1, v1)), Some((t2, v2))) => {
@@ -682,11 +687,11 @@ fn eq_flex_flex(l2r: bool, st: &mut ConvState, fl1: &TableKey, fl2: &TableKey, c
             )
             .as_bool();
             if unfold_left {
-                let (h, s) = whd_stack(&ninfos, &st.infos.lft_tab, &t1, &v1);
+                let (h, s) = whd_stack(&ninfos, &st.infos.sh.lft_tab, &t1, &v1);
                 st.a1.hd = h;
                 st.a1.stk = s;
             } else {
-                let (h, s) = whd_stack(&ninfos, &st.infos.rgt_tab, &t2, &v2);
+                let (h, s) = whd_stack(&ninfos, &st.infos.sh.rgt_tab, &t2, &v2);
                 st.a2.hd = h;
                 st.a2.stk = s;
             }
@@ -694,14 +699,14 @@ fn eq_flex_flex(l2r: bool, st: &mut ConvState, fl1: &TableKey, fl2: &TableKey, c
         }
         (Some((t1, v1)), None) => {
             let all = all_transparent(&st.infos.inf);
-            let (h, s) = whd_stack(&all, &st.infos.lft_tab, &t1, &v1);
+            let (h, s) = whd_stack(&all, &st.infos.sh.lft_tab, &t1, &v1);
             st.a1.hd = h;
             st.a1.stk = s;
             Ok(Step::Whnf(cuniv))
         }
         (None, Some((t2, v2))) => {
             let all = all_transparent(&st.infos.inf);
-            let (h, s) = whd_stack(&all, &st.infos.rgt_tab, &t2, &v2);
+            let (h, s) = whd_stack(&all, &st.infos.sh.rgt_tab, &t2, &v2);
             st.a2.hd = h;
             st.a2.stk = s;
             Ok(Step::Whnf(cuniv))
@@ -748,7 +753,7 @@ fn eq_proj_left(st: &mut ConvState, p1: &OVal, r1: &OVal, c1: &FC, t2: &FTerm, c
             Ok(Step::Appr(cuniv))
         }
         None => match t2 {
-            FTerm::Flex(fl2) => match unfold_ref_with_args(&st.infos.inf, &st.infos.rgt_tab, fl2, &st.a2.stk) {
+            FTerm::Flex(fl2) => match unfold_ref_with_args(&st.infos.inf, &st.infos.sh.rgt_tab, fl2, &st.a2.stk) {
                 Some((h, s)) => {
                     st.a2.hd = h;
                     st.a2.stk = s;
@@ -770,7 +775,7 @@ fn eq_proj_right(st: &mut ConvState, t1: &FTerm, p2: &OVal, r2: &OVal, c2: &FC, 
             Ok(Step::Appr(cuniv))
         }
         None => match t1 {
-            FTerm::Flex(fl1) => match unfold_ref_with_args(&st.infos.inf, &st.infos.lft_tab, fl1, &st.a1.stk) {
+            FTerm::Flex(fl1) => match unfold_ref_with_args(&st.infos.inf, &st.infos.sh.lft_tab, fl1, &st.a1.stk) {
                 Some((h, s)) => {
                     st.a1.hd = h;
                     st.a1.stk = s;
@@ -845,10 +850,10 @@ fn eq_eta_right(st: &mut ConvState, cuniv: OVal) -> R<Step> {
 
 #[inline(never)]
 fn eq_flex_left(l2r: bool, st: &mut ConvState, fl1: &TableKey, c2: &FTerm, cuniv: OVal) -> R<Step> {
-    match unfold_ref_with_args(&st.infos.inf, &st.infos.lft_tab, fl1, &st.a1.stk) {
+    match unfold_ref_with_args(&st.infos.inf, &st.infos.sh.lft_tab, fl1, &st.a1.stk) {
         Some((def1, v1)) => {
             let all = all_transparent(&st.infos.inf);
-            let (h, s) = whd_stack(&all, &st.infos.lft_tab, &def1, &v1);
+            let (h, s) = whd_stack(&all, &st.infos.sh.lft_tab, &def1, &v1);
             st.a1.hd = h;
             st.a1.stk = s;
             Ok(Step::Whnf(cuniv))
@@ -868,10 +873,10 @@ fn eq_flex_left(l2r: bool, st: &mut ConvState, fl1: &TableKey, c2: &FTerm, cuniv
 
 #[inline(never)]
 fn eq_flex_right(l2r: bool, st: &mut ConvState, c1: &FTerm, fl2: &TableKey, cuniv: OVal) -> R<Step> {
-    match unfold_ref_with_args(&st.infos.inf, &st.infos.rgt_tab, fl2, &st.a2.stk) {
+    match unfold_ref_with_args(&st.infos.inf, &st.infos.sh.rgt_tab, fl2, &st.a2.stk) {
         Some((def2, v2)) => {
             let all = all_transparent(&st.infos.inf);
-            let (h, s) = whd_stack(&all, &st.infos.rgt_tab, &def2, &v2);
+            let (h, s) = whd_stack(&all, &st.infos.sh.rgt_tab, &def2, &v2);
             st.a2.hd = h;
             st.a2.stk = s;
             Ok(Step::Whnf(cuniv))
@@ -1155,57 +1160,68 @@ fn cmp_rec(mask: &Option<OVal>, l2r: bool, infos: &CInfos, nargs: isize, p1: &[Z
                 }
                 cu
             }
-            (Zl::Fix(fx1, a1), Zl::Fix(fx2, a2)) => {
-                let cu2 = f_lf(l2r, infos, fx1, fx2, cu)?;
-                cmp_rec(mask, l2r, infos, -1, a1, a2, cu2)?
-            }
-            (Zl::Case(cd1, l1), Zl::Case(cd2, l2)) => {
-                let ind = constr::ci_ind(&cd1.ci);
-                if !eq(EQ_IND_CAN, &ind, &constr::ci_ind(&cd2.ci)) {
-                    return nc();
-                }
-                let (e1, e2) = (&cd1.e, &cd2.e);
-                let u1 = usubst_instance(e1, &cd1.u);
-                let u2 = usubst_instance(e2, &cd2.u);
-                let r = if constr::instance_is_empty(&u1) || constr::instance_is_empty(&u2) {
-                    convert_instances(infos, false, &u1, &u2, &cu)
-                } else {
-                    let info = call(&IND_CUMUL_INFO, &[A::O(infos.env()), A::O(&ind)]);
-                    match info.field(0).as_option() {
-                        None => convert_instances(infos, false, &u1, &u2, &cu),
-                        Some(variances) => convert_instances_cumul(infos, CONV, &variances, &u1, &u2, &cu),
-                    }
-                };
-                let mut cu = fail_check(r)?;
-                let pms1 = mk_clos_vect(e1, &cd1.pms);
-                let pms2 = mk_clos_vect(e2, &cd2.pms);
-                if pms1.len() != pms2.len() {
-                    panic!("Invalid_argument");
-                }
-                for j in (0..pms1.len()).rev() {
-                    cu = ccnv(CONV, l2r, infos, l1, l2, &pms1[j], &pms2[j], cu)?;
-                }
-                let cu = convert_return_clause(l2r, infos, &ind, e1, e2, l1, l2, &u1, &u2, &pms1, &pms2, &cd1.p, &cd2.p, cu)?;
-                convert_branches(l2r, infos, &ind, e1, e2, l1, l2, &u1, &u2, &pms1, &pms2, &cd1.br, &cd2.br, cu)?
-            }
-            (Zl::Primitive(op1, rargs1, kargs1), Zl::Primitive(op2, rargs2, kargs2)) => {
-                if !eq(EQ_PRIM, op1, op2) {
-                    return nc();
-                }
-                if rargs1.len() != rargs2.len() || kargs1.len() != kargs2.len() {
-                    panic!("Invalid_argument");
-                }
-                let mut cu = cu;
-                for j in (0..rargs1.len()).rev() {
-                    cu = f_lf(l2r, infos, &rargs1[j], &rargs2[j], cu)?;
-                }
-                for j in (0..kargs1.len()).rev() {
-                    cu = f_lf(l2r, infos, &kargs1[j].1, &kargs2[j].1, cu)?;
-                }
-                cu
-            }
+            (Zl::Fix(fx1, a1), Zl::Fix(fx2, a2)) => cmp_fix(mask, l2r, infos, fx1, a1, fx2, a2, cu)?,
+            (Zl::Case(cd1, l1), Zl::Case(cd2, l2)) => cmp_case(l2r, infos, cd1, l1, cd2, l2, cu)?,
+            (Zl::Primitive(op1, rargs1, kargs1), Zl::Primitive(op2, rargs2, kargs2)) => cmp_prim(l2r, infos, op1, rargs1, kargs1, op2, rargs2, kargs2, cu)?,
             _ => panic!("assert false"),
         };
+    }
+    Ok(cu)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn cmp_fix(mask: &Option<OVal>, l2r: bool, infos: &CInfos, fx1: &LF, a1: &[Zl], fx2: &LF, a2: &[Zl], cu: OVal) -> R<OVal> {
+    let cu2 = f_lf(l2r, infos, fx1, fx2, cu)?;
+    cmp_rec(mask, l2r, infos, -1, a1, a2, cu2)
+}
+
+#[inline(never)]
+fn cmp_case(l2r: bool, infos: &CInfos, cd1: &CaseData, l1: &Lift, cd2: &CaseData, l2: &Lift, cu: OVal) -> R<OVal> {
+    let ind = constr::ci_ind(&cd1.ci);
+    if !eq(EQ_IND_CAN, &ind, &constr::ci_ind(&cd2.ci)) {
+        return nc();
+    }
+    let (e1, e2) = (&cd1.e, &cd2.e);
+    let u1 = usubst_instance(e1, &cd1.u);
+    let u2 = usubst_instance(e2, &cd2.u);
+    let r = if constr::instance_is_empty(&u1) || constr::instance_is_empty(&u2) {
+        convert_instances(infos, false, &u1, &u2, &cu)
+    } else {
+        let info = call(&IND_CUMUL_INFO, &[A::O(infos.env()), A::O(&ind)]);
+        match info.field(0).as_option() {
+            None => convert_instances(infos, false, &u1, &u2, &cu),
+            Some(variances) => convert_instances_cumul(infos, CONV, &variances, &u1, &u2, &cu),
+        }
+    };
+    let mut cu = fail_check(r)?;
+    let pms1 = mk_clos_vect(e1, &cd1.pms);
+    let pms2 = mk_clos_vect(e2, &cd2.pms);
+    if pms1.len() != pms2.len() {
+        panic!("Invalid_argument");
+    }
+    for j in (0..pms1.len()).rev() {
+        cu = ccnv(CONV, l2r, infos, l1, l2, &pms1[j], &pms2[j], cu)?;
+    }
+    let cu = convert_return_clause(l2r, infos, &ind, e1, e2, l1, l2, &u1, &u2, &pms1, &pms2, &cd1.p, &cd2.p, cu)?;
+    convert_branches(l2r, infos, &ind, e1, e2, l1, l2, &u1, &u2, &pms1, &pms2, &cd1.br, &cd2.br, cu)
+}
+
+#[allow(clippy::too_many_arguments)]
+#[inline(never)]
+fn cmp_prim(l2r: bool, infos: &CInfos, op1: &OVal, rargs1: &[LF], kargs1: &[(isize, LF)], op2: &OVal, rargs2: &[LF], kargs2: &[(isize, LF)], cu: OVal) -> R<OVal> {
+    if !eq(EQ_PRIM, op1, op2) {
+        return nc();
+    }
+    if rargs1.len() != rargs2.len() || kargs1.len() != kargs2.len() {
+        panic!("Invalid_argument");
+    }
+    let mut cu = cu;
+    for j in (0..rargs1.len()).rev() {
+        cu = f_lf(l2r, infos, &rargs1[j], &rargs2[j], cu)?;
+    }
+    for j in (0..kargs1.len()).rev() {
+        cu = f_lf(l2r, infos, &kargs1[j].1, &kargs2[j].1, cu)?;
     }
     Ok(cu)
 }
@@ -1347,7 +1363,7 @@ fn convert_list(l2r: bool, infos: &CInfos, lft1: &Lift, lft2: &Lift, v1: &[FC], 
 pub fn conv_inner(info: &Infos, tab: &Tab, a: &FC, b: &FC) -> bool {
     let state = info.cache.univs.clone();
     let check = call(&CHECKED_UNIVERSES, &[A::O(&info.cache.evars)]);
-    let ci = CInfos { inf: info.clone(), typ: true, lft_tab: tab.clone(), rgt_tab: tab.clone(), check };
+    let ci = CInfos { inf: info.clone(), sh: Rc::new(ConvShared { typ: true, lft_tab: tab.clone(), rgt_tab: tab.clone(), check }) };
     match ccnv(CONV, false, &ci, &el_id(), &el_id(), a, b, state) {
         Ok(_) => true,
         Err(NC::Plain) => false,

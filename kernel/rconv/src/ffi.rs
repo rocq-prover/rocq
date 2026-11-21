@@ -1,4 +1,5 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::num::NonZeroUsize;
 use std::ffi::{c_char, c_int, c_void};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -68,18 +69,43 @@ pub unsafe fn field(v: Value, i: usize) -> Value {
     *((v as *const Value).add(i))
 }
 
-/// A GC root to an OCaml value. Immediate values are not rooted.
-#[derive(Clone)]
-pub enum OVal {
-    Imm(Value),
-    Boxed(Rc<RootCell>),
+/// A GC root to an OCaml value, in one word. Immediate values are stored as
+/// is (their low bit is set) and are not rooted. Other values are rooted by a
+/// boxroot, shared through a reference-counted [RootBox] (8-byte aligned, so
+/// its address has a low bit of 0).
+pub struct OVal(NonZeroUsize);
+
+struct RootBox {
+    rc: Cell<usize>,
+    slot: *mut Value,
 }
 
-pub struct RootCell(*mut Value);
+impl Clone for OVal {
+    #[inline]
+    fn clone(&self) -> OVal {
+        if self.0.get() & 1 == 0 {
+            let b = unsafe { &*(self.0.get() as *const RootBox) };
+            b.rc.set(b.rc.get() + 1);
+        }
+        OVal(self.0)
+    }
+}
 
-impl Drop for RootCell {
+impl Drop for OVal {
+    #[inline]
     fn drop(&mut self) {
-        unsafe { boxroot_delete(self.0) }
+        if self.0.get() & 1 == 0 {
+            unsafe {
+                let p = self.0.get() as *mut RootBox;
+                let n = (*p).rc.get() - 1;
+                if n == 0 {
+                    boxroot_delete((*p).slot);
+                    drop(Box::from_raw(p));
+                } else {
+                    (*p).rc.set(n);
+                }
+            }
+        }
     }
 }
 
@@ -87,29 +113,31 @@ impl OVal {
     #[inline]
     pub fn new(v: Value) -> OVal {
         if is_long(v) {
-            OVal::Imm(v)
+            OVal(unsafe { NonZeroUsize::new_unchecked(v as usize) })
         } else {
             let r = unsafe { boxroot_create(v) };
             if r.is_null() {
                 panic!("rconv: boxroot allocation failure");
             }
-            OVal::Boxed(Rc::new(RootCell(r)))
+            let b = Box::into_raw(Box::new(RootBox { rc: Cell::new(1), slot: r }));
+            OVal(unsafe { NonZeroUsize::new_unchecked(b as usize) })
         }
     }
     #[inline]
     pub fn int(n: isize) -> OVal {
-        OVal::Imm(val_long(n))
+        OVal::new(val_long(n))
     }
     #[inline]
     pub fn get(&self) -> Value {
-        match self {
-            OVal::Imm(v) => *v,
-            OVal::Boxed(r) => unsafe { *r.0 },
+        if self.0.get() & 1 != 0 {
+            self.0.get() as Value
+        } else {
+            unsafe { *(*(self.0.get() as *const RootBox)).slot }
         }
     }
     #[inline]
     pub fn is_long(&self) -> bool {
-        matches!(self, OVal::Imm(_))
+        self.0.get() & 1 != 0
     }
     #[inline]
     pub fn as_int(&self) -> isize {
