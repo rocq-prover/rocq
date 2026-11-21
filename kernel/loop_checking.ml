@@ -7,6 +7,7 @@ let _debug_loop_checking_flag, debug_loop_checking = CDebug.create_full ~name:"l
 let _debug_loop_checking_set_can_flag, debug_loop_checking_set_can = CDebug.create_full ~name:"loop-checking-set-can" ()
 let _debug_loop_checking_minimize_flag, debug_loop_checking_minimize = CDebug.create_full ~name:"loop-checking-minimize" ()
 let debug_loop_checking_merged_flag, _debug_loop_checking_merged = CDebug.create_full ~name:"loop-checking-merged" ()
+let debug_loop_checking_cache_flag, _debug_loop_checking_cache = CDebug.create_full ~name:"loop-checking-cache" ()
 
 (** {1 Data structures} *)
 
@@ -870,6 +871,34 @@ type alias = {
   alias_rigid : bool; (* Whether [u] was rigid: only non-rigid aliases are substituted in terms *)
 }
 
+(** A check [concl + k <= max(prems)], [(concl, k, prems)], between the levels of indices
+  [concl] and [prems]: a statement about levels, which does not depend on the representation of
+  the clauses, as indices are never reused *)
+module CheckKey =
+struct
+  type t = Index.t * int * (Index.t * int) list
+  let compare_expr (p, kp) (q, kq) =
+    let c = Index.compare p q in if c <> 0 then c else Int.compare kp kq
+  let compare (c, k, prems) (c', k', prems') =
+    let r = Index.compare c c' in if r <> 0 then r else
+    let r = Int.compare k k' in if r <> 0 then r else
+    List.compare compare_expr prems prems'
+end
+
+module CheckSet = Set.Make (CheckKey)
+
+(** The answers of the checks of [check_leq_can] for the clauses [cache_entries] and
+  [cache_subst]: they are the answers for a model when these are its [entries] and [subst],
+  physically, see [model_check_cache]. The other components of a model do not change its
+  clauses. [holds] stay correct when clauses are added and [fails] when clauses are removed,
+  see [inherit_answers]. *)
+type check_cache = {
+  cache_entries : canonical_node PMap.t;
+  cache_subst : alias PMap.t;
+  mutable holds : CheckSet.t;
+  mutable fails : CheckSet.t;
+}
+
 type model = {
   locality : locality;
   entries : canonical_node PMap.t; (* The canonical nodes *)
@@ -884,7 +913,9 @@ type model = {
     prime, without redundant clauses and premises, see [restore_invariants] *)
   witnesses : witness list; (* Models of the clauses, which refute candidate redundant premises
     and clauses, see [prime_premises] and [refuted_redundant] *)
-  table : Index.table }
+  table : Index.table;
+  mutable check_cache : check_cache; (* The answers of the checks, when they are about the
+    clauses of this model, see [model_check_cache] *) }
 
 (** A witness is a model of the clauses: the values of [wmodel], a model of the clauses when it
   was found, and [wext] for the universes which got clauses since (see [extend_witness]) *)
@@ -905,7 +936,9 @@ let empty_model = {
   local_eqs = Index.Set.empty;
   irredundant_prime = true;
   witnesses = [];
-  table = Index.empty
+  table = Index.empty;
+  check_cache = { cache_entries = PMap.empty; cache_subst = PMap.empty;
+                  holds = CheckSet.empty; fails = CheckSet.empty };
 }
 
 let empty = empty_model
@@ -960,7 +993,8 @@ let enter_equiv m u local v =
     local_eqs = (match m.locality with Local -> Index.Set.add u m.local_eqs | Global -> m.local_eqs);
     irredundant_prime = m.irredundant_prime;
     witnesses = m.witnesses;
-    table = m.table }
+    table = m.table;
+    check_cache = m.check_cache }
 
 let change_node m n =
   let locals =
@@ -1001,7 +1035,7 @@ let () = CErrors.register_handler (function
 exception AlreadyDeclared
 
 let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; values; canonical; locals; local_eqs;
-    irredundant_prime; witnesses } =
+    irredundant_prime; witnesses; check_cache } =
   let idx, table =
     if Index.mem u table then
       let idx = Index.find u table in
@@ -1014,7 +1048,7 @@ let add_model ?(rigid=false) u { locality; entries; subst; subst_deps; table; va
   let entries = PMap.add idx can entries in
   let locals = match locality with Local -> Index.Set.add idx locals | Global -> locals in
   idx, { locality; entries; subst; subst_deps; table; values; canonical = canonical + 1; locals; local_eqs;
-    irredundant_prime; witnesses }
+    irredundant_prime; witnesses; check_cache }
 
 let add ?rigid u model =
   let _idx, model = add_model ?rigid u model in
@@ -1428,7 +1462,12 @@ struct
     str ", minimal value is " ++ pr_opt int (model_min model) ++
     str", " ++ int (clauses_cardinal model) ++ str" clauses." ++ spc () ++
     int (without_bound model) ++ str" canonical universes are not bounded above " ++
-    str", " ++ int (maximal_path model) ++ str" maximal path length in equiv nodes"
+    str", " ++ int (maximal_path model) ++ str" maximal path length in equiv nodes" ++
+    (let c = model.check_cache in
+     if c.cache_entries == model.entries && c.cache_subst == model.subst then
+       str", " ++ int (CheckSet.cardinal c.holds) ++ str" kept positive and " ++
+       int (CheckSet.cardinal c.fails) ++ str" kept negative answers of checks"
+     else mt ())
 
 end
 
@@ -3420,32 +3459,97 @@ let enforce_constraint (u, k, v) (m : t) = enforce u k v m
 
 (** {1 Checking constraints} *)
 
-(** The results of [check_leq_can] for the last model it was asked about, by physical equality:
-  the models are immutable values, and the kernel checks the same few constraints many times
-  against the graph of the environment, e.g. a universe of a library below the universes of the
-  Corelib in conversions. *)
-let leq_cache_model = ref empty_model
-let leq_cache : (Index.t * int * (Index.t * int) list, bool) Hashtbl.t = Hashtbl.create 64
+(** {2 The answers of the checks}
+
+  The kernel checks the same few constraints many times against the graph of the environment,
+  e.g. a universe of a library below the universes of the Corelib in conversions, and the graph
+  it checks a declaration against extends the one of the previous declarations. The answers of
+  [check_leq_can] are kept in the model (see [check_cache]) when [check_cache_enabled], i.e.
+  during the typechecking of the kernel (see [with_check_cache]): the graphs of the elaboration
+  change too often for them to be reused. *)
+
+let check_cache_enabled = ref false
+
+let with_check_cache f =
+  let enabled = !check_cache_enabled in
+  check_cache_enabled := true;
+  match f () with
+  | v -> check_cache_enabled := enabled; v
+  | exception e ->
+    let e = Exninfo.capture e in
+    check_cache_enabled := enabled;
+    Exninfo.iraise e
+
+let valid_check_cache m c = c.cache_entries == m.entries && c.cache_subst == m.subst
+
+let fresh_check_cache ?(holds=CheckSet.empty) ?(fails=CheckSet.empty) m =
+  { cache_entries = m.entries; cache_subst = m.subst; holds; fails }
+
+(** The answers about the clauses of [m]: those of [m.check_cache] when it is about them,
+  otherwise none, as when [m] was built from another model, e.g. by [{ m' with entries }] *)
+let model_check_cache m =
+  let c = m.check_cache in
+  if valid_check_cache m c then c
+  else begin
+    let c = fresh_check_cache m in
+    m.check_cache <- c; c
+  end
+
+(** [inherit_answers ~holds ~fails parent child] gives to [child], obtained from [parent], the
+  answers of [parent] which stay correct: the positive ones ([holds]) when [child] has more
+  clauses, i.e. when [child] entails the clauses of [parent], and the negative ones ([fails]) when
+  it has fewer, i.e. when [parent] entails the clauses of [child]. With the same clauses, [child]
+  shares the answers of [parent]. *)
+let inherit_answers ~holds ~fails parent child =
+  if child.entries == parent.entries && child.subst == parent.subst then child
+  else begin
+    let c = parent.check_cache in
+    if valid_check_cache parent c then begin
+      let holds = if holds then c.holds else CheckSet.empty in
+      let fails = if fails then c.fails else CheckSet.empty in
+      if not (CheckSet.is_empty holds && CheckSet.is_empty fails) then begin
+        let c' = child.check_cache in
+        child.check_cache <-
+          if valid_check_cache child c' then
+            fresh_check_cache ~holds:(CheckSet.union holds c'.holds) ~fails:(CheckSet.union fails c'.fails) child
+          else fresh_check_cache ~holds ~fails child
+      end
+    end;
+    child
+  end
+
+(** The models with more clauses, fewer clauses, or the same models (e.g. with other localities) *)
+let after_addition parent child = inherit_answers ~holds:true ~fails:false parent child
+let after_removal parent child = inherit_answers ~holds:false ~fails:true parent child
+let after_same_models parent child = inherit_answers ~holds:true ~fails:true parent child
 
 let check_leq_can canu canv model =
   match simplify_can_clause model (canv, canu) with
   | Trivial -> true
   | Contradictory -> false
   | Canonical (prems, (concl, k)) ->
+    let decide () = match derive_above model prems concl k with
+      | `Holds -> true
+      | `Refuted -> false
+      | `Unknown -> check_one_clause model prems concl k || check_one_clause_complete model prems concl k
+    in
+    if not !check_cache_enabled then decide () else
     let key = (concl.canon, k, NeList.to_list (NeList.map (fun (p, kp) -> (p.canon, kp)) prems)) in
-    if !leq_cache_model != model then begin
-      if Hashtbl.length leq_cache > 0 then Hashtbl.reset leq_cache;
-      leq_cache_model := model
-    end;
-    match Hashtbl.find_opt leq_cache key with
-    | Some b -> b
-    | None ->
-      let b = match derive_above model prems concl k with
-        | `Holds -> true
-        | `Refuted -> false
-        | `Unknown -> check_one_clause model prems concl k || check_one_clause_complete model prems concl k
-      in
-      Hashtbl.add leq_cache key b; b
+    let c = model_check_cache model in
+    let cached b =
+      (* [-d loop-checking-cache] checks the answers kept across changes of the clauses *)
+      if CDebug.get_flag debug_loop_checking_cache_flag && not (Bool.equal b (decide ())) then
+        CErrors.anomaly Pp.(str "Loop_checking: the kept answer of a check is " ++ bool b ++
+                            str " but the check answers " ++ bool (not b) ++ str ".");
+      b
+    in
+    if CheckSet.mem key c.holds then cached true
+    else if CheckSet.mem key c.fails then cached false
+    else begin
+      let b = decide () in
+      if b then c.holds <- CheckSet.add key c.holds else c.fails <- CheckSet.add key c.fails;
+      b
+    end
 
 let rec check_leq_premises m (u, v) =
   let canv = canonical_premises_repr m v in
@@ -4897,6 +5001,42 @@ let local_levels_gen ~only_rigid m =
 let local_levels m = local_levels_gen ~only_rigid:false m
 
 let rigid_local_levels m = local_levels_gen ~only_rigid:true m
+
+(** {1 The answers of the checks across changes}
+
+  The exported functions which change the clauses keep the answers of [check_leq_can] which stay
+  correct, see [inherit_answers]. [set_local] and [keep_redundant_premises] do not change the
+  clauses. *)
+
+let enforced m = Option.map (fun (m', equivs) -> after_addition m m', equivs)
+let enforce_eq u v m = enforced m (enforce_eq u v m)
+let enforce_leq u v m = enforced m (enforce_leq u v m)
+let enforce_lt u v m = enforced m (enforce_lt u v m)
+let enforce_constraint cst m = enforced m (enforce_constraint cst m)
+let enforce_constraints csts m = enforced m (enforce_constraints csts m)
+let enforce_global_constraints csts m = enforced m (enforce_global_constraints csts m)
+
+let set ?entailed l u m =
+  let m', equivs = set ?entailed l u m in
+  after_addition m m', equivs
+
+let simplified m = function
+  | HasSubst (m', equivs, b) -> HasSubst (after_addition m m', equivs, b)
+  | NoBound | CannotSimplify as r -> r
+let minimize ?require_entailed l m = simplified m (minimize ?require_entailed l m)
+let maximize l m = simplified m (maximize l m)
+
+(* A new universe is only above [Set]: the other universes have the same models *)
+let add ?rigid u m = after_same_models m (add ?rigid u m)
+(* Only entailed clauses are removed *)
+let remove_if_entailed cst m = Option.map (after_same_models m) (remove_if_entailed cst m)
+let localize csts m = after_same_models m (localize csts m)
+let set_locality local l m = after_same_models m (set_locality local l m)
+let switch_locality l m = after_same_models m (switch_locality l m)
+let set_rigid rigid l m = after_same_models m (set_rigid rigid l m)
+
+let remove removed m = after_removal m (remove removed m)
+let remove_set_clauses l m = after_removal m (remove_set_clauses l m)
 
 (** {1 Internal functions} *)
 

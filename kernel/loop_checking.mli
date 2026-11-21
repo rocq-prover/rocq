@@ -53,6 +53,13 @@ type 'a check_function = t -> 'a -> 'a -> bool
 val check_eq : Universe.t check_function
 val check_leq : Universe.t check_function
 
+val with_check_cache : (unit -> 'a) -> 'a
+(** [with_check_cache f] runs [f ()] keeping the answers of the checks in the models they are
+  asked of, e.g. during the typechecking of the kernel, where the same checks are asked many times
+  of the graph of the environment. The positive answers are kept by the models with more clauses
+  (e.g. built by [enforce_constraints]), the negative ones by the models with fewer clauses (e.g.
+  built by [Internal.remove]). They are not kept by default. *)
+
 (** {1 Enforcing constraints} *)
 
 type level_equivalences = (Level.t * (Level.t * int)) list

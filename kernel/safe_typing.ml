@@ -2006,3 +2006,22 @@ let set_oracle ts e =
 let set_strategy k l e = { e with env =
    (Environ.set_oracle e.env
       (Conv_oracle.set_strategy (Environ.oracle e.env) k l)) }
+
+(** {6 Typechecking}
+
+  The checks of universe constraints keep their answers in the universe graphs while the kernel
+  typechecks, see [UGraph.with_check_cache] *)
+
+let kernel_check f = UGraph.with_check_cache f
+
+let export_private_constants eff senv = kernel_check (fun () -> export_private_constants eff senv)
+let add_constant ?typing_flags l decl senv = kernel_check (fun () -> add_constant ?typing_flags l decl senv)
+let add_private_constant l uctx decl senv = kernel_check (fun () -> add_private_constant l uctx decl senv)
+let check_opaque ~admit senv i pf = kernel_check (fun () -> check_opaque ~admit senv i pf)
+let add_mind ?typing_flags l mie senv = kernel_check (fun () -> add_mind ?typing_flags l mie senv)
+let add_module l me inl senv = kernel_check (fun () -> add_module l me inl senv)
+let add_modtype l mte inl senv = kernel_check (fun () -> add_modtype l mte inl senv)
+let add_module_parameter mbid mte inl senv = kernel_check (fun () -> add_module_parameter mbid mte inl senv)
+let end_module l restype senv = kernel_check (fun () -> end_module l restype senv)
+let end_modtype l senv = kernel_check (fun () -> end_modtype l senv)
+let add_include me is_module inl senv = kernel_check (fun () -> add_include me is_module inl senv)
