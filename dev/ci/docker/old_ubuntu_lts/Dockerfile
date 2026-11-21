@@ -84,5 +84,17 @@ RUN opam switch create "${COMPILER}+32bit" \
     opam clean -a -c && \
     find ~ '(' -name '*.cmt' -o -name '*.cmti' ')' -delete
 
+# Rust toolchain for the Rust implementation of the kernel conversion. The
+# version is pinned as the code relies on unstable features (explicit tail
+# calls, enabled through RUSTC_BOOTSTRAP).
+ENV RUST_VERSION="1.97.1" \
+    RUSTUP_HOME=/root/.rustup \
+    CARGO_HOME=/root/.cargo \
+    PATH=/root/.cargo/bin:$PATH
+
+RUN wget -qO- https://sh.rustup.rs | sh -s -- -y --no-modify-path --profile minimal --default-toolchain "$RUST_VERSION" && \
+    rustup target add i686-unknown-linux-gnu && \
+    rm -rf /root/.rustup/downloads /root/.rustup/tmp
+
 # set the locale for the benefit of Python
 ENV LANG C.UTF-8

@@ -1341,6 +1341,10 @@ module Internal = struct
 
   let is_above_prop env = UGraph.Internal.is_above_prop (universes env)
 
+  let has_irrelevant_constants env = not (Cmap.is_empty env.irr_constants)
+
+  let has_irrelevant_inductives env = not (Indmap.is_empty env.irr_inds)
+
   module View =
   struct
     type t = {

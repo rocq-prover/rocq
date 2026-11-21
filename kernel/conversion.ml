@@ -273,23 +273,25 @@ let get_template_instance mib u = match mib.mind_template with
   templ.template_defaults
 
 (* ind -> fun args => ind args *)
-let eta_expand_ind env (ind,u as pind) =
+let eta_expand_ind_constr env (ind,u as pind) =
   let mib = Environ.lookup_mind (fst ind) env in
   let mip = mib.mind_packets.(snd ind) in
   let ctx = Vars.subst_instance_context (get_template_instance mib u) mip.mind_arity_ctxt in
   let args = identity_of_ctx ctx in
   let c = mkApp (mkIndU pind, args) in
-  let c = Term.it_mkLambda_or_LetIn c ctx in
-  inject c
+  Term.it_mkLambda_or_LetIn c ctx
 
-let eta_expand_constructor env ((ind,ctor),u as pctor) =
+let eta_expand_ind env pind = inject (eta_expand_ind_constr env pind)
+
+let eta_expand_constructor_constr env ((ind,ctor),u as pctor) =
   let mib = Environ.lookup_mind (fst ind) env in
   let mip = mib.mind_packets.(snd ind) in
   let ctx = Vars.subst_instance_context (get_template_instance mib u) (fst mip.mind_nf_lc.(ctor-1)) in
   let args = identity_of_ctx ctx in
   let c = mkApp (mkConstructU pctor, args) in
-  let c = Term.it_mkLambda_or_LetIn c ctx in
-  inject c
+  Term.it_mkLambda_or_LetIn c ctx
+
+let eta_expand_constructor env pctor = inject (eta_expand_constructor_constr env pctor)
 
 let annots_of_context ctx nas =
   Array.filter_with (List.rev_map (fun d -> not (Option.has_some d)) ctx) nas
@@ -996,24 +998,14 @@ and convert_list l2r infos lft1 lft2 v1 v2 cuniv = match v1, v2 with
   convert_list l2r infos lft1 lft2 v1 v2 cuniv
 | _, _ -> raise NotConvertible
 
-let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 =
+let clos_gen_conv ~typed trans cv_pb l2r evars env graph univs t1 t2 =
   NewProfile.profile "Conversion" begin fun () ->
       let reds = RedFlags.red_add_transparent RedFlags.betaiotazeta trans in
-      let infos = create_conv_infos ~univs:graph ~evars reds env in
-      let module Error = struct type payload += Error of err end in
-      let box e = Error.Error e in
-      let infos = {
-        cnv_inf = infos;
-        cnv_typ = typed;
-        lft_tab = create_tab ();
-        rgt_tab = create_tab ();
-        err_ret = box;
-      } in
-      try Result.Ok (ccnv cv_pb l2r infos el_id el_id (inject t1) (inject t2) univs)
-      with
-      | NotConvertible -> Result.Error None
-      | NotConvertibleTrace (Error.Error e) -> Result.Error (Some e)
-      | NotConvertibleTrace _ -> assert false
+      let cv = match cv_pb with CONV -> 0 | CUMUL -> 1 in
+      let (state, check) = univs in
+      match Rconv.conv ~typed reds cv l2r evars env graph state check t1 t2 with
+      | Result.Ok state -> Result.Ok (state, check)
+      | Result.Error e -> Result.Error e
   end ()
 
 let check_eq qeq state u u' =
@@ -1065,6 +1057,23 @@ let () =
     | NotConvertibleTrace _ -> assert false
   in
   CClosure.set_conv conv
+
+let () =
+  let pb_of_int = function 0 -> CONV | _ -> CUMUL in
+  let r = Callback.register in
+  r "rconv_compare_sorts" (fun check pb s0 s1 st -> check.compare_sorts (pb_of_int pb) s0 s1 st);
+  r "rconv_compare_instances" (fun check flex u u' st -> check.compare_instances ~flex u u' st);
+  r "rconv_compare_cumul_instances" (fun check pb var u u' st ->
+      check.compare_cumul_instances (pb_of_int pb) var u u' st);
+  r "rconv_checked_universes" (fun evars -> checked_universes_gen evars.CClosure.qual_equal);
+  r "rconv_eta_expand_ind" (fun env ind u -> eta_expand_ind_constr env (ind, u));
+  r "rconv_eta_expand_constructor" (fun env c u -> eta_expand_constructor_constr env (c, u));
+  r "rconv_ind_cumul_info" (fun env (ind : inductive) ->
+      let mib = Environ.lookup_mind (fst ind) env in
+      (mib.mind_variance, inductive_cumulativity_arguments (mib, snd ind)));
+  r "rconv_ctor_cumul_info" (fun env ((ind, ctor) : constructor) ->
+      let mib = Environ.lookup_mind (fst ind) env in
+      (Option.has_some mib.mind_variance, constructor_cumulativity_arguments (mib, snd ind, ctor)))
 
 let gen_conv ~typed cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=default_evar_handler env) t1 t2 =
   let univs = Environ.universes env in

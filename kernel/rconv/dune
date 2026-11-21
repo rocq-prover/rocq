@@ -1,0 +1,19 @@
+(rule
+ (targets librconv_rs.a dllrconv_rs.so)
+ (deps
+  build.sh
+  Cargo.toml
+  build.rs
+  (source_tree src)
+  (source_tree boxroot))
+ (action
+  (setenv
+   OCAML_WHERE
+   %{ocaml_where}
+   (setenv
+    RUSTC_BOOTSTRAP
+    1
+    (setenv
+     RCONV_WORD_SIZE
+     %{ocaml-config:word_size}
+     (run bash build.sh))))))
