@@ -1751,45 +1751,86 @@ pub fn kni(info: &Infos, tab: &Tab, m: &FC, stk: &Stack) -> (FC, Stack) {
     kn_loop(info, tab, St::Kni(m.clone(), stk.clone(), pattern::PS::Nil(false))).unwrap()
 }
 
+/// What [knr] does with a head, with the parts of its term it needs.
+enum Knr {
+    Beta(isize, LamTys, OVal, USubs),
+    Delta(TableKey),
+    Construct(OVal, UInst, Rc<[FC]>),
+    CoFix(bool),
+    Zeta(FC, OVal, USubs),
+    Prim,
+    CaseInvert(Rc<CaseData>, Rc<[FC]>),
+    Irrelevant,
+    Ret,
+}
+
 fn knr(info: &Infos, tab: &Tab, ps: pattern::PS, m: &FC, stk: &Stack) -> St {
-    /* A copy: stripping the stack may update [m] itself, e.g. for the
-       [Zupdate a] pushed by [unfold_ref_with_args]. */
-    let t = &m.term_clone();
-    match t {
-        FTerm::Lambda(n, tys, f, e) if info.flags.red_set(F_BETA) => match get_args(*n, tys, f, e, stk) {
-            (Args::Subst(e2), s) => St::Knit(e2, f.clone(), s, ps),
+    /* The term of [m] is only borrowed while classifying it: the stripping
+       of the stack may update [m] itself, e.g. for the [Zupdate a] pushed by
+       [unfold_ref_with_args]. */
+    let k = {
+        let t = m.term();
+        match &*t {
+            FTerm::Lambda(n, tys, f, e) if info.flags.red_set(F_BETA) => Knr::Beta(*n, tys.clone(), f.clone(), e.clone()),
+            FTerm::Flex(fl) if info.flags.red_set(F_DELTA) => Knr::Delta(fl.clone()),
+            FTerm::Construct(c, u, args) => Knr::Construct(c.clone(), u.clone(), args.clone()),
+            FTerm::CoFix(fx, e) => {
+                let na = fx.names().field(fx.i as usize);
+                Knr::CoFix(is_irrelevant(info, &usubst_relevance(e, &constr::binder_relevance(&na))))
+            }
+            FTerm::LetIn(_, v, _, bd, e) if info.flags.red_set(F_ZETA) => Knr::Zeta(v.clone(), bd.clone(), e.clone()),
+            FTerm::Int(_) | FTerm::Float(_) | FTerm::String(_) | FTerm::Array(..) => Knr::Prim,
+            FTerm::CaseInvert(cd, iv, _c) if info.flags.red_set(F_MATCH) => Knr::CaseInvert(cd.clone(), iv.clone()),
+            FTerm::Irrelevant => Knr::Irrelevant,
+            FTerm::Prod(..)
+            | FTerm::Atom(_)
+            | FTerm::Ind(..)
+            | FTerm::CaseInvert(..)
+            | FTerm::Proj(..)
+            | FTerm::Fix(..)
+            | FTerm::Evar(..)
+            | FTerm::Lambda(..)
+            | FTerm::Flex(_)
+            | FTerm::Rel(_)
+            | FTerm::LetIn(..) => Knr::Ret,
+            FTerm::Locked | FTerm::Clos(..) | FTerm::App(..) | FTerm::CaseT(..) | FTerm::Lift(..) => panic!("assert false"),
+        }
+    };
+    match k {
+        Knr::Beta(n, tys, f, e) => match get_args(n, &tys, &f, &e, stk) {
+            (Args::Subst(e2), s) => St::Knit(e2, f, s, ps),
             (Args::Lam(lam), s) => St::Ret(lam, s, false, ps),
         },
-        FTerm::Flex(fl) if info.flags.red_set(F_DELTA) => {
-            let v = table_lookup(info, tab, fl);
+        Knr::Delta(fl) => {
+            let v = table_lookup(info, tab, &fl);
             match &*v {
                 TableVal::Def(v, _) => St::Kni(v.clone(), stk.clone(), ps),
                 TableVal::Primitive(op) => {
                     if check_native_args(info, op, stk) {
-                        let (c, u) = match fl {
+                        let (c, u) = match &fl {
                             TableKey::Const(c, u) => (c.clone(), u.clone()),
                             _ => panic!("assert false"),
                         };
-                        let (rargs, a, nargs, stk) = get_native_args1(info, op, fl, stk);
+                        let (rargs, a, nargs, stk) = get_native_args1(info, op, &fl, stk);
                         St::Kni(a, stk.cons(Z::Primitive(op.clone(), c, u, Rc::new(rargs), Rc::new(nargs))), ps)
                     } else {
                         St::Ret(m.clone(), stk.clone(), false, ps)
                     }
                 }
-                TableVal::Symbol(u, b, r) => pattern::match_symbol(info, tab, ps, fl, u, *b, r, stk),
+                TableVal::Symbol(u, b, r) => pattern::match_symbol(info, tab, ps, &fl, u, *b, r, stk),
                 TableVal::Undef => {
                     set_ntrl(m);
                     St::Ret(m.clone(), stk.clone(), false, ps)
                 }
             }
         }
-        FTerm::Construct(c, u, args) => {
+        Knr::Construct(c, u, args) => {
             let use_match = info.flags.red_set(F_MATCH);
             let use_fix = info.flags.red_set(F_FIX);
             match stk.uncons() {
                 Some((Z::Shift(_), _)) | Some((Z::Update(_), _)) | Some((Z::App(_), _)) => panic!("assert false"),
                 Some((Z::CaseT(cd), s)) if use_match => {
-                    let (br, e) = get_branch(info, &cd.ci, &cd.pms, c, u, args, &cd.br, &cd.e);
+                    let (br, e) = get_branch(info, &cd.ci, &cd.pms, &c, &u, &args, &cd.br, &cd.e);
                     St::Knit(e, br, s.clone(), ps)
                 }
                 Some((Z::Fix(fx, par), s)) if use_fix => {
@@ -1799,12 +1840,12 @@ fn knr(info: &Infos, tab: &Tab, ps: pattern::PS, m: &FC, stk: &Stack) -> St {
                     St::Knit(fxe, fxbd, stk2, ps)
                 }
                 Some((Z::Proj(p, _), s)) if use_match => {
-                    let rargs = drop_parameters(p.field_int(1), args);
+                    let rargs = drop_parameters(p.field_int(1), &args);
                     let rarg = rargs[p.field_int(2) as usize].clone();
                     St::Kni(rarg, s.clone(), ps)
                 }
                 _ => {
-                    if is_irrelevant_constructor(info, c, u) {
+                    if is_irrelevant_constructor(info, &c, &u) {
                         St::Ret(mk_irrelevant(), skip_irrelevant_stack(info, stk), false, ps)
                     } else {
                         St::Ret(m.clone(), stk.clone(), false, ps)
@@ -1812,9 +1853,8 @@ fn knr(info: &Infos, tab: &Tab, ps: pattern::PS, m: &FC, stk: &Stack) -> St {
                 }
             }
         }
-        FTerm::CoFix(fx, e) => {
-            let na = fx.names().field(fx.i as usize);
-            if is_irrelevant(info, &usubst_relevance(e, &constr::binder_relevance(&na))) {
+        Knr::CoFix(irr) => {
+            if irr {
                 St::Ret(mk_irrelevant(), skip_irrelevant_stack(info, stk), false, ps)
             } else if info.flags.red_set(F_COFIX) {
                 let (_, _, args, stk2) = strip_update_shift_app(m, stk);
@@ -1829,8 +1869,8 @@ fn knr(info: &Infos, tab: &Tab, ps: pattern::PS, m: &FC, stk: &Stack) -> St {
                 St::Ret(m.clone(), stk.clone(), false, ps)
             }
         }
-        FTerm::LetIn(_, v, _, bd, e) if info.flags.red_set(F_ZETA) => St::Knit(usubs_cons(v, e), bd.clone(), stk.clone(), ps),
-        FTerm::Int(_) | FTerm::Float(_) | FTerm::String(_) | FTerm::Array(..) => {
+        Knr::Zeta(v, bd, e) => St::Knit(usubs_cons(&v, &e), bd, stk.clone(), ps),
+        Knr::Prim => {
             let (depth, m2, _, stk2) = strip_update_shift_app(m, stk);
             if let Some((Z::Primitive(op, c, u, rargs, nargs), s)) = stk2.uncons() {
                 let mut ra: Vec<FC> = rargs.to_vec();
@@ -1854,28 +1894,15 @@ fn knr(info: &Infos, tab: &Tab, ps: pattern::PS, m: &FC, stk: &Stack) -> St {
                 St::Ret(m.clone(), zshift(depth, &stk2), false, ps)
             }
         }
-        FTerm::CaseInvert(cd, iv, _c) if info.flags.red_set(F_MATCH) => {
-            match case_inversion(info, tab, cd, iv) {
-                Some(c) => St::Knit(cd.e.clone(), c, stk.clone(), ps),
-                None => St::Ret(m.clone(), stk.clone(), false, ps),
-            }
-        }
-        FTerm::Irrelevant => {
+        Knr::CaseInvert(cd, iv) => match case_inversion(info, tab, &cd, &iv) {
+            Some(c) => St::Knit(cd.e.clone(), c, stk.clone(), ps),
+            None => St::Ret(m.clone(), stk.clone(), false, ps),
+        },
+        Knr::Irrelevant => {
             let stk = skip_irrelevant_stack(info, stk);
             St::Ret(m.clone(), stk, false, ps)
         }
-        FTerm::Prod(..)
-        | FTerm::Atom(_)
-        | FTerm::Ind(..)
-        | FTerm::CaseInvert(..)
-        | FTerm::Proj(..)
-        | FTerm::Fix(..)
-        | FTerm::Evar(..)
-        | FTerm::Lambda(..)
-        | FTerm::Flex(_)
-        | FTerm::Rel(_)
-        | FTerm::LetIn(..) => St::Ret(m.clone(), stk.clone(), false, ps),
-        FTerm::Locked | FTerm::Clos(..) | FTerm::App(..) | FTerm::CaseT(..) | FTerm::Lift(..) => panic!("assert false"),
+        Knr::Ret => St::Ret(m.clone(), stk.clone(), false, ps),
     }
 }
 

@@ -111,7 +111,7 @@ pub extern "C" fn rconv_conv(args: Value) -> Value {
         });
         let empty = cache.empty_inst.clone();
         let inf = Infos { flags: reds, relevances: Range::empty(), cache };
-        let ci = CInfos { inf, sh: Rc::new(ConvShared { typ: typed, lft_tab: create_tab(), rgt_tab: create_tab(), check }) };
+        let ci = CInfos::new(inf, Rc::new(ConvShared { typ: typed, lft_tab: create_tab(), rgt_tab: create_tab(), check }));
         let f1 = injectu(&t1, &empty);
         let f2 = injectu(&t2, &empty);
         match ccnv(cv_pb, l2r, &ci, &el_id(), &el_id(), &f1, &f2, state) {

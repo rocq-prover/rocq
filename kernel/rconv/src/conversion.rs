@@ -28,18 +28,33 @@ pub struct ConvShared {
     pub check: OVal,
 }
 
-#[derive(Clone)]
-pub struct CInfos {
+pub struct CInfosData {
     pub inf: Infos,
     pub sh: Rc<ConvShared>,
 }
 
+/// [conv_tab], shared: it is copied in every worklist item, and only
+/// changes when crossing binders.
+#[derive(Clone)]
+pub struct CInfos(Rc<CInfosData>);
+
+impl std::ops::Deref for CInfos {
+    type Target = CInfosData;
+    #[inline]
+    fn deref(&self) -> &CInfosData {
+        &self.0
+    }
+}
+
 impl CInfos {
+    pub fn new(inf: Infos, sh: Rc<ConvShared>) -> CInfos {
+        CInfos(Rc::new(CInfosData { inf, sh }))
+    }
     fn push_relevance(&self, na: &OVal) -> CInfos {
-        CInfos { inf: self.inf.push_relevance(na), sh: self.sh.clone() }
+        CInfos::new(self.inf.push_relevance(na), self.sh.clone())
     }
     fn push_relevances(&self, nas: &[OVal]) -> CInfos {
-        CInfos { inf: self.inf.push_relevances(nas), sh: self.sh.clone() }
+        CInfos::new(self.inf.push_relevances(nas), self.sh.clone())
     }
     fn env(&self) -> &OVal {
         self.inf.env()
@@ -725,6 +740,8 @@ fn eqwhnf(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Side, app
     become case(w, cv_pb, l2r, infos, appr1, appr2, cuniv)
 }
 
+/// The terms of the heads, copied: for the cases that reduce terms, which
+/// may update the cells of the heads.
 macro_rules! heads {
     ($t1:ident, $t2:ident, $a1:expr, $a2:expr) => {
         let $t1 = &$a1.hd.term_clone();
@@ -732,8 +749,17 @@ macro_rules! heads {
     };
 }
 
+/// The terms of the heads, borrowed: for the cases that do not reduce any
+/// term while they use them.
+macro_rules! heads_ref {
+    ($t1:ident, $t2:ident, $a1:expr, $a2:expr) => {
+        let $t1 = $a1.hd.term();
+        let $t2 = $a2.hd.term();
+    };
+}
+
 fn eq_atom(w: &mut Work, cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::Atom(a1), FTerm::Atom(a2)) = (&*t1, &*t2) else { unreachable!() };
     let k1 = constr::kind(a1);
     let k2 = constr::kind(a2);
@@ -754,7 +780,7 @@ fn eq_atom(w: &mut Work, cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, a
 }
 
 fn eq_evar(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::Evar(ev1, args1, env1), FTerm::Evar(ev2, args2, env2)) = (&*t1, &*t2) else { unreachable!() };
     if !eq(EQ_EVAR, ev1, ev2) {
         return nc();
@@ -770,7 +796,7 @@ fn eq_evar(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, 
 }
 
 fn eq_rel(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::Rel(n), FTerm::Rel(m)) = (&*t1, &*t2) else { unreachable!() };
     let el1 = el_stack(&appr1.lft, &appr1.stk);
     let el2 = el_stack(&appr2.lft, &appr2.stk);
@@ -795,7 +821,7 @@ fn eq_rel(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, a
 /// [Catch] item holding the arguments of the [with] branch.
 fn eq_flex_flex(w: &mut Work, cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
     w.push(Item::Catch { cv_pb, infos: infos.clone(), a1: appr1.clone(), a2: appr2.clone(), cuniv: cuniv.clone() });
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::Flex(fl1), FTerm::Flex(fl2)) = (&*t1, &*t2) else { unreachable!() };
     let nargs = same_args_size(&appr1.stk, &appr2.stk)?;
     let cuniv = conv_table_key(&infos, nargs, fl1, fl2, cuniv)?;
@@ -942,7 +968,7 @@ fn eq_lambda_lambda(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr
 }
 
 fn eq_prod_prod(w: &mut Work, cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::Prod(x1, c1, c2, e), FTerm::Prod(_, c12, c22, e2)) = (&*t1, &*t2) else { unreachable!() };
     let (v1, v2) = (&appr1.stk, &appr2.stk);
     if !(is_empty_stack(v1) && is_empty_stack(v2)) {
@@ -1039,7 +1065,7 @@ fn eq_flex_right(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Si
 }
 
 fn eq_ind(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::Ind(ind1, u1), FTerm::Ind(ind2, u2)) = (&*t1, &*t2) else { unreachable!() };
     if !eq(EQ_IND_CAN, ind1, ind2) {
         return nc();
@@ -1057,6 +1083,7 @@ fn eq_ind(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Side, app
         Err(MustExpand) => {
             let a1 = Side { lft: appr1.lft.clone(), hd: eta_expand_ind(&infos, ind1, u1), stk: appr1.stk.clone() };
             let a2 = Side { lft: appr2.lft.clone(), hd: eta_expand_ind(&infos, ind2, u2), stk: appr2.stk.clone() };
+            drop((t1, t2));
             drop((appr1, appr2));
             become eqappr(w, cv_pb, l2r, infos, a1, a2, cuniv)
         }
@@ -1064,7 +1091,7 @@ fn eq_ind(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Side, app
 }
 
 fn eq_construct(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::Construct(c1, u1, args1), FTerm::Construct(c2, u2, args2)) = (&*t1, &*t2) else { unreachable!() };
     assert_reduced_constructor(&appr1.stk);
     assert_reduced_constructor(&appr2.stk);
@@ -1091,6 +1118,7 @@ fn eq_construct(w: &mut Work, cv_pb: isize, l2r: bool, infos: CInfos, appr1: Sid
         Err(MustExpand) => {
             let a1 = Side { lft: appr1.lft.clone(), hd: eta_expand_constructor(&infos, c1, u1), stk: v1 };
             let a2 = Side { lft: appr2.lft.clone(), hd: eta_expand_constructor(&infos, c2, u2), stk: v2 };
+            drop((t1, t2));
             drop((appr1, appr2));
             become eqappr(w, cv_pb, l2r, infos, a1, a2, cuniv)
         }
@@ -1130,7 +1158,7 @@ fn eq_record_right(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1
 }
 
 fn eq_fix(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::Fix(f1, e1), FTerm::Fix(f2, e2)) = (&*t1, &*t2) else { unreachable!() };
     let (op1, op2) = (&f1.ri, &f2.ri);
     let same_op = op1.size() == op2.size() && (0..op1.size()).all(|i| op1.field_int(i) == op2.field_int(i));
@@ -1144,7 +1172,7 @@ fn eq_fix(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, a
 }
 
 fn eq_cofix(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::CoFix(f1, e1), FTerm::CoFix(f2, e2)) = (&*t1, &*t2) else { unreachable!() };
     if f1.i == f2.i {
         let items = convert_fix(&infos, &appr1, &appr2, f1, e1, f2, e2)?;
@@ -1156,7 +1184,7 @@ fn eq_cofix(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side,
 }
 
 fn eq_prim_value(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let same = match (&*t1, &*t2) {
         (FTerm::Int(i1), FTerm::Int(i2)) => eq(EQ_UINT63, i1, i2),
         (FTerm::Float(f1), FTerm::Float(f2)) => eq(EQ_FLOAT64, f1, f2),
@@ -1171,7 +1199,7 @@ fn eq_prim_value(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: 
 }
 
 fn eq_case_invert(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(t1, t2, appr1, appr2);
+    heads_ref!(t1, t2, appr1, appr2);
     let (FTerm::CaseInvert(cd1, iv1, _), FTerm::CaseInvert(cd2, iv2, _)) = (&*t1, &*t2) else { unreachable!() };
     let ind = constr::ci_ind(&cd1.ci);
     if !eq(EQ_IND_CAN, &ind, &constr::ci_ind(&cd2.ci)) {
@@ -1209,7 +1237,7 @@ fn eq_case_invert(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1:
 }
 
 fn eq_array(w: &mut Work, _cv_pb: isize, _l2r: bool, infos: CInfos, appr1: Side, appr2: Side, cuniv: OVal) -> R<OVal> {
-    heads!(tm1, tm2, appr1, appr2);
+    heads_ref!(tm1, tm2, appr1, appr2);
     let (FTerm::Array(u1, t1, ty1, alft1), FTerm::Array(u2, t2, ty2, alft2)) = (&*tm1, &*tm2) else { unreachable!() };
     let (alft1, alft2) = (*alft1, *alft2);
     let len = call(&PARRAY_LENGTH, &[A::O(t1)]).as_int();
@@ -1642,7 +1670,7 @@ fn convert_list(infos: &CInfos, lft1: &Lift, lft2: &Lift, v1: &[FC], v2: &[FC]) 
 pub fn conv_inner(info: &Infos, tab: &Tab, a: &FC, b: &FC) -> bool {
     let state = info.cache.univs.clone();
     let check = call(&CHECKED_UNIVERSES, &[A::O(&info.cache.evars)]);
-    let ci = CInfos { inf: info.clone(), sh: Rc::new(ConvShared { typ: true, lft_tab: tab.clone(), rgt_tab: tab.clone(), check }) };
+    let ci = CInfos::new(info.clone(), Rc::new(ConvShared { typ: true, lft_tab: tab.clone(), rgt_tab: tab.clone(), check }));
     match ccnv(CONV, false, &ci, &el_id(), &el_id(), a, b, state) {
         Ok(_) => true,
         Err(NC::Plain) => false,
