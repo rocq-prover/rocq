@@ -1,18 +1,19 @@
 (rule
  (targets librconv_rs.a dllrconv_rs.so)
  (deps
+  build.sh
   Cargo.toml
   build.rs
   (source_tree src)
   (source_tree boxroot))
  (action
-  (progn
+  (setenv
+   OCAML_WHERE
+   %{ocaml_where}
    (setenv
-    OCAML_WHERE
-    %{ocaml_where}
+    RUSTC_BOOTSTRAP
+    1
     (setenv
-     RUSTC_BOOTSTRAP
-     1
-     (run cargo build --release --offline --quiet --target-dir target)))
-   (run cp target/release/librconv_rs.a librconv_rs.a)
-   (run cp target/release/librconv_rs.so dllrconv_rs.so))))
+     RCONV_WORD_SIZE
+     %{ocaml-config:word_size}
+     (run bash build.sh))))))

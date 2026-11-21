@@ -16,12 +16,14 @@ fn main() {
     };
     let cc = env::var("CC").unwrap_or_else(|_| "cc".to_string());
     let ar = env::var("AR").unwrap_or_else(|_| "ar".to_string());
+    let m32 = env::var("TARGET").map(|t| t.starts_with("i686")).unwrap_or(false);
     let mut objs = vec![];
     for f in ["boxroot", "ocaml_hooks", "platform"] {
         let src = format!("boxroot/{}.c", f);
         let obj = out.join(format!("{}.o", f));
         let st = Command::new(&cc)
             .args(["-O2", "-fPIC", "-std=gnu11", "-c", "-I", &where_, "-I", "boxroot"])
+            .args(if m32 { &["-m32"][..] } else { &[][..] })
             .arg(&src)
             .arg("-o")
             .arg(&obj)
