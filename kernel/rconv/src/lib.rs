@@ -1,3 +1,6 @@
+#![feature(explicit_tail_calls)]
+#![allow(incomplete_features)]
+
 //! A Rust implementation of the kernel conversion (kernel/cClosure.ml and
 //! kernel/conversion.ml), called through [Rconv].
 

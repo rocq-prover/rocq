@@ -10,6 +10,9 @@
    (setenv
     OCAML_WHERE
     %{ocaml_where}
-    (run cargo build --release --offline --quiet --target-dir target))
+    (setenv
+     RUSTC_BOOTSTRAP
+     1
+     (run cargo build --release --offline --quiet --target-dir target)))
    (run cp target/release/librconv_rs.a librconv_rs.a)
    (run cp target/release/librconv_rs.so dllrconv_rs.so))))
