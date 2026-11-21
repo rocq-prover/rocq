@@ -99,6 +99,7 @@ auto_overlay_map[hott]="coq-hott"
 auto_overlay_map[elpi]="rocq-elpi"
 auto_overlay_map[hierarchy_builder]="rocq-hierarchy-builder"
 auto_overlay_map[mathcomp]="rocq-mathcomp-boot rocq-mathcomp-order rocq-mathcomp-ssreflect rocq-mathcomp-finite-group rocq-mathcomp-algebra rocq-mathcomp-solvable rocq-mathcomp-field rocq-mathcomp-group-representation"
+auto_overlay_map[analysis]="rocq-mathcomp-classical rocq-mathcomp-reals rocq-mathcomp-analysis"
 auto_overlay_map[equations]="rocq-equations"
 auto_overlay_map[metarocq]="rocq-metarocq-utils rocq-metarocq-common rocq-metarocq-template rocq-metarocq-pcuic rocq-metarocq-safechecker rocq-metarocq-erasure rocq-metarocq-translations"
 
