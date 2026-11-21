@@ -1,3 +1,4 @@
+Unset Proof Using Clear Unused.
 Section S.
   Hypothesis HypFalse : False.
   Lemma false_in_section : False.
