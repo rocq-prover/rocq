@@ -2337,7 +2337,8 @@ let same_differences model witnesses x y =
   tight clauses with a single premise from which [canv + kv] is reachable: if no clause with
   several premises is met above [p + kp], this is complete. Otherwise, and for several
   premises, the universes above and below [canv + kv] in the graph of clauses are checked to
-  be equal to it in all valuations, as in [check_leq]: this is complete. *)
+  be equal to it in all valuations, as in [check_leq], except the ones already found through
+  the single-premise clauses: this is complete. *)
 let find_to_merge model prems (canv, kv) =
   let value = defined_expr_value model (canv, kv) in
   let tight x = Int.equal (defined_expr_value model x) value in
@@ -2357,7 +2358,7 @@ let find_to_merge model prems (canv, kv) =
      Such a [t] is below [canv] in the graph of clauses, following all their premises:
      otherwise, the universes above [t] could all be raised. It is also above [canv], through
      universes below [canv] as well. Its increment [kt] is [value(t) - value]. *)
-  let complete () =
+  let complete ?(known = PMap.empty) () =
     (* [Set] is below every universe *)
     let setcan = repr model (Index.find Level.set model.table) in
     let below = reach_all model fold_below (fun _ -> true) [(canv, kv); (setcan, 0)] in
@@ -2377,25 +2378,35 @@ let find_to_merge model prems (canv, kv) =
         let witnesses = witness_models model canv (t0.canon, kt0 - kv) in
         List.filter (fun (t, _) -> same_differences model witnesses canv.canon t.canon) candidates
     in
-    let below_canv = entails_from model (canv, kv) candidates in
-    List.filter (fun (t, kt) -> below_canv (t, kt) && entails model (NeList.tip (t, kt)) (canv, kv))
+    (* The universes of [known] are equal to [canv + kv]: only the other candidates are checked *)
+    let below_canv = lazy (entails_from model (canv, kv) candidates) in
+    List.filter (fun (t, kt) ->
+        PMap.mem t.canon known ||
+        (Lazy.force below_canv (t, kt) && entails model (NeList.tip (t, kt)) (canv, kv)))
       candidates
   in
   let members = match prems with
     | NeList.Tip (p, _ as pk) ->
       if not (tight pk) then [] else
       let f = reach above [pk] (PMap.singleton p.canon pk) in
-      if !skipped then complete ()
-      else if not (PMap.mem canv.canon f) then []
-      else
+      (* The universes [x + kx] reachable from [p + kp] through tight single-premise clauses, from
+         which [canv + kv] is reachable through tight single-premise clauses: [p + kp <= x + kx <=
+         canv + kv <= p + kp], they are equal to [canv + kv]. When a clause with several premises
+         is met above [p + kp], there can be others, but these need not be checked: in a cycle
+         closed by a constraint between global universes, e.g. in math-comp, they can be hundreds,
+         each check exploring the graph around them. *)
+      let single =
+        if not (PMap.mem canv.canon f) then PMap.empty else
         (* The increment found going down must be the one of [x] in [f]: the clause is tight *)
         let within (x, k) =
           match PMap.find_opt x.canon f with
           | Some (_, k') -> Int.equal k k'
           | None -> false
         in
-        let d = reach (below within) [(canv, kv)] (PMap.singleton canv.canon (canv, kv)) in
-        PMap.fold (fun _ x acc -> x :: acc) d []
+        reach (below within) [(canv, kv)] (PMap.singleton canv.canon (canv, kv))
+      in
+      if !skipped then complete ~known:single ()
+      else PMap.fold (fun _ x acc -> x :: acc) single []
     | NeList.Cons _ -> complete ()
   in
   match List.filter (fun (can, _) -> not (Index.equal can.canon canv.canon)) members with
