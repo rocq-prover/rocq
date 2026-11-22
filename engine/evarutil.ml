@@ -496,17 +496,32 @@ let vars_of_global env sigma gr =
       Environ.vars_of_global (Safe_typing.env_of_safe_env senv) gr
   | VarRef _ | IndRef _ | ConstructRef _ -> Environ.vars_of_global env gr
 
-let check_vars env sigma ids c =
-  let rec check_rec c =
-    match EConstr.destRef sigma c with
-    | gr, _ ->
-      let vars = vars_of_global env sigma gr in
-      Id.Map.iter (fun id _ -> if Id.Set.mem id vars then raise (Depends id)) ids
-    | exception DestKO -> EConstr.iter sigma check_rec c
-  in
-  check_rec c
+type clear_cache = (EConstr.named_declaration * Id.Set.t) Id.Map.t ref
 
-let rec check_and_clear_in_constr env evdref err ids ~global c =
+let make_clear_cache () = ref Id.Map.empty
+
+let decl_vars cache env sigma decl =
+  let id = NamedDecl.get_id decl in
+  match Id.Map.find_opt id !cache with
+  | Some (decl', vars) when decl' == decl -> vars
+  | _ ->
+    let has_evar = ref false in
+    let rec vars acc c =
+      match EConstr.destRef sigma c with
+      | gr, _ -> Id.Set.union (vars_of_global env sigma gr) acc
+      | exception DestKO ->
+        let () = if EConstr.isEvar sigma c then has_evar := true in
+        EConstr.fold sigma vars acc c
+    in
+    let ans = NamedDecl.fold_constr (fun c acc -> vars acc c) decl Id.Set.empty in
+    let () = if not !has_evar then cache := Id.Map.add id (decl, ans) !cache in
+    ans
+
+let check_decl_vars cache env sigma ids decl =
+  let vars = decl_vars cache env sigma decl in
+  Id.Map.iter (fun id _ -> if Id.Set.mem id vars then raise (Depends id)) ids
+
+let rec check_and_clear_in_constr cache env evdref err ids ~global c =
   (* returns a new constr where all the evars have been 'cleaned'
      (ie the hypotheses ids have been removed from the contexts of
      evars). [global] should be true iff there is some variable of [ids] which
@@ -558,7 +573,7 @@ let rec check_and_clear_in_constr env evdref err ids ~global c =
                   and transitively remember the dependency *)
                 let () =
                   if not @@ Id.Map.is_empty ri then
-                    NamedDecl.iter_constr (fun c -> check_vars env !evdref ri c) h
+                    check_decl_vars cache env !evdref ri h
                 in
               (* No dependency at all, we can keep this ev's context hyp *)
                 (ri, true::filter)
@@ -576,7 +591,7 @@ let rec check_and_clear_in_constr env evdref err ids ~global c =
                   let env = evar_filtered_env env evi in
                   let global = Id.Set.exists (is_section_variable_env env) nids in
                   let concl = evar_concl evi in
-                  check_and_clear_in_constr env evdref (EvarTypingBreak ev) nids ~global concl
+                  check_and_clear_in_constr cache env evdref (EvarTypingBreak ev) nids ~global concl
                 with ClearDependencyError (rid,err,where) ->
                   raise (ClearDependencyError (Id.Map.find rid rids,err,where))
               in
@@ -588,30 +603,32 @@ let rec check_and_clear_in_constr env evdref err ids ~global c =
               evdref := evd;
               Evd.existential_value !evdref ev
 
-      | _ -> EConstr.map !evdref (check_and_clear_in_constr env evdref err ids ~global) c
+      | _ -> EConstr.map !evdref (check_and_clear_in_constr cache env evdref err ids ~global) c
 
 let clear_hyps_in_evi_main env sigma hyps terms ids =
   (* clear_hyps_in_evi erases hypotheses ids in hyps, checking if some
      hypothesis does not depend on a element of ids, and erases ids in
      the contexts of the evars occurring in evi *)
   let evdref = ref sigma in
+  let cache = make_clear_cache () in
   let global = Id.Set.exists (is_section_variable_env env) ids in
   let terms =
-    List.map (check_and_clear_in_constr env evdref (OccurHypInSimpleClause None) ids ~global) terms in
+    List.map (check_and_clear_in_constr cache env evdref (OccurHypInSimpleClause None) ids ~global) terms in
   let nhyps =
     let check_context status decl =
       let decl = EConstr.of_named_decl decl in
       let err = OccurHypInSimpleClause (Some (NamedDecl.get_id decl)) in
-      status, EConstr.Unsafe.to_named_decl @@ NamedDecl.map_constr (check_and_clear_in_constr env evdref err ids ~global) decl
+      status, EConstr.Unsafe.to_named_decl @@ NamedDecl.map_constr (check_and_clear_in_constr cache env evdref err ids ~global) decl
     in
     remove_hyps ids check_context hyps
   in
   (!evdref, nhyps, terms)
 
-let check_and_clear_in_constr env evd err ids c =
+let check_and_clear_in_constr ?cache env evd err ids c =
+  let cache = match cache with None -> make_clear_cache () | Some cache -> cache in
   let evdref = ref evd in
   let global = Id.Set.exists (is_section_variable_env env) ids in
-  let _ : EConstr.constr = check_and_clear_in_constr
+  let _ : EConstr.constr = check_and_clear_in_constr cache
       ~global
       env evdref err ids c
   in

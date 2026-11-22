@@ -599,7 +599,7 @@ let general_rewrite ~where:cls ~l2r:lft2rgt occs ~freeze:frzevars ~dep:dep_proof
             end
     end
 
-let clear_for_rewrite_in_hyps ids c =
+let clear_for_rewrite_in_hyps ?cache ids c =
   let ids = Id.Set.of_list ids in
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
@@ -607,7 +607,7 @@ let clear_for_rewrite_in_hyps ids c =
     (* Is this the right err? *)
     let err = (Evarutil.OccurHypInSimpleClause None) in
     let sigma =
-      try Evarutil.check_and_clear_in_constr env sigma err ids c
+      try Evarutil.check_and_clear_in_constr ?cache env sigma err ids c
       with Evarutil.ClearDependencyError (id,err,inglobal) ->
         CErrors.user_err Pp.(str "Cannot rewrite due to dependency on " ++ Id.print id ++ str ".")
     in
@@ -648,17 +648,18 @@ let general_rewrite_clause l2r with_evars ?tac c cl =
     | None ->
         (* Otherwise, if we are told to rewrite in all hypothesis via the
            syntax "* |-", we fail iff all the different rewrites fail *)
-        let rec do_hyps_atleastonce = function
+        let rec do_hyps_atleastonce cache = function
           | [] -> tclZEROMSG (Pp.str"Nothing to rewrite.")
           | id :: l ->
             tclIFTHENFIRSTTRYELSEMUST
-              (tclTHEN (clear_for_rewrite_in_hyps [id] (fst c))
+              (tclTHEN (clear_for_rewrite_in_hyps ~cache [id] (fst c))
                  (general_rewrite ~where:(Some id) ~l2r AllOccurrences ~freeze:false ~dep:true ~with_evars ?tac c))
-              (do_hyps_atleastonce l)
+              (do_hyps_atleastonce cache l)
         in
         let do_hyps =
           Proofview.Goal.enter begin fun gl ->
-            do_hyps_atleastonce (Tacmach.pf_ids_of_hyps gl)
+            let cache = Evarutil.make_clear_cache () in
+            do_hyps_atleastonce cache (Tacmach.pf_ids_of_hyps gl)
           end
         in
         if cl.concl_occs == NoOccurrences then do_hyps else
