@@ -52,7 +52,13 @@ type infer_variance_occurrence =
     infer_topfix_binders : infer_binders; (* Variances in the term's toplevel fixpoint binders treated as lambdas (contravariance allowed)  *)
     infer_term : mode * UVars.VariancePair.t option;
     infer_type : mode * UVars.VariancePair.t option;
-    infer_under_impred_qvars : impred_qvars }
+    infer_under_impred_qvars : impred_qvars;
+    infer_folded : Variance.t option;
+    (* The supremum of the cumulativity variances of the universe in the types of the folded
+       subterms where it occurs, the instances of constants, inductives and constructors (e.g.
+       [s] in the type [R@{s}] of [f@{s} x]): unification copies such subterms into
+       holes, comparing their types by cumulativity. Only used by the minimization, not stored. *)
+  }
 
 type variances = infer_variance_occurrence Univ.Level.Map.t
 let default_occ =
@@ -60,7 +66,8 @@ let default_occ =
     infer_topfix_binders = (Infer, (None, []));
     infer_term = (Infer, None);
     infer_type = (Infer, None);
-    infer_under_impred_qvars = None }
+    infer_under_impred_qvars = None;
+    infer_folded = None }
 
 let make_checked_occ ~infer_in_type
   UVars.VarianceOccurrence.{ in_binders; in_topfix_binders; in_term; in_type; under_impred_qvars } =
@@ -68,11 +75,12 @@ let make_checked_occ ~infer_in_type
     infer_topfix_binders = Check, in_topfix_binders;
     infer_term = Check, in_term;
     infer_type = (if infer_in_type then Infer else Check), in_type;
-    infer_under_impred_qvars = under_impred_qvars }
+    infer_under_impred_qvars = under_impred_qvars;
+    infer_folded = None }
 
 let forget_infer_variance_occurrence
   { infer_binders; infer_topfix_binders; infer_term; infer_type;
-    infer_under_impred_qvars = impred_qvars } =
+    infer_under_impred_qvars = impred_qvars; infer_folded = _ } =
   UVars.VarianceOccurrence.{ in_binders = snd infer_binders;
     in_topfix_binders = snd infer_topfix_binders;
     in_term = (snd infer_term);
@@ -98,13 +106,17 @@ let pr_variance_occurrence_items (occ : infer_variance_occurrence) =
     | None -> []
     | Some v -> [pr_mode m ++ str": " ++ VariancePair.pr v ++ str" in type"]
   in
+  let pr_folded = match occ.infer_folded with
+    | None | Some Variance.Irrelevant -> []
+    | Some v -> [Variance.pr v ++ str" in the types of folded subterms"]
+  in
   let pr_impred =
     match occ.infer_under_impred_qvars with
     | Some _ as x -> [UVars.pr_impred_qvars x]
     | None -> []
   in
   pr_binders false occ.infer_binders @ pr_binders true occ.infer_topfix_binders
-  @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_impred
+  @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_folded @ pr_impred
 
 let pr_variance_occurrence occ =
   let open Pp in
@@ -171,18 +183,19 @@ let sup_binders (mode, (bindersv, binders)) (mode', (bindersv', binders')) =
   (mode_sup mode mode', (Option.union VariancePair.sup bindersv bindersv', union_binders binders binders'))
 
 let sup_occs { infer_binders; infer_topfix_binders; infer_term; infer_type;
-   infer_under_impred_qvars }
+   infer_under_impred_qvars; infer_folded }
   { infer_binders = infer_binders'; infer_topfix_binders = infer_topfix_binders'; infer_term = infer_term';
     infer_type = infer_type';
-    infer_under_impred_qvars = infer_under_impred_qvars' } =
+    infer_under_impred_qvars = infer_under_impred_qvars'; infer_folded = infer_folded' } =
   let infer_binders = sup_binders infer_binders infer_binders' in
   let infer_topfix_binders = sup_binders infer_topfix_binders infer_topfix_binders' in
   let mode_var_sup (mode, v) (mode', v') = (mode_sup mode mode', Option.union VariancePair.sup v v') in
   let infer_term = mode_var_sup infer_term infer_term' in
   let infer_type = mode_var_sup infer_type infer_type' in
   let infer_under_impred_qvars = union_impred_qvars infer_under_impred_qvars infer_under_impred_qvars' in
+  let infer_folded = Option.union Variance.sup infer_folded infer_folded' in
   { infer_binders; infer_topfix_binders; infer_term; infer_type;
-    infer_under_impred_qvars }
+    infer_under_impred_qvars; infer_folded }
 
 let union_variances : variances -> variances -> variances =
   let union _ x y = Some (sup_occs x y) in
@@ -211,7 +224,7 @@ let occurrence_to_variance_pos
      infer_topfix_binders = (modef, infer_fix_binders);
      infer_term = (modet, infer_term);
      infer_type = (modety, infer_type);
-     infer_under_impred_qvars = _ } : infer_variance_occurrence) =
+     infer_under_impred_qvars = _; infer_folded = _ } : infer_variance_occurrence) =
   let open VariancePair in
   let open Position in
   let infer_binders =
@@ -228,7 +241,7 @@ let occurrence_to_variance_pos
 
 let term_type_variances
   ({ infer_binders = (_, (infer_binders, _)); infer_topfix_binders = (_, (infer_fix_binders, _)); infer_term = (_, infer_term); infer_type = (_, infer_type);
-     infer_under_impred_qvars = _ } : infer_variance_occurrence) =
+     infer_under_impred_qvars = _; infer_folded = _ } : infer_variance_occurrence) =
   let open VariancePair in
   sup_vopt (Option.map (fun _ -> Invariant) infer_fix_binders) (Option.map cumul_variance infer_term),
   sup_vopt (Option.map typing_variance infer_binders) (Option.map typing_variance infer_type),
@@ -253,6 +266,7 @@ module Inf : sig
   val infer_level_leq : typing_variance:Variance.t -> impred_qvars -> Level.t -> status -> status
   val infer_level_geq : typing_variance:Variance.t -> impred_qvars -> Level.t -> status -> status
   val infer_level_typing_variance : typing_variance:Variance.t -> impred_qvars -> Level.t -> status -> status
+  val infer_level_folded : Variance.t -> Level.t -> status -> status
 
   val get_infer_mode : status -> bool
   val set_infer_mode : bool -> status -> status
@@ -395,6 +409,14 @@ end = struct
     in
     { variances with univs = Level.Map.update u upd variances.univs }
 
+  let infer_level_folded v u (variances : status) =
+    if Variance.equal v Variance.Irrelevant then variances else
+    let upd = function
+      | None -> None
+      | Some occ -> Some { occ with infer_folded = Some (Option.cata (Variance.sup v) v occ.infer_folded) }
+    in
+    { variances with univs = Level.Map.update u upd variances.univs }
+
   let pr_pre_variances =
     let open Pp in
     let open Univ in
@@ -504,6 +526,19 @@ let compute_impred_qvars qs vocc =
   let vars = UVars.VarianceOccurrence.under_impred_qvars vocc in
   update_impred_qvars (fun qv -> Option.map (fun idx -> qs.(idx)) (Sorts.QVar.var_index qv)) vars
 
+(** The variances of the universes of [f@{u1 ... un}] in the type of [f]: the type of this subterm
+    depends on them (see [infer_folded]) *)
+let infer_folded_instance gvariances variances u =
+  let _, us = Instance.to_array u in
+  let vs = Variances.repr gvariances in
+  if not (Int.equal (Array.length vs) (Array.length us)) then variances else
+  Array.fold_left2 (fun variances (vocc : VarianceOccurrence.t) u ->
+      match vocc.in_type with
+      | None -> variances
+      | Some { VariancePair.cumul_variance = v; _ } ->
+        Level.Set.fold (Inf.infer_level_folded v) (Universe.levels u) variances)
+    variances vs us
+
 (** Compute variances from f@{u1 ... un} knowing f@{l1(vn) ... ln(vn)} variance information *)
 let infer_cumulative_instance gr cv_pb (is_type, typing_v) nargs gvariances variances u =
   let qs, us = Instance.to_array u in
@@ -513,6 +548,7 @@ let infer_cumulative_instance gr cv_pb (is_type, typing_v) nargs gvariances vari
     str" in typing variance position " ++ Variance.pr typing_v ++
     str " is_type = " ++ (if is_type == IsType then str "IsType" else str "IsTerm") ++
     str" conv_pb = " ++ pr_cumul_pb cv_pb) ;
+  let variances = infer_folded_instance gvariances variances u in
   Array.fold_left2 (fun variances vocc u ->
     let input_univ, VariancePair.{ cumul_variance; typing_variance } = VarianceOccurrence.typing_and_cumul_variance_app ~with_type:false nargs vocc in
     debug_infer_term_variances Pp.(fun () -> str"infer_cumulative_instance, for: " ++ Universe.raw_pr u ++
@@ -690,6 +726,15 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
         let variances = infer_stack cv_pb variance infos variances stk in
         variances
       else
+      (* As conversion does (see [Conversion]), the projection of a record which reduces to a
+         constructor is unfolded, e.g. [hom (inst@{u v}) x y] for an instance [inst] of a class:
+         the universes of the record only matter through the projected field. The folded record
+         stays in the term though: the variances of its universes in its type are recorded. *)
+      match project_stack infos hd stk with
+      | Some (field, stk') ->
+        let variances = infer_folded_head infos variances hd in
+        infer_fterm cv_pb variance infos variances field stk'
+      | None ->
       (* The definition is only looked up when it is needed: most constants are not expanded *)
       let def = lazy (unfold_ref_with_args (fst infos) (snd infos) fl stk) in
       try
@@ -707,9 +752,19 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
         debug_infer_term Pp.(fun () -> str"expanding constant: " ++ Names.GlobRef.print (Names.GlobRef.ConstRef (fst con)));
         infer_fterm cv_pb variance infos variances hd stk
     end
-  | FProj (_,_,c) ->
-    let variances = infer_fterm Conv variance infos variances c [] in
-    infer_stack cv_pb variance infos variances stk
+  | FProj (p,_,c) ->
+    (* As conversion does (see [Conversion]), the projection of a record which reduces to a
+       constructor is unfolded, e.g. [hom (inst@{u v}) x y] for an instance [inst] of a class:
+       the universes of the record only matter through the projected field. The folded record
+       stays in the term though: the variances of its universes in its type are recorded. *)
+    begin match project_constructor infos (Names.Projection.repr p) c with
+    | Some field ->
+      let variances = infer_folded_head infos variances c in
+      infer_fterm cv_pb variance infos variances field stk
+    | None ->
+      let variances = infer_fterm Conv variance infos variances c [] in
+      infer_stack cv_pb variance infos variances stk
+    end
   | FLambda _ ->
     let (na,ty,bd) = destFLambda mk_clos hd in
     let variances = infer_fterm Conv (IsType, Invariant) infos variances ty [] in
@@ -796,6 +851,45 @@ let rec infer_fterm cv_pb (variance : is_type * Variance.t) infos variances hd s
   | FLIFT _ -> assert false
   | FCLOS _ -> assert false
   | FIrrelevant -> assert false (* TODO: use create_conv_infos below and use it? *)
+
+(* The field of the constructor that [c] reduces to (unfolding constants), for the projection [p] *)
+and project_constructor (info, tab) p c =
+  let reds = RedFlags.red_add (CClosure.info_flags info) RedFlags.fDELTA in
+  let hd, stk = CClosure.whd_stack (CClosure.infos_with_reds info reds) tab c [] in
+  match CClosure.fterm_of hd with
+  | CClosure.FConstruct (_, args) when Int.equal (CClosure.stack_args_size stk) 0 ->
+    let i = Names.Projection.Repr.npars p + Names.Projection.Repr.arg p in
+    if i < Array.length args then Some args.(i) else None
+  | _ -> None
+
+(* When [hd] is the record of a projection on top of [stk] (after updates), the field it reduces to
+   and the rest of the stack *)
+and project_stack infos hd stk =
+  let rec first = function
+    | CClosure.Zupdate _ :: stk -> first stk
+    | CClosure.Zproj (p, _) :: stk ->
+      Option.map (fun field -> (field, stk)) (project_constructor infos p hd)
+    | _ -> None
+  in
+  first stk
+
+(* The variances of the universes of the head instance of [c] in its type (see [infer_folded]) *)
+and infer_folded_head infos variances c =
+  let hd, stk = whd_stack infos c [] in
+  let env = CClosure.info_env (fst infos) in
+  match CClosure.fterm_of hd with
+  | CClosure.FFlex (Names.ConstKey (con, u)) when Environ.mem_constant con env ->
+    let cb = Environ.lookup_constant con env in
+    begin match extended_const_variance cb (UVars.NumArgs (CClosure.stack_args_size stk)) with
+    | Some (cst_variance, _) -> infer_folded_instance cst_variance variances (extend_con_instance cb u)
+    | None -> variances
+    end
+  | CClosure.FInd (ind, u) ->
+    begin match inductive_variances env ind u with
+    | Some (mind_variance, u) -> infer_folded_instance mind_variance variances u
+    | None -> variances
+    end
+  | _ -> variances
 
 (* Conversion compares two stuck matches with CONV: the instances of their inductive with
    its variances, their return clauses and their branches, wherever the matches occur.

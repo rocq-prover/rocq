@@ -17,6 +17,7 @@ let _debug_minim_each, debug_each = CDebug.create_full ~name:"univMinim_each" ()
 let _debug_minim_each, debug_graph = CDebug.create_full ~name:"univMinim_graph" ()
 
 let disable_solve_term, _ = CDebug.create_full ~name:"minim-solve-term" ()
+let disable_folded_check, _ = CDebug.create_full ~name:"minim-no-folded-check" ()
 
 (* To disallow minimization to Set *)
 let { Goptions.get = get_set_minimization } =
@@ -62,6 +63,27 @@ let in_declared_type u (variances : InferCumulativity.variances) =
     match InferCumulativity.declared_type_cumul_variance occs with
     | None | Some UVars.Variance.Irrelevant -> false
     | Some _ -> true
+
+(* An algebraic universe ([max(a, b)], [l+1]) only replaces [u] where it is safe: where the types
+   of the folded subterms in which [u] occurs (see [InferCumulativity.infer_folded]) are covariant
+   in [u], e.g. [Proper@{max(a,b)} R m : Type@{max(a,b)}]. Unification copies such subterms into
+   holes, checking their types by cumulativity: elsewhere, e.g. in [f@{max(a,b)} x :
+   R@{max(a,b)}] for an inductive [R] invariant in its universe, the universe of the hole would have to be
+   equal to [max(a, b)], an upper bound which an independent universe cannot satisfy. A single
+   level is allowed anywhere: the hole gets a copy of it. *)
+let closed_last_resort = ref false
+
+let algebraic_bound_allowed u bound (variances : InferCumulativity.variances) =
+  !closed_last_resort || CDebug.get_flag disable_folded_check || Option.has_some (Universe.level bound) ||
+  match Level.Map.find_opt u variances with
+  | None -> true
+  | Some occs ->
+    match occs.InferCumulativity.infer_folded with
+    | None | Some (UVars.Variance.Irrelevant | UVars.Variance.Covariant) -> true
+    | Some (UVars.Variance.Invariant | UVars.Variance.Contravariant) ->
+      debug Pp.(fun () -> str"Not setting " ++ Level.raw_pr u ++ str" to the algebraic " ++ Universe.pr Level.raw_pr bound ++
+        str": its folded occurrences are not covariant");
+      false
 
 let _warn_not_minimizable u =
   Feedback.msg_notice Pp.(str"Universe " ++ Level.raw_pr u ++ str" is not mimimizable as its lower bound \
@@ -139,14 +161,14 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
     match UGraph.minimize ~require_entailed u graph with
     | HasSubst (graph, equivs, lbound) ->
       debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
-      if not (allowed_instance ~allow_collapse_to_zero u lbound) then acc
+      if not (allowed_instance ~allow_collapse_to_zero u lbound && algebraic_bound_allowed u lbound variances) then acc
       else update_equivs_bound (flex, variances, graph) u lbound equivs
     | NoBound | CannotSimplify -> acc
   in
   let minimize_not_to_set u (flex, variances, graph as acc) =
     match UGraph.minimize ~require_entailed u graph with
     | HasSubst (graph, equivs, lbound) ->
-      if Universe.exists (fun (l, _) -> Level.is_set l) lbound then acc
+      if Universe.exists (fun (l, _) -> Level.is_set l) lbound || not (algebraic_bound_allowed u lbound variances) then acc
       else update_equivs_bound (flex, variances, graph) u lbound equivs
     | NoBound | CannotSimplify -> acc
   in
@@ -163,11 +185,12 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
     not (Universe.exists (fun (l, _) ->
         not (Level.is_set l || Level.Map.mem l variances || Level.Set.mem l flex)) ub)
   in
-  let maximize u (flex, variances, graph0 as acc) =
+  let maximize u (_flex, variances, graph0 as acc) =
     match UGraph.maximize u graph0 with
     | HasSubst (_, _, ubound) when get_compat_minimization () && not (local_bound variances ubound) ->
       debug_each Pp.(fun () -> str"Not maximizing " ++ Level.raw_pr u ++ str" to the non-local " ++ Universe.pr Level.raw_pr ubound);
       acc
+    | HasSubst (_, _, ubound) when not (algebraic_bound_allowed u ubound variances) -> acc
     | HasSubst (graph, equivs, ubound) ->
       debug_each Pp.(fun () -> str"Maximizing " ++ Level.raw_pr u ++ str" resulted in ubound: " ++ Universe.pr Level.raw_pr ubound);
       update_equivs_bound (flex, variances, graph) u ubound equivs
@@ -196,7 +219,8 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
           irrelevant && not partial && get_compat_minimization () && body_only u &&
           List.for_all (fun (l, (l', _)) -> body_only l && body_only l') equivs
         in
-        if allowed_instance ~allow_collapse_to_zero u lbound || collapse_body_only () then
+        if (allowed_instance ~allow_collapse_to_zero u lbound || collapse_body_only ())
+           && algebraic_bound_allowed u lbound variances then
           update_equivs_bound (flex, variances, graph) u lbound equivs
         else acc
       | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
@@ -225,7 +249,8 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
     let internal_minimized =
       if partial || not (Level.Set.mem u internal) then None else
       match UGraph.minimize ~require_entailed:true u graph with
-      | HasSubst (graph, equivs, lbound) when allowed_instance ~allow_collapse_to_zero:false u lbound ->
+      | HasSubst (graph, equivs, lbound) when allowed_instance ~allow_collapse_to_zero:false u lbound
+                                              && algebraic_bound_allowed u lbound variances ->
         debug_each Pp.(fun () -> str"Minimizing internal " ++ Level.raw_pr u ++ str" to lbound: " ++ Universe.pr Level.raw_pr lbound);
         Some (update_equivs_bound (flex, variances, graph) u lbound equivs)
       | HasSubst _ | NoBound | CannotSimplify -> None
@@ -257,11 +282,11 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
       (* Agressive minimization when the universe does not direcly affect the type of the expression. *)
       if not partial && not (CDebug.get_flag disable_solve_term) && type_variance == Irrelevant then
         if solve_term then minimize ~allow_collapse_to_zero:true u acc
-        (* [Universe Minimization Compat] also minimizes the universes not occurring in the type,
-           but not to [Set]: it could still constrain the universes of the type, e.g.
-           [u <= max(v, w)] becomes [u <= v] when [w := Set] *)
-        else if get_compat_minimization () then minimize_not_to_set u acc
-        else simplify_impred u acc impred
+        (* The universes not occurring in the type of the declaration, whatever their variances
+           in its body, are set to their lower bound: the type does not depend on them, while each
+           use would copy them. Not to [Set]: it could still constrain the universes of the type,
+           e.g. [u <= max(v, w)] becomes [u <= v] when [w := Set] *)
+        else minimize_not_to_set u acc
       else simplify_impred u acc impred
   in
   let (flex, _, _ as acc) = Level.Set.fold simplify_min flex (flex, variances, graph) in
@@ -309,7 +334,7 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
     match joint_minimize acc with None -> acc | Some acc -> rounds (n - 1) acc
   in
   let (flex, _, _ as acc) =
-    if partial || not (solve_term || get_compat_minimization ()) then acc else rounds 5 acc
+    if partial then acc else rounds 5 acc
   in
   let simplify_max u (flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
@@ -383,7 +408,17 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
       if not (Level.Set.mem u flex) then acc
       else simplify_arbitrary u acc
     in
-    Level.Set.fold fold_arbitrary flex acc
+    let (flex, _, _ as acc) = Level.Set.fold fold_arbitrary flex acc in
+    (* The universes still undefined cannot stay either, and an algebraic lower bound is their
+       only possible value: as a last resort, it is allowed even where their folded occurrences
+       are not covariant (see [algebraic_bound_allowed]), e.g. a universe whose only lower
+       bound is [max(u, v)] and which occurs in the type of an instance of an inductive invariant
+       in it. Otherwise the declaration would be refused. *)
+    if Level.Set.is_empty flex then acc else begin
+      closed_last_resort := true;
+      Fun.protect ~finally:(fun () -> closed_last_resort := false)
+        (fun () -> Level.Set.fold fold_arbitrary flex acc)
+    end
   else acc
 
 module UPairs = OrderedType.UnorderedPair(Universe)
@@ -453,6 +488,7 @@ let new_minimize_weak ?entailed_only partial flex weak (g, variances) =
     else
       let check_le a b = UGraph.check_constraint g (a,Le,b) in
       let set a b variances =
+        if not (algebraic_bound_allowed a b variances) then acc else
         (* With [Universe Minimization Compat], a universe occurring in the type of the declaration
            only with another flexible universe: it could be identified with a global universe,
            constraining nothing but losing its generality, e.g. when another weak constraint
@@ -540,7 +576,7 @@ let early_minimize_weak flex weak (g, variances) =
       let candidate a b =
         match Universe.level a with
         | Some a when irrelevant_to_type a && not (Level.Set.mem a (Universe.levels b))
-                      && not (Level.Map.mem a cands) -> Some (a, b)
+                      && not (Level.Map.mem a cands) && algebraic_bound_allowed a b variances -> Some (a, b)
         | _ -> None
       in
       if Universe.is_type0 u || Universe.is_type0 v
@@ -627,7 +663,8 @@ let minimize_parameter_only solve_flexibles partial above_zero parameter_only (f
           not (get_compat_minimization () && occurs_in_type l variances &&
                not (Level.Set.mem l above_zero))
         in
-        if parameter_only_level u && List.for_all (fun (l, _) -> parameter_only_level l) equivs then begin
+        if parameter_only_level u && List.for_all (fun (l, _) -> parameter_only_level l) equivs
+           && algebraic_bound_allowed u lbound variances then begin
           debug_each Pp.(fun () -> str"Minimizing parameter-only " ++ Level.raw_pr u ++ str" to " ++ Universe.pr Level.raw_pr lbound);
           update_equivs_bound (flex, variances, graph') u lbound equivs
         end

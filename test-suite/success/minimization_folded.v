@@ -1,0 +1,84 @@
+(* Minimization and variance inference: principality of the types of definitions, number of
+   quantified universes, variances reflecting the unfolding, and algebraic universes only in
+   covariant positions. Without [Universe Minimization Compat]. *)
+
+Set Universe Polymorphism.
+Set Polymorphic Inductive Cumulativity.
+Set Primitive Projections.
+Unset Universe Minimization ToSet.
+
+Module Principality.
+  (* An invariant universe of the type, only bounded from below, is kept: [Endo@{u}] is not
+     below [Endo@{v}] for [u < v]. *)
+  Record Endo@{u} := { car : Type@{u} -> Type@{u} }.
+  Definition mk (A : Type) (B : Type) : Endo := {| car := fun X => (A * B * X)%type |}.
+  Check mk@{_ _ _}.
+
+  (* A covariant one is set to its lower bound, even an algebraic one. *)
+  Definition mkc (A : Type) (B : Type) := (A * B)%type.
+  Check mkc@{_ _}.
+End Principality.
+
+Module ProjectionsUnfolded.
+  (* The variance of a universe of the record argument of a projection is the one of the projected
+     field, as conversion unfolds projections first: [Hom (isgraph_0gpd@{u v}) X Y] is
+     [Morph@{u v} X Y], whose universes only occur in the types of its parameters. *)
+  Class IsGraph@{a h} (A : Type@{a}) := { Hom : A -> A -> Type@{h} }.
+  Arguments Hom {A _} _ _.
+  Notation "x $-> y" := (Hom x y) (at level 99).
+  Record ZeroGpd@{u v} := { carrier :> Type@{u}; rel : carrier -> carrier -> Type@{v} }.
+  Record Morph@{u v} (X Y : ZeroGpd@{u v}) := { fn : X -> Y }.
+  #[export] Instance isgraph_0gpd@{u v} : IsGraph ZeroGpd@{u v} := {| Hom := Morph@{u v} |}.
+
+  (* The universes of the category in which the hom is taken are irrelevant, as in the unfolding *)
+  Definition hom_same@{a b} (X Y : ZeroGpd@{a b}) := X $-> Y.
+  Definition hom_same_cumul@{a b a' b' | a <= a', b <= b'} (X Y : ZeroGpd@{a b})
+    (f : hom_same@{a b} X Y) : hom_same@{a' b'} X Y := f.
+
+  (* The copy [ZeroGpd@{w z}] of the universes of [X], made by the cast, is not kept: the type only
+     depends on it through the projection. As in HoTT's [cat_prod_corec_inv], [IsProduct]... *)
+  Definition hom_copy (X : ZeroGpd) := (X : ZeroGpd) $-> X.
+  Check hom_copy@{_ _}.
+End ProjectionsUnfolded.
+
+Module TermOnly.
+  (* A universe of the body only, not of the type, is set to its lower bound whatever its
+     variances in the body: the type does not depend on it, while each use would copy it. Here
+     the copy [u >= a] of the universe of [A], compared invariantly in [@eq_refl Type@{u} A]. *)
+  Definition eq_copy@{a +} (A : Type@{a}) (x : A) : A := let e := @eq_refl Type (A : Type) in x.
+  Check eq_copy@{_}.
+End TermOnly.
+
+Module AlgebraicOnlyCovariant.
+  (* A universe is only set to an algebraic lower bound ([max(i, v)]) where the types of the folded
+     subterms in which it occurs are covariant in it: unification copies such subterms into
+     holes. Here [s], the relation universe of [Pi_Setoid@{i a v s} S : Setoid@{_ s} _] for a
+     non-cumulative [Setoid], is kept in the statement of [pi_refl]. *)
+  #[universes(cumulative=no)]
+  Class Setoid@{a v} (A : Type@{a}) := { equiv : A -> A -> Type@{v} }.
+  Arguments equiv {A _} _ _.
+
+  Definition Pi_Setoid@{i a v s | max(i, v) <= s} {I : Type@{i}} {F : I -> Type@{a}}
+    (S : forall i, Setoid@{a v} (F i)) : Setoid@{max(i,a) s} (forall i, F i) :=
+    {| equiv f g := forall i, equiv (f i) (g i) |}.
+
+  Lemma pi_refl {I : Type} {F : I -> Type} (S : forall i, Setoid (F i)) (f : forall i, F i)
+    (H : forall i, equiv (f i) (f i)) : @equiv _ (Pi_Setoid S) f f.
+  Proof. exact H. Qed.
+  Check pi_refl@{_ _ _ _}.
+
+  Record PtSetoid@{a w} := { pcar : Type@{a}; pset : Setoid@{a w} pcar; ppt : pcar; prefl : @equiv _ pset ppt ppt }.
+
+  (* The setoid, left to unification, is copied from the type of [pi_refl]: with [s := max(i, v)],
+     [w] would have to be equal to [max(i, v)] (as in category-theory's [Fun]). *)
+  Definition mk@{i a v w | max(i, v) <= w} {I : Type@{i}} {F : I -> Type@{a}} (S : forall i, Setoid@{a v} (F i))
+    (f : forall i, F i) (H : forall i, equiv (f i) (f i)) : PtSetoid@{max(i,a) w} :=
+    {| pcar := forall i, F i; pset := _; ppt := f; prefl := pi_refl S f H |}.
+
+  (* In a covariant position, the algebraic lower bound is fine: [Proper]-like statements keep no
+     universe for it. *)
+  Definition Rel@{a r} (A : Type@{a}) := A -> A -> Type@{r}.
+  Definition pw@{i a r} {I : Type@{i}} {F : I -> Type@{a}} (R : forall i, Rel@{a r} (F i)) : Rel (forall i, F i) :=
+    fun f g => forall i, R i (f i) (g i).
+  Check pw@{_ _ _}.
+End AlgebraicOnlyCovariant.

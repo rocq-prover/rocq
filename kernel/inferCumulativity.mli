@@ -26,7 +26,13 @@ type infer_variance_occurrence =
     infer_topfix_binders : infer_binders;
     infer_term : mode * VariancePair.t option;
     infer_type : mode * VariancePair.t option;
-    infer_under_impred_qvars : impred_qvars }
+    infer_under_impred_qvars : impred_qvars;
+    infer_folded : Variance.t option;
+    (** The supremum of the cumulativity variances of the universe in the types of the folded
+        subterms where it occurs (instances of constants, inductives and constructors), which
+        unification may copy into holes: an algebraic universe is only safe where they are
+        covariant. Used by the minimization only, not stored. *)
+  }
 
 val default_occ : infer_variance_occurrence
 val make_checked_occ : VariancePos.t -> infer_variance_occurrence

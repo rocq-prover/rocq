@@ -21,10 +21,11 @@ Declared in library sort_poly_elab, line 14, characters 13-19
      sort_poly_elab:26 < sort_poly_elab:25
      sort_poly_elab:26 < sort_poly_elab:27
 Minimized universes:
- sort_poly_elab:27 := sort_poly_elab:26+1
- sort_poly_elab:25 := sort_poly_elab:26+1
+ sort_poly_elab:27 := U+2
+ sort_poly_elab:26 := U+1
+ sort_poly_elab:25 := U+2
 Normalized constraints:
- {sort_poly_elab:26} | U < sort_poly_elab:26 *)
+  *)
 @eq_refl Type@{sort_poly_elab:29} q2
 :
 @eq Type@{sort_poly_elab:29} q2 tU@{Type ; }
@@ -34,10 +35,11 @@ Normalized constraints:
      sort_poly_elab:29 < sort_poly_elab:28
      sort_poly_elab:29 < sort_poly_elab:30
 Minimized universes:
- sort_poly_elab:30 := sort_poly_elab:29+1
- sort_poly_elab:28 := sort_poly_elab:29+1
+ sort_poly_elab:30 := U+2
+ sort_poly_elab:29 := U+1
+ sort_poly_elab:28 := U+2
 Normalized constraints:
- {sort_poly_elab:29} | U < sort_poly_elab:29 *)
+  *)
 @eq_refl Type@{sort_poly_elab:32} q3
 :
 @eq Type@{sort_poly_elab:32} q3 tU@{Type ; }
@@ -47,10 +49,11 @@ Normalized constraints:
      sort_poly_elab:32 < sort_poly_elab:31
      sort_poly_elab:32 < sort_poly_elab:33
 Minimized universes:
- sort_poly_elab:33 := sort_poly_elab:32+1
- sort_poly_elab:31 := sort_poly_elab:32+1
+ sort_poly_elab:33 := U+2
+ sort_poly_elab:32 := U+1
+ sort_poly_elab:31 := U+2
 Normalized constraints:
- {sort_poly_elab:32} | U < sort_poly_elab:32 *)
+  *)
 exfalso@{α ; u} :
 forall (A : Univ@{α ; u}) (_ : False), A
 (* α ; u(= in 1st binder) | *)
