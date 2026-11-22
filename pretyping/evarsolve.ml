@@ -171,11 +171,11 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ~status ?(onlyalg=false)
       let ty' = refresh ~onlyalg univ_flexible ~direction:true ty in
       if ty == ty' then t
       else (evdref := Evd.downcast ev ty' !evdref; t)
-    | Sort s ->
-       (match ESorts.kind !evdref s with
-        | Type u when not (Univ.Universe.is_levels u) ->
-           refresh_sort Evd.univ_flexible ~direction:false s
-        | _ -> t)
+    (* The algebraic sorts inside the term are kept: terms may mention algebraic universes, and
+       the position of the sort is unknown. Replacing [Type@{max(a,b)}] by [Type@{u}] with only
+       [max(a, b) <= u] is right in a covariant position only: elsewhere, e.g. in [fun _ =>
+       Type@{max(a,b)}] used as the type of an equality, the term is only well typed for [u :=
+       max(a, b)], which the minimization would have to guess. *)
     | _ -> EConstr.map !evdref (refresh_term_evars ~onevars ~top:false) t
   and refresh_polymorphic_positions args pos =
     let rec aux i = function
@@ -194,8 +194,9 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ~status ?(onlyalg=false)
     if isArity !evdref t then
       match pbty with
       | None ->
-         (* No cumulativity needed, but we still need to refresh the algebraics *)
-         refresh ~onlyalg:true univ_flexible ~direction:false t
+         (* No cumulativity: the sorts of the arity are compared with CONV, refreshing them
+            would only record one of the two inequalities. Algebraic universes are allowed. *)
+         t
       | Some direction -> refresh ~onlyalg status ~direction t
     else refresh_term_evars ~onevars:false ~top:true t
   in !evdref, t'
