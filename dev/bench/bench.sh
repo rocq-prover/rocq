@@ -8,6 +8,14 @@ set -e
 
 BENCH_DEBUG=
 
+
+export RUST_VERSION="1.97.1"
+export RUSTUP_HOME="$PWD/.rustup"
+export CARGO_HOME="$PWD/.cargo"
+export PATH="$CARGO_HOME/bin:$PATH"
+
+wget -qO- https://sh.rustup.rs | sh -s -- -y --no-modify-path --profile minimal --default-toolchain "$RUST_VERSION"
+
 r='\033[0m'          # reset (all attributes off)
 b='\033[1m'          # bold
 u='\033[4m'          # underline
