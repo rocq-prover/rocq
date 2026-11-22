@@ -17,6 +17,7 @@ let _debug_minim_each, debug_each = CDebug.create_full ~name:"univMinim_each" ()
 let _debug_minim_each, debug_graph = CDebug.create_full ~name:"univMinim_graph" ()
 
 let disable_solve_term, _ = CDebug.create_full ~name:"minim-solve-term" ()
+let disable_lifted_from_binder, _ = CDebug.create_full ~name:"minim-no-lifted" ()
 let disable_folded_check, _ = CDebug.create_full ~name:"minim-no-folded-check" ()
 
 (* To disallow minimization to Set *)
@@ -356,8 +357,31 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
      other universes, e.g. [v := u] with [u <= v <= w] (the universes of the homs and of their
      equalities of the categories of a functor). Setting a universe may make the lower bound of
      another one a single level: the universes are tried again until none is set. *)
+  (* Without it, the same holds for a universe lifted from an argument: one occurring neither in the
+     binders of the declaration nor non-covariantly in its type, whose only lower bound is a
+     universe of the binders. It is made by a cumulative instance of an argument, e.g. [v] in
+     [f@{v} c] for an argument [c : C@{u}] of the declaration, which [f@{v}] accepts by
+     cumulativity of [C], with [u <= v] only. Keeping it would only
+     allow the instances above the universe of the argument, which elaboration never makes, while
+     its uses would copy it. *)
+  let lifted_from_binder u l variances =
+    let in_binders l = match Level.Map.find_opt l variances with
+      | None -> false
+      | Some { InferCumulativity.infer_binders = (_, (b, _)); infer_topfix_binders = (_, (fb, _)); _ } ->
+        Option.has_some b || Option.has_some fb
+    in
+    let covariant_in_type u = match Level.Map.find_opt u variances with
+      | None -> false
+      | Some { InferCumulativity.infer_type = (_, t); _ } ->
+        match Option.map UVars.VariancePair.cumul_variance t with
+        | None | Some (UVars.Variance.Irrelevant | UVars.Variance.Covariant) -> true
+        | Some (UVars.Variance.Invariant | UVars.Variance.Contravariant) -> false
+    in
+    not (in_binders u) && covariant_in_type u && in_binders l
+  in
   let (flex, _, _ as acc) =
-    if partial || not (get_compat_minimization ()) then acc else
+    let compat = get_compat_minimization () in
+    if partial || not (compat || not (CDebug.get_flag disable_lifted_from_binder)) then acc else
     let simplify_unbounded u (flex, variances, graph as acc) =
       if not (Level.Set.mem u flex) then acc
       else match UGraph.minimize ~require_entailed u graph with
@@ -369,8 +393,10 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
           let invariant_level = function
             | [(l, 0)] ->
               not (Level.is_set l) &&
-              let _, typev, typingv, _ = variance_info l flex variances in
-              typev == UVars.Variance.Invariant || typingv == UVars.Variance.Invariant
+              if compat then
+                let _, typev, typingv, _ = variance_info l flex variances in
+                typev == UVars.Variance.Invariant || typingv == UVars.Variance.Invariant
+              else lifted_from_binder u l variances
             | _ -> false
           in
           if not (invariant_level (Universe.repr lbound)) then acc
