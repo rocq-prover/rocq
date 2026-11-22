@@ -337,6 +337,50 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
   let (flex, _, _ as acc) =
     if partial then acc else rounds 5 acc
   in
+  (* Only to universes of the context of the elaborator (see [UGraph.local_levels]) or [Set], and
+     not when [u] occurs in folded subterms (see [algebraic_bound_allowed]): unification copies
+     them into holes, e.g. [f@{i a} x : R@{max(i,a)}] for an inductive [R] invariant in its
+     universe (test-suite [minimization_folded.v]), where raising [i] to a universe [s] would force
+     the universe of a hole to be [max(s, a)]. Covariant occurrences are fine, e.g. a binder
+     [H : P@{u u0} A B] with [P@{u u0} A B : Type@{max(u,u0)}], for [u0 <= u].
+     The upper bound must be a universe of the parameters itself, i.e. contravariant for typing
+     in the binders (see [UnivVariances.binder_typing_pb]): the universes of two parameters are
+     merged, e.g. [u0 := u] for [{A : Type@{u}} {B : Type@{u0}}], but the one of a parameter is
+     not raised to the one of an index, e.g. the sort of [A] in an inductive [I (A : Type) : Type ->
+     Prop] (test-suite [HoTT_coq_089.v]): that would change the arity of the inductive. *)
+  let parameter_level variances l =
+    Level.is_set l ||
+    match Level.Map.find_opt l variances with
+    | Some { InferCumulativity.infer_binders = (_, (Some vp, _)); _ } ->
+      vp.UVars.VariancePair.typing_variance == UVars.Variance.Contravariant
+    | _ -> false
+  in
+  let maximize_to_own u (_, variances, graph as acc) =
+    let folded = match Level.Map.find_opt u variances with
+      | Some { InferCumulativity.infer_folded = Some v; _ } ->
+        (match v with UVars.Variance.(Irrelevant | Covariant) -> false | _ -> true)
+      | _ -> false
+    in
+    if folded then begin
+      debug_each Pp.(fun () -> str"Not maximizing " ++ Level.raw_pr u ++ str": it occurs in folded subterms");
+      acc
+    end else
+    match UGraph.maximize u graph with
+    | HasSubst (_, _, ubound) ->
+      let own = UGraph.local_levels graph in
+      if not (Universe.for_all (fun (l, _) -> parameter_level variances l) ubound) then begin
+        debug_each Pp.(fun () -> str"Not maximizing " ++ Level.raw_pr u ++ str" to " ++
+          Universe.pr Level.raw_pr ubound ++ str": not a universe of the parameters");
+        acc
+      end
+      else if Universe.for_all (fun (l, _) -> Level.is_set l || Level.Set.mem l own) ubound then maximize u acc
+      else begin
+        debug_each Pp.(fun () -> str"Not maximizing " ++ Level.raw_pr u ++ str" to the universe " ++
+          Universe.pr Level.raw_pr ubound ++ str" of another declaration");
+        acc
+      end
+    | NoBound | CannotSimplify -> acc
+  in
   let simplify_max u (flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
     let term_variance, type_variance, typing_variance, _impred_qvars = variance_info u flex variances in
@@ -345,7 +389,12 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
     else
       let open UVars.Variance in
       match term_variance, type_variance, typing_variance with
-      | (Covariant | Irrelevant), Contravariant, (Irrelevant | Contravariant) when not partial -> maximize u acc
+      | (Covariant | Irrelevant), Contravariant, (Irrelevant | Contravariant) when not partial ->
+        (* E.g. the sort of an arity binder (see [UnivVariances.compute_variances_context]), only
+           raised to a universe of the declaration: not to a global one, or one of the section,
+           which would tie the declaration to it, e.g. a [Type@{*}] of a [Canonical
+           Structure xx@{}] to the universe of the structure *)
+        maximize_to_own u acc
       | _, _, _ -> acc
   in
   let (flex, _, _ as acc) = Level.Set.fold simplify_max flex acc in
@@ -394,8 +443,11 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
             | [(l, 0)] ->
               not (Level.is_set l) &&
               if compat then
+                (* Contravariant for typing: the sort of an arity binder (see
+                   [UnivVariances.compute_variances_context]) *)
                 let _, typev, typingv, _ = variance_info l flex variances in
-                typev == UVars.Variance.Invariant || typingv == UVars.Variance.Invariant
+                let open UVars.Variance in
+                typev == Invariant || typingv == Invariant || typingv == Contravariant
               else lifted_from_binder u l variances
             | _ -> false
           in
@@ -421,7 +473,7 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
     match type_variance with
     | Irrelevant -> arbitrary ~allow_collapse_to_zero:true u acc
     | Covariant -> minimize ~allow_collapse_to_zero:true u acc
-    | Contravariant -> maximize u acc
+    | Contravariant -> maximize_to_own u acc
     | Invariant ->
       (* The universe declaration is closed: the universes it does not declare cannot stay, even
          when they occur invariantly in the type, and are set to their lower bound if it is not

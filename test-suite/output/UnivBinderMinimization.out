@@ -22,8 +22,8 @@ Expands to: Constant UnivBinderMinimization.binder
 Declared in library UnivBinderMinimization, line 22, characters 13-19
 ax@{u u0 u1} :
 forall P : Type@{u} -> Type@{u0}, P (WrapI@{u1} nat)
-(* u(= in 1st binder, = in term) u0(= in 1st binder, = in term) u1(= in term,
-   = (* for typing) in type) |
+(* u(= in 1st binder, = in term) u0(= (- for typing) in 1st binder,
+   = in term) u1(= in term, = (* for typing) in type) |
    u1 ≤ u *)
 
 ax is universe polymorphic

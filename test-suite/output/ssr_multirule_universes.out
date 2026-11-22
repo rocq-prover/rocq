@@ -15,7 +15,7 @@ SORTS:
      
 
 VARIANCES:
- i: infer: = in 1st binder, infer: = (* for typing) in term,
+ i: infer: = (- for typing) in 1st binder, infer: = (* for typing) in term,
    infer: = (* for typing) in type, predicative
 WEAK CONSTRAINTS:
  

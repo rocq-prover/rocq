@@ -71,7 +71,7 @@ w@{u u0} =
 fun (A : Type@{u}) (a : A) =>
 gop@{u u0} (free@{u} A) (ins@{u u0} A a) (ins@{u u0} A a)
      : forall A : Type@{u}, A -> gcar@{u u0} (free@{u} A)
-(* u(= in 1st binder, = (* for typing) in type)
+(* u(= (- for typing) in 1st binder, = (* for typing) in type)
    u0*(= (* for typing) in type) | *)
 
 Arguments w A%_type_scope a
@@ -81,9 +81,9 @@ glue@{max(u,u0,u1) max(u,u0,u1)} A (B + C) (fun a0 : A => inl (f a0)) a
      : forall (A : Type@{u}) (B : Type@{u0}) (C : Type@{u1}) 
          (f : A -> B) (a : A),
        pl@{u u0 u1} A B C f (f a) = pl@{u u0 u1} A B C f (f a)
-(* u(= in 1st binder, = (* for typing) in term, * in type)
-   u0(= in 2nd binder, = (* for typing) in term, * in type)
-   u1(= in 3rd binder, = (* for typing) in term, * in type) | *)
+(* u(= (- for typing) in 1st binder, = (* for typing) in term, * in type)
+   u0(= (- for typing) in 2nd binder, = (* for typing) in term, * in type)
+   u1(= (- for typing) in 3rd binder, = (* for typing) in term, * in type) | *)
 
 Arguments pg (A B C)%_type_scope f%_function_scope a
 fx@{u} :

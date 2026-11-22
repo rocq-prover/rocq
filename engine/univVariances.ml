@@ -81,16 +81,32 @@ let compute_variances env sigma status position variance c =
   let c = EConstr.to_constr ~abort_on_undefined_evars:false sigma c in
   compute_variances_constr env sigma status position variance c
 
+(* The type of a binder of the declaration (of a definition, or a parameter of an inductive) is
+   contravariant for typing: where it is covariant in [u], e.g. the sort of [B : Type@{u}] or [P :
+   A -> Type@{u}], or [R : Apart@{a u} A] for a constant whose unfolding is covariant in [u], the
+   declaration accepts more arguments with a larger [u]. The minimization can then raise a
+   universe occurring only there to its upper bound, e.g. [u0 := u] for [{A : Type@{u}} {B :
+   Type@{u0}}] with [u0 <= u]. Its cumulativity variance is
+   unchanged: conversion compares the domains of products with CONV. Only for the binders of the
+   declaration: not for the arguments of constructors, whose sorts bound the one of the
+   inductive, nor for its indices ([~params:false]), which are not arguments of the inductive but
+   of its arity: an inductive [I (A : Type@{a}) : Type@{b} -> Prop] (test-suite [HoTT_coq_089.v])
+   may only be used at the type of [A] through its index. *)
+let binder_typing_pb ~params typing_pb = function
+  | Position.InBinder _ when params && typing_pb == Conv -> InvCumul
+  | _ -> typing_pb
+
 (* [let_types]: also infer the type of a let-in as the type of an assumption.
    A match on a constructor reads the bodies of the let-ins of its type back
    as they stand: their type is what gives them a common type at two
    instances (see [InferCumulativity.infer_arity_constructor]). *)
-let compute_variances_context_constr env sigma ?(on_lets=false) ?(let_types=false) ?(position = fun x -> Position.InBinder x) ?(cumul_pb=Conv) ?(typing_pb=Conv) status ctx =
+let compute_variances_context_constr env sigma ?(on_lets=false) ?(let_types=false) ?(params=true) ?(position = fun x -> Position.InBinder x) ?(cumul_pb=Conv) ?(typing_pb=Conv) status ctx =
   (* As in the kernel, binder positions count the assumptions only *)
   let fold_binder binder (env, i, status) =
     let open Context.Rel.Declaration in
     let status = match binder with
     | LocalAssum (na, ty) ->
+      let typing_pb = binder_typing_pb ~params typing_pb (position i) in
       compute_variances_constr env sigma status (position i) (cumul_pb, typing_pb) ty
     | LocalDef (_, bdy, ty) ->
       if on_lets then
@@ -107,12 +123,14 @@ let compute_variances_context_constr env sigma ?(on_lets=false) ?(let_types=fals
   let _, _, variances = List.fold_right fold_binder ctx (env, 0, status) in
   variances
 
-let compute_variances_context env sigma ?(on_lets=false) ?(let_types=false) ?(position = fun x -> Position.InBinder x) ?(cumul_pb=Conv) ?(typing_pb=Conv) status ctx =
+let compute_variances_context env sigma ?(on_lets=false) ?(let_types=false) ?(params=true) ?(position = fun x -> Position.InBinder x) ?(cumul_pb=Conv) ?(typing_pb=Conv) status ctx =
   (* As in the kernel, binder positions count the assumptions only *)
   let fold_binder binder (env, i, status) =
     let open Context.Rel.Declaration in
     let status = match binder with
-    | LocalAssum (na, ty) -> compute_variances env sigma status (position i) (cumul_pb, typing_pb) ty
+    | LocalAssum (na, ty) ->
+      let typing_pb = binder_typing_pb ~params typing_pb (position i) in
+      compute_variances env sigma status (position i) (cumul_pb, typing_pb) ty
     | LocalDef (_, bdy, ty) ->
       if on_lets then
         let status =
@@ -180,11 +198,11 @@ let compute_variances_body_constr env sigma ?(ctx_position = fun i -> Position.I
 let compute_variances_body env sigma ?(ctx_position = fun i -> Position.InBinder i) ?(ctx_cumul_pb=Conv) ?term_cumul_pb ?(cumul_pb=Cumul) status c =
   compute_variances_body_constr env sigma ~ctx_position ~ctx_cumul_pb ?term_cumul_pb ~cumul_pb status (EConstr.to_constr ~abort_on_undefined_evars:false sigma c)
 
-let compute_variances_type_constr env sigma ?(on_lets=false) ?let_types ?(position=Position.InType) ?(ctx_position = fun x -> Position.InBinder x) ?(ctx_cumul_pb=Conv) ?(ctx_typing_pb=Conv) ?(cumul_pb=Cumul) ?(typing_pb=cumul_pb) status c =
+let compute_variances_type_constr env sigma ?(on_lets=false) ?let_types ?params ?(position=Position.InType) ?(ctx_position = fun x -> Position.InBinder x) ?(ctx_cumul_pb=Conv) ?(ctx_typing_pb=Conv) ?(cumul_pb=Cumul) ?(typing_pb=cumul_pb) status c =
   if not (occurs_inferred env status c) then Inf.set_position position status else
   let ctx, c = Term.decompose_prod_decls c in
   let ctx' = if on_lets then ctx else (Vars.smash_rel_context ctx) in
-  let status = compute_variances_context_constr env sigma ~on_lets ?let_types ~position:ctx_position ~cumul_pb:ctx_cumul_pb ~typing_pb:ctx_typing_pb status ctx' in
+  let status = compute_variances_context_constr env sigma ~on_lets ?let_types ?params ~position:ctx_position ~cumul_pb:ctx_cumul_pb ~typing_pb:ctx_typing_pb status ctx' in
   let status = compute_variances_constr (Environ.push_rel_context ctx env) sigma status position (cumul_pb, typing_pb) c in
   (* With [Universe Minimization Compat], the universes occurring in the type, even ones the
      inference reduces away, are not set to [Set] (see [UnivMinim]): the unification of this
@@ -194,8 +212,8 @@ let compute_variances_type_constr env sigma ?(on_lets=false) ?let_types ?(positi
       (Vars.universes_of_constr (Term.it_mkProd_or_LetIn c ctx)) status
   else status
 
-let compute_variances_type env sigma ?on_lets ?let_types ?(position=Position.InType) ?(ctx_position = fun x -> Position.InBinder x) ?(ctx_cumul_pb=Conv) ?(ctx_typing_pb=Conv) ?(cumul_pb=Cumul) ?typing_pb status c =
-  compute_variances_type_constr env sigma ?on_lets ?let_types status ~position ~ctx_position ~ctx_cumul_pb ~ctx_typing_pb ~cumul_pb ?typing_pb
+let compute_variances_type env sigma ?on_lets ?let_types ?params ?(position=Position.InType) ?(ctx_position = fun x -> Position.InBinder x) ?(ctx_cumul_pb=Conv) ?(ctx_typing_pb=Conv) ?(cumul_pb=Cumul) ?typing_pb status c =
+  compute_variances_type_constr env sigma ?on_lets ?let_types ?params status ~position ~ctx_position ~ctx_cumul_pb ~ctx_typing_pb ~cumul_pb ?typing_pb
     (EConstr.to_constr ~abort_on_undefined_evars:false sigma c)
 
 let init_status_ustate env ?(position=Position.InType) ?(udecl : UState.universe_decl option) sigma =
@@ -296,7 +314,7 @@ let register_universe_variances_of_inductive env sigma ~udecl ~cumulative ~param
     else compute_variances_context env sigma ~on_lets:true status params
   in
   let paramlen = Context.Rel.nhyps params in
-  let status = List.fold_left (compute_variances_type ~on_lets:true ~let_types:true ~ctx_position:(fun i -> InBinder (i + paramlen)) env sigma) status arities in
+  let status = List.fold_left (compute_variances_type ~on_lets:true ~let_types:true ~params:false ~ctx_position:(fun i -> InBinder (i + paramlen)) env sigma) status arities in
   let status = List.fold_left (fun status (_nas, tys) ->
     List.fold_left (fun status ty ->
       compute_variances_type env sigma ~on_lets:true ~let_types:true status ~position:InTerm ~ctx_position:(fun _ -> InTerm) ~ctx_cumul_pb:Cumul ~ctx_typing_pb:Conv ty) status tys) status constructors in
@@ -306,7 +324,7 @@ let register_universe_variances_of_record env sigma ~env_ar_pars ~params ~fields
   let status = init_status env sigma in
   let status = compute_variances_context env sigma ~on_lets:true status params in
   let paramlen = Context.Rel.length params in
-  let status = List.fold_left (compute_variances_type ~ctx_position:(fun i -> InBinder (i + paramlen)) env sigma) status types in
+  let status = List.fold_left (compute_variances_type ~params:false ~ctx_position:(fun i -> InBinder (i + paramlen)) env sigma) status types in
   let status = List.fold_left (compute_variances_context env_ar_pars sigma ~on_lets:true ~let_types:true ~position:(fun _ -> InTerm) ~cumul_pb:Cumul ~typing_pb:Conv) status fields in
   finalize sigma status
 

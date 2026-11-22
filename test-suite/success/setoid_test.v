@@ -352,7 +352,7 @@ Proof.
   setoid_rewrite add_0_r_peq in a.
   exact a.
 Qed.
-Check rewrite_all_in@{Set}.
+Check rewrite_all_in (l := pnil) (fun _ => nat).
 
 Lemma rewrite_all_in2 {l : plist nat} (Q : nat -> Type) (R : nat -> Type) :
   All (fun x => pprod (Q (x + 0)%nat) (R x))%type l ->
@@ -362,6 +362,6 @@ Proof.
   setoid_rewrite add_0_r_peq in a.
   exact a.
 Qed.
-Check rewrite_all_in2@{0 0}.
+Check rewrite_all_in2 (l := pnil) (fun _ => nat) (fun _ => nat).
 
 End Polymorphism.

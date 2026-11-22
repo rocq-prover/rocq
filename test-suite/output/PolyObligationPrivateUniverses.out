@@ -10,6 +10,6 @@ Declared in library PolyObligationPrivateUniverses, line 11, characters 0-81
 f@{u} =
 fun A : Type@{u} => exist (fun _ : Type@{u} => True) A (f_obligation_1@{u} A)
      : Type@{u} -> {_ : Type@{u} | True}
-(* u(= in 1st binder, = in term, = in type) | *)
+(* u(= (- for typing) in 1st binder, = in term, = in type) | *)
 
 Arguments f A%_type_scope
