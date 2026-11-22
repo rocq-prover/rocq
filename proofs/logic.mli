@@ -54,6 +54,8 @@ val pr_move_location :
 val convert_hyp : check:bool -> reorder:bool -> Environ.env -> evar_map ->
   EConstr.named_declaration -> Environ.named_context_val
 
+exception SelfReferringHyp of Id.t
+
 type cannot_move_hyp
 exception CannotMoveHyp of cannot_move_hyp
 

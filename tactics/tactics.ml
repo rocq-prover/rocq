@@ -583,7 +583,7 @@ type hyp_conversion =
 | StableHypConv (** Does not introduce new dependencies on variables *)
 | LocalHypConv (** Same as above plus no dependence on the named environment *)
 
-let e_change_in_hyps ~check ~reorder f args = match args with
+let e_change_in_hyps ?(skip_self=false) ~check ~reorder f args = match args with
 | [] -> Proofview.tclUNIT ()
 | _ :: _ ->
   Proofview.Goal.enter begin fun gl ->
@@ -628,10 +628,12 @@ let e_change_in_hyps ~check ~reorder f args = match args with
         in
         match redfun env sigma hyp with
         | NoChange -> (env, sigma)
-        | Changed (sigma, d) ->
-          let sign = Logic.convert_hyp ~check ~reorder env sigma d in
-          let env = reset_with_named_context sign env in
-          (env, sigma)
+        | Changed (sigma', d) ->
+          match Logic.convert_hyp ~check ~reorder env sigma' d with
+          | sign ->
+            let env = reset_with_named_context sign env in
+            (env, sigma')
+          | exception Logic.SelfReferringHyp _ when skip_self -> (env, sigma)
       in
       List.fold_left fold (env, sigma) args
     in
@@ -782,8 +784,9 @@ let change ~check chg c cls =
       (id, redfun)
     in
     let reorder = if check then AnyHypConv else StableHypConv in
+    let skip_self = Option.is_empty cls.onhyps in
     (* Don't check, we do it already in [change_on_subterm]. *)
-    e_change_in_hyps ~check:false ~reorder f hyps
+    e_change_in_hyps ~skip_self ~check:false ~reorder f hyps
   end
 
 let change_concl t =

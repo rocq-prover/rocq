@@ -116,14 +116,19 @@ match ord with
 | _ :: _ :: _ ->
   reorder_context env sigma sign ord
 
+exception SelfReferringHyp of Id.t
+
+let () = CErrors.register_handler (function
+    | SelfReferringHyp x ->
+      Some (str "Cannot create self-referring hypothesis " ++ Id.print x ++ str ".")
+    | _ -> None)
+
 let check_decl_position env sigma sign d =
   let open EConstr in
   let x = NamedDecl.get_id d in
   let needed = global_vars_set_of_decl env sigma d in
   let deps = dependency_closure env sigma (named_context_of_val sign) needed in
-  if Id.List.mem x deps then
-    user_err
-      (str "Cannot create self-referring hypothesis " ++ Id.print x ++ str ".");
+  if Id.List.mem x deps then raise (SelfReferringHyp x);
   x::deps
 
 (* Auxiliary functions for primitive MOVE tactic
