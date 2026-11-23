@@ -86,8 +86,6 @@ module NamedDecl = Context.Named.Declaration
     in which case it collects the [Parameter Inline] declarations; when the
     module is closed as a plain module the kind is downgraded and no such
     declaration may be present (see [add_constant_aux]).
-  - [paramresolver] : delta_resolver in scope but not part of the library per
-    se, that is from functor parameters and required libraries
   - [revstruct] : current module content, most recent declarations first
   - [modlabels] and [objlabels] : names defined in the current module,
       either for modules/modtypes or for constants/inductives.
@@ -120,65 +118,6 @@ type permanent_flags = {
   rewrite_rules_allowed : bool;
 }
 
-module ParamResolver :
-sig
-  type t
-  val empty : DirPath.t -> t
-  val add_delta_resolver : ModPath.t -> 'a Mod_subst.delta_resolver -> t -> t
-  val constant_of_delta_kn : t -> KerName.t -> Constant.t
-  val mind_of_delta_kn : t -> KerName.t -> MutInd.t
-end =
-struct
-  (** This is only ever used to resolve names, so the inlining information of
-      the resolvers it is fed is dropped on the way in. *)
-  type t = {
-    root : DirPath.t;
-    data : Mod_subst.mod_body Mod_subst.delta_resolver ModPath.Map.t;
-    (** Invariant: No [MPdot] in data *)
-  }
-
-  let empty root = {
-    root = root;
-    data = ModPath.Map.empty;
-  }
-
-  let rec head mp = match mp with
-  | MPfile _ | MPbound _ -> mp
-  | MPdot (mp, _) -> head mp
-
-  let add_delta_resolver mp delta preso =
-    let delta = Mod_subst.forget_inline_delta_resolver delta in
-    let self = MPfile preso.root in
-    let data =
-      if ModPath.subpath self mp then
-        match ModPath.Map.find_opt self preso.data with
-        | None ->
-          (* we were at toplevel *)
-          ModPath.Map.add self delta preso.data
-        | Some reso ->
-          ModPath.Map.add self (Mod_subst.add_delta_resolver delta reso) preso.data
-      else
-        let () = match mp with
-        | MPfile _ | MPbound _ -> ()
-        | MPdot _ -> assert false
-        in
-        let () = assert (not (ModPath.Map.mem mp preso.data)) in
-        ModPath.Map.add mp delta preso.data
-    in
-    { preso with data }
-
-  let kn_of_delta preso kn =
-    let head = head (KerName.modpath kn) in
-    match ModPath.Map.find_opt head preso.data with
-    | None -> kn
-    | Some delta -> Mod_subst.kn_of_delta delta kn
-
-  let constant_of_delta_kn preso kn = Constant.make kn (kn_of_delta preso kn)
-
-  let mind_of_delta_kn preso kn = MutInd.make kn (kn_of_delta preso kn)
-
-end
-
 type compiled_library = {
   comp_name : DirPath.t;
   comp_mod : module_body;
@@ -204,7 +143,6 @@ type section_data = {
   rev_objlabels : Id.Set.t;
   rev_reimport : reimport list;
   rev_revstruct : structure_body;
-  rev_paramresolver : ParamResolver.t;
 }
 
 module HandleMap = Opaqueproof.HandleMap
@@ -231,7 +169,6 @@ type safe_environment =
     modpath : ModPath.t;
     modvariant : modvariant;
     modresolver : Mod_subst.mod_type Mod_subst.delta_resolver;
-    paramresolver : ParamResolver.t;
     revstruct : structure_body;
     modlabels : Id.Set.t;
     objlabels : Id.Set.t;
@@ -262,7 +199,6 @@ let empty_environment =
     modpath = ModPath.dummy;
     modvariant = NONE;
     modresolver = Mod_subst.empty_delta_resolver ModPath.dummy;
-    paramresolver = ParamResolver.empty DirPath.dummy;
     revstruct = [];
     modlabels = Id.Set.empty;
     objlabels = Id.Set.empty;
@@ -285,16 +221,6 @@ let is_initial senv =
 let sections_are_opened senv = not (Option.is_empty senv.sections)
 
 let delta_of_senv senv = senv.modresolver
-
-let constant_of_delta_kn_senv senv kn =
-  let mp = KerName.modpath kn in
-  if ModPath.subpath senv.modpath mp then Mod_subst.constant_of_delta_kn senv.modresolver kn
-  else ParamResolver.constant_of_delta_kn senv.paramresolver kn
-
-let mind_of_delta_kn_senv senv kn =
-  let mp = KerName.modpath kn in
-  if ModPath.subpath senv.modpath mp then Mod_subst.mind_of_delta_kn senv.modresolver kn
-  else ParamResolver.mind_of_delta_kn senv.paramresolver kn
 
 (** The safe_environment state monad *)
 
@@ -1432,7 +1358,6 @@ let start_mod_modtype ~istype l senv =
     env = senv.env;
     future_cst = senv.future_cst;
     modresolver = Mod_subst.empty_delta_resolver mp;
-    paramresolver = ParamResolver.add_delta_resolver senv.modpath senv.modresolver senv.paramresolver;
     univ = senv.univ;
     qualities = senv.qualities;
     elims = senv.elims;
@@ -1468,14 +1393,10 @@ let add_module_parameter mbid mte inl senv =
     | SIG (params,oldenv) -> SIG ((mbid,mtb) :: params, oldenv)
     | _ -> assert false
   in
-  let new_paramresolver = match mod_global_delta mtb with
-  | None -> senv.paramresolver
-  | Some delta -> ParamResolver.add_delta_resolver mp delta senv.paramresolver
-  in
   mtb,
   { senv with
     modvariant = new_variant;
-    paramresolver = new_paramresolver }
+  }
 
 let rec module_num_parameters senv =
   match senv.modvariant with
@@ -1496,7 +1417,6 @@ let propagate_load senv (mp, mb as load) =
   let dp = ModPath.dp mp in
   let linkinfo = Nativecode.link_info_of_dirpath dp in
   { senv with
-    paramresolver = ParamResolver.add_delta_resolver mp (mod_delta mb) senv.paramresolver;
     loads = load :: senv.loads;
     env = Modops.add_linked_module mp mb linkinfo senv.env;
   }
@@ -1624,10 +1544,20 @@ let add_include me is_module inl senv =
   let senv = update_resolver (Mod_subst.add_delta_resolver resolver) senv in
   let add senv ((l,elem) as field) =
     let new_name = match elem with
-      | SFBconst _ ->
-        C (Mod_subst.constant_of_delta_kn resolver (KerName.make mp_sup l))
-      | SFBmind _ ->
-        I (Mod_subst.mind_of_delta_kn resolver (KerName.make mp_sup l))
+      | SFBconst cb ->
+        let knu = KerName.make mp_sup l in
+        let c = match cb.const_aliasing with
+          | None -> Constant.make1 knu
+          | Some knc -> Constant.make knu knc
+        in
+        C c
+      | SFBmind mib ->
+        let knu = KerName.make mp_sup l in
+        let i = match mib.mind_aliasing with
+          | None -> MutInd.make1 knu
+          | Some knc -> MutInd.make knu knc
+        in
+        I i
       | SFBrules _ -> R
       | SFBmodule _ -> M (MPdot (mp_sup, l))
       | SFBmodtype _ -> MT (MPdot (mp_sup, l))
@@ -1676,7 +1606,6 @@ let start_library dir senv =
     required = senv.required;
 
     modresolver = Mod_subst.empty_delta_resolver mp;
-    paramresolver = ParamResolver.empty dir;
     revstruct = [];
     modlabels = Id.Set.empty;
     objlabels = Id.Set.empty;
@@ -1767,9 +1696,6 @@ let import_gen ~replaying lib vmtab vodigest senv =
   mp,
   { senv with
     env;
-    (* Do NOT store the name quotient from the dependencies in the set of
-       constraints that will be marshalled on disk. *)
-    paramresolver = ParamResolver.add_delta_resolver mp (mod_delta mb) senv.paramresolver;
     required;
     loads = (mp,mb)::senv.loads;
     sections;
@@ -1788,7 +1714,6 @@ let open_section senv =
     rev_objlabels = senv.objlabels;
     rev_reimport = [];
     rev_revstruct = senv.revstruct;
-    rev_paramresolver = senv.paramresolver;
   } in
   let sections = Section.open_section ~custom senv.sections in
   { senv with sections=Some sections }
@@ -1804,9 +1729,9 @@ let close_section senv =
      that are going to be replayed. Those that are not forced are not readded
      by {!add_constant_aux}. *)
   let { rev_env = env; rev_univ = univ; rev_qualities = (qualities, elims); rev_objlabels = objlabels;
-        rev_reimport; rev_revstruct = revstruct; rev_paramresolver = paramresolver } = revert in
+        rev_reimport; rev_revstruct = revstruct } = revert in
   let env = if Environ.rewrite_rules_allowed env0 then Environ.allow_rewrite_rules env else env in
-  let senv = { senv with env; revstruct; sections; univ; qualities; elims; objlabels; paramresolver } in
+  let senv = { senv with env; revstruct; sections; univ; qualities; elims; objlabels } in
   (* Second phase: replay Requires
      should probably be done in a saner way that doesn't need the [replaying] flag *)
   let senv = List.fold_left (fun senv (lib,vmtab,vodigest) ->

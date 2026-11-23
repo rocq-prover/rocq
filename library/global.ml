@@ -211,12 +211,6 @@ let constant_of_kn ?lax kn = Environ.constant_of_kn ?lax (env()) kn
 
 let mind_of_kn ?lax kn = Environ.mind_of_kn ?lax (env()) kn
 
-let constant_of_delta_kn kn =
-  (Safe_typing.constant_of_delta_kn_senv [@warning "-3"]) (safe_env ()) kn
-
-let mind_of_delta_kn kn =
-  (Safe_typing.mind_of_delta_kn_senv [@warning "-3"]) (safe_env ()) kn
-
 (** Operations on libraries *)
 
 let start_library dir = globalize (Safe_typing.start_library dir)
