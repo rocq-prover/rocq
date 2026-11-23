@@ -23,5 +23,5 @@ End MT.
 (* This should fail because A.Sub = Wrapper.Sub = ConcreteInner != ConcreteInner2 *)
 Fail Module Type Bad := MT with Module A.Sub := ConcreteInner2.
 
-(* But this should succeed. *)
-Module Type Good := MT with Module A.Sub := ConcreteInner.
+(* used to succeed but we now forbid "with Module" on non abstract module. *)
+Fail Module Type Good := MT with Module A.Sub := ConcreteInner.

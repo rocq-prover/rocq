@@ -12,4 +12,5 @@ The command has indeed failed with message:
 Module A' of M not expected to be a functor.
 File "./output/ErrorModuleWith.v", line 13, characters 0-38:
 The command has indeed failed with message:
-Module M2 is not equal to module M1.
+The module N is not abstract. Only components of abstract modules (from
+Declare Module) can be changed using the "with" construct.

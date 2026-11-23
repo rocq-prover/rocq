@@ -26,8 +26,6 @@ val destr_functor : ('ty,'a) functorize -> MBId.t * 'ty * ('ty,'a) functorize
 
 val destr_nofunctor : ModPath.t -> ('ty,'a) functorize -> 'a
 
-val check_modpath_equiv : env -> ModPath.t -> ModPath.t -> unit
-
 val annotate_module_expression : module_expression -> module_signature ->
   (module_type_body, (constr * UVars.AbstractContext.t option) module_alg_expr) functorize
 
@@ -152,12 +150,11 @@ type module_typing_error =
   | NotAFunctor
   | IsAFunctor of ModPath.t
   | IncompatibleModuleTypes of module_type_body * module_type_body
-  | NotEqualModulePaths of ModPath.t * ModPath.t
   | NoSuchLabel of Id.t * ModPath.t
   | NotAModuleLabel of Id.t
   | NotAConstant of Id.t
   | IncorrectWithConstraint of Id.t * with_constraint_error
-  | GenerativeModuleExpected of Id.t
+  | AbstractModuleExpected of Id.t
   | LabelMissing of Id.t * string
   | IncludeRestrictedFunctor of ModPath.t
 
@@ -179,7 +176,7 @@ val error_not_a_constant : Id.t -> 'a
 
 val error_incorrect_with_constraint : Id.t -> with_constraint_error -> 'a
 
-val error_generative_module_expected : Id.t -> 'a
+val error_abstract_module_expected : Id.t -> 'a
 
 val error_no_such_label_sub : Id.t -> string -> 'a
 

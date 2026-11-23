@@ -47,11 +47,6 @@ let discr_resolver mp mtb = match mod_type mtb with
   | NoFunctor _ -> mod_delta mtb
   | MoreFunctor _ -> empty_delta_resolver mp
 
-let rec rebuild_mp mp l =
-  match l with
-  | []-> mp
-  | i::r -> rebuild_mp (MPdot(mp,i)) r
-
 let infer_gen_conv state env c1 c2 =
   Conversion.generic_conv Conversion.CONV ~l2r:false TransparentState.full env state c1 c2
 
@@ -172,7 +167,7 @@ let rec check_with_def : type a.
           in
           let mb' = replace_module_body struc' (mod_delta mb) mb in
           before@(lab,SFBmodule mb')::after, cst
-        | _ -> error_generative_module_expected lab
+        | _ -> error_abstract_module_expected lab
       end
   with
   | Not_found -> error_no_such_label lab mp
@@ -199,10 +194,7 @@ let rec check_with_mod (cst, ustate) env struc (idl,new_mp) mp reso =
           let mtb_old = module_type_of_module old in
           let cst = Subtyping.check_subtypes (cst, ustate) env' new_mp (MPdot (mp, lab)) mtb_old in
           cst
-        | Algebraic (MENoFunctor (MEident(mp'))) ->
-          check_modpath_equiv env' new_mp mp';
-          cst
-        | _ -> error_generative_module_expected lab
+        | _ -> error_abstract_module_expected lab
       in
       let mp' = MPdot (mp,lab) in
       let new_mb = strengthen_and_subst_module_body new_mp new_mb mp' false in
@@ -236,10 +228,7 @@ let rec check_with_mod (cst, ustate) env struc (idl,new_mp) mp reso =
         let id_subst = map_mp mp' mp' (forget_inline_delta_resolver reso') in
         let new_after = subst_structure id_subst mp after in
         before @ (lab, SFBmodule new_mb) :: new_after, subreso, cst
-      | Algebraic (MENoFunctor (MEident mp0)) ->
-        let () = check_modpath_equiv env' new_mp (rebuild_mp mp0 idl) in
-        before@(lab,spec)::after, reso, cst
-      | _ -> error_generative_module_expected lab
+      | _ -> error_abstract_module_expected lab
       end
   with
   | Not_found -> error_no_such_label lab mp
