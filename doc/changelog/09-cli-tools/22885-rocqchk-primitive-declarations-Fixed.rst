@@ -3,5 +3,5 @@
   forged primitive type registrations or primitive operator types. It also
   refused a library that uses a primitive literal after the module that
   registers its type
-  (`#PRNUM <https://github.com/rocq-prover/rocq/pull/PRNUM>`_,
+  (`#22885 <https://github.com/rocq-prover/rocq/pull/22885>`_,
   by Sami Jawhar).
