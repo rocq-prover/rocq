@@ -1758,7 +1758,6 @@ type state =
   | LocStart of {
       elims: pattern_elimination list status array;
       depth: int;
-      head: fconstr;
       stack: stack;
       next: state_next;
     }
@@ -1830,7 +1829,7 @@ let rec match_main : type a. (a, a depth) reduction -> _ -> _ -> pat_state:a dep
   fun red info tab ~pat_state states loc ->
   if Array.for_all (function Dead -> true | Live _ -> false) states then match_kill red info tab ~pat_state loc else
   match [@ocaml.warning "-4"] loc with
-  | LocStart { elims; depth; head; stack; next = Return _ as next } ->
+  | LocStart { elims; depth; stack; next = Return _ as next } ->
     begin match Array.find2_map (fun state elim -> match state, elim with Live s, Check [] -> Some s | _ -> None) states elims with
     | Some { subst; rhs } ->
         let subst, qsubst, usubst = Partial_subst.to_arrays subst in
@@ -1841,18 +1840,17 @@ let rec match_main : type a. (a, a depth) reduction -> _ -> _ -> pat_state:a dep
         | Nil Yes -> Some (m', stack)
         | _ -> red.red_kni info tab ~pat_state m' stack
         end
-    | None -> match_elim red info tab ~pat_state next depth states elims head stack
+    | None -> match_elim red info tab ~pat_state next depth states elims stack
     end
   | LocArg { patterns; depth; arg; next } ->
       match_arg red info tab ~pat_state next depth states patterns arg
-  | LocStart { elims; depth; head; stack; next } ->
-      match_elim red info tab ~pat_state next depth states elims head stack
+  | LocStart { elims; depth; stack; next } ->
+      match_elim red info tab ~pat_state next depth states elims stack
 
 and match_kill : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> 'a =
   fun red info tab ~pat_state -> function
   | LocArg { next; _ } -> match_kill red info tab ~pat_state next
-  | LocStart { head; stack; next; _ } ->
-      ignore (zip head stack);
+  | LocStart { next; _ } ->
       match next with
       | Continue next -> match_kill red info tab ~pat_state next
       | Return k -> try_unfoldfix red info tab ~pat_state k
@@ -1874,8 +1872,8 @@ and try_unfoldfix red info tab ~pat_state (b, m, stk) =
     red.red_knit info tab ~pat_state fxe fxbd stk'
   | _ -> red.red_ret info tab ~pat_state ~failed:true (m, stk)
 
-and match_elim : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> _ -> _ -> _ -> _ -> _ -> 'a =
-  fun red info tab ~pat_state next depth states elims head stk ->
+and match_elim : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> _ -> _ -> _ -> _ -> _ -> 'a =
+  fun red info tab ~pat_state next depth states elims stk ->
   match stk with
   | Zapp args :: s ->
       let pargselims, states = extract_or_kill2 (function [@ocaml.warning "-4"] PEApp pargs :: es, subst -> Some ((pargs, es), subst) | _ -> None) elims states in
@@ -1890,19 +1888,11 @@ and match_elim : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth ->
           pargselims states
       in
       let args, rest = Array.chop np args in
-      let head = mkFApp head args in
       let stack = if Array.length rest > 0 then Zapp rest :: s else s in
-      let loc = LocStart { elims; depth; head; stack; next } in
+      let loc = LocStart { elims; depth; stack; next } in
       let loc = Array.fold_right2 (fun patterns arg next -> LocArg { patterns; depth; arg; next }) (Array.transpose (Array.map (Status.split_array np) pargs)) args loc in
       match_main red info tab ~pat_state states loc
-  | Zshift k :: s -> match_elim red info tab ~pat_state next depth states elims (lift_fconstr k head) s
-  | Zupdate m :: s ->
-      let () = update m head.mark head.term in
-      match_elim red info tab ~pat_state next depth states elims head s
-  | ZcaseT (ci, u, pms, ((pctx, p), _ as pred), brs, e) :: s ->
-      let t = FCaseT (ci, u, pms, pred, head, brs, e) in
-      let mark = neutr head.mark in
-      let head = {mark; term=t} in
+  | ZcaseT (ci, u, pms, ((pctx, p), _), brs, e) :: s ->
       let prets, pbrss, elims, states = extract_or_kill4 (function [@ocaml.warning "-4"]
       | PECase (pind, pret, pbrs) :: es, subst ->
         if not @@ QInd.equal (info_env info) pind ci.ci_ind then None else
@@ -1913,7 +1903,7 @@ and match_elim : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth ->
       let mib = Environ.lookup_mind (fst ci.ci_ind) info.i_cache.i_env in
       let mip = mib.mind_packets.(snd ci.ci_ind) in
       let ind_subst = inductive_subst mib u (Array.map (mk_clos e) pms) in
-      let loc = LocStart { elims; depth; head; stack=s; next } in
+      let loc = LocStart { elims; depth; stack=s; next } in
       let loc = Array.fold_right_i (fun i patterns next ->
         let brctx, br = brs.(i) in
         let brdepth, br_e =
@@ -1940,21 +1930,19 @@ and match_elim : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth ->
       in
       let loc = LocArg { patterns = prets; depth = pdepth + depth; arg = mk_clos pred_e p; next = loc } in
       match_main red info tab ~pat_state states loc
-  | Zproj (proj', r) :: s ->
-      let mark = (neutr head.mark) in
-      let head = {mark; term=FProj(Projection.make proj' true, r, head)} in
+  | Zproj (proj', _) :: s ->
       let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
       | PEProj proj :: es, subst ->
         if not @@ QProjection.Repr.equal (info_env info) proj proj' then None else
         Some (es, subst)
       | _ -> None) elims states
       in
-      let loc = LocStart { elims; depth; head; stack=s; next } in
+      let loc = LocStart { elims; depth; stack=s; next } in
       match_main red info tab ~pat_state states loc
   | Zfix _ :: _ | Zprimitive _ :: _ ->
       let states = extract_or_kill (fun _ -> None) elims states in
-      ignore (zip head stk);
       match_endstack red info tab ~pat_state states next
+  | (Zshift _ | Zupdate _) :: _ -> assert false
   | [] ->
       let states = extract_or_kill (function [], subst -> Some subst | _ -> None) elims states in
       match_endstack red info tab ~pat_state states next
@@ -1976,7 +1964,7 @@ and match_arg : 'a. ('a, 'a depth) reduction -> _ -> _ -> pat_state:'a depth -> 
   else
     match_main red info tab ~pat_state states next
 
-and match_head red info tab ~pat_state next depth states patterns t stk =
+and match_head red info tab ~pat_state next depth states patterns t stack =
   match [@ocaml.warning "-4"] t.term with
   | FInd (ind', u) ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
@@ -1986,7 +1974,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
       Option.map (fun subst -> elims, { psubst with subst }) subst
     | _ -> None) patterns states
     in
-    let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack; next=Continue next } in
     match_main red info tab ~pat_state states loc
   | FConstruct ((constr', u), args) ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
@@ -1996,7 +1984,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
       Option.map (fun subst -> elims, { psubst with subst }) subst
     | _ -> None) patterns states
     in
-    let loc = LocStart { elims; depth; head=t; stack=append_stack args stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack=append_stack args stack; next=Continue next } in
     match_main red info tab ~pat_state states loc
   | FAtom t' -> begin match [@ocaml.warning "-4"] kind t' with
     | Sort s ->
@@ -2006,11 +1994,11 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
         Option.map (fun subst -> elims, { psubst with subst }) subst
       | _ -> None) patterns states
       in
-      let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+      let loc = LocStart { elims; depth; stack; next=Continue next } in
       match_main red info tab ~pat_state states loc
     | Meta _ ->
       let elims, states = extract_or_kill2 (fun _ -> None) patterns states in
-      let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+      let loc = LocStart { elims; depth; stack; next=Continue next } in
       match_main red info tab ~pat_state states loc
     | _ -> assert false
     end
@@ -2022,7 +2010,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
       Option.map (fun subst -> elims, { psubst with subst }) subst
     | _ -> None) patterns states
     in
-    let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack; next=Continue next } in
     match_main red info tab ~pat_state states loc
   | FRel n ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
@@ -2031,7 +2019,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
       Some (elims, psubst)
     | _ -> None) patterns states
     in
-    let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack; next=Continue next } in
     match_main red info tab ~pat_state states loc
   | FInt i' ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
@@ -2040,7 +2028,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
       Some (elims, psubst)
     | _ -> None) patterns states
     in
-    let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack; next=Continue next } in
     match_main red info tab ~pat_state states loc
   | FFloat f' ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
@@ -2049,7 +2037,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
       Some (elims, psubst)
     | _ -> None) patterns states
     in
-    let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack; next=Continue next } in
     match_main red info tab ~pat_state states loc
   | FString s' ->
     let elims, states = extract_or_kill2 (function [@ocaml.warning "-4"]
@@ -2058,7 +2046,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
       Some (elims, psubst)
     | _ -> None) patterns states
     in
-    let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack; next=Continue next } in
     match_main red info tab ~pat_state states loc
   | FProd (_, ty, body, e) ->
     let tysbodyelims, states = extract_or_kill2 (function [@ocaml.warning "-4"] (PHProd (ptys, pbod), es), psubst -> Some ((ptys, pbod, es), psubst) | _ -> None) patterns states in
@@ -2071,7 +2059,7 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
           Some (ptys.(0), ERigid (PHProd (rem, pbod), []), elims, psubst)
       ) tysbodyelims states
     in
-    let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack; next=Continue next } in
     let loc = LocArg { patterns = pbody; depth = 1 + depth; arg = mk_clos (usubs_lift e) body; next = loc } in
     let loc = LocArg { patterns = pty; depth; arg = ty; next = loc } in
     match_main red info tab ~pat_state states loc
@@ -2090,15 +2078,20 @@ and match_head red info tab ~pat_state next depth states patterns t stk =
     let body = Term.compose_lam (List.rev tys') body in
     let tys = Array.of_list ntys in
     let tys = Array.mapi (fun n (_, t) -> n, mk_clos (usubs_liftn n e) t) tys in
-    let loc = LocStart { elims; depth; head=t; stack=stk; next=Continue next } in
+    let loc = LocStart { elims; depth; stack; next=Continue next } in
     let loc = LocArg { patterns = pbody; depth = Array.length tys + depth; arg = mk_clos (usubs_liftn na e) body; next = loc } in
     let loc = Array.fold_right2 (fun patterns (ldepth, arg) next -> LocArg { patterns; depth = ldepth + depth; arg; next }) (Array.transpose (Array.map (Status.split_array na) ptys)) tys loc
     in
     match_main red info tab ~pat_state states loc
-  | _ ->
+
+    (* Valid return values of knh / strip_shift_update *)
+  | FFlex (VarKey _) | FIrrelevant | FFlex (RelKey _)
+  | FLetIn _ | FEvar _ | FCaseInvert _
+  | FFix _ | FCoFix _ | FProj _ | FArray _ ->
     let states = extract_or_kill (fun _ -> None) patterns states in
-    ignore (zip t stk);
     match_main red info tab ~pat_state states next
+
+  | FLOCKED | FCLOS _ | FApp _ | FCaseT _ | FLIFT _ -> assert false
 
 let match_symbol red info tab ~pat_state fl (u, b, r) stk =
   let unfold_fix = b && red_set info.i_flags fFIX in
@@ -2114,8 +2107,8 @@ let match_symbol red info tab ~pat_state fl (u, b, r) stk =
   in
   let m = { mark = Red; term = FFlex fl } in
   (* Stack purification is needed before entering the matcher machinery *)
-  let m, stk = strip_update_shift (m, stk) in
-  let loc = LocStart { elims; depth=0; head = m; stack = stk; next = Return (unfold_fix, m, stk) } in
+  let _, stack = strip_update_shift (m, stk) in
+  let loc = LocStart { elims; depth=0; stack; next = Return (unfold_fix, m, stack) } in
   match_main red info tab ~pat_state states loc
 
 let match_head red info tab ~pat_state { states; depth; patterns; next } m stk =
