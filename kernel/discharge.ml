@@ -76,6 +76,7 @@ let cook_constant env info cb =
     const_univ_hyps = univ_hyps;
     const_body = body;
     const_type = typ;
+    const_aliasing = (assert (Option.is_empty cb.const_aliasing); None);
     const_body_code = ();
     const_universes = univs;
     const_relevance =  lift_relevance info cb.const_relevance;
@@ -189,6 +190,7 @@ let cook_inductive info mib =
   in
   {
     mind_packets;
+    mind_aliasing = (assert (Option.is_empty mib.mind_aliasing); None);
     mind_finite = mib.mind_finite;
     mind_hyps;
     mind_univ_hyps = univ_hyps;

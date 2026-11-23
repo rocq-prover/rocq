@@ -784,6 +784,8 @@ let add_constant_key kn cb linkinfo env =
   let () =
     let knu = Constant.user kn in
     let knc = Constant.canonical kn in
+    let knc' = Option.default knu cb.const_aliasing in
+    let () = assert (KerName.equal knc knc') in
     if not (KerName.equal knu knc) then
       let kn0 = lookup_constant_canonical (Constant.make1 knc) env in
       assert (KerName.equal knc kn0)
@@ -997,6 +999,8 @@ let add_mind_key kn mind link env =
   let () =
     let knu = MutInd.user kn in
     let knc = MutInd.canonical kn in
+    let knc' = Option.default knu mind.mind_aliasing in
+    let () = assert (KerName.equal knc knc') in
     if not (KerName.equal knu knc) then
       let kn0 = lookup_mind_canonical (MutInd.make1 knc) env in
       assert (KerName.equal knc kn0)

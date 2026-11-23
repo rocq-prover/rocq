@@ -91,6 +91,7 @@ let check_constant_declaration env st kn cb =
       end
     | None -> ()
   in
+
   let retro, st = match Cmap.find_opt kn (snd st.st_retro) with
   | None -> None, st
   | Some retro ->
@@ -106,6 +107,8 @@ let check_constant_declaration env st kn cb =
       (fun () -> check_constant_declaration env st kn cb)
       ()
   in
+  let () = Subtyping.check_constant_alias env kn cb in
+  (* add_constant checks const_aliasing matches kn *)
   let env = Environ.add_constant kn cb env in
   let env = match retro with
   | None -> env
@@ -311,7 +314,6 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
       let kn = KerName.make mp lab in
       let kn = Mod_subst.constant_of_delta_kn res kn in
       let env', st = check_constant_declaration env st kn cb in
-      let () = Subtyping.check_constant_alias env kn cb in
       env', st
   | SFBmind mib ->
       let kn = KerName.make mp lab in
@@ -325,7 +327,6 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
         st
       in
       let env' = CheckInductive.check_inductive env kn mib retro in
-      let () = Subtyping.check_inductive_alias env kn mib in
       env', st
   | SFBmodule msb ->
       let mp = MPdot(mp, lab) in

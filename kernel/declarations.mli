@@ -121,6 +121,7 @@ type typing_flags = {
 type ('opaque, 'bytecode) pconstant_body = {
     const_hyps : Constr.named_context; (** younger hyp at top *)
     const_univ_hyps : UVars.Instance.t;
+    const_aliasing : KerName.t option; (** Canonical name *)
     const_body : (Constr.t, 'opaque, bool) constant_def;
                     (** [bool] is for [unfold_fix] in symbols *)
     const_type : types;
@@ -280,6 +281,8 @@ type recursivity_kind =
 (** {7 Datas associated to a full block of mutually inductive types } *)
 
 type mutual_inductive_body = {
+
+    mind_aliasing : KerName.t option; (** Canonical name *)
 
     mind_packets : one_inductive_body array;  (** The component of the mutual inductive block *)
 

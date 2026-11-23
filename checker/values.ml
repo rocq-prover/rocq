@@ -436,6 +436,7 @@ let v_vm_to_patch = v_tuple "vm_to_patch" [|v_vm_emitcodes; v_vm_fv; v_vm_positi
 let v_cb = v_tuple "constant_body"
   [|v_section_ctxt;
     v_instance;
+    v_opt v_kn;
     v_cst_def;
     v_constr;
     v_relevance;
@@ -486,7 +487,8 @@ let v_one_ind = v_tuple "one_inductive_body"
 let v_finite = v_enum "recursivity_kind" 3
 
 let v_ind_pack = v_tuple "mutual_inductive_body"
-  [|v_array v_one_ind;
+  [|v_opt v_kn;
+    v_array v_one_ind;
     v_finite;
     v_section_ctxt;
     v_instance;
