@@ -1609,8 +1609,23 @@ let whd_betaiota_deltazeta_for_iota_state ts ?metas env sigma s =
     let open CClosure in
     let infos = Evarutil.create_clos_infos env' sigma all' in
     let tab = create_tab () in
-    let c = inject (EConstr.Unsafe.to_constr (Stack.zip sigma c)) in
-    let (c, stk) = whd_stack infos tab c [] in
+    (* The kernel machine does not know the values of metas: it is resumed
+       on the value of a meta it gets stuck on *)
+    let rec whd c stk =
+      let (c, stk) = whd_stack infos tab c stk in
+      match fterm_of c, metas with
+      | FAtom t, Some metas ->
+        begin match Constr.kind t with
+        | Meta mv ->
+          begin match metas.meta_value mv with
+          | Some v -> whd (inject (EConstr.Unsafe.to_constr v)) stk
+          | None -> (c, stk)
+          end
+        | _ -> (c, stk)
+        end
+      | _ -> (c, stk)
+    in
+    let (c, stk) = whd (inject (EConstr.Unsafe.to_constr (Stack.zip sigma c))) [] in
     match fterm_of c with
     | (FConstruct _ | FCoFix _) ->
       (* Non-neutral normal, can trigger reduction below *)
