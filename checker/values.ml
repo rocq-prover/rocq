@@ -455,7 +455,7 @@ let v_automaton =
   v_tuple "automaton"
     [|v_int; v_array (v_pair v_recarg (v_array (v_array v_int)))|]
 
-let v_squash_info = v_sum "squash_info" 1 [|[|v_set v_quality|]|]
+let v_squash_info = v_sum "squash_info" 2 [|[|v_set v_quality|]|]
 
 let v_has_eta = v_enum "has_eta" 3
 let v_record_info =
@@ -620,6 +620,7 @@ let [_v_sfb;_v_struc;_v_sign;_v_mexpr;_v_impl;v_module;_v_modtype] : _ Vector.t 
 
 (** kernel/safe_typing *)
 
+let v_ginfos = v_tuple "global_sort_infos" [|v_bool|]
 let v_vodigest = v_sum_c ("module_impl",0, [| [|v_string|]; [|v_string;v_string|] |])
 let v_deps = v_array (v_tuple "dep" [|v_dp;v_vodigest|])
 let v_flags = v_tuple "flags" [|v_bool|] (* Allow Rewrite Rules *)
@@ -628,7 +629,7 @@ let v_compiled_lib =
     [|v_dp;
       v_module;
       v_univ_context_set;
-      (v_pair (v_set v_qglobal) v_elim_cstrs);
+      (v_pair (v_map v_qglobal v_ginfos) v_elim_cstrs);
       v_deps;
       v_flags;
       v_retroknowledge|]

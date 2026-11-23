@@ -257,7 +257,7 @@ let print_squash env ref udecl = match ref with
           | VSort (q,_) -> str "in sort quality " ++ Termops.pr_evd_qvar sigma q
       in
       let unless = match squash with
-        | UIPSquashed -> str "unless the target sort has definitional UIP."
+        | UIPSquashed -> pr_comma () ++ str "unless the target sort has definitional UIP."
         | AlwaysSquashed -> str "."
         | SometimesSquashed qs ->
           let target = match inds with
