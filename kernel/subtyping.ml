@@ -372,14 +372,18 @@ let check_constant_alias env cst cb =
       | Some target_body -> target_body
       | None -> refuse ()
     in
+    (* Strengthening makes the copy of a field that is not a [Def] (an axiom,
+       an opaque, a primitive or a symbol) a [Def] of the field's canonical
+       constant: check such a target as that [Def]. A [Def] target is checked
+       by the conversion of the two bodies. *)
     let target_body =
       match target_body.const_body with
-      | Undef _ | OpaqueDef _ ->
+      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ ->
         let instance =
           make_abstract_instance (constant_polymorphic_context target_body)
         in
         { target_body with const_body = Def (mkConstU (target, instance)) }
-      | Def _ | Primitive _ | Symbol _ -> target_body
+      | Def _ -> target_body
     in
     let state = Environ.universes env, Conversion.checked_universes in
     let _ =
