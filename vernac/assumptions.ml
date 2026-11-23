@@ -267,15 +267,16 @@ let get_constant_body access kn =
   | Undef _ | Primitive _ | Symbol _ -> None
   | Def c -> Some (no_discharge c)
   | OpaqueDef o ->
-    match access.Global.access_uncooked_proof o with
-    | Some _ as ans -> ans
-    | None ->
-      (* either the body could not be read -- [force_proof] then fails too and
-         warns, as before -- or the discharge cannot be left undone, and we
-         pay for it *)
-      match Global.force_proof access o with
-      | c, _ -> Some (no_discharge c)
-      | exception e when CErrors.noncritical e -> warn_unreachable_opaque_body kn; None
+    try
+      match access.Global.access_uncooked_proof o with
+      | Some _ as ans -> ans
+      | None ->
+        (* either the body could not be read -- [force_proof] then fails too and
+           warns, as before -- or the discharge cannot be left undone, and we
+           pay for it *)
+        let c, _ = Global.force_proof access o in
+        Some (no_discharge c)
+    with e when CErrors.noncritical e -> warn_unreachable_opaque_body kn; None
 
 (** The nodes already walked in the term being traversed.
 
