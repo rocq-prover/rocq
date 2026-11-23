@@ -97,9 +97,8 @@ value rocq_tcode_array(value tcodes) {
   CAMLparam1(tcodes);
   CAMLlocal2(res, tmp);
   int i;
-  /* Assumes that the vector of types is small. This was implicit in the
-    previous code which was building the type array using Alloc_small. */
-  res = caml_alloc_small(Wosize_val(tcodes), Default_tag);
+  /* The vector of types can have more than Max_young_wosize elements. */
+  res = caml_alloc(Wosize_val(tcodes), Default_tag);
   for (i = 0; i < Wosize_val(tcodes); i++) Field(res, i) = Val_unit;
   for (i = 0; i < Wosize_val(tcodes); i++) {
     tmp = caml_alloc_small(1, Abstract_tag);
