@@ -1,5 +1,5 @@
 - **Fixed:**
   ``rocqchk`` accepted proofs of ``False`` from crafted ``.vo`` files with
   a label used twice in a structure
-  (`#PRNUM <https://github.com/rocq-prover/rocq/pull/PRNUM>`_,
+  (`#22886 <https://github.com/rocq-prover/rocq/pull/22886>`_,
   by Sami Jawhar).
