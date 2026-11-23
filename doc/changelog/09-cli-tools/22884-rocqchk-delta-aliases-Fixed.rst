@@ -1,5 +1,5 @@
 - **Fixed:**
   ``rocqchk`` accepted proofs of ``False`` from crafted ``.vo`` files with
   forged delta resolver aliases
-  (`#PRNUM <https://github.com/rocq-prover/rocq/pull/PRNUM>`_,
+  (`#22884 <https://github.com/rocq-prover/rocq/pull/22884>`_,
   by Sami Jawhar).
