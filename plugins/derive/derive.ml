@@ -60,7 +60,10 @@ let start_deriving ~atts bl suchthat name : Declare.Proof.t =
   let sigma, env', ctx' = fill_assumptions env sigma ctx' in
   let sigma = Evd.shelve sigma (List.map fst (Evar.Map.bindings (Evd.undefined_map sigma))) in
   let flags = { Pretyping.all_no_fail_flags with poly } in
+  let sigma = Evd.push_future_goals sigma in
   let sigma, (suchthat, impargs) = Constrintern.interp_type_evars_impls ~flags env' sigma ~impls:impls_env suchthat in
+  let future_goals, sigma = Evd.pop_future_goals sigma in
+  let sigma = Evd.shelve sigma (Evd.FutureGoals.comb future_goals) in
   (* create the initial goals for the proof: |- Type ; |- ?1 ; f:=?2 |- suchthat *)
   let goals =
     let open Proofview in
