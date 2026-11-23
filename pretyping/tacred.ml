@@ -1311,6 +1311,13 @@ let unfoldoccs env sigma (occs,name) c =
   | NoOccurrences -> c
   | AllOccurrences -> unfold env sigma name c
   | OnlyOccurrences _ | AllOccurrencesBut _ | AtLeastOneOccurrence ->
+    let () = match name with
+    | Evaluable.EvalConstRef cst when not (evaluable_constant env sigma cst) ->
+      user_err Pp.(str (string_of_evaluable_ref env name^" is opaque."))
+    | Evaluable.EvalVarRef id when not (evaluable_named id env) ->
+      user_err Pp.(str (string_of_evaluable_ref env name^" is opaque."))
+    | Evaluable.EvalConstRef _ | Evaluable.EvalVarRef _ | Evaluable.EvalProjectionRef _ -> ()
+    in
     let (occ,uc) = substlin env sigma name occs c in
     if Int.equal occ 0 then
       user_err Pp.(str ((string_of_evaluable_ref env name)^" does not occur."));
