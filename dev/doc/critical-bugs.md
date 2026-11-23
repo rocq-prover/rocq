@@ -692,7 +692,7 @@ and lack of checking of relevance marks on constants in coqchk
 - impacted rocqchk versions: same
 - fixed in: 9.4
 - found by: AI agents run by Sami Jawhar (code review)
-- GH issue number: rocq-prover/rocq#XXXXX
+- GH issue number: rocq-prover/rocq#22877
 - exploit: test-suite/misc/rocqchk_forged_aliases.sh, case parameter: a crafted
   .vo makes c, declared in the type of a sealed module M2 with M2.c := false,
   an alias of c declared in the type of a sealed module M1 with M1.c := true,
@@ -708,7 +708,7 @@ and lack of checking of relevance marks on constants in coqchk
 - impacted rocqchk versions: same
 - fixed in: 9.4
 - found by: AI agents run by Sami Jawhar (code review)
-- GH issue number: rocq-prover/rocq#XXXXX
+- GH issue number: rocq-prover/rocq#22877
 - exploit: test-suite/misc/rocqchk_forged_aliases.sh, case nested: a crafted
   .vo gives the resolver of a module A, and not that of its submodule A.X,
   the alias A.X.d -> A.Y.d, with A.Y.d := true and A.X.d := false; rocqchk
@@ -725,7 +725,7 @@ and lack of checking of relevance marks on constants in coqchk
 - impacted rocqchk versions: same
 - fixed in: 9.4
 - found by: AI agents run by Sami Jawhar (code review)
-- GH issue number: rocq-prover/rocq#XXXXX
+- GH issue number: rocq-prover/rocq#22877
 - exploit: test-suite/misc/rocqchk_forged_aliases.sh, case label: a crafted
   .vo makes k := P.X.d, in the body of a functor F (P : S), an alias of
   P.X.d; the application F A rebuilds it as an alias of A.X.k, a field that
@@ -741,7 +741,7 @@ and lack of checking of relevance marks on constants in coqchk
 - impacted rocqchk versions: same
 - fixed in: 9.4
 - found by: AI agents run by Sami Jawhar (code review)
-- GH issue number: rocq-prover/rocq#XXXXX
+- GH issue number: rocq-prover/rocq#22877
 - exploit: test-suite/misc/rocqchk_repeated_label.sh: a crafted .vo has
   Axiom ax : False, then proof : False := ax, then ax : unit := tt; the
   environment keeps the last field labelled ax, so a client proves False
