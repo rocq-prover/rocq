@@ -392,12 +392,10 @@ let check_rewrite_rules (cst, ustate) trace env l rrb subst2 =
   let error why = error_signature_mismatch trace l why in
   let check_conv_rr cst (_, rrb) =
     let ctx, t1, t2 = rrb.test in
+    let () = Environ.check_ucontext (UVars.AbstractContext.repr rrb.auctx) env in
+    let env = Environ.push_context ~strict:false (UVars.AbstractContext.repr rrb.auctx) env in
     let env = Environ.push_named_context (List.map (fun d -> Environ.ProofVar, d) ctx) env in
-    match Conversion.generic_conv CONV ~l2r:false TransparentState.full env (cst, ustate) t1 t2 with
-    | Ok cst -> cst
-    | Error None -> error (NotConvertibleRewriteRule (env, t1, t2))
-    | Error (Some (Univ err)) -> error (IncompatibleUniverses { env; err; t1; t2 })
-    | Error (Some (Qual err)) -> error (IncompatibleQualities { env; err; t1; t2 })
+    check_conv_error error (NotConvertibleRewriteRule (env, t1, t2)) (cst, ustate) true CONV env t1 t2
   in
   List.fold_left check_conv_rr cst rrb.rewrules_rules
 
