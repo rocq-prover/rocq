@@ -129,25 +129,19 @@ let check_squashed orig generated = match orig, generated with
   | Some _, None ->
     (* the inductive is from functor instantiation which removed the need for squash *)
     true
-  | None, Some s ->
-     begin match s with
-     | UIPSquashed -> Printf.printf "UIPSquashed\n"
-     | SometimesSquashed _ -> Printf.printf "SometimesSquashed\n"
-     | AlwaysSquashed -> Printf.printf "AlwaysSquashed\n"
-     end;
-     false
+  | None, Some _ -> false
   | Some s1, Some s2 ->
     (* functor instantiation can change sort qualities
        (from Type -> Prop)
        Condition: every quality which can make the generated inductive
        squashed must also make the original inductive squashed *)
     match s1, s2 with
-    | UIPSquashed, UIPSquashed -> true
-    | UIPSquashed, SometimesSquashed _ -> true
-    | UIPSquashed, _ | _, UIPSquashed -> false
     | AlwaysSquashed, AlwaysSquashed -> true
-    | AlwaysSquashed, SometimesSquashed _ -> true
-    | SometimesSquashed _, AlwaysSquashed -> false
+    | _, AlwaysSquashed -> false
+    | AlwaysSquashed, _ -> true
+    | UIPSquashed, UIPSquashed -> true
+    | UIPSquashed, SometimesSquashed _
+    | SometimesSquashed _, UIPSquashed -> false
     | SometimesSquashed s1, SometimesSquashed s2 ->
       Sorts.Quality.Set.subset s2 s1
 
