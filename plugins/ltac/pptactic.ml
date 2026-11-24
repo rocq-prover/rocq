@@ -543,9 +543,12 @@ let pr_goal_selector ~toplevel s =
   let pr_match_hyps pr_pat = function
     | Hyp (nal,mp) ->
       pr_lname nal ++ str ":" ++ pr_match_pattern pr_pat mp
-    | Def (nal,mv,mp) ->
+    | Def (nal, (Term _ as mv), (Term _ as mp)) ->
       pr_lname nal ++ str ":=" ++ pr_match_pattern pr_pat mv
       ++ str ":" ++ pr_match_pattern pr_pat mp
+    | Def (nal, mv, mp) ->
+      pr_lname nal ++ str ":=" ++ str "[ " ++ pr_match_pattern pr_pat mv
+      ++ str " ]" ++ str ":" ++ pr_match_pattern pr_pat mp
 
   let pr_match_rule m pr pr_pat = function
     | Pat ([],mp,t) when m ->
