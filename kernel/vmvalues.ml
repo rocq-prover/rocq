@@ -605,8 +605,7 @@ let mk_cofix_body apply_varray k ndef vcf =
 
   let cofix_body i =
     let vcfi = get_fcofix vcf i in
-    let c = Obj.field (Obj.repr vcfi) 0 in
-    Obj.set_field e 0 c;
+    set_bytecode_field e 0 (fun_code vcfi);
     let atom = Obj.new_block cofix_tag 1 in
     let self = obj_of_atom (Obj.obj atom) in
     apply_varray (Obj.obj e) [|Obj.obj self|] in
