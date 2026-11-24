@@ -1,0 +1,35 @@
+shift@{u} :
+forall P : nat -> Type@{u},
+(forall n : nat, P n -> P (S n)) -> sig'@{0 u} nat P -> sig'@{0 u} nat P
+(* u(= in 1st binder) | *)
+
+shift is universe polymorphic and cumulative
+Arguments shift (P f)%_function_scope x
+shift is transparent
+Expands to: Constant UnivParameterOnly.shift
+Declared in library UnivParameterOnly, line 12, characters 11-16
+refl_S : forall n : nat, eq'@{0 0} nat (S n) (S n)
+
+refl_S is not universe polymorphic
+Arguments refl_S n%_nat_scope
+refl_S is transparent
+Expands to: Constant UnivParameterOnly.refl_S
+Declared in library UnivParameterOnly, line 16, characters 11-17
+with_hole@{u} :
+forall B : Type@{u}, B -> sig'@{u u} B (fun _ : B => B)
+(* u(= in 1st binder) | *)
+
+with_hole is universe polymorphic and cumulative
+Arguments with_hole B%_type_scope b
+with_hole is transparent
+Expands to: Constant UnivParameterOnly.with_hole
+Declared in library UnivParameterOnly, line 20, characters 11-20
+use_crel@{u u0} :
+forall {B : Type@{u}}, crel@{u u0} B -> crel@{u u0} B
+(* u(= in 1st binder) u0(= in 2nd binder, + in type) | *)
+
+use_crel is universe polymorphic and cumulative
+Arguments use_crel {B}%_type_scope R _ _
+use_crel is transparent
+Expands to: Constant UnivParameterOnly.use_crel
+Declared in library UnivParameterOnly, line 26, characters 11-19

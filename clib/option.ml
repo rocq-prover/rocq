@@ -135,6 +135,12 @@ let cata f a = function
   | Some c -> f c
   | None -> a
 
+let union f x y =
+  match x, y with
+  | Some _, None -> x
+  | None, Some _ -> y
+  | None, None -> None
+  | Some x, Some y -> Some (f x y)
 
 (** {6 More Specific operations} ***)
 
@@ -142,6 +148,10 @@ let cata f a = function
 let default a = function
   | Some y -> y
   | _ -> a
+
+let max x y = union Stdlib.max x y
+
+let min x y = union Stdlib.min x y
 
 (** {6 Smart operations} *)
 

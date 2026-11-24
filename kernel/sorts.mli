@@ -123,6 +123,9 @@ module Quality : sig
   (* XXX Inconsistent naming: this one should be subst_fn *)
   val subst : (QVar.t -> t) -> t -> t
 
+  val subst_opt : (QVar.t -> t option) -> t -> t
+  (** As [subst], substituting only the variables mapped to [Some _] *)
+
   val subst_fn : t QVar.Map.t -> QVar.t -> t
 
   module Set : sig
@@ -205,8 +208,11 @@ val levels : t -> Univ.Level.Set.t
 
 val super : t -> t
 
-val subst_fn : (QVar.t -> Quality.t) * (Univ.Universe.t -> Univ.Universe.t)
-  -> t -> t
+val subst_fn : (QVar.t -> Quality.t) * (Univ.Level.t -> Univ.Universe.t) -> t -> t
+
+val subst_opt_fn : (QVar.t -> Quality.t option) * (Univ.Level.t -> Univ.Universe.t option) -> t -> t
+(** As [subst_fn], substituting only the variables and levels mapped to [Some _]:
+    allocates nothing on sorts with no substituted variable or level. *)
 
 (** On binders: is this variable proof relevant *)
 (* TODO put in submodule or new file *)
@@ -238,4 +244,4 @@ val raw_pr : t -> Pp.t
 type ('q, 'u) pattern =
   | PSProp | PSSProp | PSSet | PSType of 'u | PSGlobal of QGlobal.t * 'u | PSQSort of 'q * 'u
 
-val pattern_match : (int option, int option) pattern -> t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t -> ('t, Quality.t, Univ.Level.t) Partial_subst.t option
+val pattern_match : (int option, int option) pattern -> t -> ('t, Quality.t, Univ.Universe.t) Partial_subst.t -> ('t, Quality.t, Univ.Universe.t) Partial_subst.t option

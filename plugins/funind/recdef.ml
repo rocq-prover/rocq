@@ -1638,7 +1638,8 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
   let evd, ty =
     interp_type_evars ~program_mode:false env evd ~impls:rec_impls eq
   in
-  let evd = Evd.minimize_universes evd in
+  let evd = UnivVariances.register_universe_variances_of env evd ty in
+  let evd = Evd.minimize_universes ~partial:true evd in
   let equation_lemma_type =
     Reductionops.nf_betaiotazeta env evd (Evarutil.nf_evar evd ty)
   in
@@ -1687,8 +1688,9 @@ let recursive_definition ~interactive_proof ~is_mes function_name rec_impls
       env
   in
   let relation, evuctx = interp_constr env_with_pre_rec_args evd r in
-  let () = check_relation_type env_with_pre_rec_args evd relation in
+  (* The relation can have fresh universes *)
   let evd = Evd.from_ustate evuctx in
+  let () = check_relation_type env_with_pre_rec_args evd relation in
   let tcc_lemma_name = add_suffix function_name "_tcc" in
   let tcc_lemma_constr = ref Undefined in
   (* let _ = Pp.msgnl (fun _ _ -> str "relation := " ++ Printer.pr_lconstr_env env_with_pre_rec_args relation) in *)
