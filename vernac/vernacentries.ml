@@ -1237,8 +1237,7 @@ let preprocess_record ~atts udecl kind indl =
   let (((template, poly), primitive_proj), mode), schemes =
     Attributes.(
       parse Notations.(
-        template
-          ++ poly PolyFlags.Inductive
+        template_poly
           ++ primitive_proj
           ++ hint_mode_attr
           ++ DeclareInd.schemes_attr)
@@ -1305,8 +1304,7 @@ let preprocess_inductive ~atts udecl kind indl =
   let ((((template, poly), private_ind), typing_flags), mode), schemes =
     Attributes.(
       parse Notations.(
-          template
-          ++ poly PolyFlags.Inductive
+          template_poly
           ++ private_ind
           ++ typing_flags
           ++ hint_mode_attr
