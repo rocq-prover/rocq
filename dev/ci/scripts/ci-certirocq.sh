@@ -14,8 +14,6 @@ if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 packages=rocq-certirocq,rocq-certirocq-vanilla
 
 ( cd "${CI_BUILD_DIR}/certirocq"
-  # No -p: compcert is built without native compilation, which dune would
-  # otherwise use in release mode.
   dune build --root . --only-packages="$packages" @install
   dune install --root . --prefix="$CI_INSTALL_DIR" rocq-certirocq rocq-certirocq-vanilla
   # Compile the Wasm test programs with the installed plugin, with the largest
