@@ -595,7 +595,7 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
   let constructs = Array.init (Array.length bl) (fun i -> (ci.ci_ind,i+1)) in
   let ci_bool =
     match Rocqlib.lib_ref_opt "core.bool.type" with None -> false
-    | Some bool -> GlobRef.CanOrd.equal (IndRef ci.ci_ind) bool in
+    | Some bool -> Environ.QGlobRef.equal (snd env) (IndRef ci.ci_ind) bool in
   let tag =
     let tag = ci.ci_pp_info.style in
     if flags.flg.always_regular_match_style then
