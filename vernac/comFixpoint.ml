@@ -575,6 +575,7 @@ let do_mutually_recursive ?pm ~refine ~sealed ~program_mode ?(use_inference_hook
     let info = Declare.Info.make ?scope ?clearbody ~kind ~poly ~udecl ?hook ?typing_flags ?user_warns ~ntns:fix.fixntns () in
     let cinfo = build_recthms fix in
     let possible_guard = (possible_guard, fix.fixrs) in
+    let sigma = if PolyFlags.univ_poly poly then sigma else Evd.fix_undefined_variables sigma in
     let lemma = Declare.Proof.start_mutual_definitions_refine ~info ~cinfo ~bodies:fix.fixdefs ~possible_guard ?using sigma in
     None, Some lemma
   else
@@ -626,5 +627,6 @@ let do_mutually_recursive ?pm ~refine ~sealed ~program_mode ?(use_inference_hook
       let () = assert (not sealed) in
       Evd.check_univ_decl_early ~poly ~with_obls:false sigma udecl (Option.List.flatten bodies @ fixtypes);
       let possible_guard = (possible_guard, fixrs) in
+      let sigma = if PolyFlags.univ_poly poly then sigma else Evd.fix_undefined_variables sigma in
       let lemma = Declare.Proof.start_mutual_definitions ~info ~cinfo ~bodies ~possible_guard ?using sigma in
       None, Some lemma
