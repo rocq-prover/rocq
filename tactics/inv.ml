@@ -69,43 +69,38 @@ type inversion_kind =
   | FullInversion
   | FullInversionClear
 
-let evd_comb1 f evdref x =
-  let (evd',y) = f !evdref x in
-  evdref := evd';
-  y
-
 let compute_eqn env sigma n i ai =
   (mkRel (n-i),get_type_of env sigma (mkRel (n-i)))
 
-let make_inv_predicate env evd indf realargs id status concl =
+let make_inv_predicate env sigma indf realargs id status concl =
   let nrealargs = List.length realargs in
-  let (hyps,concl) =
+  let sigma, (hyps, concl) =
     match status with
       | NoDep ->
           (* We push the arity and leave concl unchanged *)
           let hyps_arity = get_arity env indf in
-            (hyps_arity,concl)
+            sigma, (hyps_arity, concl)
       | Dep dflt_concl ->
-          if not (occur_var env !evd id concl) then
+          if not (occur_var env sigma id concl) then
             user_err
               (str "Current goal does not depend on " ++ Id.print id ++ str".");
           (* We abstract the conclusion of goal with respect to
              realargs and c to * be concl in order to rewrite and have
              c also rewritten when the case * will be done *)
-          let pred =
+          let sigma, pred =
             match dflt_concl with
-              | Some concl -> concl (*assumed it's some [x1..xn,H:I(x1..xn)]C*)
+              | Some concl -> sigma, concl (*assumed it's some [x1..xn,H:I(x1..xn)]C*)
               | None ->
-                let sort = get_sort_quality_or_set_of env !evd concl in
-                let sort = evd_comb1 Evd.fresh_sort_in_quality evd sort in
-                let p = make_arity env !evd true indf sort in
-                let evd',(p,ptyp) = Unification.abstract_list_all env
-                  !evd p concl (realargs@[mkVar id])
-                in evd := evd'; p in
+                let sort = get_sort_quality_or_set_of env sigma concl in
+                let sigma, sort = Evd.fresh_sort_in_quality sigma sort in
+                let p = make_arity env sigma true indf sort in
+                let sigma, (p, ptyp) = Unification.abstract_list_all env
+                  sigma p concl (realargs@[mkVar id])
+                in sigma, p in
           (* abstract_list_all returns only lambda *)
-          let hyps,bodypred = decompose_lambda_n_assum !evd (nrealargs+1) pred in
+          let hyps, bodypred = decompose_lambda_n_assum sigma (nrealargs+1) pred in
           (* We lift to make room for the equations *)
-          (hyps,lift nrealargs bodypred)
+          sigma, (hyps, lift nrealargs bodypred)
   in
   let nhyps = Context.Rel.length hyps in
   let env' = push_rel_context hyps env in
@@ -124,39 +119,37 @@ let make_inv_predicate env evd indf realargs id status concl =
                   (str "(needs \"core.eq.type\" and \"core.eq.refl\"" ++ spc() ++
                    str "or \"core.identity.type\" and \"core.identy.refl\")."))
   in
-  let rec build_concl eqns args n = function
-    | [] -> it_mkProd concl eqns, Array.rev_of_list args
+  let rec build_concl sigma eqns args n = function
+    | [] -> sigma, it_mkProd concl eqns, Array.rev_of_list args
     | ai :: restlist ->
         let ai = lift nhyps ai in
-        let (xi, ti) = compute_eqn env' !evd nhyps n ai in
-        let (lhs,eqnty,rhs) =
-          if closed0 !evd ti then
+        let (xi, ti) = compute_eqn env' sigma nhyps n ai in
+        let sigma, (lhs, eqnty, rhs) =
+          if closed0 sigma ti then
             (* shortcut *)
-            (xi,ti,ai)
+            sigma, (xi, ti, ai)
           else
             let open Combinators in
-            let sigma, {telescope_value; telescope_type}, default_value = make_iterated_tuple env' !evd ~default:ai xi ti in
-              evd := sigma; telescope_value, telescope_type, default_value
+            let sigma, {telescope_value; telescope_type}, default_value = make_iterated_tuple env' sigma ~default:ai xi ti in
+              sigma, (telescope_value, telescope_type, default_value)
         in
-        let eq = evd_comb1 (Evd.fresh_global env) evd eq_term in
-        let eqn = applist (eq,[eqnty;lhs;rhs]) in
+        let sigma, eq = Evd.fresh_global env sigma eq_term in
+        let sigma, eqn = Typing.checked_applist env' sigma eq [eqnty;lhs;rhs] in
         let refl_term =
-          let _, u = destRef !evd eq in
+          let _, u = destRef sigma eq in
           mkRef (refl_term, u)
         in
         let refl = mkApp (refl_term, [|eqnty; rhs|]) in
-        let r = Retyping.relevance_of_term env !evd refl in
+        let r = Retyping.relevance_of_term env sigma refl in
         let eqns = (make_annot Anonymous r, lift n eqn) :: eqns in
-        let _ = evd_comb1 (Typing.type_of env) evd refl in
         let args = refl :: args in
-        build_concl eqns args (succ n) restlist
+        build_concl sigma eqns args (succ n) restlist
   in
-  let (newconcl, args) = build_concl [] [] 0 realargs in
-  let predicate = it_mkLambda_or_LetIn newconcl (name_context env !evd hyps) in
-  let _ = evd_comb1 (Typing.type_of env) evd predicate in
+  let sigma, newconcl, args = build_concl sigma [] [] 0 realargs in
+  let predicate = it_mkLambda_or_LetIn newconcl (name_context env sigma hyps) in
   (* OK - this predicate should now be usable by res_elimination_then to
      do elimination on the conclusion. *)
-  predicate, args
+  sigma, (predicate, args)
 
 (* The result of the elimination is a bunch of goals like:
 
@@ -492,10 +485,8 @@ let raw_inversion inv_kind id status names =
         CErrors.user_err  msg
     in
     let IndType (indf,realargs) = find_rectype env sigma t in
-    let evdref = ref sigma in
-    let (elim_predicate, args) =
-      make_inv_predicate env evdref indf realargs id status concl in
-    let sigma = !evdref in
+    let sigma, (elim_predicate, args) =
+      make_inv_predicate env sigma indf realargs id status concl in
     let dep = status != NoDep && (local_occur_var sigma id concl) in
     let cut_concl =
       if dep then

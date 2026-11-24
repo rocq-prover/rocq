@@ -191,3 +191,17 @@ intros.
 inversion H as (f',g',ss',ts',H0).
 exact H0.
 Qed.
+
+Module DepInvIllTypedPredicate.
+
+Inductive I : nat -> Prop := c0 : I 0.
+
+Goal forall n (H : I n), H = H.
+Proof.
+intros n H.
+Fail dependent inversion H with (fun (b : bool) (H : I n) => H = H).
+dependent inversion H with (fun (m : nat) (H : I m) => H = H).
+reflexivity.
+Qed.
+
+End DepInvIllTypedPredicate.
