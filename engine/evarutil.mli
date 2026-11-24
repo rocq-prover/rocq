@@ -212,8 +212,13 @@ val clear_hyps_in_evi : env -> evar_map -> named_context_val -> types ->
 val clear_hyps2_in_evi : env -> evar_map -> named_context_val -> types -> types ->
   Id.Set.t -> evar_map * named_context_val * types * types
 
+type clear_cache
+
+val make_clear_cache : unit -> clear_cache
+
 val check_and_clear_in_constr
-  : Environ.env
+  : ?cache:clear_cache
+  -> Environ.env
   -> Evd.evar_map
   -> clear_dependency_error
   -> Names.Id.Set.t
