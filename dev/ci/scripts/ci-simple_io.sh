@@ -10,6 +10,6 @@ git_download simple_io
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
 ( cd "${CI_BUILD_DIR}/simple_io"
-  dune build -p coq-simple-io @install
-  dune install -p coq-simple-io --prefix=$CI_INSTALL_DIR
+  dune build -p rocq-simple-io @install
+  dune install -p rocq-simple-io --prefix=$CI_INSTALL_DIR
 )
