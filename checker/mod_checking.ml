@@ -48,10 +48,13 @@ let set_indirect_accessor f = indirect_accessor := f
 
 exception BadConstant of Constant.t * Pp.t
 
-(* The instance at which coqc types a primitive: its universe context has
-   the primitive's size and no constraints
-   ([Constant_typing.adjust_primitive_univ_entry]). *)
-let primitive_instance refuse cb prim_univs =
+(* coqc types a primitive at the instance of a universe context that has the
+   primitive's size and no constraints
+   ([Constant_typing.adjust_primitive_univ_entry]), and gives it the type of
+   the primitive ([Constant_typing.infer_primitive]). [refuse why] raises the
+   caller's error for the reason [why]; the reason for a type that is not the
+   primitive's is [mismatch]. *)
+let check_primitive env cb (p : CPrimitives.op_or_type) refuse mismatch =
   let auctx = Declareops.constant_polymorphic_context cb in
   let () =
     if not (PConstraints.is_empty (UVars.AbstractContext.constraints auctx))
@@ -59,10 +62,13 @@ let primitive_instance refuse cb prim_univs =
   in
   let u = UVars.make_abstract_instance auctx in
   let () =
-    if UVars.Instance.length u <> UVars.AbstractContext.size prim_univs
+    if UVars.Instance.length u
+       <> UVars.AbstractContext.size (CPrimitives.op_or_type_univs p)
     then refuse (str "its universe instance has the wrong length")
   in
-  u
+  match conv env (Typeops.type_of_prim_or_type env u p) cb.const_type with
+  | Result.Ok () -> ()
+  | Result.Error () -> refuse mismatch
 
 let bad_registration (type a) kn (prm : a CPrimitives.prim_type) why =
   BadConstant (kn, str "is registered as the primitive type " ++
@@ -78,23 +84,17 @@ let check_register_type (type a) env kn cb (prm : a CPrimitives.prim_type) =
     | Undef _ -> ()
     | Def _ | OpaqueDef _ | Primitive _ | Symbol _ -> refuse (str "it is not a parameter")
   in
-  let u = primitive_instance refuse cb (CPrimitives.typ_univs prm) in
-  match conv env (Typeops.type_of_prim_type env u prm) cb.const_type with
-  | Result.Ok () -> ()
-  | Result.Error () -> refuse (str "its type is not the primitive type's")
+  check_primitive env cb (CPrimitives.OT_type prm) refuse
+    (str "its type is not the primitive type's")
 
-(* coqc gives a primitive operator the type of the operator
-   ([Constant_typing.infer_primitive]). *)
 let check_primitive_operator env kn cb op =
   let refuse why =
     raise (BadConstant (kn, str "is the primitive operator " ++
                             str (CPrimitives.to_string op) ++ str ", but " ++
                             why ++ str "."))
   in
-  let u = primitive_instance refuse cb (CPrimitives.univs op) in
-  match conv env (Typeops.type_of_prim env u op) cb.const_type with
-  | Result.Ok () -> ()
-  | Result.Error () -> refuse (str "its type is not the operator's")
+  check_primitive env cb (CPrimitives.OT_op op) refuse
+    (str "its type is not the operator's")
 
 (* [f st] without the constant registrations of [st]: coqc registers only in
    module bodies outside functors ([Safe_typing.add_retroknowledge]), and a
@@ -126,7 +126,10 @@ let check_constant_declaration env st kn cb =
   if not (Sorts.relevance_equal cb.const_relevance (Sorts.relevance_of_sort jty.utj_type))
   then raise Pp.(BadConstant (kn, str "incorrect const_relevance"));
   let body, env = match cb.const_body with
-    | Undef _ | Primitive _ | Symbol _ -> None, env
+    | Primitive op ->
+      let () = check_primitive_operator env kn cb op in
+      None, env
+    | Undef _ | Symbol _ -> None, env
     | Def c -> Some c, env
     | OpaqueDef o ->
       let c, u = !indirect_accessor o in
@@ -147,10 +150,6 @@ let check_constant_declaration env st kn cb =
       | Result.Error () -> Type_errors.error_actual_type env j ty
       end
     | None -> ()
-  in
-  let () = match cb.const_body with
-    | Primitive op -> check_primitive_operator env kn cb op
-    | Undef _ | Def _ | OpaqueDef _ | Symbol _ -> ()
   in
   let retro, st = match Cmap.find_opt kn (snd st.st_retro) with
   | None -> None, st
@@ -406,20 +405,15 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
       let kn = KerName.make mp lab in
       let kn = Mod_subst.mind_of_delta_kn res kn in
       let retro = Mindmap.find_opt kn (fst st.st_retro) in
-      let st = match retro with
-      | None -> st
-      | Some _ ->
-        let (ind_retro, cst_retro) = st.st_retro in
-        let st = { st_retro = (Mindmap.remove kn ind_retro, cst_retro) } in
-        st
-      in
       let env' = CheckInductive.check_inductive env kn mib retro in
       let () = Subtyping.check_inductive_alias env kn mib in
       (* Operator types may name the registration [check_inductive] checked. *)
-      let env' = match retro with
-      | None -> env'
+      let env', st = match retro with
+      | None -> env', st
       | Some (i, CPrimitives.PIE prm) ->
-        Primred.add_retroknowledge env' (Retroknowledge.Register_ind (prm, (kn, i)))
+        let (ind_retro, cst_retro) = st.st_retro in
+        let st = { st_retro = (Mindmap.remove kn ind_retro, cst_retro) } in
+        Primred.add_retroknowledge env' (Retroknowledge.Register_ind (prm, (kn, i))), st
       in
       env', st
   | SFBmodule msb ->
