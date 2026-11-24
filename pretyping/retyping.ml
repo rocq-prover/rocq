@@ -361,8 +361,44 @@ let get_sort_quality_or_set_of ?(polyprop=true) env sigma t =
       ESorts.quality_or_set sigma (decomp_sort env sigma (type_of env t))
   in sort_quality_of env t
 
-let get_sort_quality_of ?polyprop env sigma t =
-  UnivGen.QualityOrSet.quality @@ get_sort_quality_or_set_of ?polyprop env sigma t
+let template_constant_quality ind templ = match templ.Declarations.template_concl with
+| Sorts.VSort _ -> None (* variable sort depending on the arguments *)
+| Sorts.Prop -> Some Sorts.Quality.qprop
+| Sorts.Set -> Some Sorts.Quality.qtype
+| Sorts.SProp -> Some Sorts.Quality.qsprop
+| Sorts.Type _ -> Some Sorts.Quality.qtype (* Always Set / Type *)
+| Sorts.GSort _ -> assert false (* No global sorts in template inductives yet *)
+
+let get_sort_quality_of ?(polyprop=true) env sigma t =
+  let type_of, _, type_of_global_reference_knowing_parameters = retype ~polyprop sigma in
+  let rec sort_quality_of env t = match EConstr.kind sigma t with
+  | Cast (c,_, s) when isSort sigma s -> ESorts.quality sigma (destSort sigma s)
+  | Sort _ -> Sorts.Quality.qtype
+  | Prod (name, t, c2) -> sort_quality_of (push_rel (LocalAssum (name, t)) env) c2
+  | App (f, args) ->
+    begin match EConstr.kind sigma f with
+    | Ind (ind, u) when EInstance.is_empty u ->
+      let (mib, mip) = Inductive.lookup_mind_specif env ind in
+      begin match mib.mind_template with
+      | None ->
+        ESorts.quality sigma (sort_of_atomic_type env sigma (type_of env f) args)
+      | Some templ ->
+        begin match template_constant_quality (fst ind) templ with
+        | None ->
+          let t = type_of_global_reference_knowing_parameters env f args in
+          ESorts.quality sigma (sort_of_atomic_type env sigma t args)
+        | Some q -> q
+        end
+      end
+    | _ ->
+      ESorts.quality sigma (sort_of_atomic_type env sigma (type_of env f) args)
+    end
+  | Lambda _ | Fix _ | Construct _ | CoFix _ | Int _ | Float _ | String _ | Array _ ->
+    retype_error NotAType
+  | Rel _ | Var _ | Meta _ | Evar _ | Cast _ | LetIn _ | Const _ | Ind _ | Case _ | Proj _ ->
+    ESorts.quality sigma (decomp_sort env sigma (type_of env t))
+  in
+  sort_quality_of env t
 
 let get_sort_of ?(polyprop=true) ?(lax=false) env sigma t =
   let _,f,_ = retype ~polyprop sigma in
