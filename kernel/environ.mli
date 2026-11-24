@@ -410,9 +410,9 @@ val push_context : ?strict:bool -> UContext.t -> env -> env
     @raise UGraph.AlreadyDeclared if one of the universes is already declared. *)
 
 val push_context_set : ?strict:bool -> Univ.ContextSet.t -> env -> env
-(** [push_context_set ?(strict=false) src ctx env] pushes the universe
-    context set to the environment. It does not fail even if one of the
-    universes is already declared. *)
+(** [push_context_set ?(strict=false) ctx env] pushes the universe
+    context set to the environment.
+    @raise UGraph.AlreadyDeclared if one of the universes is already declared. *)
 
 val push_qualities : Sorts.Quality.Set.t -> env -> env
 (** [push_qualities qs env] pushes the set of quality variables and constraints
