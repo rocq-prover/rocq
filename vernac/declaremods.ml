@@ -1151,7 +1151,21 @@ let intern_args params =
   let args, ctx = List.fold_left intern_arg ([], Univ.ContextSet.empty) params in
   List.rev args, ctx
 
-let start_module_core id args res =
+let check_struct_type mp params mtb =
+  let rec strip params sign = match params, sign with
+  | [], sign -> sign
+  | _ :: params, MoreFunctor (_, _, sign) -> strip params sign
+  | _ :: _, NoFunctor _ -> assert false
+  in
+  match strip params (mod_type mtb) with
+  | NoFunctor _ -> ()
+  | MoreFunctor _ ->
+    let fold (mbid, mtb, _, _) accu = MoreFunctor (mbid, mtb, accu) in
+    let sign = List.fold_right fold params (NoFunctor []) in
+    let mtb0 = make_module_type sign (empty_delta_resolver mp) in
+    Modops.error_incompatible_modtypes mtb0 mtb
+
+let start_module_core ~interactive id args res =
   let mp = Global.start_module id in
   let params, ctx = intern_args args in
   let env = Global.env () in
@@ -1161,11 +1175,13 @@ let start_module_core id args res =
         let env = Environ.push_context_set ctx env in
         (* We check immediately that mte is well-formed *)
         let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes) in
-        let _, (_, cst), _ = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
+        let mtb, (_, cst), _ = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
+        let () = if interactive then check_struct_type mp [] mtb in
         let ctx = Univ.ContextSet.add_constraints cst ctx in
         Some (mte, inl), [], ctx
     | Check resl ->
       let typs, ctx = build_subtypes env mp params resl in
+      let () = if interactive then List.iter (fun mtb -> check_struct_type mp params mtb) typs in
       None, typs, ctx
   in
   let () = Global.push_context_set ctx' in
@@ -1174,7 +1190,7 @@ let start_module_core id args res =
 let start_module export id args res =
   let open Summary.Ref in
   let fs = Summary.Interp.freeze_summaries () in
-  let mp, res_entry_o, subtyps, _, _ = start_module_core id args res in
+  let mp, res_entry_o, subtyps, _, _ = start_module_core ~interactive:true id args res in
   openmod_info := { cur_typ = res_entry_o; cur_typs = subtyps };
   let _ : object_prefix = Lib.Interp.start_module export id mp fs in
   mp
@@ -1243,7 +1259,7 @@ let declare_module id args res mexpr_o =
   let fs = Summary.Interp.freeze_summaries () in
   (* We simulate the beginning of an interactive module,
      then we adds the module parameters to the global env. *)
-  let mp, mty_entry_o, subs, params, ctx = start_module_core id args res in
+  let mp, mty_entry_o, subs, params, ctx = start_module_core ~interactive:false id args res in
   let env = Global.env () in
   let mexpr_entry_o, inl_expr, ctx' = match mexpr_o with
     | None -> None, default_inline_level (), Univ.ContextSet.empty
@@ -1676,7 +1692,7 @@ Typically used for `Module M := N <+ P`.
 *)
 let declare_module_includes id args res mexpr_l =
   let fs = Summary.Interp.freeze_summaries () in
-  let mp, res_entry_o, subtyps, _, _ = RawModOps.Interp.start_module_core id args res in
+  let mp, res_entry_o, subtyps, _, _ = RawModOps.Interp.start_module_core ~interactive:true id args res in
   let mod_info = { cur_typ = res_entry_o; cur_typs = subtyps } in
   let incl_objs = List.map_left (fun x -> IncludeObject (RawIncludeOps.Interp.declare_one_include_core x)) mexpr_l in
   let objects = {
