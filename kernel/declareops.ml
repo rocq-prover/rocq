@@ -40,6 +40,16 @@ let safe_flags oracle = {
   allow_uip = false;
 }
 
+let constant_of_decl knu cb =
+  match cb.const_aliasing with
+  | None -> Names.Constant.make1 knu
+  | Some knc -> Names.Constant.make knu knc
+
+let mind_of_decl knu mib =
+  match mib.mind_aliasing with
+  | None -> Names.MutInd.make1 knu
+  | Some knc -> Names.MutInd.make knu knc
+
 (** {6 Arities } *)
 
 let hcons_template_universe ar =

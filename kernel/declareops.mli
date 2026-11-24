@@ -8,12 +8,17 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open Names
 open Declarations
 open Mod_subst
 open UVars
 
 (** Operations concerning types in [Declarations] :
     [constant_body], [mutual_inductive_body], [module_body] ... *)
+
+val constant_of_decl : KerName.t -> constant_body -> Constant.t
+
+val mind_of_decl : KerName.t -> mutual_inductive_body -> MutInd.t
 
 val universes_context : universes -> AbstractContext.t
 
@@ -66,11 +71,11 @@ val inductive_is_polymorphic : mutual_inductive_body -> bool
 val inductive_is_cumulative : mutual_inductive_body -> bool
 
 (** Anomaly when not a primitive record or invalid proj_arg *)
-val inductive_make_projection : Names.inductive -> mutual_inductive_body -> proj_arg:int ->
-  Names.Projection.Repr.t * Sorts.relevance
+val inductive_make_projection : inductive -> mutual_inductive_body -> proj_arg:int ->
+  Projection.Repr.t * Sorts.relevance
 
-val inductive_make_projections : Names.inductive -> mutual_inductive_body ->
-  ((Names.Projection.Repr.t * Sorts.relevance) array) option
+val inductive_make_projections : inductive -> mutual_inductive_body ->
+  ((Projection.Repr.t * Sorts.relevance) array) option
 
 val is_record_with_eta : mind_specif -> Instance.t -> bool
 

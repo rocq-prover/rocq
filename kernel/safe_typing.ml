@@ -1546,17 +1546,11 @@ let add_include me is_module inl senv =
     let new_name = match elem with
       | SFBconst cb ->
         let knu = KerName.make mp_sup l in
-        let c = match cb.const_aliasing with
-          | None -> Constant.make1 knu
-          | Some knc -> Constant.make knu knc
-        in
+        let c = Declareops.constant_of_decl knu cb in
         C c
       | SFBmind mib ->
         let knu = KerName.make mp_sup l in
-        let i = match mib.mind_aliasing with
-          | None -> MutInd.make1 knu
-          | Some knc -> MutInd.make knu knc
-        in
+        let i = Declareops.mind_of_decl knu mib in
         I i
       | SFBrules _ -> R
       | SFBmodule _ -> M (MPdot (mp_sup, l))

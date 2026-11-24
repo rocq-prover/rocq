@@ -1380,14 +1380,13 @@ module Internal = struct
     let new_mods = ModPath.Map.add mp mb env.env_modules in
     { env with env_modules = new_mods }
 
-  let rec overwrite_structure : type a. _ -> _ -> a Mod_subst.delta_resolver -> _ -> _ =
-    fun mp sign resolver env ->
+  let rec overwrite_structure mp sign env =
     let add_field env (l,elem) = match elem with
       | SFBconst cb ->
-        let c = Mod_subst.constant_of_delta_kn resolver (KerName.make mp l) in
+        let c = Declareops.constant_of_decl (KerName.make mp l) cb in
         add_constant c cb env
       | SFBmind mib ->
-        let mind = Mod_subst.mind_of_delta_kn resolver (KerName.make mp l) in
+        let mind = Declareops.mind_of_decl (KerName.make mp l) mib in
         add_mind mind mib env
       | SFBmodule mb -> overwrite_module (MPdot (mp, l)) mb env
       | SFBmodtype mtb -> add_modtype (MPdot (mp, l)) mtb env
@@ -1399,8 +1398,7 @@ module Internal = struct
     let env = shallow_overwrite_module mp mb env in
     match mod_type mb with
     | NoFunctor struc ->
-      let delta = Option.get (Mod_declarations.mod_global_delta mb) in
-      overwrite_structure mp struc delta env
+      overwrite_structure mp struc env
     | MoreFunctor _ -> env
 
   let overwrite_module_parameter mbid mtb env =

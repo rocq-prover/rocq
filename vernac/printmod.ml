@@ -305,9 +305,9 @@ let print_body is_impl extent env mp (l,body) =
 let print_struct is_impl extent env mp struc =
   prlist_with_sep spc (print_body is_impl extent env mp) struc
 
-let print_structure is_type extent env mp locals reso struc =
+let print_structure is_type extent env mp locals struc =
   (* XXX: when printing signatures we overwrite already defined modules *)
-  let env' = Environ.Internal.overwrite_structure mp struc reso env in
+  let env' = Environ.Internal.overwrite_structure mp struc env in
   nametab_register_module_body mp struc;
   let kwd = if is_type then "Sig" else "Struct" in
   hv 2 (keyword kwd ++ spc () ++ print_struct false extent env' mp struc ++
@@ -318,7 +318,7 @@ let rec flatten_app mexpr l = match mexpr with
   | MEident mp -> mp::l
   | MEwith _ -> assert false
 
-let rec print_typ_expr extent env mp locals reso mty =
+let rec print_typ_expr extent env mp locals mty =
   match mty with
   | MEident kn -> print_kn locals kn
   | MEapply _ ->
@@ -335,7 +335,7 @@ let rec print_typ_expr extent env mp locals reso mty =
             spc() ++ str ":=" ++ spc() ++ Printer.pr_lconstr_env env sigma c
         | OnlyNames ->
             mt() in
-      hov 2 (print_typ_expr extent env mp locals reso me ++ spc() ++ str "with" ++ spc()
+      hov 2 (print_typ_expr extent env mp locals me ++ spc() ++ str "with" ++ spc()
              ++ def "Definition"++ spc() ++ str s ++ body)
   | MEwith(me,WithMod(idl,mp'))->
       let s = String.concat "." (List.map Id.to_string idl) in
@@ -343,10 +343,10 @@ let rec print_typ_expr extent env mp locals reso mty =
         | WithContents ->
             spc() ++ str ":="++ spc() ++ print_modpath locals mp'
         | OnlyNames -> mt () in
-      hov 2 (print_typ_expr extent env mp locals reso me ++ spc() ++ str "with" ++ spc() ++
+      hov 2 (print_typ_expr extent env mp locals me ++ spc() ++ str "with" ++ spc() ++
              keyword "Module"++ spc() ++ str s ++ body)
 
-let print_mod_expr env mp locals _ = function
+let print_mod_expr env mp locals = function
   | MEident mp -> print_modpath locals mp
   | MEapply _ as me ->
       let lapp = flatten_app me [] in
@@ -354,8 +354,8 @@ let print_mod_expr env mp locals _ = function
         (str"(" ++ prlist_with_sep spc (print_modpath locals) lapp ++ str")")
   | MEwith _ -> assert false (* No 'with' syntax for modules *)
 
-let rec print_functor fty fatom is_type extent env mp reso used locals = function
-  | NoFunctor me -> fatom is_type extent env mp locals reso me
+let rec print_functor fty fatom is_type extent env mp used locals = function
+  | NoFunctor me -> fatom is_type extent env mp locals me
   | MoreFunctor (mbid,mtb1,me2) ->
       let id = nametab_register_modparam !used mbid mtb1 in
       let () = used := Id.Set.add id !used in
@@ -368,7 +368,7 @@ let rec print_functor fty fatom is_type extent env mp reso used locals = functio
       hov 2
         (keyword kwd ++ spc () ++
          str "(" ++ Id.print id ++ str ":" ++ pr_mtb1 ++ str ")" ++
-         spc() ++ print_functor fty fatom is_type extent env' mp reso used locals' me2)
+         spc() ++ print_functor fty fatom is_type extent env' mp used locals' me2)
 
 let rec print_expression x =
   print_functor
@@ -378,46 +378,43 @@ let rec print_expression x =
 and print_signature x =
   print_functor print_modtype print_structure x
 
-and print_modtype extent env mp used locals mtb =
-  let reso = mod_delta mtb in
-  match mod_type_alg mtb with
+and print_modtype extent env mp used locals mtb = match mod_type_alg mtb with
   | Some me ->
     let me = Modops.annotate_module_expression me (mod_type mtb) in
-    print_expression true extent env mp reso used locals me
-  | None -> print_signature true extent env mp reso used locals (mod_type mtb)
+    print_expression true extent env mp used locals me
+  | None -> print_signature true extent env mp used locals (mod_type mtb)
 
 (** Since we might play with nametab above, we should reset to prior
     state after the printing *)
 
-let print_expression' is_type extent env mp reso me =
+let print_expression' is_type extent env mp me =
   Vernacstate.System.protect
-    (fun e -> print_expression is_type extent env mp reso (ref Id.Set.empty) [] e) me
+    (fun e -> print_expression is_type extent env mp (ref Id.Set.empty) [] e) me
 
-let print_signature' is_type extent env mp reso me =
+let print_signature' is_type extent env mp me =
   Vernacstate.System.protect
-    (fun e -> print_signature is_type extent env mp reso (ref Id.Set.empty) [] e) me
+    (fun e -> print_signature is_type extent env mp (ref Id.Set.empty) [] e) me
 
 let unsafe_print_module extent env mp with_body mb =
   let name = print_modpath [] mp in
   let pr_equals = spc () ++ str ":= " in
-  let reso = Mod_subst.forget_inline_delta_resolver @@ mod_delta mb in
   let body = match with_body, Mod_declarations.mod_expr mb with
     | false, _
     | true, Abstract -> mt()
     | _, Algebraic me ->
       let me = Modops.annotate_module_expression me (mod_type mb) in
-      pr_equals ++ print_expression' false extent env mp reso me
+      pr_equals ++ print_expression' false extent env mp me
     | _, Struct (_, sign) ->
       let sign = Modops.annotate_struct_body sign (mod_type mb) in
-      pr_equals ++ print_signature' false extent env mp reso sign
-    | _, FullStruct -> pr_equals ++ print_signature' false extent env mp reso (mod_type mb)
+      pr_equals ++ print_signature' false extent env mp sign
+    | _, FullStruct -> pr_equals ++ print_signature' false extent env mp (mod_type mb)
   in
   let modtype = match mod_expr mb, mod_type_alg mb with
     | FullStruct, _ -> mt ()
     | _, Some ty ->
       let ty = Modops.annotate_module_expression ty (mod_type mb) in
-      brk (1,1) ++ str": " ++ print_expression' true extent env mp reso ty
-    | _, _ -> brk (1,1) ++ str": " ++ print_signature' true extent env mp reso (mod_type mb)
+      brk (1,1) ++ str": " ++ print_expression' true extent env mp ty
+    | _, _ -> brk (1,1) ++ str": " ++ print_signature' true extent env mp (mod_type mb)
   in
   hv 0 (keyword "Module" ++ spc () ++ name ++ modtype ++ body)
 
@@ -446,4 +443,4 @@ let print_modtype kn =
   hv 1
     (keyword "Module Type" ++ spc () ++ name ++ str " =" ++ spc () ++
      print_with_fallback (fun extent ->
-       print_signature' true extent (Global.env ()) kn (mod_delta mtb) (mod_type mtb)))
+       print_signature' true extent (Global.env ()) kn (mod_type mtb)))
