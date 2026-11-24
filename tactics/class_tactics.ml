@@ -84,28 +84,40 @@ end = struct
   let get_typeclasses_verbose () =
     if !typeclasses_debug = 0 then None else Some !typeclasses_debug
 
+  let debug_key = ["Typeclasses";"Debug"]
+  let verbosity_key = ["Typeclasses";"Debug";"Verbosity"]
+
   let () =
     let open Goptions in
-    declare_bool_option
+    declare_option ~overridable:true ~kind:BoolKind
       { optstage = Summary.Stage.Interp;
         optdepr  = None;
-        optkey   = ["Typeclasses";"Debug"];
+        optkey   = debug_key;
         optread  = get_typeclasses_debug;
         optwrite = set_typeclasses_debug; }
 
   let () =
     let open Goptions in
-    declare_int_option
+    declare_option ~overridable:true ~kind:IntKind
       { optstage = Summary.Stage.Interp;
         optdepr  = None;
-        optkey   = ["Typeclasses";"Debug";"Verbosity"];
+        optkey   = verbosity_key;
         optread  = get_typeclasses_verbose;
         optwrite = set_typeclasses_verbose; }
 
-  let ppdebug lvl pp =
-    if !typeclasses_debug > lvl then Feedback.msg_debug (hov 2 @@ pp())
+  (* The two options share [typeclasses_debug], their overrides apply on top
+     of it, the verbosity first *)
+  let get_debug () =
+    let open Goptions in
+    match get_option_override verbosity_key with
+    | Some (IntValue n) -> Option.default 0 n
+    | _ ->
+      match get_option_override debug_key with
+      | Some (BoolValue b) -> if b then max 1 !typeclasses_debug else 0
+      | _ -> !typeclasses_debug
 
-  let get_debug () = !typeclasses_debug
+  let ppdebug lvl pp =
+    if get_debug () > lvl then Feedback.msg_debug (hov 2 @@ pp())
 end
 open Debug
 let set_typeclasses_debug = set_typeclasses_debug

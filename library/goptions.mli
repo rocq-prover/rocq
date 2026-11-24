@@ -175,8 +175,13 @@ type 'a option_sig = {
     If you pass [no_summary:true] you must handle synchronization separately.
 
     [StringOptKind] should be preferred to [StringKind] because it supports "Unset". *)
-val declare_option   : ?preprocess:('a -> 'a) -> ?no_summary:bool ->
+val declare_option   : ?preprocess:('a -> 'a) -> ?no_summary:bool -> ?overridable:bool ->
   kind:'a option_kind -> 'a option_sig -> unit
+(** [overridable] (default [false]) declares that the code using the option
+    takes its override into account, by asking [get_option_override] (see
+    [set_option_override]). The options declared by the
+    [declare_*_option_and_ref] functions are overridable: their getters
+    return the overriding value. *)
 
 val declare_append_only_option : ?preprocess:(string -> string) -> sep:string ->
   string option_sig -> unit
@@ -247,8 +252,30 @@ type option_value =
   | StringValue of string
   | StringOptValue of string option
 
-(** [get_option_value key] returns [None] if option with name [key] was not found. *)
+(** [get_option_value key] returns [None] if option with name [key] was not found.
+    The value is the one set by the commands, even when the option is
+    overridden (see [set_option_override]). *)
 val get_option_value : option_name -> (unit -> option_value) option
+
+(** {6 Overrides} *)
+
+val set_option_override : option_name -> option_value option -> unit
+(** [set_option_override key (Some v)] makes [v] the value of the option [key]
+    for the code using it, whatever the commands set, until
+    [set_option_override key None]. This is meant for interactive tools, e.g.
+    a debug flag toggled from an editor.
+
+    The override is not part of the summary: frozen states keep the values set
+    by the commands, and [Set]/[Unset] keep changing them while the option is
+    overridden, so restoring a state or removing the override gives back the
+    values of the document. [get_option_value] and [get_tables] report the
+    values set by the commands, [Test] and [Print Options] show the overrides.
+
+    Fails if the option does not exist, is not overridable (see
+    [declare_option]), or if [v] does not have its type. *)
+
+val get_option_override : option_name -> option_value option
+(** The override set by [set_option_override], if any. *)
 
 type 'a check_and_cast = { check_and_cast : 'b. 'a -> 'b option_kind -> 'b }
 

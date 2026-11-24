@@ -267,6 +267,9 @@ module RawOpt = struct
     stage : Summary.Stage.t;
     read : unit -> 'a;
     write : option_locality -> 'a -> unit;
+    override : ('a option -> unit) option;
+    (** [None] when the option cannot be overridden, otherwise called with
+        the new override by [set_option_override] *)
   }
 end
 
@@ -288,6 +291,14 @@ with Not_found ->
       ++ str (nickname key) ++ str ") is already used.")
 
 let declare_raw name v = value_tab := OptionMap.add name (AnyOpt v) !value_tab
+
+(* The overrides set by [set_option_override]. They are not part of the
+   summary, which only saves the values set by the commands. *)
+let overrides = ref OptionMap.empty
+
+let get_option_override key =
+  if OptionMap.is_empty !overrides then None
+  else OptionMap.find_opt key !overrides
 
 (* not quite the same as RawOpt.t: write takes a option_locality, optkey field present *)
 type 'a option_sig = {
@@ -335,7 +346,7 @@ let option_object name stage act =
     classify_function = classify_option;
   }
 
-let declare_option ?(preprocess = fun x -> x) ?(no_summary=false) ~kind
+let declare_option_gen ?(preprocess = fun x -> x) ?(no_summary=false) ~override ~kind
   { optstage=stage; optdepr=depr; optkey=key; optread=read; optwrite=write } =
   check_key key;
   let () =
@@ -362,7 +373,13 @@ let declare_option ?(preprocess = fun x -> x) ?(no_summary=false) ~kind
     depr;
     read;
     write = cwrite;
+    override;
   }
+
+let declare_option ?preprocess ?no_summary ?(overridable=false) ~kind osig =
+  (* the code reading an overridable option asks [get_option_override] *)
+  let override = if overridable then Some ignore else None in
+  declare_option_gen ?preprocess ?no_summary ~override ~kind osig
 
 let declare_append_only_option ?(preprocess= fun x -> x) ~sep
     { optstage=stage; optdepr=depr; optkey=key; optread=read; optwrite=write } =
@@ -389,6 +406,7 @@ let declare_append_only_option ?(preprocess= fun x -> x) ~sep
     depr;
     read;
     write = cwrite;
+    override = None;
   }
 
 type 'a getter = { get : unit -> 'a }
@@ -397,15 +415,17 @@ type 'a opt_decl = ?stage:Summary.Stage.t -> ?depr:Deprecation.t -> key:option_n
 
 let declare_interpreted_option_and_ref from to_ ~stage ?depr ~key kind ~value () =
   let r_opt = ref value in
+  let r_override = ref None in
   let optwrite v = r_opt := from v in
   let optread () = to_ !r_opt in
-  let () = declare_option ~kind {
+  let override v = r_override := Option.map from v in
+  let () = declare_option_gen ~override:(Some override) ~kind {
       optstage = stage;
       optdepr = depr;
       optkey = key;
       optread; optwrite
     } in
-  { get = fun () -> !r_opt }
+  { get = fun () -> match !r_override with None -> !r_opt | Some v -> v }
 
 let declare_int_option_and_ref ?(stage=Interp) ?depr ~key ~(value:int) () =
   let from v = Option.default value v in
@@ -458,6 +478,34 @@ let to_option_value (type a) (k:a option_kind) (v:a) : option_value =
   | IntKind -> IntValue v
   | StringKind -> StringValue v
   | StringOptKind -> StringOptValue v
+
+let of_option_value (type a) (k:a option_kind) (v:option_value) : a option =
+  match k, v with
+  | BoolKind, BoolValue b -> Some b
+  | IntKind, IntValue n -> Some n
+  | StringKind, StringValue s -> Some s
+  | StringOptKind, StringOptValue s -> Some s
+  | (BoolKind | IntKind | StringKind | StringOptKind), _ -> None
+
+let set_option_override key v =
+  let AnyOpt opt = try get_option key with Not_found -> error_undeclared_key key in
+  match opt.override with
+  | None ->
+    CErrors.user_err
+      Pp.(str "The option \"" ++ str (nickname key) ++ str "\" cannot be overridden.")
+  | Some override ->
+    match v with
+    | None ->
+      override None;
+      overrides := OptionMap.remove key !overrides
+    | Some v ->
+      match of_option_value opt.kind v with
+      | None ->
+        CErrors.user_err
+          Pp.(str "Bad type of value for the option \"" ++ str (nickname key) ++ str "\".")
+      | Some x ->
+        override (Some x);
+        overrides := OptionMap.add key v !overrides
 
 let get_option_value key =
   try
@@ -543,15 +591,24 @@ let msg_option_value = Pp.(function
   | StringOptValue (Some s) -> quote (str s))
 
 let print_option_value key =
+  let open Pp in
   let AnyOpt opt = get_option key in
-  let s = opt.read () in
-  match to_option_value opt.kind s with
-    | BoolValue b ->
-        Feedback.msg_notice Pp.(prlist_with_sep spc str key ++ str " is "
-          ++ str (if b then "on" else "off"))
-    | s ->
-        Feedback.msg_notice Pp.(str "Current value of "
-          ++ prlist_with_sep spc str key ++ str " is " ++ msg_option_value s)
+  let set = to_option_value opt.kind (opt.read ()) in
+  let override = get_option_override key in
+  let pr_value = function
+    | BoolValue b -> str (if b then "on" else "off")
+    | v -> msg_option_value v
+  in
+  let msg = match Option.default set override with
+    | BoolValue _ as v -> prlist_with_sep spc str key ++ str " is " ++ pr_value v
+    | v -> str "Current value of " ++ prlist_with_sep spc str key ++ str " is " ++ pr_value v
+  in
+  let msg = match override with
+    | None -> msg
+    | Some _ ->
+      msg ++ spc () ++ str "(overridden, the value set by the commands is " ++ pr_value set ++ str ")"
+  in
+  Feedback.msg_notice msg
 
 let get_tables () =
   let tables = !value_tab in
@@ -567,7 +624,10 @@ let get_tables () =
 let print_tables () =
   let open Pp in
   let print_option key value depr =
-    let msg = str "  " ++ str (nickname key) ++ str ": " ++ msg_option_value value in
+    let overridden =
+      if Option.has_some (get_option_override key) then str " (overridden)" else mt ()
+    in
+    let msg = str "  " ++ str (nickname key) ++ str ": " ++ msg_option_value value ++ overridden in
     let depr = pr_opt (fun depr ->
         hov 2
           (str "[DEPRECATED" ++
@@ -581,7 +641,11 @@ let print_tables () =
   str "Options:" ++ fnl () ++
     OptionMap.fold
       (fun key (AnyOpt opt) p ->
-        p ++ print_option key (to_option_value opt.kind (opt.read ())) opt.depr)
+        let value = match get_option_override key with
+          | Some v -> v
+          | None -> to_option_value opt.kind (opt.read ())
+        in
+        p ++ print_option key value opt.depr)
       !value_tab (mt ()) ++
   str "Tables:" ++ fnl () ++
     List.fold_right

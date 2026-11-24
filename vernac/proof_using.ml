@@ -207,19 +207,30 @@ let () =
         v 0 (
           prlist_with_sep cut (fun x->str"Proof using " ++x++ str". ") valid_exprs))
 
-let warn_proof_using ?loc v = CWarnings.warn warn_proof_using_msg ?loc v
+let suggest_key = ["Suggest";"Proof";"Using"]
 
-let suggest_on () =
+let suggest_setting () =
   match CWarnings.warning_status warn_proof_using_flag with
   | Disabled -> false
   | Enabled | AsError -> true
 
+let suggest_on () = match Goptions.get_option_override suggest_key with
+  | Some (BoolValue b) -> b
+  | _ -> suggest_setting ()
+
+let warn_proof_using ?loc v =
+  let warn v = CWarnings.warn warn_proof_using_msg ?loc v in
+  (* called when [suggest_on ()]: if the warning is disabled, it is forced
+     by an override of Suggest Proof Using *)
+  if suggest_setting () then warn v
+  else CWarnings.with_warn "proof-using" warn v
+
 let () =
-  Goptions.(declare_option ~no_summary:true ~kind:BoolKind
+  Goptions.(declare_option ~no_summary:true ~overridable:true ~kind:BoolKind
     { optstage = Summary.Stage.Interp;
       optdepr  = None;
-      optkey   = ["Suggest";"Proof";"Using"];
-      optread  = suggest_on;
+      optkey   = suggest_key;
+      optread  = suggest_setting;
       optwrite = (fun b ->
           let flag = if b then "proof-using" else "-proof-using" in
           CWarnings.set_flags (CWarnings.get_flags () ^ "," ^ flag));
