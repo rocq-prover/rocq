@@ -361,14 +361,6 @@ let get_sort_quality_or_set_of ?(polyprop=true) env sigma t =
       ESorts.quality_or_set sigma (decomp_sort env sigma (type_of env t))
   in sort_quality_of env t
 
-let template_constant_quality ind templ = match templ.Declarations.template_concl with
-| Sorts.VSort _ -> None (* variable sort depending on the arguments *)
-| Sorts.Prop -> Some Sorts.Quality.qprop
-| Sorts.Set -> Some Sorts.Quality.qtype
-| Sorts.SProp -> Some Sorts.Quality.qsprop
-| Sorts.Type _ -> Some Sorts.Quality.qtype (* Always Set / Type *)
-| Sorts.GSort _ -> assert false (* No global sorts in template inductives yet *)
-
 let get_sort_quality_of ?(polyprop=true) env sigma t =
   let type_of, _, type_of_global_reference_knowing_parameters = retype ~polyprop sigma in
   let rec sort_quality_of env t = match EConstr.kind sigma t with
@@ -383,11 +375,11 @@ let get_sort_quality_of ?(polyprop=true) env sigma t =
       | None ->
         ESorts.quality sigma (sort_of_atomic_type env sigma (type_of env f) args)
       | Some templ ->
-        begin match template_constant_quality (fst ind) templ with
-        | None ->
+        begin match Sorts.quality templ.template_concl with
+        | QVar _ ->
           let t = type_of_global_reference_knowing_parameters env f args in
           ESorts.quality sigma (sort_of_atomic_type env sigma t args)
-        | Some q -> q
+        | q -> q
         end
       end
     | _ ->
