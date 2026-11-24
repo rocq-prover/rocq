@@ -1540,6 +1540,7 @@ let propagate_senv newdef senv oldsenv =
     modlabels = Id.Set.add (fst newdef) oldsenv.modlabels;
     univ = senv.univ;
     qualities = senv.qualities ;
+    elims = senv.elims;
     future_cst = senv.future_cst;
     required = senv.required;
     loads = oldsenv.loads;
