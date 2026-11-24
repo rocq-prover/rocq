@@ -129,7 +129,8 @@ let push_appl appl args =
   | GlbAppl l -> GlbAppl (List.map (fun (h,vs) -> (h,vs@args)) l)
 let pr_generic arg =
     let Val.Dyn (tag, _) = arg in
-    str"<" ++ Val.pr tag ++ str ":(" ++ Pptactic.pr_value Pptactic.ltop arg ++ str ")>"
+    let env = Global.env () in
+    str"<" ++ Val.pr tag ++ str ":(" ++ Pptactic.pr_value env (Evd.from_env env) Pptactic.ltop arg ++ str ")>"
 let pr_appl h vs =
   Pptactic.pr_ltac_constant  h ++ spc () ++
   Pp.prlist_with_sep spc pr_generic vs
@@ -160,7 +161,7 @@ let pr_tacvalue env v = match to_tacvalue_v v with
       else
         cut () ++ str "where" ++
         Id.Map.fold (fun id c pp ->
-            cut () ++ Id.print id ++ str " := " ++ Pptactic.pr_value Pptactic.ltop c ++ pp)
+            cut () ++ Id.print id ++ str " := " ++ Pptactic.pr_value env (Evd.from_env env) Pptactic.ltop c ++ pp)
           ids (mt ())
     in
     v 0 (hov 0 (Pptactic.pr_glob_tactic env tac) ++ pr_env env)
@@ -221,7 +222,16 @@ let ensure_loc loc ist =
     | None -> { ist with extra = TacStore.set ist.extra f_loc loc }
     | Some _ -> ist
 
-let print_top_val env v = Pptactic.pr_value Pptactic.ltop v
+let print_top_val env sigma v =
+  try Pptactic.pr_value env sigma Pptactic.ltop v
+  with e when CErrors.noncritical e -> str "_"
+
+let name_env =
+  let open Proofview in
+  let open Proofview.Notations in
+  Goal.goals >>= function
+  | [gl] -> gl >>= fun gl -> tclUNIT (Goal.env gl, Goal.sigma gl)
+  | _ -> tclENV >>= fun env -> tclEVARMAP >>= fun sigma -> tclUNIT (env, sigma)
 
 let catching_error call_trace fail (e, info) =
   let inner_trace =
@@ -1317,8 +1327,9 @@ and eval_tactic_ist ist tac : unit Proofview.tactic =
         Ftactic.lift (tactic_of_val ist v)
       in
       let tac =
-        Ftactic.with_env interp_vars >>= fun (env, lr) ->
-        let name () = Pptactic.pr_alias (fun v -> print_top_val env v) 0 s lr in
+        interp_vars >>= fun lr ->
+        Ftactic.lift name_env >>= fun (env, sigma) ->
+        let name () = Pptactic.pr_alias (fun v -> print_top_val env sigma v) 0 s lr in
         Proofview.Trace.name_tactic name (tac lr)
       (* spiwack: this use of name_tactic is not robust to a
          change of implementation of [Ftactic]. In such a situation,
@@ -1342,7 +1353,8 @@ and eval_tactic_ist ist tac : unit Proofview.tactic =
       let tac = Tacenv.interp_ml_tactic opn in
       let args = Ftactic.List.map_right (fun a -> interp_tacarg ist a) l in
       let tac args =
-        let name () = Pptactic.pr_extend (fun v -> print_top_val () v) 0 opn args in
+        name_env >>= fun (env, sigma) ->
+        let name () = Pptactic.pr_extend (fun v -> print_top_val env sigma v) 0 opn args in
         let (stack, _) = trace in
         Proofview.Trace.name_tactic name (catch_error_tac_loc loc stack (tac args ist))
       in
