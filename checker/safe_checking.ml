@@ -13,11 +13,12 @@ open Environ
 let env_of_library senv clib =
   let env = Safe_typing.env_of_safe_env senv in
   let qualities, univs = Safe_typing.univs_of_library clib in
-  let check_quality q =
+  let check_quality q _ =
     not (QGraph.is_declared (Sorts.Quality.QGlobal q) (Environ.qualities env))
   in
-  let () = assert (Sorts.QGlobal.Set.for_all check_quality (fst qualities)) in
-  let env = Environ.push_qualities (Sorts.Quality.Set.of_qglobals @@ fst qualities) env in
+  let () = assert (Sorts.QGlobal.Map.for_all check_quality (fst qualities)) in
+  let env = Environ.push_qualities (Sorts.Quality.Set.of_qglobals @@ Sorts.QGlobal.Map.domain (fst qualities)) env in
+  let env = Safe_typing.push_global_infos (fst qualities) env in
   let env = Environ.merge_elim_constraints ~rigid:true (snd qualities) env in
   push_context_set ~strict:true univs env
 

@@ -64,6 +64,7 @@ module QGlobal = struct
       hov 1 (str"{" ++ prlist_with_sep spc prl (elements s) ++ str"}")
   end
 
+  module Map = CMap.Make(Self)
 end
 
 module QVar =

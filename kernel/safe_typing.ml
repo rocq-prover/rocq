@@ -179,11 +179,13 @@ struct
 
 end
 
+type global_sort_infos = { with_uip: bool }
+
 type compiled_library = {
   comp_name : DirPath.t;
   comp_mod : module_body;
   comp_univs : Univ.ContextSet.t;
-  comp_sorts : Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t;
+  comp_sorts : global_sort_infos Sorts.QGlobal.Map.t * Sorts.ElimConstraints.t;
   comp_deps : library_info array;
   comp_flags : permanent_flags;
   comp_retro : Retroknowledge.action list;
@@ -200,7 +202,7 @@ type required_lib = {
 type section_data = {
   rev_env : Environ.env;
   rev_univ : Univ.ContextSet.t;
-  rev_qualities : Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t;
+  rev_qualities : global_sort_infos Sorts.QGlobal.Map.t * Sorts.ElimConstraints.t;
   rev_objlabels : Id.Set.t;
   rev_reimport : reimport list;
   rev_revstruct : structure_body;
@@ -236,7 +238,7 @@ type safe_environment =
     modlabels : Id.Set.t;
     objlabels : Id.Set.t;
     univ : Univ.ContextSet.t;
-    qualities : Sorts.QGlobal.Set.t;
+    qualities : global_sort_infos Sorts.QGlobal.Map.t;
     elims : Sorts.ElimConstraints.t;
     future_cst : (Constant_typing.typing_context * safe_environment * Nonce.t) HandleMap.t;
     required : required_lib DirPath.Map.t;
@@ -269,7 +271,7 @@ let empty_environment =
     sections = None;
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;
-    qualities = Sorts.QGlobal.Set.empty;
+    qualities = Sorts.QGlobal.Map.empty;
     elims = Sorts.ElimConstraints.empty;
     required = DirPath.Map.empty;
     loads = [];
@@ -625,7 +627,6 @@ let push_context_set ~strict cst senv =
 let current_modpath senv = senv.modpath
 let current_dirpath senv = Names.ModPath.dp (current_modpath senv)
 
-type global_sort_infos = { with_uip: bool }
 let has_global_infos infos = infos.with_uip
 let make_global_infos ~uip = { with_uip = uip }
 let global_infos_with_poly_err infos =
@@ -648,9 +649,9 @@ let new_global_sort infos senv =
     CErrors.user_err (Pp.str "Cannot declare global sort qualities inside sections.")
   else
   let module QG = Sorts.QGlobal in
-  let uid = QG.Set.cardinal senv.qualities in
+  let uid = QG.Map.cardinal senv.qualities in
   let s = QG.make (current_dirpath senv) uid in
-  let qualities = QG.Set.add s senv.qualities in
+  let qualities = QG.Map.add s infos senv.qualities in
   let env = Environ.push_qualities (Sorts.Quality.Set.singleton (QGlobal s)) senv.env in
   let env = if infos.with_uip then Environ.add_uip_to_global s env else env in
   s, { senv with
@@ -1673,6 +1674,13 @@ let empty_vm_library env lib = Vmlibrary.set_path lib.comp_name (Environ.vm_libr
 
 let univs_of_library lib = lib.comp_sorts, lib.comp_univs
 
+let push_global_infos global_infos env =
+  let add_sort_infos_to_env s infos env =
+    if infos.with_uip
+    then Environ.add_uip_to_global s env
+    else env in
+  Sorts.QGlobal.Map.fold add_sort_infos_to_env global_infos env
+
 let retroknowledge_of_library lib = lib.comp_retro
 
 let start_library dir senv =
@@ -1699,7 +1707,7 @@ let start_library dir senv =
     sections = None;
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;
-    qualities = Sorts.QGlobal.Set.empty;
+    qualities = Sorts.QGlobal.Map.empty;
     elims = Sorts.ElimConstraints.empty;
     loads = [];
     local_retroknowledge = [];
@@ -1762,11 +1770,12 @@ let import_gen ~replaying lib vmtab vodigest senv =
   let univs = lib.comp_univs in
   let qualities = lib.comp_sorts in
   let retro = lib.comp_retro in
-  let check_quality q =
+  let check_quality q _ =
     not (QGraph.is_declared (Sorts.Quality.QGlobal q) (Environ.qualities senv.env))
   in
-  let () = assert (Sorts.QGlobal.Set.for_all check_quality (fst qualities)) in
-  let env = Environ.push_qualities (Sorts.Quality.Set.of_qglobals @@ fst qualities) senv.env in
+  let () = assert (Sorts.QGlobal.Map.for_all check_quality (fst qualities)) in
+  let env = Environ.push_qualities (Sorts.Quality.Set.of_qglobals @@ Sorts.QGlobal.Map.domain (fst qualities)) senv.env in
+  let env = push_global_infos (fst qualities) env in
   let env = Environ.merge_elim_constraints ~rigid:true (snd qualities) env in
   let env = Environ.push_context_set ~strict:true univs env in
   let env = Modops.add_retroknowledge retro env in
