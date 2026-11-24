@@ -224,6 +224,8 @@ let is_modular = function
 let rec search_structure l m = function
   | [] -> raise Not_found
   | (lab,d)::_ when Id.equal lab l && (is_modular d : bool) == m -> d
+  | (_, (SEdecl (Dfix (rv, _, _)) as d))::_
+    when not m && Array.exists (fun r -> Id.equal (label_of_r r) l) rv -> d
   | _::fields -> search_structure l m fields
 
 let get_decl_in_structure r struc =
