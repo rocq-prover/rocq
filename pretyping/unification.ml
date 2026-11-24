@@ -1410,6 +1410,16 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       try (* Force unification of the types to fill in parameters *)
         let ty1 = get_type_of_with_metas ~metas curenv ~lax:true substn.subst_sigma c1 in
         let ty2 = get_type_of_with_metas ~metas curenv ~lax:true substn.subst_sigma c2 in
+        (* Ground types have nothing to fill, but must still agree, e.g. when [c1] is an evar
+           instantiated with [c2]: they are only compared up to universes, as unifying them would
+           identify their universes, e.g. those irrelevant in [c1] and [c2] but not in their
+           types *)
+        let sigma = substn.subst_sigma in
+        if not (occur_meta_or_undefined_evar sigma ty1 || occur_meta_or_undefined_evar sigma ty2)
+        then
+          if is_conv_nounivs curenv sigma ty1 ty2 then substn
+          else error_cannot_unify curenv sigma (ty1, ty2)
+        else
           unify_0_with_initial_metas substn true curenv cv_pb
             { flags with modulo_conv_on_closed_terms = Some TransparentState.full;
               modulo_delta = TransparentState.full;

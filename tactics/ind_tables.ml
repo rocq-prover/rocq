@@ -151,7 +151,8 @@ let define ?loc internal role id c ~poly env uctx sch =
   let id = compute_name internal id avoid in
   let uctx = UState.collapse_sort_variables ~only_above_prop:true uctx in
   let sigma = UnivVariances.register_universe_variances_of_constr env (Evd.from_ustate uctx) c in
-  let sigma = Evd.minimize_universes_no_collapse ~partial:false sigma in
+  (* Schemes are transparent definitions *)
+  let sigma = Evd.minimize_universes_no_collapse ~partial:false ~transparent_body:true sigma in
   let c = UState.nf_universes (Evd.ustate sigma) c in
   let sigma = Evd.restrict_ustate sigma (Vars.universes_of_constr c) in
   let variances = if PolyFlags.cumulative poly then Some Entries.Infer_variances else None in

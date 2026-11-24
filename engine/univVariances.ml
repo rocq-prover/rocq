@@ -187,10 +187,13 @@ let occurs_inferred env status c =
 
 let compute_variances_body_constr env sigma ?(ctx_position = fun i -> Position.InBinder i) ?(ctx_cumul_pb=Conv) ?(term_cumul_pb=Cumul) ?(cumul_pb=Cumul) status c =
   if not (occurs_inferred env status c) then Inf.set_position Position.InTerm status else
-  let ctx, c = Term.decompose_lambda_decls c in
+  let evars = Evd.evar_handler sigma in
+  (* The binders as the kernel finds them (see [InferCumulativity.infer_body]): up to reduction,
+     e.g. a fixpoint under let-ins is the toplevel fixpoint of the body *)
+  let ctx, c = InferCumulativity.whd_decompose_lambda env ~evars c in
   let status = compute_variances_context_constr env sigma ~on_lets:true ~position:ctx_position ~typing_pb:ctx_cumul_pb status ctx in
   let status = Inf.set_position Position.InTerm status in
-  try infer_body (term_cumul_pb, cumul_pb) (Environ.push_rel_context ctx env) ~evars:(Evd.evar_handler sigma) ~shift:(Context.Rel.nhyps ctx) status c
+  try infer_body (term_cumul_pb, cumul_pb) (Environ.push_rel_context ctx env) ~evars ~shift:(Context.Rel.nhyps ctx) status c
   with
   | InferCumulativity.BadVariance (lev, expected, actual) ->
     Type_errors.error_bad_variance env ~lev ~expected ~actual

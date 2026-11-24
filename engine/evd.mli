@@ -676,8 +676,12 @@ val disable_universe_extension : evar_map -> with_cstrs:bool -> evar_map
 
 val get_variances : evar_map -> InferCumulativity.variances option
 val set_variances : evar_map -> InferCumulativity.variances -> evar_map
+val reset_variances : evar_map -> evar_map
+(** See [UState.reset_variances] *)
 
-val minimize_universes_no_collapse : partial:bool -> ?solve_term:bool -> ?minimize_internal:bool -> evar_map -> evar_map
+val minimize_universes_no_collapse : partial:bool -> ?solve_term:bool -> ?minimize_internal:bool ->
+  ?transparent_body:bool -> ?keep:Univ.Level.Set.t -> evar_map -> evar_map
+(** See [UState.minimize] *)
 
 (** Universe minimization *)
 val minimize_universes :
@@ -685,6 +689,8 @@ val minimize_universes :
   ?partial:bool ->
   (* Only partial information about universes is recorded in the evar_map (false by default).
      In partial mode, minimization should only perform simplifications, not losing any solution. *)
+  ?transparent_body:bool -> ?keep:Univ.Level.Set.t ->
+  (* See [UState.minimize] *)
   evar_map -> evar_map
 
 (** Lift [UState.update_sigma_univs], with the universes of the side effects of the evar map

@@ -71,20 +71,43 @@ let in_declared_type u (variances : InferCumulativity.variances) =
    holes, checking their types by cumulativity: elsewhere, e.g. in [f@{max(a,b)} x :
    R@{max(a,b)}] for an inductive [R] invariant in its universe, the universe of the hole would have to be
    equal to [max(a, b)], an upper bound which an independent universe cannot satisfy. A single
-   level is allowed anywhere: the hole gets a copy of it. *)
+   level of the declaration is allowed anywhere: each use instantiates it afresh, and the hole gets
+   a copy of it.
+   [Set], which no use can instantiate, is more restricted. Even when [u] is irrelevant in the
+   declaration, unification copies the folded subterms instantiated at [Set] into holes, whose
+   types then mention [Set]: e.g. for a record [C@{u}] invariant in [u] and a polymorphic
+   [D@{u} : C@{u}] whose body does not depend on [u], a declaration [f : F (D@{u}) -> X] with
+   [u := Set] is accepted at any [D@{v}] by conversion, but unification copies [D@{Set}] from its
+   type into holes of type [C@{Set}], which then cannot hold the argument [D@{v}] convertible to
+   it. Hence [u] is only set to [Set] where the types of its folded occurrences are covariant or
+   irrelevant in it:
+   - in a transparent declaration ([transparent_body]), whose body unification and tactics may
+     unfold, all of them, in the type, the binders and the body ([InferCumulativity.infer_folded]);
+   - otherwise, those of the type and the binders only ([InferCumulativity.infer_folded_type]):
+     the universes occurring only in an opaque body would otherwise pile up in the declarations
+     built on top. *)
 let closed_last_resort = ref false
 
-let algebraic_bound_allowed u bound (variances : InferCumulativity.variances) =
-  !closed_last_resort || CDebug.get_flag disable_folded_check || Option.has_some (Universe.level bound) ||
+let algebraic_bound_allowed ~transparent_body u bound (variances : InferCumulativity.variances) =
+  !closed_last_resort || CDebug.get_flag disable_folded_check ||
+  let is_set = match Universe.level bound with Some l -> Level.is_set l | None -> false in
+  (Option.has_some (Universe.level bound) && not is_set) ||
   match Level.Map.find_opt u variances with
   | None -> true
   | Some occs ->
-    match occs.InferCumulativity.infer_folded with
-    | None | Some (UVars.Variance.Irrelevant | UVars.Variance.Covariant) -> true
-    | Some (UVars.Variance.Invariant | UVars.Variance.Contravariant) ->
-      debug Pp.(fun () -> str"Not setting " ++ Level.raw_pr u ++ str" to the algebraic " ++ Universe.pr Level.raw_pr bound ++
-        str": its folded occurrences are not covariant");
+    let open UVars.Variance in
+    let refuse why =
+      debug Pp.(fun () -> str"Not setting " ++ Level.raw_pr u ++ str" to " ++ Universe.pr Level.raw_pr bound ++
+        str": " ++ str why);
       false
+    in
+    let folded =
+      if is_set && not transparent_body then occs.InferCumulativity.infer_folded_type
+      else occs.InferCumulativity.infer_folded
+    in
+    match folded with
+    | None | Some (Irrelevant | Covariant) -> true
+    | Some (Invariant | Contravariant) -> refuse "its folded occurrences are not covariant"
 
 let _warn_not_minimizable u =
   Feedback.msg_notice Pp.(str"Universe " ++ Level.raw_pr u ++ str" is not mimimizable as its lower bound \
@@ -146,7 +169,7 @@ let update_equivs_bound (us, _, _ as acc) l u equivs =
   update_univ_subst acc ((l, u) :: subst_of_equivalences us equivs)
 
 (** [partial]: we have type information only, not term information (i.e. Axiom, Definition/Lemma type only) *)
-let simplify_variables solve_flexibles above_prop above_zero internal partial solve_term flex variances graph =
+let simplify_variables ~transparent_body solve_flexibles above_prop above_zero parameter_only internal partial solve_term flex variances graph =
   let open UVars.Variance in
   (* A universe is not set to its lower bound when this would constrain the others (see
      [UGraph.minimize]), unless the universes not declared must all be removed *)
@@ -158,40 +181,53 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
       (allow_collapse_to_zero || Level.Set.mem u above_prop || Level.Set.mem u above_zero))
     else true
   in
+  (* With partial information, a universe is not set to a bound mentioning a universe of
+     [parameter_only] which is still flexible: the minimization with the complete information
+     sets the latter first (see [minimize_parameter_only]), and the bound would then put it in
+     positions where it is no longer [parameter_only]. E.g. in a [Program] definition of a
+     record whose fields are obligations, [v := max(u, a)] for a universe [v] of its type and
+     the universe [a] of the domain of a polymorphic [f@{a}] applied to a type in [Set], which
+     the complete minimization sets to [Set] first, giving [v := u]. *)
+  let deferred flex lbound =
+    partial && Universe.exists (fun (l, _) ->
+        Level.Set.mem l parameter_only && Level.Set.mem l flex) lbound
+  in
   let minimize ~allow_collapse_to_zero u (flex, variances, graph as acc) =
     match UGraph.minimize ~require_entailed u graph with
     | HasSubst (graph, equivs, lbound) ->
       debug_each Pp.(fun () -> str"Minimizing " ++ Level.raw_pr u ++ str" resulted in lbound: " ++ Universe.pr Level.raw_pr lbound);
-      if not (allowed_instance ~allow_collapse_to_zero u lbound && algebraic_bound_allowed u lbound variances) then acc
+      if deferred flex lbound then acc else
+      if not (allowed_instance ~allow_collapse_to_zero u lbound && algebraic_bound_allowed ~transparent_body u lbound variances) then acc
       else update_equivs_bound (flex, variances, graph) u lbound equivs
     | NoBound | CannotSimplify -> acc
   in
   let minimize_not_to_set u (flex, variances, graph as acc) =
     match UGraph.minimize ~require_entailed u graph with
     | HasSubst (graph, equivs, lbound) ->
-      if Universe.exists (fun (l, _) -> Level.is_set l) lbound || not (algebraic_bound_allowed u lbound variances) then acc
+      if deferred flex lbound then acc else
+      if Universe.exists (fun (l, _) -> Level.is_set l) lbound || not (algebraic_bound_allowed ~transparent_body u lbound variances) then acc
       else update_equivs_bound (flex, variances, graph) u lbound equivs
     | NoBound | CannotSimplify -> acc
   in
-  let collapse_to_zero u acc =
+  let collapse_to_zero u (_, variances, _ as acc) =
+    if not (algebraic_bound_allowed ~transparent_body u Universe.type0 variances) then acc else
     try instantiate_variable u Universe.type0 acc
     with Loop_checking.NotCanonical -> assert false
        | UGraph.InconsistentEquality | UGraph.OccurCheck -> acc
   in
-  (* With [Universe Minimization Compat], a universe is not maximized to a universe which is not
-     one of the declaration, e.g. a monomorphic universe of the global environment bounding a
-     polymorphic one: this would tie the declaration to it, while the minimization ignoring
-     variances never maximized. *)
+  (* A universe is not maximized to a universe which is not one of the declaration, e.g. a
+     monomorphic universe of the global environment bounding a polymorphic one: this would tie the
+     declaration to it, while the minimization ignoring variances never maximized. *)
   let local_bound variances ub =
     not (Universe.exists (fun (l, _) ->
         not (Level.is_set l || Level.Map.mem l variances || Level.Set.mem l flex)) ub)
   in
   let maximize u (_flex, variances, graph0 as acc) =
     match UGraph.maximize u graph0 with
-    | HasSubst (_, _, ubound) when get_compat_minimization () && not (local_bound variances ubound) ->
+    | HasSubst (_, _, ubound) when not (local_bound variances ubound) ->
       debug_each Pp.(fun () -> str"Not maximizing " ++ Level.raw_pr u ++ str" to the non-local " ++ Universe.pr Level.raw_pr ubound);
       acc
-    | HasSubst (_, _, ubound) when not (algebraic_bound_allowed u ubound variances) -> acc
+    | HasSubst (_, _, ubound) when not (algebraic_bound_allowed ~transparent_body u ubound variances) -> acc
     | HasSubst (graph, equivs, ubound) ->
       debug_each Pp.(fun () -> str"Maximizing " ++ Level.raw_pr u ++ str" resulted in ubound: " ++ Universe.pr Level.raw_pr ubound);
       update_equivs_bound (flex, variances, graph) u ubound equivs
@@ -216,12 +252,22 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
           if Level.Map.mem l variances then not (occurs_in_type l variances)
           else Level.Set.mem l flex
         in
+        (* Without it, only a universe irrelevant in the body too: it then occurs nowhere where it
+           matters, and would otherwise only be bounded from above, e.g. by a universe of the
+           global environment which it cannot be maximized to (see [maximize]), and pile up in
+           the declarations built on top *)
+        let irrelevant_in_term () =
+          let termv, _, _, _ = variance_info u flex variances in
+          termv == UVars.Variance.Irrelevant
+        in
         let collapse_body_only () =
-          irrelevant && not partial && get_compat_minimization () && body_only u &&
+          irrelevant && not partial && body_only u &&
+          (get_compat_minimization () || irrelevant_in_term ()) &&
           List.for_all (fun (l, (l', _)) -> body_only l && body_only l') equivs
         in
-        if (allowed_instance ~allow_collapse_to_zero u lbound || collapse_body_only ())
-           && algebraic_bound_allowed u lbound variances then
+        if not (deferred flex lbound)
+           && (allowed_instance ~allow_collapse_to_zero u lbound || collapse_body_only ())
+           && algebraic_bound_allowed ~transparent_body u lbound variances then
           update_equivs_bound (flex, variances, graph) u lbound equivs
         else acc
       | NoBound -> (* Not bounded and not appearing anywhere: can collapse *)
@@ -251,7 +297,7 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
       if partial || not (Level.Set.mem u internal) then None else
       match UGraph.minimize ~require_entailed:true u graph with
       | HasSubst (graph, equivs, lbound) when allowed_instance ~allow_collapse_to_zero:false u lbound
-                                              && algebraic_bound_allowed u lbound variances ->
+                                              && algebraic_bound_allowed ~transparent_body u lbound variances ->
         debug_each Pp.(fun () -> str"Minimizing internal " ++ Level.raw_pr u ++ str" to lbound: " ++ Universe.pr Level.raw_pr lbound);
         Some (update_equivs_bound (flex, variances, graph) u lbound equivs)
       | HasSubst _ | NoBound | CannotSimplify -> None
@@ -384,7 +430,12 @@ let simplify_variables solve_flexibles above_prop above_zero internal partial so
   let simplify_max u (flex, variances, graph as acc) =
     (* u is an undefined flexible variable, lookup its variance information *)
     let term_variance, type_variance, typing_variance, _impred_qvars = variance_info u flex variances in
-    if typing_variance == Irrelevant && type_variance == Irrelevant && not (in_declared_type u variances) then
+    (* With partial information, a universe of [parameter_only] is left to the minimization with
+       the complete information (see [minimize_parameter_only]): raising it to its upper bound,
+       e.g. the universe of the relation of a record field holding [f@{a b} A B], would identify
+       it with universes which the complete minimization keeps apart *)
+    if partial && Level.Set.mem u parameter_only then acc
+    else if typing_variance == Irrelevant && type_variance == Irrelevant && not (in_declared_type u variances) then
       maximize u acc
     else
       let open UVars.Variance in
@@ -558,7 +609,7 @@ let _pr_substitution prl m =
   let open Pp in
   prlist_with_sep spc (fun (l, u) -> prl l ++ str" := " ++ Universe.pr prl u ++ fnl ()) (Level.Map.bindings m)
 
-let new_minimize_weak ?entailed_only partial flex weak (g, variances) =
+let new_minimize_weak ~transparent_body ?entailed_only partial flex weak (g, variances) =
   UPairSet.fold (fun (u,v) (flex, variances, g as acc) ->
     let norm = Universe.subst_opt_fn (UGraph.normalize g) in
     let u = norm u and v = norm v in
@@ -566,16 +617,15 @@ let new_minimize_weak ?entailed_only partial flex weak (g, variances) =
     else
       let check_le a b = UGraph.check_constraint g (a,Le,b) in
       let set a b variances =
-        if not (algebraic_bound_allowed a b variances) then acc else
-        (* With [Universe Minimization Compat], a universe occurring in the type of the declaration
-           only with another flexible universe: it could be identified with a global universe,
-           constraining nothing but losing its generality, e.g. when another weak constraint
-           identified a universe of the body with it *)
+        if not (algebraic_bound_allowed ~transparent_body a b variances) then acc else
+        (* A universe occurring in the type of the declaration only with another flexible universe:
+           it could be identified with a global universe, constraining nothing but losing its
+           generality, e.g. when another weak constraint identified a universe of the body with it *)
         let to_flexible = match Universe.level b with
           | Some b -> Level.Set.mem b flex
           | None -> false
         in
-        if not partial && get_compat_minimization () && occurs_in_type a variances && not to_flexible
+        if not partial && occurs_in_type a variances && not to_flexible
         then acc else
         (* Before the minimization (see [early_minimize_weak]), only when this constrains no other
            universe, and a universe relevant to the type only with another flexible universe *)
@@ -641,7 +691,7 @@ let new_minimize_weak ?entailed_only partial flex weak (g, variances) =
   identified one at a time: e.g. the universes [a, b] of an occurrence [f@{a b}] of a constant with [a ~ max(u, v, w)],
   [b ~ max(u, v, w)], and those of its arguments, [x ~ v], [y ~ w] with [x <= a], [y <= a]. Then
   one at a time. *)
-let early_minimize_weak flex weak (g, variances) =
+let early_minimize_weak ~transparent_body flex weak (g, variances) =
   let norm = Universe.subst_opt_fn (UGraph.normalize g) in
   let irrelevant_to_type a =
     Level.Set.mem a flex &&
@@ -654,7 +704,7 @@ let early_minimize_weak flex weak (g, variances) =
       let candidate a b =
         match Universe.level a with
         | Some a when irrelevant_to_type a && not (Level.Set.mem a (Universe.levels b))
-                      && not (Level.Map.mem a cands) && algebraic_bound_allowed a b variances -> Some (a, b)
+                      && not (Level.Map.mem a cands) && algebraic_bound_allowed ~transparent_body a b variances -> Some (a, b)
         | _ -> None
       in
       if Universe.is_type0 u || Universe.is_type0 v
@@ -711,7 +761,7 @@ let early_minimize_weak flex weak (g, variances) =
         acc candidates
   in
   let flex, variances, g = acc in
-  new_minimize_weak ~entailed_only:irrelevant_to_type false flex weak (g, variances)
+  new_minimize_weak ~transparent_body ~entailed_only:irrelevant_to_type false flex weak (g, variances)
 
 (** The universes of [parameter_only] are set to their lower bound, [Set] included whatever
   [Universe Minimization ToSet]: they only bound the types of the arguments of one occurrence of
@@ -719,7 +769,7 @@ let early_minimize_weak flex weak (g, variances) =
   type they occur in, still holds of the lower bound). Not with partial information, where the
   rest of the definition may still bound them, nor when the substitution would also set a
   universe which is not one of them. *)
-let minimize_parameter_only solve_flexibles partial above_zero parameter_only (flex, variances, graph as acc) =
+let minimize_parameter_only ~transparent_body solve_flexibles partial above_zero parameter_only (flex, variances, graph as acc) =
   if partial then acc else
   let require_entailed = not solve_flexibles in
   let minimize u (flex, variances, graph as acc) =
@@ -742,7 +792,7 @@ let minimize_parameter_only solve_flexibles partial above_zero parameter_only (f
                not (Level.Set.mem l above_zero))
         in
         if parameter_only_level u && List.for_all (fun (l, _) -> parameter_only_level l) equivs
-           && algebraic_bound_allowed u lbound variances then begin
+           && algebraic_bound_allowed ~transparent_body u lbound variances then begin
           debug_each Pp.(fun () -> str"Minimizing parameter-only " ++ Level.raw_pr u ++ str" to " ++ Universe.pr Level.raw_pr lbound);
           update_equivs_bound (flex, variances, graph') u lbound equivs
         end
@@ -751,8 +801,8 @@ let minimize_parameter_only solve_flexibles partial above_zero parameter_only (f
   in
   Level.Set.fold minimize parameter_only acc
 
-let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false) ~variances ~partial graph
-  ~flexible_variables ?binders
+let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false) ~variances ~partial
+  ?(transparent_body=false) graph ~flexible_variables ?binders
   {weak_constraints=weak;above_prop; above_zero; parameter_only; internal} =
   let prl = UnivNames.pr_level_with_global_universes ?binders in
   debug Pp.(fun () -> str "Minimizing context: " ++ UGraph.pr_universes prl (UGraph.repr ~local:true graph) ++ spc () ++
@@ -783,14 +833,14 @@ let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false
        constrains no other universe (see [early_minimize_weak]) *)
     let flexible_variables, variances, graph =
       if partial || not (get_compat_minimization ()) then flexible_variables, variances, graph
-      else early_minimize_weak flexible_variables weak (graph, variances)
+      else early_minimize_weak ~transparent_body flexible_variables weak (graph, variances)
     in
     let flexible_variables, variances, graph =
-      minimize_parameter_only solve_flexibles partial above_zero parameter_only (flexible_variables, variances, graph) in
+      minimize_parameter_only ~transparent_body solve_flexibles partial above_zero parameter_only (flexible_variables, variances, graph) in
     let internal = if minimize_internal then internal else Level.Set.empty in
-    let flex, variances, graph = simplify_variables solve_flexibles above_prop above_zero internal partial solve_term flexible_variables variances graph in
+    let flex, variances, graph = simplify_variables ~transparent_body solve_flexibles above_prop above_zero parameter_only internal partial solve_term flexible_variables variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ Level.Set.pr Level.raw_pr flex);
-    new_minimize_weak partial flex weak (graph, variances)
+    new_minimize_weak ~transparent_body partial flex weak (graph, variances)
   in
   debug Pp.(fun () ->
     str "After minimization: " ++ fnl () ++

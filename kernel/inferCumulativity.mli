@@ -32,6 +32,10 @@ type infer_variance_occurrence =
         subterms where it occurs (instances of constants, inductives and constructors), which
         unification may copy into holes: an algebraic universe is only safe where they are
         covariant. Used by the minimization only, not stored. *)
+    infer_folded_type : Variance.t option;
+    (** The same, for the folded subterms of the type and the binders of the declaration only,
+        which its uses copy into holes without unfolding it: [Set] is only safe where they are
+        covariant. *)
   }
 
 val default_occ : infer_variance_occurrence
@@ -121,6 +125,11 @@ val infer_body
   -> Inf.status
   -> Constr.t
   -> Inf.status
+
+val whd_decompose_lambda : Environ.env -> ?evars:CClosure.evar_handler -> Constr.t ->
+  Constr.rel_context * Constr.t
+(** The binders of a body as [infer_body] finds them: up to beta, iota and zeta reduction, so that
+    e.g. a fixpoint under let-ins is the toplevel fixpoint of the body *)
 
 val infer_definition :
   Environ.env ->

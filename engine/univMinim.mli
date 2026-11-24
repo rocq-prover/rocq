@@ -81,6 +81,11 @@ val normalize_context_set :
      final minimization of a polymorphic declaration, as a monomorphic one makes them global *)
   variances:InferCumulativity.variances ->
   partial:bool ->
+  ?transparent_body:bool ->
+  (* The declaration being minimized has a transparent body, which its uses may unfold: the
+     folded occurrences of its universes in the body matter too when setting them to [Set] (see
+     [algebraic_bound_allowed]). False by default, e.g. for a declaration without a body or with
+     an opaque one. *)
   UGraph.t -> (* The graph representing constraints and a level to universe substitution *)
   flexible_variables:Level.Set.t (* Subset of undefined flexible variables *) ->
   ?binders:UnivNames.universe_binders ->

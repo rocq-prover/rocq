@@ -263,6 +263,11 @@ val get_variances : t -> InferCumulativity.variances option
 
 val set_variances : t -> InferCumulativity.variances -> t
 
+val reset_variances : t -> t
+(** Forget the variances, to compute them again from a complete term, e.g. the final one of a
+    [Program] declaration, which they would otherwise describe together with the types of its
+    obligations *)
+
 (** Universe minimization *)
 
 (** [minimize partial sigma] minimizes universes in sigma.
@@ -272,8 +277,12 @@ val set_variances : t -> InferCumulativity.variances -> t
   solve_term determines if flexible variables appearing only in the term, not the type, should be minimized (false by default).
 
 *)
-val minimize : partial:bool -> ?solve_term:bool -> ?minimize_internal:bool -> t -> t
-(** [minimize_internal]: see [UnivMinim.normalize_context_set] *)
+val minimize : partial:bool -> ?solve_term:bool -> ?minimize_internal:bool ->
+  ?transparent_body:bool -> ?keep:Level.Set.t -> t -> t
+(** [minimize_internal], [transparent_body]: see [UnivMinim.normalize_context_set].
+  [keep]: flexible universes which the minimization leaves as they are, without fixing them:
+  those of a [Program] declaration in the minimization of one of its obligations, which the
+  final minimization of the declaration sets. *)
 
 val collapse_sort_variables : ?except:QVar.Set.t -> only_above_prop:bool -> t -> t
 

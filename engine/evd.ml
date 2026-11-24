@@ -1043,6 +1043,12 @@ let check_univ_decl_early ~poly ~with_obls sigma udecl terms =
   in
   let vars = List.fold_left (fun acc b -> Univ.Level.Set.union acc (Vars.universes_of_constr b)) Univ.Level.Set.empty terms in
   let uctx = ustate sigma in
+  (* With obligations, the universes still flexible are minimized by the final declaration, with
+     the information of the obligations (see [UState.minimize]): only the others are checked *)
+  let vars =
+    if with_obls then Univ.Level.Set.filter (fun l -> not (UState.is_flexible l uctx)) vars
+    else vars
+  in
   let uctx = UState.collapse_sort_variables ~only_above_prop:(not @@ PolyFlags.collapse_sort_variables poly) uctx in
   let uctx = UState.restrict uctx vars in
   ignore (UState.check_univ_decl ~poly ~kind:(PolyFlags.Assumption) uctx udecl)
@@ -1141,6 +1147,7 @@ let add_parameter_only_levels evd levels =
 
 let add_internal_levels evd levels =
   { evd with universes = UState.add_internal_levels evd.universes levels }
+
 
 let is_flexible_level evd l =
   let uctx = evd.universes in
@@ -1243,17 +1250,21 @@ let nf_univ_variables evd =
 
 let get_variances evd = UState.get_variances evd.universes
 let set_variances evd variances = {evd with universes = UState.set_variances evd.universes variances}
+let reset_variances evd = {evd with universes = UState.reset_variances evd.universes}
 
 let collapse_sort_variables ?except ~only_above_prop evd =
   let universes = UState.collapse_sort_variables ?except ~only_above_prop evd.universes in
   { evd with universes }
 
-let minimize_universes_no_collapse ~partial ?(solve_term=false) ?minimize_internal evd =
+let minimize_universes_no_collapse ~partial ?(solve_term=false) ?minimize_internal
+    ?transparent_body ?keep evd =
   let uctx' = UState.normalize_variables evd.universes in
-  let uctx' = UState.minimize ~partial ~solve_term ?minimize_internal uctx' in
+  let uctx' =
+    UState.minimize ~partial ~solve_term ?minimize_internal ?transparent_body ?keep uctx'
+  in
   {evd with universes = uctx'}
 
-let minimize_universes ?(poly=PolyFlags.default) ?(partial=false) evd =
+let minimize_universes ?(poly=PolyFlags.default) ?(partial=false) ?transparent_body ?keep evd =
   let collapse_sort_variables = PolyFlags.collapse_sort_variables poly in
   let uctx' =
     UState.collapse_sort_variables ~only_above_prop:(not collapse_sort_variables) evd.universes
@@ -1261,7 +1272,8 @@ let minimize_universes ?(poly=PolyFlags.default) ?(partial=false) evd =
   (* The universes created internally are set to their lower bound in polymorphic declarations
      only: the minimizations of tactics use the default (monomorphic) flags *)
   minimize_universes_no_collapse ~partial ~solve_term:(PolyFlags.solve_term_variables poly)
-    ~minimize_internal:(PolyFlags.univ_poly poly) {evd with universes = uctx'}
+    ~minimize_internal:(PolyFlags.univ_poly poly) ?transparent_body ?keep
+    {evd with universes = uctx'}
 
 let universe_of_name evd s = UState.universe_of_name evd.universes s
 

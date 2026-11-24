@@ -1181,7 +1181,7 @@ let declare_definition_uinst ~info ~cinfo ~opaque ~obls ~body ?using sigma =
      given type, those of the inferred one *)
   let vtyp = match typ with Some t -> t | None -> Retyping.get_type_of env sigma body in
   let sigma = UnivVariances.register_universe_variances_of env sigma ~typ:vtyp body in
-  let sigma = Evd.minimize_universes ~poly sigma in
+  let sigma = Evd.minimize_universes ~poly ~transparent_body:(not opaque) sigma in
   let body = EConstr.to_constr sigma body in
   let typ = Option.map (EConstr.to_constr sigma) typ in
   let uctx = Evd.ustate sigma in
@@ -1203,8 +1203,10 @@ let prepare_obligations ~name poly ?types ~body env sigma =
     | None -> Retyping.get_type_of env sigma body
   in
   let sigma = UnivVariances.register_universe_variances_of env sigma ~typ:types body in
+  (* The variance information is partial while obligations remain (see [Classes]) *)
+  let partial = Evarutil.has_undefined_evars sigma body in
   let sigma, (body, types) = Evarutil.finalize ~abort_on_undefined_evars:false ~poly
-      sigma (fun nf -> nf body, nf types)
+      sigma ~partial (fun nf -> nf body, nf types)
   in
   RetrieveObl.check_evars env sigma;
   let body, types = EConstr.(of_constr body, of_constr types) in
@@ -1639,7 +1641,9 @@ let subst_prog subst prg =
 
 let declare_definition ~pm prg =
   let varsubst = obligation_substitution true prg in
-  let sigma = Evd.from_ustate prg.prg_uctx in
+  (* The variances are computed again from the complete term, as if the obligations were
+     expanded: those merged from the obligations describe their types *)
+  let sigma = Evd.reset_variances (Evd.from_ustate prg.prg_uctx) in
   let body, types = subst_prog varsubst prg in
   let body, types = EConstr.(of_constr body, of_constr types) in
   let cinfo = { prg.prg_cinfo with CInfo.typ = Some types } in
@@ -1676,7 +1680,9 @@ let declare_mutual_definitions ~pm l =
   let fixdefs, fixtypes, _ = List.split3 defs in
   let possible_guard = Option.get first.prg_possible_guard in
   let cofix = List.for_all List.is_empty (fst possible_guard).Pretyping.possible_fix_indices in
-  let sigma = UnivVariances.register_universe_variances_of_fix (Global.env ()) (Evd.from_ustate first.prg_uctx) ~cofix (List.map EConstr.of_constr fixtypes)
+  (* As in [declare_definition] *)
+  let sigma = Evd.reset_variances (Evd.from_ustate first.prg_uctx) in
+  let sigma = UnivVariances.register_universe_variances_of_fix (Global.env ()) sigma ~cofix (List.map EConstr.of_constr fixtypes)
     (List.map (fun x -> Some (EConstr.of_constr x)) fixdefs) in
   (* Declare the recursive definitions *)
   let kns =
@@ -2212,7 +2218,15 @@ let check_incomplete_proof evd =
   else if Evd.has_undefined evd then warn_remaining_unresolved_evars ()
 
 (* XXX: This is still separate from close_proof below due to drop_pt in the STM *)
-let prepare_proof ?(warn_incomplete=true) { proof; pinfo; sideff } =
+(* The universes which the minimization of an obligation leaves as they are: those of its
+   program, which the final minimization of the program sets as if the obligation were
+   expanded. [None] when the proof is not the one of an obligation. *)
+let kept_program_universes pinfo initial_euctx =
+  match CEphemeron.default pinfo.Proof_info.proof_ending Proof_ending.Regular with
+  | Proof_ending.End_obligation _ -> Some (fst (UState.universe_context_set initial_euctx))
+  | _ -> None
+
+let prepare_proof ?(warn_incomplete=true) ~opaque { proof; pinfo; sideff; initial_euctx; _ } =
   let Proof.{name=pid;entry;poly;sigma=evd} = Proof.data proof in
   let initial_goals = Proofview.initial_goals entry in
   let () = if not @@ Proof.is_done proof then raise (OpenProof (pid, OpenGoals)) in
@@ -2241,7 +2255,15 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo; sideff } =
       proofs
   in
   let evd = UnivVariances.register_universe_variances_of_proofs (Global.env()) evd proofs in
-  let evd = Evd.minimize_universes ~poly evd in
+  (* The type of an obligation is the type of a subterm of the body of its program, which the
+     uses of the program may unfold: its universes are minimized as those of a transparent body,
+     whatever the opacity of the obligation itself *)
+  (* Nor does it decide the universes of the program ([kept_program_universes]) *)
+  let kept = kept_program_universes pinfo initial_euctx in
+  let is_obligation = Option.has_some kept in
+  let keep = Option.default Univ.Level.Set.empty kept in
+  let evd =
+    Evd.minimize_universes ~poly ~transparent_body:(not opaque || is_obligation) ~keep evd in
   let proofs = List.map (fun (body, typ) -> (Evarutil.nf_evars_universes evd body, Evarutil.nf_evars_universes evd typ)) proofs in
   let proofs = List.map (fun (body, typ) -> (body, Some typ)) proofs in
   let () = if warn_incomplete then check_incomplete_proof evd in
@@ -2294,7 +2316,8 @@ let control_only_guard { proof; pinfo } =
       raise (NotGuarded (env, sigma, cofix_error, fix_errors, rec_declaration))
     with Exit -> ()
 
-let return_proof p = (prepare_proof p : closed_proof_output)
+(* Only for the proofs closed asynchronously, which are opaque *)
+let return_proof p = (prepare_proof ~opaque:true p : closed_proof_output)
 
 let close_proof ?warn_incomplete ~opaque ~keep_body_ucst_separate (proof : t) : Proof_object.t =
   NewProfile.profile "close_proof" (fun () ->
@@ -2303,7 +2326,7 @@ let close_proof ?warn_incomplete ~opaque ~keep_body_ucst_separate (proof : t) : 
   | Vernacexpr.Transparent -> false in
   let keep_body_ucst_separate = if keep_body_ucst_separate then Some proof.initial_euctx else None in
   { Proof_object.proof_object =
-      DefaultProof { proof = prepare_proof ?warn_incomplete proof; opaque; using = proof.using; keep_body_ucst_separate }
+      DefaultProof { proof = prepare_proof ?warn_incomplete ~opaque proof; opaque; using = proof.using; keep_body_ucst_separate }
   ; pinfo = proof.pinfo
   }) ()
 
@@ -2400,7 +2423,10 @@ let save_admitted ~pm ~proof =
   List.iter (check_type_evars_solved (Global.env()) sigma) typs;
   let sec_vars = compute_proof_using_for_admitted proof.pinfo proof typs iproof in
   let sigma = UnivVariances.register_universe_variances_of_proof_statements (Global.env ()) sigma typs in
-  let sigma = Evd.minimize_universes ~poly sigma in
+  (* An admitted obligation does not decide the universes of its program either, as a proved one
+     (see [prepare_proof]); without a body, it is not transparent *)
+  let keep = kept_program_universes proof.pinfo proof.initial_euctx in
+  let sigma = Evd.minimize_universes ~poly ?keep sigma in
   let uctx = Evd.ustate sigma in
   let typs = List.map (fun typ -> (EConstr.to_constr sigma typ, uctx)) typs in
   finish_admitted ~pm ~pinfo:proof.pinfo ~sec_vars typs

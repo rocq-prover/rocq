@@ -58,6 +58,9 @@ type infer_variance_occurrence =
        subterms where it occurs, the instances of constants, inductives and constructors (e.g.
        [s] in the type [R@{s}] of [f@{s} x]): unification copies such subterms into
        holes, comparing their types by cumulativity. Only used by the minimization, not stored. *)
+    infer_folded_type : Variance.t option;
+    (* The same, for the folded subterms of the type and the binders of the declaration only:
+       those its uses copy into holes without unfolding it *)
   }
 
 type variances = infer_variance_occurrence Univ.Level.Map.t
@@ -67,7 +70,7 @@ let default_occ =
     infer_term = (Infer, None);
     infer_type = (Infer, None);
     infer_under_impred_qvars = None;
-    infer_folded = None }
+    infer_folded = None; infer_folded_type = None }
 
 let make_checked_occ ~infer_in_type
   UVars.VarianceOccurrence.{ in_binders; in_topfix_binders; in_term; in_type; under_impred_qvars } =
@@ -76,11 +79,11 @@ let make_checked_occ ~infer_in_type
     infer_term = Check, in_term;
     infer_type = (if infer_in_type then Infer else Check), in_type;
     infer_under_impred_qvars = under_impred_qvars;
-    infer_folded = None }
+    infer_folded = None; infer_folded_type = None }
 
 let forget_infer_variance_occurrence
   { infer_binders; infer_topfix_binders; infer_term; infer_type;
-    infer_under_impred_qvars = impred_qvars; infer_folded = _ } =
+    infer_under_impred_qvars = impred_qvars; infer_folded = _; infer_folded_type = _ } =
   UVars.VarianceOccurrence.{ in_binders = snd infer_binders;
     in_topfix_binders = snd infer_topfix_binders;
     in_term = (snd infer_term);
@@ -110,13 +113,17 @@ let pr_variance_occurrence_items (occ : infer_variance_occurrence) =
     | None | Some Variance.Irrelevant -> []
     | Some v -> [Variance.pr v ++ str" in the types of folded subterms"]
   in
+  let pr_folded_type = match occ.infer_folded_type with
+    | None | Some Variance.Irrelevant -> []
+    | Some v -> [Variance.pr v ++ str" in the types of folded subterms of the type"]
+  in
   let pr_impred =
     match occ.infer_under_impred_qvars with
     | Some _ as x -> [UVars.pr_impred_qvars x]
     | None -> []
   in
   pr_binders false occ.infer_binders @ pr_binders true occ.infer_topfix_binders
-  @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_folded @ pr_impred
+  @ pr_term occ.infer_term @ pr_type occ.infer_type @ pr_folded @ pr_folded_type @ pr_impred
 
 let pr_variance_occurrence occ =
   let open Pp in
@@ -183,10 +190,11 @@ let sup_binders (mode, (bindersv, binders)) (mode', (bindersv', binders')) =
   (mode_sup mode mode', (Option.union VariancePair.sup bindersv bindersv', union_binders binders binders'))
 
 let sup_occs { infer_binders; infer_topfix_binders; infer_term; infer_type;
-   infer_under_impred_qvars; infer_folded }
+   infer_under_impred_qvars; infer_folded; infer_folded_type }
   { infer_binders = infer_binders'; infer_topfix_binders = infer_topfix_binders'; infer_term = infer_term';
     infer_type = infer_type';
-    infer_under_impred_qvars = infer_under_impred_qvars'; infer_folded = infer_folded' } =
+    infer_under_impred_qvars = infer_under_impred_qvars'; infer_folded = infer_folded';
+    infer_folded_type = infer_folded_type' } =
   let infer_binders = sup_binders infer_binders infer_binders' in
   let infer_topfix_binders = sup_binders infer_topfix_binders infer_topfix_binders' in
   let mode_var_sup (mode, v) (mode', v') = (mode_sup mode mode', Option.union VariancePair.sup v v') in
@@ -194,8 +202,9 @@ let sup_occs { infer_binders; infer_topfix_binders; infer_term; infer_type;
   let infer_type = mode_var_sup infer_type infer_type' in
   let infer_under_impred_qvars = union_impred_qvars infer_under_impred_qvars infer_under_impred_qvars' in
   let infer_folded = Option.union Variance.sup infer_folded infer_folded' in
+  let infer_folded_type = Option.union Variance.sup infer_folded_type infer_folded_type' in
   { infer_binders; infer_topfix_binders; infer_term; infer_type;
-    infer_under_impred_qvars; infer_folded }
+    infer_under_impred_qvars; infer_folded; infer_folded_type }
 
 let union_variances : variances -> variances -> variances =
   let union _ x y = Some (sup_occs x y) in
@@ -224,7 +233,7 @@ let occurrence_to_variance_pos
      infer_topfix_binders = (modef, infer_fix_binders);
      infer_term = (modet, infer_term);
      infer_type = (modety, infer_type);
-     infer_under_impred_qvars = _; infer_folded = _ } : infer_variance_occurrence) =
+     infer_under_impred_qvars = _; infer_folded = _; infer_folded_type = _ } : infer_variance_occurrence) =
   let open VariancePair in
   let open Position in
   let infer_binders =
@@ -241,7 +250,7 @@ let occurrence_to_variance_pos
 
 let term_type_variances
   ({ infer_binders = (_, (infer_binders, _)); infer_topfix_binders = (_, (infer_fix_binders, _)); infer_term = (_, infer_term); infer_type = (_, infer_type);
-     infer_under_impred_qvars = _; infer_folded = _ } : infer_variance_occurrence) =
+     infer_under_impred_qvars = _; infer_folded = _; infer_folded_type = _ } : infer_variance_occurrence) =
   let open VariancePair in
   sup_vopt (Option.map (fun _ -> Invariant) infer_fix_binders) (Option.map cumul_variance infer_term),
   sup_vopt (Option.map typing_variance infer_binders) (Option.map typing_variance infer_type),
@@ -411,9 +420,14 @@ end = struct
 
   let infer_level_folded v u (variances : status) =
     if Variance.equal v Variance.Irrelevant then variances else
+    let in_type = variances.position != Position.InTerm in
+    let sup = Option.cata (Variance.sup v) v in
     let upd = function
       | None -> None
-      | Some occ -> Some { occ with infer_folded = Some (Option.cata (Variance.sup v) v occ.infer_folded) }
+      | Some occ ->
+        Some { occ with infer_folded = Some (sup occ.infer_folded);
+                        infer_folded_type = if in_type then Some (sup occ.infer_folded_type)
+                                            else occ.infer_folded_type }
     in
     { variances with univs = Level.Map.update u upd variances.univs }
 

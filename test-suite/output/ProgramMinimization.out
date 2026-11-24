@@ -1,0 +1,74 @@
+obl@{u u0} :
+Obj@{u u0} -> Obj@{u u0}
+(* u(= (- for typing) in 1st binder, = (* for typing) in term, + in type)
+   u0(= (- for typing) in 1st binder, = (* for typing) in term, + in type) | *)
+
+obl is universe polymorphic
+Arguments obl X
+obl is transparent
+Expands to: Constant ProgramMinimization.obl
+Declared in library ProgramMinimization, line 16, characters 19-22
+obl_expanded@{u u0} :
+Obj@{u u0} -> Obj@{u u0}
+(* u(= (- for typing) in 1st binder, = (* for typing) in term, + in type)
+   u0(= (- for typing) in 1st binder, = (* for typing) in term, + in type) | *)
+
+obl_expanded is universe polymorphic
+Arguments obl_expanded X
+obl_expanded is transparent
+Expands to: Constant ProgramMinimization.obl_expanded
+Declared in library ProgramMinimization, line 19, characters 11-23
+prod_obj@{u} :
+Obj@{u u} -> Obj@{u u} -> Obj@{u u}
+(* u(= (- for typing) in 1st, 2nd binders, = (* for typing) in term,
+   + in type) |
+   u ≤ projections.u0
+   u ≤ projections.u1 *)
+
+prod_obj is universe polymorphic
+Arguments prod_obj X Y
+prod_obj is transparent
+Expands to: Constant ProgramMinimization.prod_obj
+Declared in library ProgramMinimization, line 26, characters 19-27
+prod_obj_expanded@{u} :
+Obj@{u u} -> Obj@{u u} -> Obj@{u u}
+(* u(= (- for typing) in 1st, 2nd binders, = (* for typing) in term,
+   + in type) |
+   u ≤ projections.u0
+   u ≤ projections.u1 *)
+
+prod_obj_expanded is universe polymorphic
+Arguments prod_obj_expanded X Y
+prod_obj_expanded is transparent
+Expands to: Constant ProgramMinimization.prod_obj_expanded
+Declared in library ProgramMinimization, line 34, characters 11-28
+fun_obj@{u u0} : Obj@{u u0}
+(* u*(+ in type) u0*(+ in type) | *)
+
+fun_obj is universe polymorphic and cumulative
+fun_obj is transparent
+Expands to: Constant ProgramMinimization.fun_obj
+Declared in library ProgramMinimization, line 61, characters 19-26
+fun_obj_expanded@{u u0} : Obj@{u u0}
+(* u*(+ in type) u0*(+ in type) | *)
+
+fun_obj_expanded is universe polymorphic and cumulative
+fun_obj_expanded is transparent
+Expands to: Constant ProgramMinimization.fun_obj_expanded
+Declared in library ProgramMinimization, line 64, characters 11-27
+fun_obj_obligation_1@{u u0} :
+forall x : nat -> nat, ext@{u u0} x x
+(* u* u0* | *)
+
+fun_obj_obligation_1 is universe polymorphic and cumulative
+Arguments fun_obj_obligation_1 x%_function_scope x
+fun_obj_obligation_1 is opaque
+Expands to: Constant ProgramMinimization.fun_obj_obligation_1
+fun_obj_adm_obligation_1@{u u0} :
+forall x : nat -> nat, ext@{u u0} x x
+(* u* u0* | *)
+
+fun_obj_adm_obligation_1 is universe polymorphic and cumulative
+Arguments fun_obj_adm_obligation_1 x%_function_scope x
+Expands to: Constant ProgramMinimization.fun_obj_adm_obligation_1
+Declared in library ProgramMinimization, line 74, characters 0-16

@@ -82,3 +82,32 @@ Module AlgebraicOnlyCovariant.
     fun f g => forall i, R i (f i) (g i).
   Check pw@{_ _ _}.
 End AlgebraicOnlyCovariant.
+
+Module SetOnlyCovariant.
+  (* Nor to [Set] where the types of the folded subterms of its type are not covariant, even when
+     the universe is irrelevant in the declaration: [Q@{u} D@{u}] is the same type for every [u],
+     as [D] does not depend on [u], but the type [C@{u}] of [D@{u}] is invariant in [u]. With
+     [f : Q@{Set} D@{Set}], the unification of the arguments of [comb] would copy [D@{Set}] into
+     the holes [c] and [d], which then cannot hold [D@{v}]. *)
+  Record C@{u} := { x : nat; h := Type@{u} }.
+  Definition D@{u} : C@{u} := {| x := 0 |}.
+  Record Q@{u} (c : C@{u}) := { q : nat }.
+  Definition f : Q D := {| q := 0 |}.
+  Check f@{_}.
+  Definition comb@{u} (c d : C@{u}) (a : Q c) (b : Q d) := a.
+  Definition use@{v|} (a : Q@{v} D@{v}) := comb _ _ f a.
+End SetOnlyCovariant.
+
+Module TransparentBody.
+  (* In a transparent definition, a universe of the body is not set to [Set] when it has folded
+     occurrences, whatever their variances: unification and tactics may unfold the definition and
+     copy them. In an opaque one, it is, as the body is never unfolded: [k] keeps the universe of
+     [D@{u} : C@{u}], [k'] does not. *)
+  Record C@{u} := { x : nat; h := Type@{u} }.
+  Definition D@{u} : C@{u} := {| x := 0 |}.
+  Definition idC@{u} (c : C@{u}) : nat := x c.
+  Definition k : nat := idC D.
+  Check k@{_}.
+  Lemma k' : nat. Proof. exact (idC D). Qed.
+  Fail Check k'@{_}.
+End TransparentBody.

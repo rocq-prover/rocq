@@ -2092,6 +2092,7 @@ let collapse_sort_variables ?except ~only_above_prop uctx =
 
 let get_variances uctx = uctx.variances
 let set_variances uctx variances = { uctx with variances = Some variances }
+let reset_variances uctx = { uctx with variances = None }
 
 let warn_no_variances =
   CWarnings.create ~name:"minimization-without-variances" ~category:CWarnings.CoreCategories.universes ~default:CWarnings.Enabled
@@ -2108,35 +2109,55 @@ let update_variances_qvars qs variances =
   Univ.Level.Map.Smart.map upd variances
 
 let minimize
-  ~partial ?(solve_term=false) ?minimize_internal uctx =
+  ~partial ?(solve_term=false) ?minimize_internal ?transparent_body ?(keep=Level.Set.empty)
+  uctx =
   let open UnivMinim in
   match uctx.variances with
   | None -> warn_no_variances (); uctx
   | Some variances ->
     let variances = update_variances_qvars uctx.sort_variables variances in
     let flexible_variables = flexible_variables uctx in
+    (* The universes to keep are rigid during the minimization, so that no substitution sets
+       them, even through an equivalence, then flexible again *)
+    let keep = Level.Set.inter keep flexible_variables in
+    let flexible_variables = Level.Set.diff flexible_variables keep in
+    let graph = Level.Set.fold (UGraph.set_rigid true) keep uctx.universes in
     let flexible_variables', variances, universes =
-      normalize_context_set ~solve_flexibles:uctx.fixed_rigid_universes
+      (* Not before all the information is there: the flexibles of a closed declaration whose
+         obligations are still evars would be solved with their bounds, e.g. set to [Set] *)
+      normalize_context_set ~solve_flexibles:(uctx.fixed_rigid_universes && not partial)
         ~solve_term ?minimize_internal
-        ~variances ~partial uctx.universes
+        ~variances ~partial ?transparent_body graph
         ~flexible_variables
         ~binders:(fst uctx.names) uctx.minim_extra
     in
+    let universes = Level.Set.fold (UGraph.set_rigid false) keep universes in
     (* Minimization only removes the flexible variables it substitutes; the others which it
-       would no longer consider flexible are fixed *)
-    let fixed = Level.Set.filter (UGraph.is_flexible universes)
-        (Level.Set.diff flexible_variables flexible_variables') in
+       would no longer consider flexible are fixed. Not with partial information: a later
+       minimization, with the complete information, must be able to set them as if this one
+       had not happened, e.g. the final one of a [Program] declaration, whose obligations were
+       still evars here, and whose result must be the one it would have with the obligations
+       expanded. For the same reason, the extra information (weak constraints, universes
+       only bounding parameters, ...) is kept for it. *)
+    let fixed =
+      if partial then Level.Set.empty
+      else Level.Set.filter (UGraph.is_flexible universes)
+          (Level.Set.diff flexible_variables flexible_variables') in
     let universes = Level.Set.fold (UGraph.set_rigid true) fixed universes in
     let initial_universes = Level.Set.fold (UGraph.set_rigid true) fixed uctx.initial_universes in
-    { names = uctx.names;
-      local = uctx.local;
-      fixed_rigid_universes = uctx.fixed_rigid_universes;
-      fixed_rigid_constraints = uctx.fixed_rigid_constraints;
-      sort_variables = uctx.sort_variables;
-      universes;
-      initial_universes;
-      variances = Some variances;
-      minim_extra = UnivMinim.empty_extra; (* weak constraints are consumed *) }
+    let uctx' =
+      { names = uctx.names;
+        local = uctx.local;
+        fixed_rigid_universes = uctx.fixed_rigid_universes;
+        fixed_rigid_constraints = uctx.fixed_rigid_constraints;
+        sort_variables = uctx.sort_variables;
+        universes;
+        initial_universes;
+        variances = Some variances;
+        minim_extra = UnivMinim.empty_extra; (* weak constraints are consumed *) }
+    in
+    if partial then { uctx' with minim_extra = UnivMinim.nf_extra (nf_universe uctx') uctx.minim_extra }
+    else uctx'
 
 let universe_context_inst_decl decl qvars levels names =
   let leftqs = List.fold_left (fun acc l -> QSet.remove l acc) qvars decl.univdecl_qualities in
@@ -2204,9 +2225,9 @@ let check_uctx_impl ~fail uctx uctx' =
 
 let disable_minim, _ = CDebug.create_full ~name:"minimization" ()
 
-let minimize ~partial ?(solve_term=false) ?minimize_internal uctx =
+let minimize ~partial ?(solve_term=false) ?minimize_internal ?transparent_body ?keep uctx =
   if CDebug.get_flag disable_minim then uctx
-  else minimize ~partial ~solve_term ?minimize_internal uctx
+  else minimize ~partial ~solve_term ?minimize_internal ?transparent_body ?keep uctx
 
 module Internal =
 struct

@@ -46,10 +46,9 @@ SORTS:
              
 
 VARIANCES:
- ShowUnivs:28: infer: = in term, predicative; ShowUnivs:27; ShowUnivs:26;
- ShowUnivs:25: infer: = in term, predicative; ShowUnivs:24
+ ShowUnivs:28; ShowUnivs:27; ShowUnivs:26; ShowUnivs:25; ShowUnivs:24
 WEAK CONSTRAINTS:
  
 
 Normalized constraints:
- {ShowUnivs:28 ShowUnivs:25} | ShowUnivs:25 < ShowUnivs:28
+ {ShowUnivs:25} | 

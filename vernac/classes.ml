@@ -427,13 +427,16 @@ let do_instance_resolve_TC ~poly term termtype sigma env =
   (* The variance information is partial without a term. With a term still containing undefined
      evars, e.g. the obligations of a [Program Instance], it is too: the universes occurring only
      in the types of the evars look irrelevant, as the rest of the term does not mention them
-     yet. Only the rules of [Universe Minimization Compat] rely on it being complete. *)
+     yet, or only covariant: e.g. in [{| carrier := A; rel := _ |}], the universe [v] of the
+     relation of a hole [_ : A -> A -> Type@{v}] left to an obligation would be set to [Set]
+     before the obligation gives the relation. *)
   let partial = match term with
     | None -> true
-    | Some term ->
-      UnivMinim.get_compat_minimization () && Evarutil.has_undefined_evars sigma term
+    | Some term -> Evarutil.has_undefined_evars sigma term
   in
-  let sigma = Evd.minimize_universes ~poly ~partial sigma in
+  (* An instance given by a term is a transparent definition *)
+  let sigma =
+    Evd.minimize_universes ~poly ~partial ~transparent_body:(Option.has_some term) sigma in
   (* Check that the type is free of evars now. *)
   Pretyping.check_evars env sigma termtype;
   termtype, sigma
