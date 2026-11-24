@@ -242,6 +242,15 @@ html_context = {
                   if coq_config.is_a_released_version else [])
 }
 
+# Canonical URL of the pages. All versions of the manual are served under
+# https://rocq-prover.org/doc/<version>/refman/ and the current release is also
+# served at https://rocq-prover.org/refman/; declaring the latter as canonical
+# tells search engines to index that copy rather than an old version.
+# Development builds declare no canonical URL, as they are not meant to be
+# indexed.
+if coq_config.is_a_released_version:
+    html_baseurl = "https://rocq-prover.org/refman/"
+
 # Add any paths that contain custom themes here, relative to this directory.
 import sphinx_rtd_theme
 
