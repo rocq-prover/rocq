@@ -206,8 +206,7 @@ and nf_whd env sigma whd typ =
       let dom = nf_vtype env sigma (dom p) in
       let name = Name (Id.of_string "x") in
       let vc = reduce_fun (nb_rel !!env) (codom p) in
-      let r = Retyping.relevance_of_type !!env sigma (EConstr.of_constr dom) in
-      let r = EConstr.Unsafe.to_relevance r in
+      let r = Vmvalues.prod_relevance p in
       let name = make_annot name r in
       let codom = nf_vtype (push_rel (LocalAssum (name,dom)) env) sigma vc  in
       mkProd(name,dom,codom)
@@ -343,7 +342,9 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
         let nas = List.rev_map RelDecl.get_annot realdecls @ [nameR (Id.of_string "c")] in
         expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
       in
-      let p, relevance = nf_predicate env sigma (ind,u) mip params (type_of_switch sw) pctx in
+      let pred = type_of_switch sw in
+      let relevance = type_relevance pred in
+      let p = nf_predicate env sigma (ind,u) mip params (type_value pred) pctx in
       (* Calcul du type des branches *)
       let btypes = build_branches_type !!env sigma ind mib mip u params (pctx, p) in
       (* calcul des branches *)
@@ -391,9 +392,7 @@ and nf_predicate env sigma ind mip params v pctx =
   in
   let (_, v) = List.fold_right fold pctx (nb_rel !!env, v) in
   let env = push_rel_context pctx env in
-  let body = nf_vtype env sigma v in
-  let rel = Retyping.relevance_of_type !!env sigma (EConstr.of_constr body) in
-  body, EConstr.Unsafe.to_relevance rel
+  nf_vtype env sigma v
 
 and nf_telescope env sigma len f typ =
   let open CClosure in
@@ -456,12 +455,9 @@ and nf_fix env sigma f =
   let k = nb_rel !!env in
   let vb, vt = reduce_fix k f in
   let ndef = Array.length vt in
-  let ft = Array.map (fun v -> nf_val env sigma v crazy_type) vt in
+  let ft = Array.map (fun t -> nf_vtype env sigma (type_value t)) vt in
   let name = Name (Id.of_string "Ffix") in
-  let names = Array.map (fun t ->
-      make_annot name @@
-      EConstr.Unsafe.to_relevance @@
-      Retyping.relevance_of_type !!env sigma (EConstr.of_constr t)) ft in
+  let names = Array.map (fun t -> make_annot name (type_relevance t)) vt in
   (* Body argument of the tuple is ignored by push_rec_types *)
   let env = push_rec_types (names,ft,ft) env in
   (* We lift here because the types of arguments (in tt) will be evaluated
@@ -481,12 +477,9 @@ and nf_cofix env sigma cf =
   let init = current_cofix cf in
   let k = nb_rel !!env in
   let vb,vt = reduce_cofix k cf in
-  let cft = Array.map (fun v -> nf_val env sigma v crazy_type) vt in
+  let cft = Array.map (fun t -> nf_vtype env sigma (type_value t)) vt in
   let name = Name (Id.of_string "Fcofix") in
-  let names = Array.map (fun t ->
-      make_annot name @@
-      EConstr.Unsafe.to_relevance @@
-      Retyping.relevance_of_type !!env sigma (EConstr.of_constr t)) cft in
+  let names = Array.map (fun t -> make_annot name (type_relevance t)) vt in
   let env = push_rec_types (names,cft,cft) env in
   let cfb = Util.Array.map2 (fun v t -> nf_val env sigma v t) vb cft in
   mkCoFix (init,(names,cft,cfb))

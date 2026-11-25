@@ -10,13 +10,13 @@
 
 open Vmvalues
 
-val reduce_fix : int -> vfix -> vfun array * values array
-                              (** bodies ,  types *)
+val reduce_fix : int -> vfix -> vfun array * annotated_type array
+                              (** bodies, annotated types *)
 
-val reduce_cofix : int -> vcofix -> values array * values array
-                                      (** bodies , types *)
+val reduce_cofix : int -> vcofix -> values array * annotated_type array
+                                      (** bodies, annotated types *)
 
-val type_of_switch : vswitch -> values
+val type_of_switch : vswitch -> annotated_type
 
 val branch_of_switch : int -> vswitch -> (int * values) array
 

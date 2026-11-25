@@ -92,7 +92,7 @@ let reduce_fix k vf =
   let et = fix_env fb in
   let ftyp =
     Array.map
-      (fun c -> interprete c crazy_val et 0) fc_typ in
+      (fun c -> annotated_type_of_value (interprete c crazy_val et 0)) fc_typ in
   (* Construction of the environment of fix bodies *)
   (mk_fix_body k ndef fb, ftyp)
 
@@ -101,7 +101,8 @@ let reduce_cofix k vcf =
   let ndef = Array.length fc_typ in
   let ftyp =
     (* Evaluate types *)
-    Array.map (fun c -> interprete c crazy_val (cofix_env vcf) 0) fc_typ in
+    let et = cofix_env vcf in
+    Array.map (fun c -> annotated_type_of_value (interprete c crazy_val et 0)) fc_typ in
 
   (* Construction of the environment of cofix bodies *)
   (mk_cofix_body apply_varray k ndef vcf, ftyp)
@@ -110,7 +111,7 @@ let type_of_switch sw =
   (* The fun code of types will make sure we have enough stack, so we put 0
   here. *)
   push_vstack sw.sw_stk 0;
-  interprete sw.sw_type_code crazy_val sw.sw_env 0
+  annotated_type_of_value (interprete sw.sw_type_code crazy_val sw.sw_env 0)
 
 let apply_switch sw arg =
   let tc = sw.sw_annot.tailcall in

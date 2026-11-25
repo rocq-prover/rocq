@@ -485,6 +485,21 @@ external val_of_annot_switch : annot_switch -> values = "%identity"
 let dom : vprod -> values = fun p -> val_of_obj (Obj.field (Obj.repr p) 0)
 let codom : vprod -> vfun = fun p -> (Obj.obj (Obj.field (Obj.repr p) 1))
 
+let decode_relevance v =
+  match whd_val v with
+  | Vaccu (Asort s, []) -> Sorts.relevance_of_sort s
+  | _ -> assert false
+
+let prod_relevance (p : vprod) =
+  decode_relevance (val_of_obj (Obj.field (Obj.repr p) 2))
+
+(* Auxiliary bytecode for switch predicates and recursive types returns a
+   two-field block (tag 1) containing the type value and relevance marker. *)
+type annotated_type = values
+let annotated_type_of_value v = v
+let type_value t = val_of_obj (Obj.field (Obj.repr t) 0)
+let type_relevance t = decode_relevance (val_of_obj (Obj.field (Obj.repr t) 1))
+
 (* Functions over vfun *)
 
 external closure_arity : vfun -> int = "rocq_closure_arity"
