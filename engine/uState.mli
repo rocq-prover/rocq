@@ -278,8 +278,8 @@ val reset_variances : t -> t
 
 *)
 val minimize : partial:bool -> ?solve_term:bool -> ?minimize_internal:bool ->
-  ?transparent_body:bool -> ?keep:Level.Set.t -> t -> t
-(** [minimize_internal], [transparent_body]: see [UnivMinim.normalize_context_set].
+  ?transparent_body:bool -> ?type_only:bool -> ?keep:Level.Set.t -> t -> t
+(** [minimize_internal], [transparent_body], [type_only]: see [UnivMinim.normalize_context_set].
   [keep]: flexible universes which the minimization leaves as they are, without fixing them:
   those of a [Program] declaration in the minimization of one of its obligations, which the
   final minimization of the declaration sets. *)

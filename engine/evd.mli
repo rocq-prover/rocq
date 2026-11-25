@@ -680,7 +680,7 @@ val reset_variances : evar_map -> evar_map
 (** See [UState.reset_variances] *)
 
 val minimize_universes_no_collapse : partial:bool -> ?solve_term:bool -> ?minimize_internal:bool ->
-  ?transparent_body:bool -> ?keep:Univ.Level.Set.t -> evar_map -> evar_map
+  ?transparent_body:bool -> ?type_only:bool -> ?keep:Univ.Level.Set.t -> evar_map -> evar_map
 (** See [UState.minimize] *)
 
 (** Universe minimization *)
@@ -689,7 +689,7 @@ val minimize_universes :
   ?partial:bool ->
   (* Only partial information about universes is recorded in the evar_map (false by default).
      In partial mode, minimization should only perform simplifications, not losing any solution. *)
-  ?transparent_body:bool -> ?keep:Univ.Level.Set.t ->
+  ?transparent_body:bool -> ?type_only:bool -> ?keep:Univ.Level.Set.t ->
   (* See [UState.minimize] *)
   evar_map -> evar_map
 

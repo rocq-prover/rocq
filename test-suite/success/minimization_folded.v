@@ -111,3 +111,30 @@ Module TransparentBody.
   Lemma k' : nat. Proof. exact (idC D). Qed.
   Fail Check k'@{_}.
 End TransparentBody.
+
+Module ProjectedRecordInstance.
+  (* The projection of a folded record is unfolded by the inference, as conversion does, but
+     unification compares the projections of two instances of the record first-order: [hom K@{u o}]
+     and [hom K@{u' o'}] give [o = o'] when [o] is flexible, though the field [hom] does not depend
+     on [o]. So [o] is not set to [Set] in [l], which would then fix the universe of the objects of
+     [K] for every statement unified with its type. *)
+  Record Cat@{u} := { ob : Type@{u}; hom : Type@{u} }.
+  Definition K@{u o | o < u} : Cat@{u} := {| ob := Type@{o}; hom := nat |}.
+  Lemma l : hom K -> hom K.
+  Proof. exact (fun x => x). Qed.
+  Check l@{_}.
+End ProjectedRecordInstance.
+
+Module AxiomTypeOnly.
+  (* The minimization of the type of an axiom is the only one: it does not defer the bounds
+     mentioning the universes of its binders, here [max(a,p)] for those of [IsEquiv], to a later
+     minimization with complete information, which would leave them unbound. *)
+  Cumulative Inductive paths@{i} {A : Type@{i}} (a : A) : A -> Type@{i} := idpath : paths a a.
+  Definition apD10@{a p} {A : Type@{a}} {P : A -> Type@{p}} {f g : forall x, P x}
+    (h : paths f g) : forall x, paths (f x) (g x) :=
+    fun x => match h with idpath _ => idpath _ end.
+  Record IsEquiv@{a b} {A : Type@{a}} {B : Type@{b}} (f : A -> B) := { inv : B -> A }.
+  Axiom isequiv_apD10@{a p} : forall (A : Type@{a}) (P : A -> Type@{p}) f g,
+    IsEquiv (@apD10 A P f g).
+  Check isequiv_apD10@{_ _}.
+End AxiomTypeOnly.

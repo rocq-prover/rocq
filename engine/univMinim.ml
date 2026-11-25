@@ -169,7 +169,7 @@ let update_equivs_bound (us, _, _ as acc) l u equivs =
   update_univ_subst acc ((l, u) :: subst_of_equivalences us equivs)
 
 (** [partial]: we have type information only, not term information (i.e. Axiom, Definition/Lemma type only) *)
-let simplify_variables ~transparent_body solve_flexibles above_prop above_zero parameter_only internal partial solve_term flex variances graph =
+let simplify_variables ~transparent_body ~type_only solve_flexibles above_prop above_zero parameter_only internal partial solve_term flex variances graph =
   let open UVars.Variance in
   (* A universe is not set to its lower bound when this would constrain the others (see
      [UGraph.minimize]), unless the universes not declared must all be removed *)
@@ -188,8 +188,10 @@ let simplify_variables ~transparent_body solve_flexibles above_prop above_zero p
      record whose fields are obligations, [v := max(u, a)] for a universe [v] of its type and
      the universe [a] of the domain of a polymorphic [f@{a}] applied to a type in [Set], which
      the complete minimization sets to [Set] first, giving [v := u]. *)
+  (* Not when the type is all there is to the declaration ([type_only]): no minimization with
+     the complete information follows, e.g. for an [Axiom] *)
   let deferred flex lbound =
-    partial && Universe.exists (fun (l, _) ->
+    partial && not type_only && Universe.exists (fun (l, _) ->
         Level.Set.mem l parameter_only && Level.Set.mem l flex) lbound
   in
   let minimize ~allow_collapse_to_zero u (flex, variances, graph as acc) =
@@ -802,7 +804,7 @@ let minimize_parameter_only ~transparent_body solve_flexibles partial above_zero
   Level.Set.fold minimize parameter_only acc
 
 let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false) ~variances ~partial
-  ?(transparent_body=false) graph ~flexible_variables ?binders
+  ?(transparent_body=false) ?(type_only=false) graph ~flexible_variables ?binders
   {weak_constraints=weak;above_prop; above_zero; parameter_only; internal} =
   let prl = UnivNames.pr_level_with_global_universes ?binders in
   debug Pp.(fun () -> str "Minimizing context: " ++ UGraph.pr_universes prl (UGraph.repr ~local:true graph) ++ spc () ++
@@ -838,7 +840,7 @@ let normalize_context_set ~solve_flexibles ~solve_term ?(minimize_internal=false
     let flexible_variables, variances, graph =
       minimize_parameter_only ~transparent_body solve_flexibles partial above_zero parameter_only (flexible_variables, variances, graph) in
     let internal = if minimize_internal then internal else Level.Set.empty in
-    let flex, variances, graph = simplify_variables ~transparent_body solve_flexibles above_prop above_zero parameter_only internal partial solve_term flexible_variables variances graph in
+    let flex, variances, graph = simplify_variables ~transparent_body ~type_only solve_flexibles above_prop above_zero parameter_only internal partial solve_term flexible_variables variances graph in
     debug_graph Pp.(fun () -> str"Model after simplification: " ++ UGraph.pr_model graph ++ fnl () ++ Level.Set.pr Level.raw_pr flex);
     new_minimize_weak ~transparent_body partial flex weak (graph, variances)
   in

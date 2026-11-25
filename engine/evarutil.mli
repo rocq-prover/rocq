@@ -137,7 +137,9 @@ val nf_evars_universes : evar_map -> Constr.constr -> Constr.constr
 
     Note that the normalizer passed to [f] holds some imperative state
    in its closure. *)
-val finalize : ?abort_on_undefined_evars:bool -> ?poly:PolyFlags.t -> evar_map -> ?partial:bool ->
+val finalize : ?abort_on_undefined_evars:bool -> ?poly:PolyFlags.t ->
+  ?type_only:bool -> (* See [UState.minimize] *)
+  evar_map -> ?partial:bool ->
   ((EConstr.t -> Constr.t) -> 'a) ->
   evar_map * 'a
 

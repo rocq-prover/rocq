@@ -553,6 +553,20 @@ let infer_folded_instance gvariances variances u =
         Level.Set.fold (Inf.infer_level_folded v) (Universe.levels u) variances)
     variances vs us
 
+(** The universes of [f@{u1 ... un}] applied to [nargs] arguments which are not irrelevant to
+    the conversion of two such applications: unification compares them first-order, in CONV, so
+    that they are invariant there (see [infer_folded]) *)
+let infer_folded_instance_conv gvariances nargs variances u =
+  let _, us = Instance.to_array u in
+  let vs = Variances.repr gvariances in
+  if not (Int.equal (Array.length vs) (Array.length us)) then variances else
+  Array.fold_left2 (fun variances (vocc : VarianceOccurrence.t) u ->
+      match (VarianceOccurrence.variance_app nargs vocc).VariancePair.cumul_variance with
+      | Variance.Irrelevant -> variances
+      | Variance.(Covariant | Contravariant | Invariant) ->
+        Level.Set.fold (Inf.infer_level_folded Variance.Invariant) (Universe.levels u) variances)
+    variances vs us
+
 (** Compute variances from f@{u1 ... un} knowing f@{l1(vn) ... ln(vn)} variance information *)
 let infer_cumulative_instance gr cv_pb (is_type, typing_v) nargs gvariances variances u =
   let qs, us = Instance.to_array u in
@@ -887,16 +901,29 @@ and project_stack infos hd stk =
   in
   first stk
 
-(* The variances of the universes of the head instance of [c] in its type (see [infer_folded]) *)
+(* The variances of the universes of the head instance of [c] in its type (see [infer_folded]).
+   When [c] is a constant, its universes which matter to the conversion of its applications too:
+   the projection of [c] is unfolded here, as conversion does, but unification compares the
+   projections of two instances of [c] first-order, e.g. [compose (Cat@{o h})] and
+   [compose (Cat@{o' h})] for a category of categories [Cat] whose fields do not depend on the
+   universe [o] of its objects, making [o = o'] *)
 and infer_folded_head infos variances c =
   let hd, stk = whd_stack infos c [] in
   let env = CClosure.info_env (fst infos) in
   match CClosure.fterm_of hd with
   | CClosure.FFlex (Names.ConstKey (con, u)) when Environ.mem_constant con env ->
     let cb = Environ.lookup_constant con env in
+    let u = extend_con_instance cb u in
     begin match extended_const_variance cb (UVars.NumArgs (CClosure.stack_args_size stk)) with
-    | Some (cst_variance, _) -> infer_folded_instance cst_variance variances (extend_con_instance cb u)
-    | None -> variances
+    | Some (cst_variance, nargs) ->
+      let variances = infer_folded_instance cst_variance variances u in
+      infer_folded_instance_conv cst_variance nargs variances u
+    | None ->
+      (* Not cumulative: unification compares the instances strictly *)
+      let _, us = Instance.to_array u in
+      Array.fold_left (fun variances u ->
+          Level.Set.fold (Inf.infer_level_folded Variance.Invariant) (Universe.levels u) variances)
+        variances us
     end
   | CClosure.FInd (ind, u) ->
     begin match inductive_variances env ind u with

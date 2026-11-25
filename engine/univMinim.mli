@@ -86,6 +86,11 @@ val normalize_context_set :
      folded occurrences of its universes in the body matter too when setting them to [Set] (see
      [algebraic_bound_allowed]). False by default, e.g. for a declaration without a body or with
      an opaque one. *)
+  ?type_only:bool ->
+  (* The type is all there is to the declaration, e.g. an [Axiom]: no minimization with the
+     complete information follows the one with partial information, which then does not defer
+     the bounds mentioning universes of [parameter_only] to it (see [simplify_variables]). False
+     by default. *)
   UGraph.t -> (* The graph representing constraints and a level to universe substitution *)
   flexible_variables:Level.Set.t (* Subset of undefined flexible variables *) ->
   ?binders:UnivNames.universe_binders ->

@@ -213,7 +213,7 @@ let interp_context_gen scope ~program_mode ~poly ~kind ~autoimp_enable ~coercion
      bounded from below, e.g. [v] in [R : Rel@{u v} A] given [u <= v], are then identified
      with their lower bound. Otherwise each declaration of the section would keep them. *)
   let partial = not (UnivMinim.get_compat_minimization ()) in
-  let sigma, ctx = Evarutil.finalize ~poly ~partial sigma @@ fun nf ->
+  let sigma, ctx = Evarutil.finalize ~poly ~type_only:true ~partial sigma @@ fun nf ->
     List.map (NamedDecl.map_constr_het (fun x -> x) nf) ctx
   in
   (* reorder, evar-normalize and add implicit status *)

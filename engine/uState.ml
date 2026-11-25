@@ -2109,8 +2109,8 @@ let update_variances_qvars qs variances =
   Univ.Level.Map.Smart.map upd variances
 
 let minimize
-  ~partial ?(solve_term=false) ?minimize_internal ?transparent_body ?(keep=Level.Set.empty)
-  uctx =
+  ~partial ?(solve_term=false) ?minimize_internal ?transparent_body ?type_only
+  ?(keep=Level.Set.empty) uctx =
   let open UnivMinim in
   match uctx.variances with
   | None -> warn_no_variances (); uctx
@@ -2127,7 +2127,7 @@ let minimize
          obligations are still evars would be solved with their bounds, e.g. set to [Set] *)
       normalize_context_set ~solve_flexibles:(uctx.fixed_rigid_universes && not partial)
         ~solve_term ?minimize_internal
-        ~variances ~partial ?transparent_body graph
+        ~variances ~partial ?transparent_body ?type_only graph
         ~flexible_variables
         ~binders:(fst uctx.names) uctx.minim_extra
     in
@@ -2225,9 +2225,10 @@ let check_uctx_impl ~fail uctx uctx' =
 
 let disable_minim, _ = CDebug.create_full ~name:"minimization" ()
 
-let minimize ~partial ?(solve_term=false) ?minimize_internal ?transparent_body ?keep uctx =
+let minimize ~partial ?(solve_term=false) ?minimize_internal ?transparent_body ?type_only ?keep
+    uctx =
   if CDebug.get_flag disable_minim then uctx
-  else minimize ~partial ~solve_term ?minimize_internal ?transparent_body ?keep uctx
+  else minimize ~partial ~solve_term ?minimize_internal ?transparent_body ?type_only ?keep uctx
 
 module Internal =
 struct
