@@ -2151,7 +2151,13 @@ let build_notation_syntax ~local ~infix user_warns ntn_decl =
   match syntax_modifiers with
   | [] ->
     (* No syntax data: try to rely on a previously declared rule *)
-    (try SpecificSyntax (recover_notation_syntax loc ntn)
+    (try
+      let sy = recover_notation_syntax loc ntn in
+      if Option.has_some sy.synext_notgram || main_data.onlyprinting then SpecificSyntax sy
+      else
+        let mods = { NotationMods.default with level = Some (fst sy.synext_level).notation_level } in
+        let sd = compute_syntax_data ~local main_data notation_symbols ntn mods in
+        SpecificSyntax (make_syntax_rules loc false main_data ntn sd)
     with NoSyntaxRule ->
       (* Try to determine a default syntax rule *)
       let sd = compute_syntax_data ~local main_data notation_symbols ntn NotationMods.default in
