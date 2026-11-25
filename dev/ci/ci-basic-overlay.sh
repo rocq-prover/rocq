@@ -218,10 +218,15 @@ project fiat_crypto "https://github.com/mit-plv/fiat-crypto" "master"
 # fiat-crypto is not guaranteed to build with the latest version of
 # bedrock2, so we use the pinned version of bedrock2 for fiat-crypto
 # overlays do not have to follow suite
+
 subproject rupicola fiat_crypto "rupicola" "https://github.com/mit-plv/rupicola" "master"
+# Contact @miriampolzer, @cpitclaudel on github
+
 subproject bedrock2 rupicola "bedrock2" "https://github.com/mit-plv/bedrock2" "master"
+# Contact @miriampolzer on github
+
 subproject coqutil bedrock2 "deps/coqutil" "https://github.com/mit-plv/coqutil" "master"
-# Contact @samuelgruetter, @andres-erbsen on github
+# Contact @JasonGross on github
 
 ########################################################################
 # coq_dpdgraph
