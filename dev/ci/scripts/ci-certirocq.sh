@@ -14,6 +14,11 @@ if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 packages=rocq-certirocq,rocq-certirocq-vanilla
 
 ( cd "${CI_BUILD_DIR}/certirocq"
+  # compcert is built without native compilation
+  for f in theories/dune plugins/plugin/dune plugins/cplugin/dune; do
+    grep -q '(mode vo)' "$f" || \
+      sed -i -E 's/^\(rocq\.(theory|extraction)$/&\n (mode vo)/' "$f"
+  done
   dune build --root . --only-packages="$packages" @install
   dune install --root . --prefix="$CI_INSTALL_DIR" rocq-certirocq rocq-certirocq-vanilla
   # Compile the Wasm test programs with the installed plugin, with the largest
