@@ -180,4 +180,4 @@ val get_type_of_refresh :
   ?lax:bool -> env -> evar_map -> constr
   -> evar_map * types
 
-val checked_appvect_hook : (env -> evar_map -> constr -> constr array -> evar_map * constr) Hook.t
+val type_of_hook : (env -> evar_map -> constr -> evar_map * types) Hook.t
