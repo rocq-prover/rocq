@@ -67,10 +67,6 @@ val lift_mp_delta_resolver :
 val add_kn_delta_resolver :
   KerName.t -> KerName.t -> 'a delta_resolver -> 'a delta_resolver
 
-(** [add_inline_delta_resolver kn v reso] assumes that root(reso) ⊆ modpath(kn). *)
-val add_inline_delta_resolver :
-  KerName.t -> int -> mod_type delta_resolver -> mod_type delta_resolver
-
 (** [add_inline_body_delta_resolver kn v reso] assumes that root(reso) ⊆ modpath(kn). *)
 val add_inline_body_delta_resolver :
   KerName.t -> constr UVars.univ_abstracted ->
@@ -107,9 +103,6 @@ val mind_of_delta_kn : 'a delta_resolver -> KerName.t -> MutInd.t
 val fold_inline_body_delta_resolver :
   (KerName.t -> constr UVars.univ_abstracted -> 'b -> 'b) ->
   mod_subst delta_resolver -> 'b -> 'b
-
-(** The fields the resolver declared inlinable, up to the given level *)
-val inline_of_delta : int option -> mod_type delta_resolver -> KerName.t list
 
 (** {6 Substitution} *)
 

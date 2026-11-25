@@ -919,18 +919,14 @@ let add_constant_aux senv ?hbody (kn, cb) =
       Declareops.hcons_const_body ?hbody:(make_hbody hbody) cb
   in
   let senv' = add_field (l,SFBconst cb) (C kn) senv in
-  let senv'' = match cb.const_body with
-    | Undef (Some lev) ->
+  let () = match cb.const_body with
+    | Undef (Some _) ->
       (* An inlining declaration only makes sense in a module type *)
-      if is_modtype senv' then
-        update_resolver
-          (Mod_subst.add_inline_delta_resolver (Constant.user kn) lev) senv'
-      else
-        let () = warn_inline_in_module kn in
-        senv'
-    | _ -> senv'
+      if not @@ is_modtype senv' then
+        warn_inline_in_module kn
+    | _ -> ()
   in
-  senv''
+  senv'
 
 let undeclared_universes env (levels, csts) =
   match UGraph.check_declared_universes (Environ.universes env) levels with
