@@ -508,14 +508,39 @@ let clean_bounded_mod_expr sign =
 
 (** {6 Building map of constants to inline } *)
 
+let inline_of_modtype inl mp mtb =
+  match inl with
+  | None -> []
+  | Some inl ->
+    let rec walk accu mp struc =
+      let fold accu (l, field) = match field with
+        | SFBconst cb ->
+          begin match cb.const_body with
+          | Undef (Some lev) when lev <= inl ->
+            let kn = KerName.make mp l in
+            kn :: accu
+          | _ -> accu
+          end
+        | SFBmodule mb ->
+          begin match mod_type mb with
+          | MoreFunctor _ -> accu
+          | NoFunctor struc -> walk accu (MPdot (mp, l)) struc
+          end
+        | SFBmind _ | SFBrules _ | SFBmodtype _ -> accu
+      in
+      List.fold_left fold accu struc
+    in
+    match mod_type mtb with
+    | MoreFunctor _ -> []
+    | NoFunctor struc -> walk [] mp struc
+
 (* The result carries inlined bodies, so it is a substitution resolver; the
    [delta] it starts from is the resolver of the module being passed. *)
-let inline_delta_resolver env inl mp mbid mtb delta =
-  let constants = inline_of_delta inl (mod_delta mtb) in
+let inline_delta_resolver env inl mp _mbid mtb delta =
+  let constants = inline_of_modtype inl mp mtb in
   let rec make_inline delta = function
     | [] -> delta
     | kn :: r ->
-      let kn = replace_mp_in_kn (MPbound mbid) mp kn in
       let con = constant_of_delta_kn delta kn in
       if not (Environ.mem_constant con env) then
         error_no_such_label_sub (Constant.label con)

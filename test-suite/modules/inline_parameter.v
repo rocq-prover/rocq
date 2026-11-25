@@ -20,6 +20,12 @@ End T.
 Module Type T2 := T.
 Module Type T3. Include T. End T3.
 Module Type T4. Declare Module Sub : T. End T4.
+Module Type T5.
+  Module Sub.
+    Parameter Inline t : Type.
+    Parameter u : t -> t.
+  End Sub.
+End T5.
 
 Module A.
   Definition t := nat.
@@ -30,12 +36,14 @@ Module F (X : T) := X.
 Module F2 (X : T2) := X.
 Module F3 (X : T3) := X.
 Module F4 (X : T4) := X.
+Module F5 (X : T5) := X.
 Module B. Module Sub := A. End B.
 
 Module A1 := F A.
 Module A2 := F2 A.
 Module A3 := F3 A.
 Module B4 := F4 B.
+Module B5 := F5 B.
 
 (* A functor whose parameter type is itself a functor type mentioning [T]: the
    subtyping check of the argument against [FS] must not confuse the inlining
@@ -63,15 +71,31 @@ Module J2 : S2. Definition u := A.u. End J2.
    test-suite/bugs/bug_15403.v. *)
 Notation "1" := true.
 
+Abbreviation check x :=
+  ltac:(let t := type of x in match t with (nat -> nat) => exact tt end)
+  (only parsing).
+
+Check check A1.u.
 Check A1.u 1.
+Check check A2.u.
 Check A2.u 1.
+Check check A3.u.
 Check A3.u 1.
+Check check B4.Sub.u.
 Check B4.Sub.u 1.
+Check check B5.Sub.u.
+Check B5.Sub.u 1.
+Check check C.v.
 Check C.v 1.
+Check check I1.u.
 Check I1.u 1.
+Check check I2.Inner.u.
 Check I2.Inner.u 1.
+Check check I3.N.u.
 Check I3.N.u 1.
+Check check J1.u.
 Check J1.u 1.
+Check check J2.u.
 Check J2.u 1.
 
 (* An inlinable field of a functor argument stays identified with the
