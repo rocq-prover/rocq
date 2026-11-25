@@ -72,12 +72,11 @@ type module_typing_error =
   | NotAFunctor
   | IsAFunctor of ModPath.t
   | IncompatibleModuleTypes of module_type_body * module_type_body
-  | NotEqualModulePaths of ModPath.t * ModPath.t
   | NoSuchLabel of Id.t * ModPath.t
   | NotAModuleLabel of Id.t
   | NotAConstant of Id.t
   | IncorrectWithConstraint of Id.t * with_constraint_error
-  | GenerativeModuleExpected of Id.t
+  | AbstractModuleExpected of Id.t
   | LabelMissing of Id.t * string
   | IncludeRestrictedFunctor of ModPath.t
 
@@ -95,9 +94,6 @@ let error_is_a_functor mp =
 let error_incompatible_modtypes mexpr1 mexpr2 =
   raise (ModuleTypingError (IncompatibleModuleTypes (mexpr1,mexpr2)))
 
-let error_not_equal_modpaths mp1 mp2 =
-  raise (ModuleTypingError (NotEqualModulePaths (mp1,mp2)))
-
 let error_signature_mismatch trace l why =
   raise (ModuleTypingError (SignatureMismatch (trace,l,why)))
 
@@ -113,8 +109,8 @@ let error_not_a_constant l =
 let error_incorrect_with_constraint l err =
   raise (ModuleTypingError (IncorrectWithConstraint (l, err)))
 
-let error_generative_module_expected l =
-  raise (ModuleTypingError (GenerativeModuleExpected l))
+let error_abstract_module_expected l =
+  raise (ModuleTypingError (AbstractModuleExpected l))
 
 let error_no_such_label_sub l l1 =
   raise (ModuleTypingError (LabelMissing (l,l1)))
@@ -141,14 +137,6 @@ let get_global_delta mb = match mod_global_delta mb with
 | Some delta -> delta
 
 (** {6 Misc operations } *)
-
-let check_modpath_equiv env mp1 mp2 =
-  if ModPath.equal mp1 mp2 then ()
-  else
-    let mp1' = mp_of_delta (mod_delta @@ lookup_module mp1 env) mp1 in
-    let mp2' = mp_of_delta (mod_delta @@ lookup_module mp2 env) mp2 in
-    if ModPath.equal mp1' mp2' then ()
-    else error_not_equal_modpaths mp1 mp2
 
 let rec annotate_module_expression me mty = match me, mty with
 | MENoFunctor me, (NoFunctor _ | MoreFunctor _) -> NoFunctor me

@@ -1218,14 +1218,6 @@ let pr_modtype_subpath upper mp =
    else strbrk (if upper then "Module " else "module ") ++ DirPath.print (DirPath.make suff) ++ strbrk " of ") ++
   DirPath.print mp
 
-let pr_module_or_modtype_subpath mp = match Nametab.shortest_qualid_of_module mp with
-| qid ->
-  (* [mp] is bound to a proper module *)
-  strbrk "module " ++ Libnames.pr_qualid qid
-| exception Not_found ->
-  (* [mp] ought to be bound to a submodule of a module type *)
-  pr_modtype_subpath false mp
-
 open Modops
 
 let explain_not_match_error = function
@@ -1418,9 +1410,6 @@ let explain_incompatible_module_types mexpr1 mexpr2 =
       str " arguments, found " ++ int len1 ++ str "."
   else str "Incompatible module types."
 
-let explain_not_equal_module_paths mp1 mp2 =
-  str "Module " ++ pr_modpath mp1 ++ strbrk " is not equal to " ++ pr_module_or_modtype_subpath mp2 ++ str "."
-
 let explain_no_such_label l mp =
   str "No field named " ++ Id.print l ++ str " in " ++ pr_modtype_subpath false mp ++ str "."
 
@@ -1441,9 +1430,9 @@ let explain_incorrect_with_constraint l err =
   str "Incorrect constraint for label " ++ quote (Id.print l) ++ str ": " ++
   explain_with_constraint_error err
 
-let explain_generative_module_expected l =
-  str "The module " ++ Id.print l ++ str " is not generative." ++
-  strbrk " Only components of generative modules can be changed" ++
+let explain_abstract_module_expected l =
+  str "The module " ++ Id.print l ++ str " is not abstract." ++
+  strbrk " Only components of abstract modules (from Declare Module) can be changed" ++
   strbrk " using the \"with\" construct."
 
 let explain_label_missing l s =
@@ -1461,12 +1450,11 @@ let explain_module_error = function
   | NotAFunctor -> explain_not_a_functor ()
   | IsAFunctor mp -> explain_is_a_functor mp
   | IncompatibleModuleTypes (m1,m2) -> explain_incompatible_module_types m1 m2
-  | NotEqualModulePaths (mp1,mp2) -> explain_not_equal_module_paths mp1 mp2
   | NoSuchLabel (l,mp) -> explain_no_such_label l mp
   | NotAModuleLabel l -> explain_not_a_module_label l
   | NotAConstant l -> explain_not_a_constant l
   | IncorrectWithConstraint (l, err) -> explain_incorrect_with_constraint l err
-  | GenerativeModuleExpected l -> explain_generative_module_expected l
+  | AbstractModuleExpected l -> explain_abstract_module_expected l
   | LabelMissing (l,s) -> explain_label_missing l s
   | IncludeRestrictedFunctor mp -> explain_include_restricted_functor mp
 
