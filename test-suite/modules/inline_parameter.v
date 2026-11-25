@@ -10,10 +10,20 @@ Module M.
   Fail Parameter Inline(1) x : Type.
 End M.
 
+Module Type E. End E.
+Module VE. End VE.
+
 Module Type T.
   Parameter Inline t : Type.
   Parameter u : t -> t.
 End T.
+
+Module Type BadT.
+  Module F(X:E).
+    Fail Parameter Inline x : nat.
+    Fail Include T.
+  End F.
+End BadT.
 
 (* The declaration survives the various ways of building a module type out of
    another one. *)
@@ -26,6 +36,8 @@ Module Type T5.
     Parameter u : t -> t.
   End Sub.
 End T5.
+Module Type T6(X:E) := T.
+Module Type T7(X:E). Include T. End T7.
 
 Module A.
   Definition t := nat.
@@ -37,6 +49,8 @@ Module F2 (X : T2) := X.
 Module F3 (X : T3) := X.
 Module F4 (X : T4) := X.
 Module F5 (X : T5) := X.
+Module F6 (X : T6 VE) := X.
+Module F7 (X : T7 VE) := X.
 Module B. Module Sub := A. End B.
 
 Module A1 := F A.
@@ -44,6 +58,8 @@ Module A2 := F2 A.
 Module A3 := F3 A.
 Module B4 := F4 B.
 Module B5 := F5 B.
+Module A6 := F6 A.
+Module A7 := F7 A.
 
 (* A functor whose parameter type is itself a functor type mentioning [T]: the
    subtyping check of the argument against [FS] must not confuse the inlining
@@ -85,6 +101,10 @@ Check check B4.Sub.u.
 Check B4.Sub.u 1.
 Check check B5.Sub.u.
 Check B5.Sub.u 1.
+Check check A6.u.
+Check A6.u 1.
+Check check A7.u.
+Check A7.u 1.
 Check check C.v.
 Check C.v 1.
 Check check I1.u.
