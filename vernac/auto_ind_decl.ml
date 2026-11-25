@@ -64,7 +64,24 @@ let float64_eqb () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocql
 let sumbool () = UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.sumbool.type")
 let andb = fun _ -> UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref "core.bool.andb")
 
-let induct_on  c = Induction.induction false None c None None
+let induct_on c =
+  let open Proofview.Notations in
+  Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let typ = Retyping.get_type_of env sigma c in
+    let (ind, u), _ = Tacred.reduce_to_atomic_ind env sigma typ in
+    let _, mip = Inductive.lookup_mind_specif env ind in
+    if Sorts.is_prop mip.mind_sort then
+      (* Hijack the induction scheme to force the dependent one *)
+      let sigma, elim = Indrec.build_induction_scheme env sigma (ind, u) true EConstr.ESorts.prop in
+      let id = Tactics.fresh_id_in_env Id.Set.empty (Id.of_string "elim") env in
+      Proofview.Unsafe.tclEVARS sigma <*>
+      Tactics.pose_tac (Name id) elim <*>
+      Induction.induction false None c None (Some (EConstr.mkVar id, Tactypes.NoBindings)) <*>
+      Tactics.clear [id]
+    else Induction.induction false None c None None
+  end
 let destruct_on c = Induction.destruct false None c None None
 
 let destruct_on_using c id =
