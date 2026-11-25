@@ -26,6 +26,6 @@ packages=rocq-certirocq,rocq-certirocq-vanilla
   # and the C backend is not tested: it follows the word size of CompCert,
   # configured here for a 32 bits target, while the C compiler targets 64 bits.
   ulimit -S -s "$(ulimit -H -s)"
-  make -C tests lib
+  COQEXTRAFLAGS='-native-compiler no' make -C tests lib
   make -C tests/wasm tests primitive_unit_tests
 )
