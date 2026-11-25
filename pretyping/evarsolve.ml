@@ -906,6 +906,14 @@ let check_evar_instance unify flags env evd evk body =
   let evi = try Evd.find_undefined evd evk with Not_found -> assert false in
   check_evar_instance_evi unify flags env evd evi body
 
+let define_and_check_evar_instance define unify flags env evd evk body =
+  let evi = Evd.find_undefined evd evk in
+  let evd' = define evk body evd in
+  try check_evar_instance_evi unify flags env evd' evi body
+  with IllTypedInstance (evenv, _, ty, concl) as e ->
+    let _, info = Exninfo.capture e in
+    Exninfo.iraise (IllTypedInstance (evenv, evd, ty, concl), info)
+
 (***************)
 (* Unification *)
 
@@ -1435,9 +1443,7 @@ let solve_evar_evar_l2r force f unify flags env evd aliases pbty ev1 (evk2,_ as 
         update_evar_info evk2 (fst (destEvar evd body)) evd
       else evd
     in
-    let evi = Evd.find_undefined evd evk2 in
-    let evd' = Evd.define_with_evar evk2 body evd in
-    check_evar_instance_evi unify flags env evd' evi body
+    define_and_check_evar_instance Evd.define_with_evar unify flags env evd evk2 body
   with EvarSolvedOnTheFly (evd,c) ->
     f env evd pbty ev2 c
 
@@ -1759,9 +1765,7 @@ let rec invert_definition unify flags choose imitate_defs
         try
           let () = if not @@ is_evar_allowed flags sigma evk' then raise (CannotProject (sigma, ev'')) in
           let sigma, body = project_evar_on_evar false unify flags env' sigma aliases 0 None ev'' ev' in
-          let evi = Evd.find_undefined sigma evk' in
-          let sigma = Evd.define evk' body sigma in
-          check_evar_instance_evi unify flags env' sigma evi body
+          define_and_check_evar_instance Evd.define unify flags env' sigma evk' body
         with
         | EvarSolvedOnTheFly _ -> assert false (* ev has no candidates *)
         | CannotProject (sigma, ev'') ->
