@@ -184,6 +184,10 @@ val build_branches_type :
    given inductive type. *)
 val check_case_info : env -> pinductive -> case_info -> unit
 
+(** Whether a case needs inversion. The caller determines the relevance of
+    the return predicate using its own quality constraints. *)
+val should_invert_case : env -> return_is_relevant:bool -> inductive -> bool
+
 (** {6 Guard conditions for fix and cofix-points. } *)
 
 (** [is_primitive_positive_container env c] tells if the constant [c] is

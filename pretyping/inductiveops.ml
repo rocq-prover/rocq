@@ -464,11 +464,8 @@ let get_projections = Environ.get_projections
 
 (* ************************************* *)
 module Internal = struct
-(* FIXME temporary copy of [Typeops] functions: previously, there was an hack in
-   place to make the kernel aware of [QVar]s eliminating to [Prop]. It's not
-   working anymore with the [QGraph], so we redefine [nf_relevance] and
-   [should_invert_case] to work with the [QGraph] in [sigma] (which knows the
-   relevant [QVar]s *)
+(* Pretyping uses the quality information in [sigma], which may not yet be
+   available in the kernel environment. *)
 let nf_relevance sigma = function
   | Sorts.RelevanceVar q as r ->
      if UState.is_above_prop (Evd.ustate sigma) q
@@ -477,15 +474,8 @@ let nf_relevance sigma = function
   | (Sorts.Irrelevant | Sorts.Relevant) as r -> r
 
 let should_invert_case env sigma r (ci : Constr.case_info) =
-  Sorts.relevance_equal (nf_relevance sigma r) Sorts.Relevant &&
-    let mib,mip = Inductive.lookup_mind_specif env ci.ci_ind in
-    (* mind_relevance cannot be a pseudo sort poly variable so don't use check_relevance *)
-    Sorts.relevance_equal mip.mind_relevance Sorts.Irrelevant &&
-      match Array.length mip.mind_nf_lc with
-      | 0 -> true
-      | 1 ->
-         List.length (fst mip.mind_nf_lc.(0)) = List.length mib.mind_params_ctxt
-      | _ -> false
+  let return_is_relevant = Sorts.relevance_equal (nf_relevance sigma r) Sorts.Relevant in
+  Inductive.should_invert_case env ~return_is_relevant ci.ci_ind
 end
 (* ************************************* *)
 
