@@ -16,7 +16,7 @@ Defined.
 Local Unset Strict Universe Declaration.
 Definition PRODinj
   (A : Type@{i})
-  (B : A -> Type)
+  (B : A -> Type@{_})
   : TYPE.
 Proof.
   refine (cType@{i} _).
@@ -27,5 +27,6 @@ Defined.
   Monomorphic Constraint j < i.
 Set Printing Universes.
 Check PROD@{i i i}.
-Check PRODinj@{i j}.
-Fail Check PRODinj@{j i}.
+(* The universe of [B] is raised to [i], its upper bound: [PRODinj@{i}] *)
+Check fun (A : Type@{i}) (B : A -> Type@{j}) => PRODinj@{i} A B.
+Fail Check fun (A : Type@{j}) (B : A -> Type@{i}) => PRODinj@{j} A B.

@@ -257,13 +257,11 @@ Proof. firstorder. Qed.
 (** Essential subrelation instances for [iffT] and [arrow]. *)
 
 #[global]
-Instance iffT_arrow_subrelation@{u u0 | u0 < u} :
-  subrelation@{u u0 u0} iffT@{u0 u0} arrow@{u0 u0} | 2.
+Instance iffT_arrow_subrelation : subrelation iffT arrow | 2.
 Proof. intros A B [f _]; exact f. Qed.
 
 #[global]
-Instance iffT_flip_arrow_subrelation@{u u0 u1 u2 | u0 < u, u2 < u1, u0 <= u2} :
-  subrelation@{u u0 u2} iffT@{u0 u0} (flip@{u u u1} arrow@{u0 u0}) | 2.
+Instance iffT_flip_arrow_subrelation : subrelation iffT (flip arrow) | 2.
 Proof. intros A B [_ g]; exact g. Qed.
 
 (** We use an extern hint to help unification. *)
@@ -692,13 +690,8 @@ Qed.
 Require Import Relation_Definitions.
 
 #[global]
-Instance PartialOrder_proper_type@{u u0 u1 u2 u3 u4 |
-    u3 < u1, u3 < u4, u0 <= u, u0 <= u1, u0 <= u2, u3 <= u2, u4 <= u}
-  {A : Type@{u0}} {eqA : crelation@{u0 u3} A} {equ : Equivalence@{u0 u3} eqA}
-  {R : crelation@{u0 u3} A} {preo : PreOrder@{u0 u3} R}
-  (_ : PartialOrder@{u0 u1 u2 u3 u4} eqA R) :
-  Proper@{u u2}
-    (@respectful@{u0 u3 u u2 u u2} _ _ eqA (@respectful@{u0 u3 u4 u3 u u2} _ _ eqA iffT@{u3 u3})) R.
+Instance PartialOrder_proper_type `(PartialOrder A eqA R) :
+  Proper (eqA==>eqA==>iffT) R.
 Proof.
 intros x x' Hx y y' Hy.
 destruct (partial_order_equivalence x x') as [fx _]; destruct (fx Hx) as [Hxx' Hx'x].
@@ -749,13 +742,9 @@ Qed.
 Hint Extern 4 (PreOrder (relation_disjunction _ _)) => 
   class_apply StrictOrder_PreOrder : typeclass_instances.
 
-Lemma StrictOrder_PartialOrder@{u u0 u1 u2 u3 u4 u5 u6 |
-    u4 < u3, u6 < u, u6 < u1, u3 <= u2, u4 <= u6, u5 <= u, u5 <= u0, u5 <= u2, u6 <= u0}
-  {A : Type@{u5}} {eqA : crelation@{u5 u6} A} (H : Equivalence@{u5 u6} eqA)
-  {R : crelation@{u5 u4} A} (H0 : StrictOrder@{u5 u4} R)
-  (H1 : Proper@{u2 u0}
-    (@respectful@{u5 u6 u2 u0 u2 u0} _ _ eqA (@respectful@{u5 u6 u3 u4 u2 u0} _ _ eqA iffT@{u4 u4})) R) :
-  PartialOrder@{u5 u u0 u6 u1} eqA (relation_disjunction@{u5 u4 u6 u6} R eqA).
+Lemma StrictOrder_PartialOrder
+  `(Equivalence A eqA, StrictOrder A R, Proper _ (eqA==>eqA==>iffT) R) :
+  PartialOrder eqA (relation_disjunction R eqA).
 Proof.
 intros. intros x y. compute. split.
 - intros Hxy; split; [right; exact Hxy|right; now apply symmetry].

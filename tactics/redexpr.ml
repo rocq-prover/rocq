@@ -348,7 +348,7 @@ let reduction_of_red_expr_val = function
     let redf = match w with Norm -> clos_norm_flags | Head -> clos_whd_flags in
     (e_red (redf f),DEFAULTcast)
   | Unfold ubinds -> (e_red (unfoldn (List.map (on_fst check_occurrences) ubinds)),DEFAULTcast)
-  | Fold cl -> (e_red (fold_commands cl),DEFAULTcast)
+  | Fold cl -> (fold_commands cl,DEFAULTcast)
   | Pattern lp -> (pattern_occs (List.map (on_fst check_occurrences) lp),DEFAULTcast)
   | ExtraRedExpr s ->
       (try (e_red (String.Map.find s !reduction_tab),DEFAULTcast)

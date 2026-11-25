@@ -40,7 +40,7 @@ let import senv clib digest =
   let vmtab, clib = vm_library_of env clib in
   let env = Environ.set_vm_library vmtab env in
   let mb = Safe_typing.module_of_library clib in
-  let () = Mod_checking.check_module env retro (Names.ModPath.MPfile dp) mb in
+  let () = UGraph.with_check_cache (fun () -> Mod_checking.check_module env retro (Names.ModPath.MPfile dp) mb) in
   let vmtab = Vmlibrary.inject (Vmlibrary.export vmtab) in
   let (_,senv) = Safe_typing.import clib vmtab digest senv in
   senv

@@ -314,10 +314,10 @@ Program Instance arrow_Transitive : Transitive arrow.
 Instance iffT_Reflexive : Reflexive iffT. 
 Proof. firstorder. Defined.
 #[global]
-Instance iffT_Symmetric@{u u0 | u0 < u} : Symmetric@{u u0} iffT@{u0 u0}.
+Instance iffT_Symmetric : Symmetric iffT.
 Proof. intros A B [f g]; exact (g, f). Defined.
 #[global]
-Instance iffT_Transitive@{u u0 | u0 < u} : Transitive@{u u0} iffT@{u0 u0}.
+Instance iffT_Transitive : Transitive iffT.
 Proof. intros A B C [f g] [f' g']; exact (fun x => f' (f x), fun x => g (g' x)). Defined.
 
 (** We now develop a generalization of results on crelations for arbitrary predicates.
@@ -330,8 +330,7 @@ Local Open Scope list_scope.
 
 (** We define the various operations which define the algebra on binary crelations *)
 Section Binary.
-  Universe u.
-  Context {A : Type@{u}}.
+  Context {A : Type}.
 
   Definition relation_equivalence : crelation (crelation A) :=
     fun R R' => forall x y, iffT (R x y) (R' x y).
@@ -347,8 +346,8 @@ Section Binary.
   
   (** Relation equivalence is an equivalence, and subrelation defines a partial order. *)
 
-  Global Instance relation_equivalence_equivalence@{u0 u1 u2 | u2 < u0, u <= u0, u <= u1, u2 <= u1} :
-    Equivalence@{u0 u1} relation_equivalence@{u0 u1 u2}.
+  Global Instance relation_equivalence_equivalence :
+    Equivalence relation_equivalence.
   Proof.
     split; red; unfold relation_equivalence.
     - intros R x y; apply iffT_Reflexive.
@@ -371,14 +370,12 @@ Section Binary.
    morphism for equivalence (see Morphisms).  It is also sufficient to
    show that [R] is antisymmetric w.r.t. [eqA] *)
 
-  Global Instance partial_order_antisym@{u0 u1 u2 u3 | u3 < u0, u3 < u2, u <= u0, u <= u1, u3 <= u1}
-    `(PartialOrder@{u0 u1 u3 u2} eqA R) : Antisymmetric eqA R.
+  Global Instance partial_order_antisym `(PartialOrder eqA R) : Antisymmetric eqA R.
   Proof.
     intros x y Hxy Hyx; destruct (partial_order_equivalence x y) as [_ g]; exact (g (Hxy, Hyx)).
   Qed.
 
-  Lemma PartialOrder_inverse@{u0 u1 u2 u3 | u3 < u0, u3 < u2, u <= u0, u <= u1, u3 <= u1}
-    `(PartialOrder@{u0 u1 u3 u2} eqA R) : PartialOrder@{u0 u1 u3 u2} eqA (flip R).
+  Lemma PartialOrder_inverse `(PartialOrder eqA R) : PartialOrder eqA (flip R).
   Proof.
     intros x y; destruct (partial_order_equivalence x y) as [f g]; split.
     - intros Hxy; destruct (f Hxy) as [Hl Hr]; exact (Hr, Hl).

@@ -106,17 +106,20 @@ let get_polymorphic_positions env sigma f =
   match EConstr.kind sigma f with
   | Ind (ind, u) | Construct ((ind, _), u) ->
     let mib,oib = Inductive.lookup_mind_specif env ind in
-      (match mib.mind_template with
+      (match Declareops.inductive_template mib with
       | None -> assert false
       | Some templ -> templ.template_param_arguments)
   | _ -> assert false
 
-let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(onlyalg=false) ?(refreshset=false)
+let refresh_universes ?(allowed_evars=AllowedEvars.all) ~status ?(onlyalg=false) ?(refreshset=false)
                       pbty env evd t =
   let evdref = ref evd in
   (* direction: true for fresh universes lower than the existing ones *)
   let refresh_sort status ~direction s =
     let sigma, l = new_univ_level_variable status !evdref in
+    (* Not a universe of the user: the minimization may set it to its lower bound whatever its
+       variances, e.g. in a polymorphic proof using [f_equal] *)
+    let sigma = Evd.add_internal_levels sigma (Univ.Level.Set.singleton l) in
     let s' = Sorts.make (Sorts.quality @@ ESorts.kind sigma s) (Univ.Universe.make l) in
     let s' = ESorts.make s' in
     evdref := sigma;
@@ -134,14 +137,12 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(o
         (match Univ.Universe.level u with
         | None -> refresh_sort status ~direction s
         | Some l ->
-          (if Univ.Level.Set.mem l (fst @@ Evd.universe_context_set !evdref) then
-             let () = if UState.is_algebraic l (Evd.ustate !evdref) then
-                 evdref := Evd.make_nonalgebraic_variable !evdref l
-             in
-             t
-           else if not onlyalg && (not (Univ.Level.is_set l) || (refreshset && not direction))
-           then refresh_sort status ~direction s
-           else t))
+           (match Evd.universe_rigidity !evdref l with
+            | UnivRigid ->
+              if not onlyalg && (not (Univ.Level.is_set l) || (refreshset && not direction))
+              then refresh_sort status ~direction s
+               else t
+            | UnivFlexible -> t))
       | Set when refreshset && not direction ->
        (* Cannot make a universe "lower" than "Set",
           only refreshing when we want higher universes. *)
@@ -170,11 +171,11 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(o
       let ty' = refresh ~onlyalg univ_flexible ~direction:true ty in
       if ty == ty' then t
       else (evdref := Evd.downcast ev ty' !evdref; t)
-    | Sort s ->
-       (match ESorts.kind !evdref s with
-        | Type u when not (Univ.Universe.is_levels u) ->
-           refresh_sort Evd.univ_flexible ~direction:false s
-        | _ -> t)
+    (* The algebraic sorts inside the term are kept: terms may mention algebraic universes, and
+       the position of the sort is unknown. Replacing [Type@{max(a,b)}] by [Type@{u}] with only
+       [max(a, b) <= u] is right in a covariant position only: elsewhere, e.g. in [fun _ =>
+       Type@{max(a,b)}] used as the type of an equality, the term is only well typed for [u :=
+       max(a, b)], which the minimization would have to guess. *)
     | _ -> EConstr.map !evdref (refresh_term_evars ~onevars ~top:false) t
   and refresh_polymorphic_positions args pos =
     let rec aux i = function
@@ -193,8 +194,9 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(o
     if isArity !evdref t then
       match pbty with
       | None ->
-         (* No cumulativity needed, but we still need to refresh the algebraics *)
-         refresh ~onlyalg:true univ_flexible ~direction:false t
+         (* No cumulativity: the sorts of the arity are compared with CONV, refreshing them
+            would only record one of the two inequalities. Algebraic universes are allowed. *)
+         t
       | Some direction -> refresh ~onlyalg status ~direction t
     else refresh_term_evars ~onevars:false ~top:true t
   in !evdref, t'
@@ -202,7 +204,7 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(o
 let get_type_of_refresh ?(lax=false) env evars t =
   let tty = Retyping.get_type_of env evars t in
   let evars', tty = refresh_universes ~onlyalg:true
-    ~status:(Evd.UnivFlexible false) (Some false) env evars tty in
+    ~status:Evd.UnivFlexible (Some false) env evars tty in
   evars', tty
 
 let add_conv_oriented_pb ?(tail=true) (pbty,env,t1,t2) evd =
@@ -1491,6 +1493,10 @@ let solve_evar_evar ?(force=false) f unify flags env evd pbty (evk1,args1 as ev1
   let downcast evk t evd = downcast evk t evd in
   let evd =
     try
+      if Evd.is_typeclass_evar evd evk1 || Evd.is_typeclass_evar evd evk2 then
+        (* Do not allow piercing through the typeclass abstraction *)
+        evd
+      else
       (* ?X : Π Δ. Type i = ?Y : Π Δ'. Type j.
          The body of ?X and ?Y just has to be of type Π Δ. Type k for some k <= i, j. *)
       let evienv = Evd.evar_env env evi in
@@ -1508,7 +1514,7 @@ let solve_evar_evar ?(force=false) f unify flags env evd pbty (evk1,args1 as ev1
           let t1 = it_mkProd_or_LetIn (mkSort j) ctx1 in
           downcast evk1 t1 evd
         else
-          let evd, k = Evd.new_sort_variable univ_flexible_alg evd in
+          let evd, k = Evd.new_sort_variable univ_flexible evd in
           let t1 = it_mkProd_or_LetIn (mkSort k) ctx1 in
           let t2 = it_mkProd_or_LetIn (mkSort k) ctx2 in
           let evd = Evd.set_leq_sort (Evd.set_leq_sort evd k i) k j in
@@ -1860,7 +1866,7 @@ and evar_define unify flags ?(choose=false) ?(imitate_defs=true) env evd pbty (e
     if occur_evar_upto_types evd' evk body then raise (OccurCheckIn (evd',rhs));
     if Evd.is_defined evd' evk then add_conv_oriented_pb (pbty,env,mkEvar ev,rhs) evd' else
     (* needed only if an inferred type *)
-    let evd', body = refresh_universes pbty env evd' body in
+    let evd', body = refresh_universes ~status:univ_flexible pbty env evd' body in
     instantiate_evar unify flags env evd' evk body
   with
     | NotEnoughInformationToProgress sols ->

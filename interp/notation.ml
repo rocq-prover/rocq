@@ -1623,7 +1623,8 @@ let declare_ntn_gram_loc ntn (loc : Loc.t option) =
 
 let get_ntn_gram_locs ntn decl_loc =
   let open Summary.Ref in
-  let list = NotationMap.find ntn !notation_gram_locs in
+  (* No grammar rule is declared for some notations, e.g. ["1"], which is parsed as a number *)
+  let list = Option.default [] (NotationMap.find_opt ntn !notation_gram_locs) in
   (match decl_loc with
      None -> list
      (* Filter out the implicit [Reserve Notation] that every [Notation] performs. *)

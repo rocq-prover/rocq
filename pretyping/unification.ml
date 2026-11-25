@@ -1123,7 +1123,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
     and cN = Evarutil.whd_head_evar sigma curn in
     let () =
       debug_tactic_unification (fun () ->
-          Termops.Internal.print_constr_env curenv sigma cM ++ strbrk" ~= " ++
+          Termops.Internal.print_constr_env curenv sigma cM ++ (if pb == CONV then strbrk" ~= " else strbrk " ~<= ")  ++
           Termops.Internal.print_constr_env curenv sigma cN)
     in
       match (EConstr.kind sigma cM, EConstr.kind sigma cN) with
@@ -1410,6 +1410,16 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
       try (* Force unification of the types to fill in parameters *)
         let ty1 = get_type_of_with_metas ~metas curenv ~lax:true substn.subst_sigma c1 in
         let ty2 = get_type_of_with_metas ~metas curenv ~lax:true substn.subst_sigma c2 in
+        (* Ground types have nothing to fill, but must still agree, e.g. when [c1] is an evar
+           instantiated with [c2]: they are only compared up to universes, as unifying them would
+           identify their universes, e.g. those irrelevant in [c1] and [c2] but not in their
+           types *)
+        let sigma = substn.subst_sigma in
+        if not (occur_meta_or_undefined_evar sigma ty1 || occur_meta_or_undefined_evar sigma ty2)
+        then
+          if is_conv_nounivs curenv sigma ty1 ty2 then substn
+          else error_cannot_unify curenv sigma (ty1, ty2)
+        else
           unify_0_with_initial_metas substn true curenv cv_pb
             { flags with modulo_conv_on_closed_terms = Some TransparentState.full;
               modulo_delta = TransparentState.full;
@@ -1630,7 +1640,8 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
   let sigma = subst.subst_sigma in
   debug_tactic_unification (fun () ->
       str "Starting unification:" ++ spc() ++
-      Termops.Internal.print_constr_env env sigma (fst m) ++ strbrk" ~= " ++
+      Termops.Internal.print_constr_env env sigma (fst m) ++
+      (match pb with CONV -> strbrk" ~= " | CUMUL -> strbrk" ~<= ") ++
       Termops.Internal.print_constr_env env sigma (fst n));
 
   let opt = { at_top = conv_at_top; with_types = false; with_cs = true } in
@@ -1835,7 +1846,6 @@ let nf_meta ~metas env sigma c =
   if Metaset.is_empty freemetas then c else Meta.meta_instance metas env sigma c
 
 let unify_to_type ~metas env sigma flags c status u =
-  let sigma, c = refresh_universes ~status:Evd.univ_flexible ~onlyalg:true (Some false) env sigma c in
   let c = nf_meta ~metas env sigma c in
   let t =
     try get_type_of_with_metas ~metas ~lax:true env sigma c
