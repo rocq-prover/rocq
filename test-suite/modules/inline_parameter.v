@@ -10,6 +10,21 @@ Module M.
   Fail Parameter Inline(1) x : Type.
 End M.
 
+Module Type E. End E.
+Module VE. End VE.
+
+Module Type BadT(X:E).
+
+  Fail Parameter Inline x : nat.
+
+End BadT.
+
+Module Type BadT'.
+  Module F(X:E).
+    Fail Parameter Inline x : nat.
+  End F.
+End BadT'.
+
 Module Type T.
   Parameter Inline t : Type.
   Parameter u : t -> t.

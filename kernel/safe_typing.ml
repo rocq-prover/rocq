@@ -608,6 +608,14 @@ let rec is_modtype senv =
   | SIG _ -> true
   | NONE | LIBRARY -> false
 
+let rec is_simple_modtype senv =
+  match senv.modvariant with
+  | STRUCT ([],senv) -> is_simple_modtype senv
+  | SIG ([], _) -> true
+  | STRUCT (_ :: _, _)
+  | SIG (_ :: _, _)
+  | NONE | LIBRARY -> false
+
 let get_section = function
   | None -> CErrors.user_err Pp.(str "No open section.")
   | Some s -> s
@@ -909,7 +917,7 @@ let warn_inline_in_module =
   CWarnings.create ~name:"inline-parameter-in-module"
     ~category:CWarnings.CoreCategories.vernacular
     (fun kn -> Pp.(str "Ignoring the Inline annotation of " ++
-      Constant.print kn ++ strbrk " outside of a module  type."))
+      Constant.print kn ++ strbrk " outside of a un-parameterized module type."))
 
 let add_constant_aux senv ?hbody (kn, cb) =
   let l = Constant.label kn in
@@ -918,17 +926,22 @@ let add_constant_aux senv ?hbody (kn, cb) =
   let cb = if sections_are_opened senv then cb else
       Declareops.hcons_const_body ?hbody:(make_hbody hbody) cb
   in
-  let senv' = add_field (l,SFBconst cb) (C kn) senv in
-  let senv'' = match cb.const_body with
+  let cb, inl = match cb.const_body with
     | Undef (Some lev) ->
       (* An inlining declaration only makes sense in a module type *)
-      if is_modtype senv' then
-        update_resolver
-          (Mod_subst.add_inline_delta_resolver (Constant.user kn) lev) senv'
+      if is_simple_modtype senv then
+        cb, Some lev
       else
         let () = warn_inline_in_module kn in
-        senv'
-    | _ -> senv'
+        { cb with const_body = Undef None }, None
+    | _ -> cb, None
+  in
+  let senv' = add_field (l,SFBconst cb) (C kn) senv in
+  let senv'' = match inl with
+    | Some lev ->
+      update_resolver
+        (Mod_subst.add_inline_delta_resolver (Constant.user kn) lev) senv'
+    | None -> senv'
   in
   senv''
 
