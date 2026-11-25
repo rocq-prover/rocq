@@ -338,6 +338,8 @@ let rec string loc ~comm_level bp len s = match Stream.peek () s with
             Stream.junk () s;
             let () = match comm_level with
             | Some 0 ->
+              let ep = Stream.count s in
+              let loc = set_loc_pos loc (ep - 2) ep in
               warn_comment_terminator_in_string ~loc ()
             | _ -> ()
             in
