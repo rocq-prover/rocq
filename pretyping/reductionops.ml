@@ -1405,7 +1405,7 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
     report_anomaly e
 
 let infer_conv = infer_conv_gen { genconv = fun pb ~l2r sigma ->
-      Conversion.generic_conv pb ~l2r ~evars:(Evd.evar_handler sigma) }
+      Conversion.generic_conv pb ~l2r ~use_cache:false ~evars:(Evd.evar_handler sigma) }
 
 let evars_of_evar_map sigma =
   { Genlambda.evars_val = Evd.evar_handler sigma }
