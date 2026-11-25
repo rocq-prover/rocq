@@ -536,7 +536,7 @@ let inline_of_modtype inl mp mtb =
 
 (* The result carries inlined bodies, so it is a substitution resolver; the
    [delta] it starts from is the resolver of the module being passed. *)
-let inline_delta_resolver env inl mp _mbid mtb delta =
+let inline_delta_resolver env inl mp mtb delta =
   let constants = inline_of_modtype inl mp mtb in
   let rec make_inline delta = function
     | [] -> delta
