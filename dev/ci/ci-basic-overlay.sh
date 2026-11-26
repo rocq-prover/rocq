@@ -306,7 +306,7 @@ project ext_lib "https://github.com/coq-community/coq-ext-lib" "master"
 ########################################################################
 # simple-io
 ########################################################################
-project simple_io "https://github.com/Lysxia/coq-simple-io" "master"
+project simple_io "https://github.com/Lysxia/rocq-simple-io" "main"
 # Contact @Lysxia, @liyishuai on github
 
 ########################################################################
