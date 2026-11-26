@@ -534,6 +534,50 @@ test-suite:edge+flambda:
     OPAM_VARIANT: "+flambda"
   only: *full-ci
 
+# rocq c compiled with wasm_of_ocaml (package rocq-web), linking the
+# libraries of build:edge+flambda, runs under node on its Corelib (see
+# web/test/run.sh): it detects the .vo files that cannot be loaded with
+# 31 bits integers.
+# - wasm_of_ocaml needs binaryen, node >= 22 runs the wasm code;
+# - the js_of_ocaml commit is 6.5.0 plus unreleased changes
+#   (ocsigen/js_of_ocaml#2642, #2644, #2645, #2658), only #2642 matters
+#   under node;
+# - zarith_stubs_js provides the primitives of Zarith for wasm on its
+#   master branch (not in v0.17.0).
+test-suite:edge:wasm:
+  stage: build-1
+  interruptible: true
+  extends: .auto-use-tags
+  image: $EDGE_IMAGE
+  needs:
+    - build:edge+flambda
+  variables:
+    OPAM_VARIANT: "+flambda"
+    NODE_VERSION: "v24.22.3"
+    BINARYEN_VERSION: "version_133"
+    WASM_OF_OCAML: "git+https://github.com/gares/js_of_ocaml.git#99d430a1f07f3db3ac4bed3d7ab1d4cc6126728c"
+    ZARITH_STUBS_JS: "git+https://github.com/janestreet/zarith_stubs_js.git#24f48f7e3ac3b36e910ed13106cfac75be3cff29"
+  script:
+    - dev/ci/gitlab-section.sh start wasm.tools wasm.tools
+    - mkdir -p _wasm_tools
+    - wget -q -O - "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-linux-x64.tar.gz" | tar xz -C _wasm_tools
+    - wget -q -O - "https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN_VERSION/binaryen-$BINARYEN_VERSION-x86_64-linux.tar.gz" | tar xz -C _wasm_tools
+    - export PATH="$(pwd)/_wasm_tools/node-$NODE_VERSION-linux-x64/bin:$(pwd)/_wasm_tools/binaryen-$BINARYEN_VERSION/bin:$PATH"
+    - node --version
+    - wasm-opt --version
+    - opam pin add -n wasm_of_ocaml-compiler "$WASM_OF_OCAML"
+    - opam pin add -n zarith_stubs_js "$ZARITH_STUBS_JS"
+    - opam install wasm_of_ocaml-compiler zarith_stubs_js
+    - dev/ci/gitlab-section.sh end wasm.tools
+
+    - export OCAMLPATH=$(readlink -f _install_ci/lib/):"$OCAMLPATH"
+    - dev/ci/gitlab-section.sh start wasm.build wasm.build
+    - dune build -p rocq-web @install
+    - dev/ci/gitlab-section.sh end wasm.build
+
+    - web/test/run.sh "$(pwd)/_build/default/web/rocq_c.bc.wasm.js" "$(readlink -f _install_ci/lib/coq)"
+  only: *full-ci
+
 test-suite:base:dev:
   stage: build-1
   interruptible: true
