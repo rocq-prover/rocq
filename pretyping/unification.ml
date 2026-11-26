@@ -2136,6 +2136,7 @@ let make_pattern_test from_prefix_of_ind is_correct_type env sigma (pending,c) =
   let n = Array.length (snd (decompose_app sigma c)) in
   let cgnd = if occur_meta_or_undefined_evar sigma c then NotGround else Ground in
   let exception NotUnifiable in
+  let cty = lazy (Retyping.get_type_of env sigma c) in
   let matching_fun k _ t =
     (* make_pattern_test is only ever called with an empty rel context *)
     if 0 < k && not (EConstr.Vars.closed0 sigma t) then Result.Error ()
@@ -2150,9 +2151,22 @@ let make_pattern_test from_prefix_of_ind is_correct_type env sigma (pending,c) =
           if not (List.for_all (fun c -> Vars.closed0 sigma c) l2) then raise NotUnifiable
           else applist (t,l1), l2
         else t, [] in
-      let metas = Metamap.empty in (* FIXME ? *)
-      let _metas, sigma = w_typed_unify ~metas env sigma Conversion.CONV flags (c, cgnd) (t', Unknown) in
-      let ty = Retyping.get_type_of env sigma t in
+      let sigma, ty = match cgnd with
+      | Ground when not from_prefix_of_ind ->
+        let ts = Option.default TransparentState.empty flags.core_unify_flags.modulo_conv_on_closed_terms in
+        begin match infer_conv ~pb:CONV ~ts env sigma c t' with
+        | None -> raise NotUnifiable
+        | Some sigma ->
+          let ty = Retyping.get_type_of env sigma t in
+          match infer_conv ~pb:CONV env sigma (Lazy.force cty) ty with
+          | Some sigma -> sigma, ty
+          | None -> raise NotUnifiable
+        end
+      | _ ->
+        let metas = Metamap.empty in (* FIXME ? *)
+        let sigma = snd (w_typed_unify ~metas env sigma Conversion.CONV flags (c, cgnd) (t', Unknown)) in
+        sigma, Retyping.get_type_of env sigma t
+      in
       if is_correct_type ty then Result.Ok (sigma, t, l2)
       else Result.Error ()
     with
