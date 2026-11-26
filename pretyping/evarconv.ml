@@ -1906,8 +1906,17 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
     | _, _, [] -> []
     | _ -> anomaly (Pp.str "Signature or instance are shorter than the occurrences list.")
   in
-  let rec set_holes env_rhs evd fixed rhs = function
-  | (id,idty,c,cty,evsref,filter,occs)::subst ->
+  (* The recursion never needs to extend [env_rhs]: each abstracted
+     occurrence is a fresh evar (see [set_var]) whose context is the
+     whole context of the evar being solved, so its instance mentions
+     that context's variables by name. Since these evars are immediately
+     marked as fixed, [apply_on_subterm] does not descend into their
+     arguments, so those names are never looked up in [env_rhs] during
+     the recursion; they are only resolved afterwards, when
+     [abstract_free_holes] instantiates the occurrence evars with the
+     corresponding context variables, in the evar's own context. *)
+  let rec set_holes evd fixed rhs = function
+  | (id,_idty,c,cty,evsref,filter,occs)::subst ->
      let c = nf_evar evd c in
      debug_ho_unification (fun () ->
        Pp.(str"set holes for: " ++
@@ -1926,7 +1935,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
           if Locusops.is_selected oc occs then evd, fixed, mkVar id.binder_name
           else evd, fixed, inst
        | Unspecified prefer_abstraction ->
-          let evd, fixed, evty = set_holes env_rhs evd fixed cty subst in
+          let evd, fixed, evty = set_holes evd fixed cty subst in
           let evty = nf_evar evd evty in
           debug_ho_unification (fun () ->
             Pp.(str"abstracting one occurrence " ++ prc env_rhs evd inst ++
@@ -1953,13 +1962,12 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
      debug_ho_unification (fun () ->
        Pp.(str"abstracted: " ++ prc env_rhs evd rhs'));
      let () = check_selected_occs env_rhs evd c !occ occs in
-     let env_rhs' = push_named ProofVar (NamedDecl.LocalAssum (id,idty)) env_rhs in
-     set_holes env_rhs' evd fixed rhs' subst
+     set_holes evd fixed rhs' subst
   | [] -> evd, fixed, rhs in
 
   let subst = make_subst 0 (ctxt,args,argoccs) in
 
-  let evd, _, rhs' = set_holes env_rhs evd Evar.Set.empty rhs subst in
+  let evd, _, rhs' = set_holes evd Evar.Set.empty rhs subst in
   let rhs' = nf_evar evd rhs' in
   (* Thin evars making the term typable in env_evar *)
   let evd, rhs' = thin_evars env_evar evd ctxt rhs' in
@@ -1979,7 +1987,7 @@ let second_order_matching flags env_rhs evd (evk,args) (test,argoccs) rhs =
     str"evars: " ++ pr_evar_map (Some 0) env_evar evd));
 
   let rec abstract_free_holes evd = function
-   | (id,idty,c,cty,evsref,_,_)::l ->
+   | (id,_idty,c,cty,evsref,_,_)::l ->
      let id = id.binder_name in
      let c = nf_evar evd c in
      debug_ho_unification (fun () ->
