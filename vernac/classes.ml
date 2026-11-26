@@ -308,7 +308,6 @@ let type_ctx_instance ~program_mode env sigma ctx inst subst =
   aux (sigma, subst) inst (List.rev ctx)
 
 let instance_hook info global ?hook cst =
-  let info = intern_info info in
   let env = Global.env () in
   let sigma = Evd.from_env env in
   declare_instance env sigma (Some info) global cst;
@@ -343,7 +342,6 @@ let do_declare_instance sigma ~locality ~poly k ctx ctx' pri udecl impargs subst
 let declare_instance_program pm ~sealed env sigma ~locality ~poly {CAst.v=name;loc} pri impargs udecl term termtype =
   let hook { Declare.Hook.S.scope; dref; _ } =
     let cst = match dref with GlobRef.ConstRef kn -> kn | _ -> assert false in
-    let pri = intern_info pri in
     let env = Global.env () in
     let sigma = Evd.from_env env in
     declare_instance env sigma (Some pri) locality (GlobRef.ConstRef cst)
@@ -592,6 +590,7 @@ let new_instance_common ~program_mode ~poly env instid ctx cl =
 let new_instance_interactive ~locality ~poly instid ctx cl
     ?(tac:unit Proofview.tactic option) ?hook
     pri opt_props =
+  let pri = intern_info pri in
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
     new_instance_common ~program_mode:false ~poly env instid ctx cl in
@@ -599,6 +598,7 @@ let new_instance_interactive ~locality ~poly instid ctx cl
     cty k ctx ctx' pri decl imps subst id opt_props
 
 let new_instance_program ~locality ~pm ~poly ~sealed instid ctx cl opt_props ?hook pri =
+  let pri = intern_info pri in
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
     new_instance_common ~program_mode:true ~poly env instid ctx cl in
@@ -608,6 +608,7 @@ let new_instance_program ~locality ~pm ~poly ~sealed instid ctx cl opt_props ?ho
   pm, id
 
 let new_instance ~locality ~poly ~sealed instid ctx cl props ?hook pri =
+  let pri = intern_info pri in
   let env = Global.env() in
   let id, env', sigma, k, u, cty, ctx', ctx, imps, subst, decl =
     new_instance_common ~program_mode:false ~poly env instid ctx cl in
@@ -616,6 +617,7 @@ let new_instance ~locality ~poly ~sealed instid ctx cl props ?hook pri =
   id
 
 let declare_new_instance ~locality ~program_mode ~poly instid ctx cl pri =
+  let pri = intern_info pri in
   let env = Global.env() in
   let (instid, pl) = instid in
   let sigma, k, u, cty, ctx', ctx, imps, subst, decl =
