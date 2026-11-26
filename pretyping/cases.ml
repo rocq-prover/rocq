@@ -874,7 +874,14 @@ let push_generalized_decl_eqn env sigma n decl eqn =
   | Anonymous ->
       push_rels_eqn sigma [decl] eqn
   | Name _ ->
-      push_rels_eqn sigma [RelDecl.set_name (RelDecl.get_name (Environ.lookup_rel n !!(eqn.rhs.rhs_env))) decl] eqn
+      let rhs_env = !!(eqn.rhs.rhs_env) in
+      let na = match RelDecl.get_name (Environ.lookup_rel n rhs_env) with
+      | Name id as na ->
+        let (k, _, _) = lookup_rel_id id (Environ.rel_context rhs_env) in
+        if Int.equal k n then na else Anonymous
+      | Anonymous -> Anonymous
+      in
+      push_rels_eqn sigma [RelDecl.set_name na decl] eqn
 
 let drop_alias_eqn eqn =
   { eqn with alias_stack = List.tl eqn.alias_stack }
