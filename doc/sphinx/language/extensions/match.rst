@@ -159,6 +159,8 @@ and
 
 In practice type inference may use slightly different heuristics for the different syntaxes.
 
+.. _let-pattern:
+
 Let-pattern syntax
 ++++++++++++++++++
 
@@ -652,7 +654,7 @@ This can be used to bind a term to a name without generating a letin, for instan
 
    Check fun x : nat => match x + x with y => y + y end.
 
-or equivalently
+or equivalently, using a :ref:`destructuring let<let-pattern>`
 
 .. rocqtop:: all
 
