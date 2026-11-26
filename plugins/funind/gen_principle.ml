@@ -170,6 +170,31 @@ let recompute_binder_list (rec_order, fixpoint_exprl) =
   in
   fixpoint_exprl_with_new_bl
 
+let name_anonymous_binders extra ({Vernacexpr.binders; rtype; body_def} as fp) =
+  let exprs = Constrexpr_ops.mkCProdN binders rtype :: Option.List.cons body_def extra in
+  let avoid =
+    List.fold_left
+      (fun acc c -> Id.Set.union acc (Constrexpr_ops.names_of_constr_expr c))
+      Id.Set.empty exprs
+  in
+  let name_binder avoid na =
+    match na.CAst.v with
+    | Anonymous ->
+      let id = Namegen.next_ident_away (Id.of_string "H") avoid in
+      (Id.Set.add id avoid, CAst.make ?loc:na.CAst.loc (Name id))
+    | Name _ -> (avoid, na)
+  in
+  let _, binders =
+    List.fold_left_map
+      (fun avoid -> function
+        | Constrexpr.CLocalAssum (nal, r, bk, t) ->
+          let avoid, nal = List.fold_left_map name_binder avoid nal in
+          (avoid, Constrexpr.CLocalAssum (nal, r, bk, t))
+        | b -> (avoid, b))
+      avoid binders
+  in
+  {fp with Vernacexpr.binders}
+
 let rec local_binders_length = function
   (* Assume that no `{ ... } contexts occur *)
   | [] -> 0
@@ -1751,7 +1776,7 @@ let do_generate_principle_aux pconstants on_error register_built
       let ( {Vernacexpr.fname; univs = _; binders; rtype; body_def} as
           fixpoint_expr ) =
         match recompute_binder_list fix with
-        | [e] -> e
+        | [e] -> name_anonymous_binders [wf_rel] e
         | _ -> assert false
       in
       let fixpoint_exprl = [fixpoint_expr] in
@@ -1778,7 +1803,7 @@ let do_generate_principle_aux pconstants on_error register_built
       let ( {Vernacexpr.fname; univs = _; binders; rtype; body_def} as
           fixpoint_expr ) =
         match recompute_binder_list fix with
-        | [e] -> e
+        | [e] -> name_anonymous_binders (wf_mes :: Option.List.cons wf_rel_opt []) e
         | _ -> assert false
       in
       let fixpoint_exprl = [fixpoint_expr] in
