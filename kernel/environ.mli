@@ -271,11 +271,13 @@ val template_polymorphic_pind : pinductive -> env -> bool
 (** {6 Changes of representation of Case nodes} *)
 
 (** Given an inductive type and its parameters, builds the context of the return
-    clause, including the inductive being eliminated. The additional binder
-    array is only used to set the names of the context variables, we use the
-    less general type to make it easy to use this function on Case nodes. *)
+    clause, including the inductive being eliminated.
+
+    The additional binder array is only used to set the names of the
+    context variables, we use the less general type to make it easy to
+    use this function on Case nodes. *)
 val expand_arity : Declarations.mind_specif -> pinductive -> constr array ->
-  Name.t binder_annot array -> rel_context
+  (Name.t, _) Context.pbinder_annot array -> rel_context
 
 (** Given an inductive type and its parameters, builds the context of the return
     clause, including the inductive being eliminated. The additional binder

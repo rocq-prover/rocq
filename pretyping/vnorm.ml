@@ -130,6 +130,7 @@ let build_branches_type env sigma (mind,_ as _ind) mib mip u params (pctx, p) =
     in
     let decl_with_letin = List.firstn mip.mind_consnrealdecls.(i) (fst cty) in
     let nas = get_case_annot decl_with_letin in
+    let nas = Array.map (Context.map_annot_relevance (UVars.subst_instance_relevance u)) nas in
     let rec get_lift decls = match decls with
     | [] -> Esubst.el_id
     | LocalDef _ :: decls -> Esubst.el_shft 1 (get_lift decls)
@@ -287,6 +288,7 @@ and nf_stk ?from:(from=0) env sigma c t stk  =
       let params,realargs = Util.Array.chop nparams allargs in
       let pctx =
         let realdecls, _ = List.chop mip.mind_nrealdecls mip.mind_arity_ctxt in
+        (* NB expand_arity doesn't look at the relevances in nas *)
         let nas = List.rev_map RelDecl.get_annot realdecls @ [nameR (Id.of_string "c")] in
         expand_arity (mib, mip) (ind, u) params (Array.of_list nas)
       in
