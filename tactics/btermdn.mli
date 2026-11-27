@@ -23,6 +23,18 @@ indicates which constants and variables can be considered as rigid.
 These dnets are able to cope with existential variables as well, which match
 [Everything]. *)
 
+(** Cache of head summaries of transparent constants, shared by the dnets of
+    a hint database. It must only be used with a single transparent state. *)
+type cache
+
+val empty_cache : unit -> cache
+
+(** Heads labelled by the syntactic patterns of a dnet, which must stay
+    wildcards when looking up a goal in that dnet. *)
+type syntactic
+
+val empty_syntactic : syntactic
+
 module Make :
   functor (Z : Map.OrderedType) ->
 sig
@@ -31,15 +43,15 @@ sig
   type pattern
 
   val pattern : Environ.env -> TransparentState.t option -> constr_pattern -> pattern
-  val pattern_syntactic : Environ.env -> constr_pattern -> pattern
-  val constr_pattern : Environ.env -> Evd.evar_map -> TransparentState.t option -> EConstr.t -> pattern
+  val pattern_syntactic : Environ.env -> syntactic -> constr_pattern -> syntactic * pattern
+  val constr_pattern : Environ.env -> Evd.evar_map -> cache -> TransparentState.t option -> EConstr.t -> pattern
 
   val empty : t
 
   val add : t -> pattern -> Z.t -> t
   val rmv : t -> pattern -> Z.t -> t
 
-  val lookup : Environ.env -> Evd.evar_map -> TransparentState.t option -> t -> EConstr.constr -> Z.t list
+  val lookup : Environ.env -> Evd.evar_map -> cache -> syntactic -> TransparentState.t option -> t -> EConstr.constr -> Z.t list
 end
 
 val dnet_depth : int ref
