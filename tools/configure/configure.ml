@@ -22,10 +22,35 @@ open CmdArgs.Prefs
 
 let (/) = Filename.concat
 
-let coq_version = "9.2"
-(* format: "%d%02d%d" major minor patch
-   for pre-release version (eg 9.2+alpha), use the previous minor, and patch = 99 *)
-let vo_magic = 90299
+type patch = Alpha | Rc of int | Release of int
+[@@warning "-unused-constructor"]
+
+let pr_patch = function
+  | Alpha -> "+alpha"
+  | Rc i -> "+rc" ^ string_of_int i
+  | Release i -> "." ^ string_of_int i
+
+let major = 9
+let minor = 2
+let patch = Release 0
+
+let coq_version = Printf.sprintf "%d.%d%s" major minor (pr_patch patch)
+
+let vo_magic =
+  match patch with
+  | Release 0 when major = 9 && minor = 2 ->
+    (* 9.2.0 was released with this magic number. Keep its .vo compatibility. *)
+    90299
+  | Alpha | Rc _ | Release _ ->
+    let patch = match patch with
+      | Alpha -> -1
+      | Rc _ -> 0
+      | Release i -> i
+    in
+    major * 10_000 + minor * 100 + patch
+
+(* NB: not the same as checking patch = Release,
+   because post release commits still get patch = Release *)
 let is_a_released_version = false
 
 (** Default OCaml binaries *)
