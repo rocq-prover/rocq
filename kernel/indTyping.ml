@@ -175,8 +175,8 @@ let check_arity ~template env_params env_ar (na, arity) =
      full_arity is used as argument or subject to cast, an upper
      universe will be generated *)
   let arity = it_mkProd_or_LetIn arity (Environ.rel_context env_params) in
-  let x = Context.make_annot (Name na) (Sorts.relevance_of_sort ind_sort) in
-  push_rel (LocalAssum (x, arity)) env_ar,
+  (* An inductive type lives in a sort, so it is always Relevant *)
+  push_rel (LocalAssum (Context.nameR na, arity)) env_ar,
   (arity, indices, univ_info)
 
 let check_constructor_univs env_ar_par info (args,_) =

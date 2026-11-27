@@ -25,6 +25,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [incorrect variance inference with letin in constructor type](#incorrect-variance-inference-with-letin-in-constructor-type)
       - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
       - [array literals longer than max_length not rejected by the typechecker](#array-literals-longer-than-max_length-not-rejected-by-the-typechecker)
+      - [wrong binder relevance on SProp inductive types during constructor typechecking](#wrong-binder-relevance-on-sprop-inductive-types-during-constructor-typechecking)
     - [Guard condition](#guard-condition)
       - [missing lift in checking guard](#missing-lift-in-checking-guard)
       - [de Bruijn indice bug in checking guard of nested cofixpoints](#de-bruijn-indice-bug-in-checking-guard-of-nested-cofixpoints)
@@ -319,6 +320,21 @@ and lack of checking of relevance marks on constants in coqchk
 - risk: requires constructing an array literal longer than
   `max_length` (4194304 elements) through the typechecker
   (as opposed to evaluating a primitive function like `make` applied to a large integer)
+
+#### wrong binder relevance on SProp inductive types during constructor typechecking
+
+- component: inductive declarations, SProp
+- introduced: V8.10 ([23f84f37c6](https://github.com/rocq-prover/rocq/commit/23f84f37c674a07e925925b7e0d50d7ee8414093), introduction of relevance marks for SProp)
+- impacted released versions: V8.10 to V9.3.0
+- impacted coqchk versions: same
+- fixed in: V9.2.1, V9.3.1, V9.4 ([#22925](https://github.com/rocq-prover/rocq/pull/22925))
+- found by: Gregory Nisbet (using Gemini)
+- exploit: test-suite/bugs/bug_22924.v
+- GH issue number: [#22924](https://github.com/rocq-prover/rocq/issues/22924)
+- risk: In an inductive declaration with sort SProp, needs a local definition in
+  constructor arguments, introducing a binder with type the inductive
+  being declared, and using the variable as another type
+  (another inductive in the current block, or with different indices).
 
 ### Guard condition
 

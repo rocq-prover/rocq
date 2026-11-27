@@ -957,10 +957,9 @@ let ienv_push_inductive ?evars (env, ra_env) ((mind,u),lpar) =
   let mib = Environ.lookup_mind mind env in
   let ntypes = Declareops.mind_ntypes mib in
   let push_ind j env mip =
-    let r = relevance_of_ind_body mip u in
-    let anon = Context.make_annot Anonymous r in
     let lpar = List.map (lift j) lpar in
-    let decl = LocalAssum (anon, hnf_prod_applist ?evars env (type_of_inductive ((mib,mip),u)) lpar) in
+    let ty = hnf_prod_applist ?evars env (type_of_inductive ((mib,mip),u)) lpar in
+    let decl = LocalAssum (Context.anonR, ty) in
     push_rel decl env
   in
   let env = Array.fold_left_i push_ind env mib.mind_packets in
