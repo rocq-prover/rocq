@@ -709,6 +709,8 @@ let get_applications mexpr =
 let rec replace_module_object idl mp0 objs0 mp1 objs1 =
   match idl, objs0 with
   | _,[] -> []
+  | idl, (IncludeObject aobjs) :: tail ->
+    replace_module_object idl mp0 (expand_aobjs aobjs @ tail) mp1 objs1
   | id::idl,(ModuleObject (id', sobjs))::tail when Id.equal id id' ->
     begin
       let mp_id = MPdot(mp0, id) in
