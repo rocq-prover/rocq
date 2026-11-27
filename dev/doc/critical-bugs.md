@@ -29,6 +29,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker does not check for correct recursive calls when passed as uniform argument in a nested fixpoint](#guard-checker-does-not-check-for-correct-recursive-calls-when-passed-as-uniform-argument-in-a-nested-fixpoint)
       - [guard checker does not count argument-less recursive calls to compute uniform arguments of a nested mutual fixpoint](#guard-checker-does-not-count-argument-less-recursive-calls-to-compute-uniform-arguments-of-a-nested-mutual-fixpoint)
       - [guard checker does not check arguments of recursive calls in uniformity analysis](#guard-checker-does-not-check-arguments-of-recursive-calls-in-uniformity-analysis)
+      - [guard checker computes recursive argument type in the wrong environment](#guard-checker-computes-recursive-argument-type-in-the-wrong-environment)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -334,6 +335,17 @@ and lack of checking of relevance marks on constants in coqchk
 - found by: Daniel Selsam
 - exploit / GH issue: [#22386](https://github.com/rocq-prover/rocq/issues/22386)
 - risk: ?
+
+#### guard checker computes recursive argument type in the wrong environment
+- component: guard checking
+- introduced: V9.3.0 ([#22384](https://github.com/rocq-prover/rocq/pull/22384))
+- impacted released versions: V9.3.0 (V9.2 is unaffected)
+- impacted coqchk versions: Same
+- fixed in: V9.3.1, V9.4 ([#22762](https://github.com/rocq-prover/rocq/pull/22762))
+- found by: Axel Mierczuk, Spencer Michaels
+- exploit: test-suite/bugs/bug_22759.v
+- exploit / GH issue: [#22759](https://github.com/rocq-prover/rocq/pull/22759)
+- risk: needs DB index hacking in local defs preceding fixpoint
 
 ### Module system
 
