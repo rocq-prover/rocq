@@ -16,12 +16,10 @@ val import
   : safe_environment
   -> Names.Cset.t Names.Cmap.t
   -> compiled_library
-  -> Vmlibrary.on_disk
   -> vodigest -> safe_environment * Names.Cset.t Names.Cmap.t
 
 val unsafe_import
   : safe_environment
   -> compiled_library
-  -> Vmlibrary.on_disk
   -> vodigest
   -> safe_environment

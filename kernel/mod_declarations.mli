@@ -94,6 +94,10 @@ val set_algebraic_type : module_type_body -> module_expression -> module_type_bo
 val set_retroknowledge : module_body -> Retroknowledge.action list -> module_body
 val set_delta : Mod_subst.delta_resolver -> 'a generic_module_body -> 'a generic_module_body
 
+val set_signature : module_signature -> 'a generic_module_body -> 'a generic_module_body
+(** Replace the expanded type, keeping the implementation and the algebraic
+    type. *)
+
 (** {6 Substitution} *)
 
 type subst_kind
