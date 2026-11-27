@@ -8,6 +8,254 @@ Recent changes
 
    .. include:: ../unreleased.rst
 
+Version 9.2.1
+-------------
+
+.. contents::
+   :local:
+   :depth: 1
+
+Summary of changes
+~~~~~~~~~~~~~~~~~~
+
+Rocq 9.2.1 fixes several soundness issues in guard checking, conversion,
+cumulative inductives, module checking, and VM and native computation.
+It also hardens ``rocqchk`` against crafted compiled libraries, fixes primitive
+array and integer operations, and includes improvements to tactics, RocqIDE,
+and Windows builds.
+
+Compiled libraries must be rebuilt for this release: the ``.vo`` magic number
+has changed from 90299 in 9.2.0 to 90201 in 9.2.1.
+
+Detailed changes
+~~~~~~~~~~~~~~~~
+
+Kernel
+^^^^^^
+
+- **Changed:**
+  ``PrimInt63.asr x y`` is now ``-1`` when ``x < 0`` and ``y >= 63``,
+  as prescribed by its specification ``Sint63Axioms.asr_spec``
+  (`#22464 <https://github.com/rocq-prover/rocq/pull/22464>`_,
+  fixes `#22462 <https://github.com/rocq-prover/rocq/issues/22462>`_,
+  by Pierre Roux).
+
+- **Added:**
+  Regression coverage for mutual fixpoints involving nested inductives.
+  The 9.2 guard checker already uses the required recursive-path inclusion check
+  (`#21896 <https://github.com/rocq-prover/rocq/pull/21896>`_,
+  fixes `#21892 <https://github.com/rocq-prover/rocq/issues/21892>`_,
+  by Yann Leray).
+
+- **Added:**
+  Regression coverage for computing fixpoint recursive argument types in the
+  right environment (the 9.2 guard checker already uses the correct environment)
+  (`#22762 <https://github.com/rocq-prover/rocq/pull/22762>`_,
+  fixes `#22759 <https://github.com/rocq-prover/rocq/issues/22759>`_,
+  by Yann Leray).
+
+- **Fixed:**
+  Pass the correct environment in a reduction call inside the guard checker
+  (`#21845 <https://github.com/rocq-prover/rocq/pull/21845>`_,
+  fixes `#21839 <https://github.com/rocq-prover/rocq/issues/21839>`_,
+  by Yann Leray).
+
+- **Fixed:**
+  ``rocqchk`` with ``-bytecode-compiler yes`` no longer trusts the VM bytecode
+  serialized in a ``.vo``: it does not read the ``vmlibrary`` segment at all, and
+  recompiles the bytecode of every constant from the body it typechecks, so that
+  the code the VM runs and the checked body agree by construction; a crafted
+  ``.vo`` whose serialized bytecode disagreed with its body could previously make
+  a VM conversion prove ``False`` and still pass the checker
+  (`#22353 <https://github.com/rocq-prover/rocq/pull/22353>`_,
+  fixes `#22352 <https://github.com/rocq-prover/rocq/issues/22352>`_,
+  by Archana Burra and Jason Gross).
+
+- **Fixed:**
+  incorrect variance inference for :ref:`cumulative inductives <cumulative>`
+  with applied stuck matches from irrelevant to relevant types
+  (eg match from `sFalse : SProp` or identity in SProp (the later needing :flag:`Definitional UIP`)
+  to a relevant type)
+  (`#22377 <https://github.com/rocq-prover/rocq/pull/22377>`_,
+  fixes `#22376 <https://github.com/rocq-prover/rocq/issues/22376>`_,
+  by Gaëtan Gilbert).
+
+- **Fixed:**
+  Compare terms under contexts in the right relevance environment
+  (`#22379 <https://github.com/rocq-prover/rocq/pull/22379>`_,
+  fixes `#22378 <https://github.com/rocq-prover/rocq/issues/22378>`_,
+  by Yann Leray).
+
+- **Fixed:**
+  incorrect reification in `lazy` machine of matches with universe polymorphism
+  (`#22381 <https://github.com/rocq-prover/rocq/pull/22381>`_,
+  fixes `#22380 <https://github.com/rocq-prover/rocq/issues/22380>`_,
+  by Gaëtan Gilbert).
+
+- **Fixed:**
+  Only count uniform arguments that correspond to lambdas in the guard checker
+  (`#22384 <https://github.com/rocq-prover/rocq/pull/22384>`_,
+  fixes `#22382 <https://github.com/rocq-prover/rocq/issues/22382>`_,
+  by Yann Leray).
+
+- **Fixed:**
+  incorrect variance inference for :ref:`cumulative inductives <cumulative>`
+  with letins in the constructor type (bodies of constructor letins can be extracted by `match` without appearing in the `match` term, so they must be considered invariant positions instead of irrelevant)
+  (`#22385 <https://github.com/rocq-prover/rocq/pull/22385>`_,
+  fixes `#22383 <https://github.com/rocq-prover/rocq/issues/22383>`_,
+  by Gaëtan Gilbert).
+
+- **Fixed:**
+  Compute cofixpoint recursive tree in the right environment
+  (`#22388 <https://github.com/rocq-prover/rocq/pull/22388>`_,
+  fixes `#22386 <https://github.com/rocq-prover/rocq/issues/22386>`_,
+  by Yann Leray).
+
+- **Fixed:**
+  On mutual cofixpoints nested in another, only the main branch of the mutual may do a recursive call of the outer cofixpoint
+  (`#22392 <https://github.com/rocq-prover/rocq/pull/22392>`_,
+  fixes `#22389 <https://github.com/rocq-prover/rocq/issues/22389>`_,
+  by Yann Leray).
+
+- **Fixed:**
+  incorrect substitution of polymorphic universes when converting stuck matches
+  involving an inductive with letins in the indexes or constructor types
+  (`#22393 <https://github.com/rocq-prover/rocq/pull/22393>`_,
+  fixes `#22391 <https://github.com/rocq-prover/rocq/issues/22391>`_,
+  by Gaëtan Gilbert).
+
+- **Fixed:**
+  module subtyping of inductives with letins in constructor types
+  (`#22394 <https://github.com/rocq-prover/rocq/pull/22394>`_,
+  fixes `#22387 <https://github.com/rocq-prover/rocq/issues/22387>`_,
+  by Gaëtan Gilbert).
+
+- **Fixed:**
+  Uniform parameters of a nested fixpoint were computed in the wrong environment
+  during guard checking, which could lead to inconsistencies
+  (`#22645 <https://github.com/rocq-prover/rocq/pull/22645>`_,
+  by Sami Jawhar).
+
+- **Fixed:**
+  VM conversion compared the wrong component of a mutual fixpoint when eta-expanding it, which could lead to a proof of False
+  (`#22652 <https://github.com/rocq-prover/rocq/pull/22652>`_,
+  fixes `#22651 <https://github.com/rocq-prover/rocq/issues/22651>`_,
+  by Sami Jawhar).
+
+- **Fixed:**
+  variance inference of a constructor applied in the body of a let-in of a
+  constructor type, which could infer a universe irrelevant and give a proof
+  of False. The type of a let-in of a constructor type or of an inductive
+  arity is now inferred as the type of an argument is, so a universe which
+  occurs only there is no longer irrelevant
+  (`#22681 <https://github.com/rocq-prover/rocq/pull/22681>`_,
+  fixes `#22675 <https://github.com/rocq-prover/rocq/issues/22675>`_,
+  by Sami Jawhar).
+
+- **Fixed:**
+  a wrong environment in the commutative cut check of the guard condition,
+  leading to the negation of propext
+  (`#22763 <https://github.com/rocq-prover/rocq/pull/22763>`_,
+  by Pierre-Marie Pédrot).
+
+- **Fixed:**
+  kernel reduction of primitive arrays under binders, which could drop lifts
+  and accept ill-typed terms
+  (`#22776 <https://github.com/rocq-prover/rocq/pull/22776>`_).
+
+- **Fixed:**
+  VM conversion of stuck matches over inductives with extended constructor
+  tags, which could confuse branch arguments with later binders
+  (`#22811 <https://github.com/rocq-prover/rocq/pull/22811>`_).
+
+- **Fixed:**
+  collisions in the encoding of Rocq names in native compilation
+  (`#22399 <https://github.com/rocq-prover/rocq/pull/22399>`_).
+
+- **Fixed:**
+  acceptance of array literals larger than the maximum supported length
+  by the kernel and pretyping
+  (`#22720 <https://github.com/rocq-prover/rocq/pull/22720>`_).
+
+- **Fixed:**
+  double substitution in case-inversion indices and in match branches,
+  and substitution of universe qualities in VM and native match binders
+  (`#22701 <https://github.com/rocq-prover/rocq/pull/22701>`_, `#21972 <https://github.com/rocq-prover/rocq/pull/21972>`_, `#21873 <https://github.com/rocq-prover/rocq/pull/21873>`_).
+
+- **Fixed:**
+  handling of mutual fixpoints and bounds on uniform parameters in
+  guard checking
+  (`#22018 <https://github.com/rocq-prover/rocq/pull/22018>`_, `#22047 <https://github.com/rocq-prover/rocq/pull/22047>`_).
+
+- **Fixed:**
+  module inclusion and module-path constraints, including functor arguments,
+  delta-resolver substitution, and included module expansion
+  (`#21904 <https://github.com/rocq-prover/rocq/pull/21904>`_, `#21905 <https://github.com/rocq-prover/rocq/pull/21905>`_, `#22003 <https://github.com/rocq-prover/rocq/pull/22003>`_, `#22418 <https://github.com/rocq-prover/rocq/pull/22418>`_, `#22556 <https://github.com/rocq-prover/rocq/pull/22556>`_).
+
+- **Fixed:**
+  validation of block tags when reading compiled libraries in ``rocqchk``
+  (`#22408 <https://github.com/rocq-prover/rocq/pull/22408>`_).
+
+- **Fixed:**
+  initialization of VM value fields and write-barrier handling of
+  cofixpoint code pointers
+  (`#22146 <https://github.com/rocq-prover/rocq/pull/22146>`_, `#22869 <https://github.com/rocq-prover/rocq/pull/22869>`_).
+
+Tactics
+^^^^^^^
+
+- **Fixed:**
+  unfolding primitive projections with occurrence selectors
+  (`#21907 <https://github.com/rocq-prover/rocq/pull/21907>`_).
+
+Commands and options
+^^^^^^^^^^^^^^^^^^^^
+
+- **Fixed:**
+  relevance handling in identity coercions
+  (`#21858 <https://github.com/rocq-prover/rocq/pull/21858>`_).
+
+- **Fixed:**
+  staging of the ``Inline Level`` option during module processing
+  (`#21843 <https://github.com/rocq-prover/rocq/pull/21843>`_).
+
+Command-line tools
+^^^^^^^^^^^^^^^^^^
+
+- **Fixed:**
+  ``rocqchk -bytecode-compiler yes`` no longer refuses to load files that use
+  primitive strings; the VM data validator accepted only the six array
+  primitives, so the bytecode of any string primitive failed to intern
+  (`#22361 <https://github.com/rocq-prover/rocq/pull/22361>`_,
+  fixes `#22360 <https://github.com/rocq-prover/rocq/issues/22360>`_,
+  by Jason Gross).
+
+- **Fixed:**
+  error handling while resynchronizing the interactive toplevel input buffer
+  (`#22030 <https://github.com/rocq-prover/rocq/pull/22030>`_).
+
+RocqIDE
+^^^^^^^
+
+- **Fixed:**
+  refreshing background goals when needed in RocqIDE
+  (`#21990 <https://github.com/rocq-prover/rocq/pull/21990>`_).
+
+Infrastructure and dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **Changed:**
+  Version numbers now include the patch component (for example, ``9.2.1``),
+  and compiled-library magic numbers are computed from the version.
+  The legacy magic number of 9.2.0 is preserved
+  (`#21921 <https://github.com/rocq-prover/rocq/pull/21921>`_).
+
+- **Fixed:**
+  building Rocq on Windows with Dune 3.24 or later
+  (path normalization in custom Rocq rules went awry)
+  (`#22198 <https://github.com/rocq-prover/rocq/pull/22198>`_,
+  by Gaëtan Gilbert).
+
 Version 9.2
 -----------
 
