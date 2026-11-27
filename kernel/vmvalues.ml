@@ -638,7 +638,7 @@ let branch_arg k (tag,arity) =
         Obj.set_field b 0 (Obj.repr (tag-Obj.last_non_constant_constructor_tag));
         b,1 in
     for i = ofs to ofs + arity - 1 do
-      Obj.set_field b i (Obj.repr (val_of_rel (k+i)))
+      Obj.set_field b i (Obj.repr (val_of_rel (k+i-ofs)))
     done;
     val_of_obj b
 
