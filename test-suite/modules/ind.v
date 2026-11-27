@@ -46,4 +46,5 @@ Check (N.f M.A).
 (* of the inductive arities and constructors types are checked *)
 
 Module Type S. Inductive I (x:=0) (y:nat): Set := c: x=y -> I y. End S.
-Module P : S.  Inductive I (y':nat) (z:=y'): Set := c : 0=y' -> I y'. End P.
+Module P.  Inductive I (y':nat) (z:=y'): Set := c : 0=y' -> I y'. End P.
+Fail Module PP : S := P.
