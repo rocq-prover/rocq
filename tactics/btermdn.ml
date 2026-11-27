@@ -305,7 +305,7 @@ let constr_val_discr env sigma ts cache syn t : constr_res =
   let open GlobRef in
   let rec stars k = List.init k (fun _ -> PartialConstr Everything)
   and decomp_with stack pc = match pc with
-  | Constr t -> decomp stack t
+  | Constr t -> begin match decomp stack t with Nothing -> Everything | r -> r end
   | PartialConstr r -> if List.is_empty stack then r else Everything
   and child args s = match s with
   | SArg (j, 0) -> args.(j)
