@@ -13,3 +13,7 @@ Example e_max : sub 0 1 = 9223372036854775807 := eq_refl.
 Example e_lt : ltb (lsl 1 62) (sub 0 1) = true := eq_refl.
 Example e_cmp : compare big (add big 1) = Lt := eq_refl.
 Example e_head0 : head0 big = 22 := eq_refl.
+
+(* A number notation (nat): with the bytecode of the VM, rocq c fails *)
+Example e_nat : 2%nat = S (S O) := eq_refl.
+Check O.

@@ -13,6 +13,8 @@
 #    are listed in KNOWN_FAILURES: they must still fail, so that the list
 #    is kept up to date.
 # 2. uint63.v computes with primitive integers which do not fit 31 bits.
+#    It also parses and prints numbers (number notations), which needs
+#    rocq c not to make bytecode for the VM (the default under wasm).
 set -u
 
 if [ $# -ne 2 ]; then echo "usage: $0 ROCQ_C COQLIB" >&2; exit 2; fi
@@ -26,7 +28,7 @@ KNOWN_FAILURES="Corelib.Numbers.Cyclic.Int63.Sint63Axioms"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-rocq_c () { (cd "$tmp" && node "$rocq_c" -bytecode-compiler no -coqlib "$coqlib" "$@"); }
+rocq_c () { (cd "$tmp" && node "$rocq_c" -coqlib "$coqlib" "$@"); }
 
 is_known () {
   for k in $KNOWN_FAILURES; do [ "$k" = "$1" ] && return 0; done
