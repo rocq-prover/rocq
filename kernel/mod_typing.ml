@@ -388,9 +388,11 @@ let translate_module (cst, ustate) (vm, vmstate) env mp inl = function
     (see #3746). Note that restricted non-functorized modules are ok,
     thanks to strengthening. *)
 
-let rec unfunct = function
-  | MENoFunctor me -> me
-  | MEMoreFunctor me -> unfunct me
+let rec unfunct env = function
+| NoFunctor me -> env, me
+| MoreFunctor (mbid, mtb, me) ->
+  let env = Modops.add_module_parameter mbid mtb env in
+  unfunct env me
 
 let rec forbid_incl_signed_functor env = function
   | MEapply(fe,_) -> forbid_incl_signed_functor env fe
@@ -401,9 +403,11 @@ let rec forbid_incl_signed_functor env = function
     | MoreFunctor _, Some _, _ ->
       (* functor + restricted signature = error *)
       error_include_restricted_functor mp1
-    | MoreFunctor _, None, Algebraic me ->
+    | MoreFunctor _ as sign, None, Algebraic me ->
       (* functor, no signature yet, a definition which may be restricted *)
-      forbid_incl_signed_functor env (unfunct me)
+      let me = annotate_module_expression me sign in
+      let env, me = unfunct env me in
+      forbid_incl_signed_functor env me
     | _ -> ()
 
 let rec translate_mse_include_module (cst, ustate) (vm, vmstate) env mp inl = function
