@@ -3,5 +3,6 @@
    (they declare the same warnings). It always terminates with exit, so
    that the host knows the exit code (globalThis.jsoo_exit in a browser). *)
 let () =
+  Rocq_web_host.init ();
   Coqdeplib.Rocqdep_main.main (List.tl (Array.to_list Sys.argv));
   exit 0

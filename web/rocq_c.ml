@@ -6,6 +6,7 @@ let () =
      units declaring external primitives (e.g. atdgen-runtime, needed by
      rocq-elpi). Native Dynlink does not check this, so Rocq never asks:
      allow them; a missing primitive is reported when linking the plugin. *)
+  Rocq_web_host.init ();
   Dynlink.allow_unsafe_modules true;
   (* The bytecode of the VM cannot be run (vm_compute falls back to cbv),
      and making it calls C primitives that wasm_of_ocaml does not have,

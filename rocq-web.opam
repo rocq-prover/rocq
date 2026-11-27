@@ -26,6 +26,7 @@ depends: [
   "rocq-runtime" {= version}
   "zarith_stubs_js"
   "wasm_of_ocaml-compiler" {>= "6.5"}
+  "js_of_ocaml" {>= "6.5"}
   "odoc" {with-doc}
 ]
 build: [

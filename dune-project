@@ -80,7 +80,8 @@ This package includes tools to help when developing Rocq projects
  (depends
   (rocq-runtime (= :version))
   zarith_stubs_js
-  (wasm_of_ocaml-compiler (>= 6.5)))
+  (wasm_of_ocaml-compiler (>= 6.5))
+  (js_of_ocaml (>= 6.5)))
  (synopsis "The Rocq Prover compiled to WebAssembly")
  (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
 a formal language to write mathematical definitions, executable
