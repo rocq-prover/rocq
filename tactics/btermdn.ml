@@ -192,7 +192,7 @@ let decomp_lambda_constr env sigma ts decomp : EConstr.t -> EConstr.t -> constr_
 let unfold_flags ts =
   let ts = match ts with None -> TransparentState.full | Some ts -> ts in
   RedFlags.red_add_transparent
-    RedFlags.(mkflags [fBETA; fDELTA; fMATCH; fFIX; fCOFIX; fZETA]) ts
+    RedFlags.(mkflags [fBETA; fDELTA; fZETA]) ts
 
 (* Head of a transparent constant body, reduced under its lambdas. Only heads
    no conversion can unfold become labels, as e.g. auto converts closed terms
@@ -244,6 +244,15 @@ let rec summarize env sigma ts n depth t =
       SProj (Projection.repr p, sub c, nargs)
     else SStar
   | _ -> SStar
+
+let is_eta_constructor env = function
+| GRLabel (GlobRef.ConstructRef ((mind, i), _)) ->
+  let mib = Environ.lookup_mind mind env in
+  begin match mib.Declarations.mind_packets.(i).Declarations.mind_record with
+  | Declarations.PrimRecord _ -> mib.Declarations.mind_finite == Declarations.BiFinite
+  | Declarations.NotRecord | Declarations.FakeRecord -> false
+  end
+| _ -> false
 
 (* One per hint database and transparent state. Entries are checked against
    the constant body, which closing a section changes in place. *)
@@ -303,6 +312,7 @@ let constr_val_discr env sigma ts cache syn t : constr_res =
   | _ -> PartialConstr (eval args [] s)
   and eval args extra s = match s with
   | SStar -> Everything
+  | SRigid (l, _) when is_eta_constructor env l -> Everything
   | SRigid (l, ch) -> Label (l, List.map (child args) ch @ extra)
   | SArg (j, k) -> decomp_with (stars k @ extra) args.(j)
   | SProj (p, s', k) ->
