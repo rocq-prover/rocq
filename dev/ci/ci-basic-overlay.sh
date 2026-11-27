@@ -122,16 +122,22 @@ project corn 'https://github.com/coq-community/corn' '225384e459d911441f4b473419
 # Iris is not enough. Ping @RalfJung and @robbertkrebbers if you need the
 # versions of stdpp or Iris to be bumped. Perennial also has its own pinned
 # versions of stdpp and Iris; ping @tchajed and @zeldovich to get that bumped.
-project stdpp "https://gitlab.mpi-sws.org/iris/stdpp" ""
+# The URL below is a mirror; use https://gitlab.mpi-sws.org/iris/stdpp for issues
+# and PRs.
+project stdpp "https://github.com/rocq-iris/stdpp" ""
 # Contact @RalfJung, @robbertkrebbers on github
 
-project iris "https://gitlab.mpi-sws.org/iris/iris" ""
+# The URL below is a mirror; use https://gitlab.mpi-sws.org/iris/iris for issues
+# and PRs.
+project iris "https://github.com/rocq-iris/iris" ""
 # Contact @RalfJung, @robbertkrebbers on github
 
 project autosubst 'https://github.com/coq-community/autosubst' '50dfe574c0bd415925eea47c1f5b1a533aa85269'
 # Contact @RalfJung, @co-dan on github
 
-project iris_examples 'https://gitlab.mpi-sws.org/iris/examples' '4a2b79da62a386895afd6586c77998182f262704'
+# The URL below is a mirror; use https://gitlab.mpi-sws.org/iris/examples for
+# issues and PRs.
+project iris_examples 'https://github.com/rocq-iris/examples' '4a2b79da62a386895afd6586c77998182f262704'
 # Contact @RalfJung, @robbertkrebbers on github
 
 ########################################################################
