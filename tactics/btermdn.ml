@@ -223,13 +223,12 @@ let rec summarize env sigma ts n depth t =
   | Ind (i, _) ->
     SRigid (GRLabel (IndRef (Environ.QInd.canonize env i)), subs (Array.to_list args))
   | Const (c, _) when not (evaluable_constant c env ts) ->
-    begin match (Environ.lookup_constant c env).Declarations.const_body with
-    | Declarations.Undef _ | Declarations.OpaqueDef _ ->
+    begin match Environ.lookup_constant_opt c env with
+    | Some { Declarations.const_body = (Declarations.Undef _ | Declarations.OpaqueDef _); _ } ->
       let c = Environ.QConstant.canonize env c in
       let lbl, rest = label_of_opaque_constant c (Array.to_list args) in
       SRigid (lbl, subs rest)
-    | Declarations.Def _ | Declarations.Primitive _ | Declarations.Symbol _ -> SStar
-    | exception Not_found -> SStar
+    | Some _ | None -> SStar
     end
   | Var id when not (evaluable_named id env ts) ->
     begin match Environ.lookup_named id env with
@@ -246,6 +245,7 @@ let rec summarize env sigma ts n depth t =
   | _ -> SStar
 
 let is_eta_constructor env = function
+| GRLabel (GlobRef.ConstructRef ((mind, _), _)) when not (Environ.mem_mind mind env) -> true
 | GRLabel (GlobRef.ConstructRef ((mind, i), _)) ->
   let mib = Environ.lookup_mind mind env in
   begin match mib.Declarations.mind_packets.(i).Declarations.mind_record with
@@ -279,9 +279,9 @@ let is_syntactic_const env syn c =
   | None -> false
 
 let const_summary env sigma ts cache c =
-  match Environ.lookup_constant c env with
-  | exception Not_found -> (0, SStar)
-  | cb ->
+  match Environ.lookup_constant_opt c env with
+  | None -> (0, SStar)
+  | Some cb ->
   match Environ.QConstant.Map.find_opt env c !cache with
   | Some (cb', n, s) when cb' == cb -> (n, s)
   | _ ->
