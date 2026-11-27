@@ -279,7 +279,7 @@ sig
   val empty : TransparentState.t option -> t
   val build : TransparentState.t option -> UID.Set.t -> stored_data UID.Map.t -> t
   val add : t -> hint_pattern -> full_hint -> t
-  val lookup : Environ.env -> Evd.evar_map -> t -> EConstr.constr -> UID.t list
+  val lookup : Environ.env -> Evd.evar_map -> Btermdn.cache -> t -> EConstr.constr -> UID.t list
 end =
 struct
   module Bnet = Btermdn.Make(UID)
@@ -287,48 +287,48 @@ struct
   type diff = hint_pattern * full_hint
 
   type data =
-  | Bnet of (TransparentState.t option * Bnet.t)
+  | Bnet of (TransparentState.t option * Btermdn.syntactic * Bnet.t)
   | Diff of diff * data ref
   | Build of TransparentState.t option * UID.Set.t * stored_data UID.Map.t
 
   type t = data ref
 
-  let empty st = ref (Bnet (st, Bnet.empty))
+  let empty st = ref (Bnet (st, Btermdn.empty_syntactic, Bnet.empty))
 
   let add net p v = ref (Diff ((p, v), net))
 
   let build st uids data = ref (Build (st, uids, data))
 
-  let add0 env sigma st p v dn =
+  let add0 env sigma cache st p v (syn, dn) =
     (* Feedback.msg_debug (let v1 = v in Pp.(str "add0: " ++ Pp.pr_opt Names.GlobRef.print (snd v1).name)); *)
-    let p = match p with
-    | ConstrPattern p -> Bnet.pattern env st p
-    | SyntacticPattern p -> Bnet.pattern_syntactic env p
+    let syn, p = match p with
+    | ConstrPattern p -> syn, Bnet.pattern env st p
+    | SyntacticPattern p -> Bnet.pattern_syntactic env syn p
     | DefaultPattern ->
       let c = get_default_pattern v.code.obj in
-      Bnet.constr_pattern env sigma st c
+      syn, Bnet.constr_pattern env sigma cache st c
     in
-    Bnet.add dn p v.code.uid
+    syn, Bnet.add dn p v.code.uid
 
-  let rec force env sigma net = match !net with
+  let rec force env sigma cache net = match !net with
   | Bnet dn -> dn
   | Diff ((p, v), rem) ->
-    let st, dn = force env sigma rem in
-    let dn = add0 env sigma st p v dn in
-    let () = net := (Bnet (st, dn)) in
-    st, dn
+    let st, syn, dn = force env sigma cache rem in
+    let syn, dn = add0 env sigma cache st p v (syn, dn) in
+    let () = net := (Bnet (st, syn, dn)) in
+    st, syn, dn
   | Build (st, uids, data) ->
-    let fold uid dn =
+    let fold uid acc =
       let _, v = UID.Map.get uid data in
-      add0 env sigma st (Option.get v.pat) v dn
+      add0 env sigma cache st (Option.get v.pat) v acc
     in
-    let ans = UID.Set.fold fold uids Bnet.empty in
-    let () = net := Bnet (st, ans) in
-    st, ans
+    let syn, ans = UID.Set.fold fold uids (Btermdn.empty_syntactic, Bnet.empty) in
+    let () = net := Bnet (st, syn, ans) in
+    st, syn, ans
 
-  let lookup env sigma net p =
-    let st, dn = force env sigma net in
-    Bnet.lookup env sigma st dn p
+  let lookup env sigma cache net p =
+    let st, syn, dn = force env sigma cache net in
+    Bnet.lookup env sigma cache syn st dn p
 end
 
 module StoredData :
@@ -399,8 +399,8 @@ let merge_set data s l =
   let elt = List.stable_sort pri_order_int elt in
   List.merge pri_order_int elt l
 
-let lookup_tacs env sigma concl data se =
-  let l' = Bounded_net.lookup env sigma se.sentry_bnet concl in
+let lookup_tacs env sigma cache concl data se =
+  let l' = Bounded_net.lookup env sigma cache se.sentry_bnet concl in
   let map uid = UID.Map.get uid data in
   let l' = List.map map l' in
   let sl' = List.stable_sort pri_order_int l' in
@@ -662,6 +662,7 @@ struct
     hintdb_name : string option;
     hintdb_data : stored_data UID.Map.t; (* insertion index, hint with uid = key *)
     hintdb_names : UID.Set.t GlobRef.Map.t;
+    hintdb_cache : Btermdn.cache;
   }
 
   let next_hint_id db =
@@ -677,7 +678,8 @@ struct
                           hintdb_nopat = UID.Set.empty;
                           hintdb_name = name;
                           hintdb_data = UID.Map.empty;
-                          hintdb_names = GlobRef.Map.empty; }
+                          hintdb_names = GlobRef.Map.empty;
+                          hintdb_cache = Btermdn.empty_cache (); }
 
   let dn_ts db = if db.use_dn then (Some db.hintdb_state) else None
 
@@ -768,7 +770,7 @@ struct
   (* Precondition: concl has no existentials *)
   let map_auto env sigma ~secvars (k,args) concl db =
     let se = find env k db in
-    let pat = lookup_tacs env sigma concl db.hintdb_data se in
+    let pat = lookup_tacs env sigma db.hintdb_cache concl db.hintdb_data se in
     merge_entry secvars db [] pat
 
   (* [c] contains an existential *)
@@ -776,14 +778,14 @@ struct
     let se = find env k db in
     match se.sentry_mode with
     | [] ->
-      let pat = lookup_tacs env sigma concl db.hintdb_data se in
+      let pat = lookup_tacs env sigma db.hintdb_cache concl db.hintdb_data se in
       let mode_matches = None in
       Some (mode_matches, merge_entry secvars db [] pat)
     | modes ->
       match matches_modes sigma args modes with
       | [] -> None
       | m :: ms ->
-        let pat = lookup_tacs env sigma concl db.hintdb_data se in
+        let pat = lookup_tacs env sigma db.hintdb_cache concl db.hintdb_data se in
         let mode_matches = Some (NeList.of_repr (m, ms)) in
         Some (mode_matches, merge_entry secvars db [] pat)
 
@@ -834,7 +836,8 @@ struct
   let rebuild_db st' db =
     let db' =
       let map se = rebuild_dn (Some st') db.hintdb_data se in
-      { db with hintdb_map = GlobRef.Map.map map db.hintdb_map; hintdb_state = st'; hintdb_nopat = UID.Set.empty }
+      { db with hintdb_map = GlobRef.Map.map map db.hintdb_map; hintdb_state = st'; hintdb_nopat = UID.Set.empty;
+        hintdb_cache = Btermdn.empty_cache () }
     in
     let fold id db =
       if not (UID.Set.mem id db.hintdb_nopat) then
@@ -920,7 +923,7 @@ struct
 
   let set_transparent_state db st =
     if db.use_dn then rebuild_db st db
-    else { db with hintdb_state = st }
+    else { db with hintdb_state = st; hintdb_cache = Btermdn.empty_cache () }
 
   let add_cut env path db =
     { db with hintdb_cut = normalize_path env (PathOr (db.hintdb_cut, path)) }
