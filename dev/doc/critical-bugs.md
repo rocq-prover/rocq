@@ -30,6 +30,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker does not count argument-less recursive calls to compute uniform arguments of a nested mutual fixpoint](#guard-checker-does-not-count-argument-less-recursive-calls-to-compute-uniform-arguments-of-a-nested-mutual-fixpoint)
       - [guard checker does not check arguments of recursive calls in uniformity analysis](#guard-checker-does-not-check-arguments-of-recursive-calls-in-uniformity-analysis)
       - [guard checker computes recursive argument type in the wrong environment](#guard-checker-computes-recursive-argument-type-in-the-wrong-environment)
+      - [guard checker computes commutative cuts in the wrong environment and breaks propositional extensionality](#guard-checker-computes-commutative-cuts-in-the-wrong-environment-and-breaks-propositional-extensionality)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -346,6 +347,17 @@ and lack of checking of relevance marks on constants in coqchk
 - exploit: test-suite/bugs/bug_22759.v
 - exploit / GH issue: [#22759](https://github.com/rocq-prover/rocq/pull/22759)
 - risk: needs DB index hacking in local defs preceding fixpoint
+
+#### guard checker computes commutative cuts in the wrong environment and breaks propositional extensionality
+- component: guard checking
+- introduced: 8.8 ([#920](https://github.com/rocq-prover/rocq/pull/920))
+- impacted released versions: from 8.8 although inconsistency with propext was achievable in other ways
+- impacted coqchk versions: Same
+- fixed in: 9.2.1, 9.3.1, 9.4 ([#22763](https://github.com/rocq-prover/rocq/pull/22763))
+- found by: Pierre-Marie Pédrot
+- exploit: test-suite/bugs/bug_guard_filter_stack_env.v
+- GH issue number: none
+- risk: requires the use of propext
 
 ### Module system
 

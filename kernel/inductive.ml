@@ -1077,17 +1077,17 @@ let filter_stack_domain cache stack_element_specif set_iota_specif ?evars env p 
       | Prod (n, a, c0) ->
         let d = LocalAssum (n, a) in
         let ctx, a = whd_decompose_prod ?evars env a in
-        let env = push_rel_context ctx env in
-        let ty, args = decompose_app_list (whd_all ?evars env a) in
+        let env_a = push_rel_context ctx env in
+        let ty, args = decompose_app_list (whd_all ?evars env_a a) in
         let elt = match kind ty with
         | Ind ind ->
           let spec = stack_element_specif cache ?evars elt in
-          if has_constant_parameters env absctxlen (k + List.length ctx) ind args then SArg spec
+          if has_constant_parameters env_a absctxlen (k + List.length ctx) ind args then SArg spec
           else
             let sarg = lazy begin match Lazy.force spec with
             | Not_subterm | Dead_code | Internally_bound_subterm _ as spec -> spec
             | Subterm (l, s, tree) ->
-              let recargs = get_recargs_approx cache ?evars env tree ind args in
+              let recargs = get_recargs_approx cache ?evars env_a tree ind args in
               let tree = inter_wf_paths tree recargs in
               Subterm (l, s, tree)
             end in
