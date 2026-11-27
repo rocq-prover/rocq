@@ -33,6 +33,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker computes commutative cuts in the wrong environment and breaks propositional extensionality](#guard-checker-computes-commutative-cuts-in-the-wrong-environment-and-breaks-propositional-extensionality)
       - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
       - [guard checker computes uniform parameters of nested fixpoints in the wrong environment](#guard-checker-computes-uniform-parameters-of-nested-fixpoints-in-the-wrong-environment)
+      - [cofixpoint guard checker passes wrong rectree for nested mutual cofixpoints](#cofixpoint-guard-checker-passes-wrong-rectree-for-nested-mutual-cofixpoints)
     - [Module system](#module-system)
       - [missing universe constraints in typing "with" clause of a module type](#missing-universe-constraints-in-typing-with-clause-of-a-module-type)
       - [universe constraints for module subtyping not stored in vo files](#universe-constraints-for-module-subtyping-not-stored-in-vo-files)
@@ -405,6 +406,16 @@ and lack of checking of relevance marks on constants in coqchk
   (typically in `f x`, the inferred type of `f` is reduced to expose a `forall`).
   The bug occurs when the reduced type has a stuck match on a universe polymorphic inductive.
   The exploit in the issue uses Definitional UIP but the code is incorrect even without that flag.
+
+#### cofixpoint guard checker passes wrong rectree for nested mutual cofixpoints
+- component: cofixpoints, guard checking
+- introduced: before V7.0, probably when coinductives first appeared
+- impacted released versions: all releases until V9.2.0 included
+- impacted coqchk versions: Same
+- fixed in: V9.2.1, V9.3 ([#22392](https://github.com/rocq-prover/rocq/pull/22392))
+- found by: Daniel Selsam
+- exploit / GH issue: [#22389](https://github.com/rocq-prover/rocq/issues/22389)
+- risk: ?
 
 ### Module system
 
