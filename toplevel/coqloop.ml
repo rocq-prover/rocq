@@ -511,6 +511,7 @@ let process_toplevel_command ~state stm =
 
 let read_and_execute ~state =
   try
+    resynch_buffer top_buffer;
     let input = top_buffer.tokens in
     match read_sentence ~state input with
     | Some stm ->
@@ -551,7 +552,6 @@ let loop ~state =
       top_stderr (fnl());
       let open Vernac.State in
       if !print_emacs then top_stderr (str (top_buffer.prompt state.doc));
-      resynch_buffer top_buffer;
       let new_running, new_state = read_and_execute ~state:state in
       if new_running then
         (aux [@ocaml.tailcall]) new_state
