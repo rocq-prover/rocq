@@ -9,27 +9,27 @@ git_download certirocq
 
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
-# The theories, the plugin extracted with and without optimizations and the C
-# runtime, but not the bootstrapped compiler and checker, which take too long.
-packages=rocq-certirocq,rocq-certirocq-vanilla
-
 ( cd "${CI_BUILD_DIR}/certirocq"
-  # compcert is built without native compilation
-  for f in theories/dune plugins/plugin/dune plugins/cplugin/dune; do
+  # compcert is built without native compilation, so neither are the theories, nor
+  # the files that the tests and the bootstrap compile with rocq c
+  for f in $(grep -rlE --include=dune --exclude-dir=_build '^\(rocq\.(theory|extraction)$' .); do
     grep -q '(mode vo)' "$f" || \
       sed -i -E 's/^\(rocq\.(theory|extraction)$/&\n (mode vo)/' "$f"
   done
-  dune build --root . --only-packages="$packages" @install
-  dune install --root . --prefix="$CI_INSTALL_DIR" rocq-certirocq rocq-certirocq-vanilla
-  # Compile the Wasm test programs with the installed plugin, with the largest
-  # stack allowed as it recurses deeply. They are not run, as that needs node,
-  # and the C backend is not tested: it follows the word size of CompCert,
-  # configured here for a 32 bits target, while the C compiler targets 64 bits.
-  ulimit -S -s "$(ulimit -H -s)"
-  # They depend on compcert too: no native compilation either (COQEXTRAFLAGS for
-  # rocq makefile, the COQOPTS of the Wasm tests for their direct rocq c calls)
-  export COQEXTRAFLAGS='-native-compiler no'
-  make -C tests lib
-  make -C tests/wasm tests primitive_unit_tests \
-    COQOPTS='-native-compiler no -R ./ CertiRocq.Tests -R ../lib CertiRocq.Tests.lib'
+  sed -i '/-native-compiler no/!s/rocq c /rocq c -native-compiler no /' \
+    tests/*/dune bootstrap/*/dune
+  # The C backend takes the size of words from CompCert, configured here for a 32
+  # bits target, while the C compiler, the runtime, and the OCaml plugins that the
+  # bootstrapped compiler and checker are linked into are 64 bits: the plugins are
+  # extracted for 64 bits words (Archi.ptr64 is the only parameter of the target
+  # that the generated C depends on).
+  for f in plugins/plugin/extraction.v plugins/cplugin/extraction.v; do
+    grep -q 'Archi.ptr64' "$f" || \
+      sed -i '0,/^Separate Extraction/s//Extract Inlined Constant Archi.ptr64 => "true".\n&/' "$f"
+  done
+  # The theories of the compiler, without its proofs, the plugins and the runtime
+  dune build --root . @@compiler
+  # The tests, which use the plugins from the build directory, and the bootstrapped
+  # compiler and checker. The Wasm tests are left out, as running them needs node.
+  dune test --root . tests/programs tests/closures tests/axioms tests/ffi tests/ocaml bootstrap
 )
