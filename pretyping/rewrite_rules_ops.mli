@@ -63,7 +63,31 @@ type names = {
   evar_names : Name.t array;
 }
 
-val typecheck_finalize : loc:Loc.t option -> env -> state -> pattern -> unsafe_judgment -> names * (int Evar.Map.t * UVars.sort_level_subst) * Evd.evar_map * UnivConstraints.t QVar.Map.t * pattern * unsafe_judgment
+type patvarsubst = {
+  patvar_names : Id.t array;
+  matched_vars_of_names : int Id.Map.t;
+  matched_var_names : Id.t array;
+}
+
+type pattern_data_aux = {
+  nvars: int * int * int;
+  context : named_context;
+  patvarsubst : patvarsubst;
+  auctx : UVars.AbstractContext.t;
+  cstrs : UnivConstraints.t QVar.Map.t;
+  usubst : UVars.sort_level_subst;
+  matched_univ_pat : UVars.Instance.t;
+}
+
+type pattern_data = {
+  info : pattern_data_aux;
+  pattern : pattern;
+  judgment : unsafe_judgment;
+  head_symbol : Constant.t;
+  lhs_pat : (int option, int option) instance_mask * pattern_elimination list
+}
+
+val typecheck_finalize : loc:Loc.t option -> env -> state -> pattern -> unsafe_judgment -> Evd.evar_map * pattern_data
 
 val judge_of_inductive : env -> state -> pinductive -> state * unsafe_judgment
 
@@ -81,6 +105,8 @@ type pattern_translation_error =
 
 exception LocalPatternTranslationError of pattern_translation_error
 
-val translate_rewrite_rule : Environ.env -> Evd.evar_map -> rewrite_rule -> Names.Constant.t * machine_rewrite_rule
+val translate_pattern :
+  patvarsubst -> int option array * int option array -> pattern ->
+  Constant.t * ((int option, int option) instance_mask * pattern_elimination list)
 
 val head_symbol : pattern -> Names.Constant.t

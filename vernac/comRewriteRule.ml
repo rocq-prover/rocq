@@ -97,19 +97,29 @@ let err_unknown_evar env evd ?loc evars rhs =
   end)
 
 
+let vars_of_term evd t =
+  let rec aux acc c =
+    match EConstr.kind evd c with
+    | Var v ->
+      Id.Set.add v acc
+    | _ -> EConstr.fold evd aux acc c
+  in
+  aux Id.Set.empty t
+
 let interp_rule (pattern, rhs) =
   let env = Global.env () in
   let evd = Evd.from_env env in
 
-  let pattern_loc = pattern.CAst.loc in
   let rhs_loc = rhs.CAst.loc in
 
   let pattern = Constrintern.(intern_gen WithoutTypeConstraint env evd pattern) in
-  let names, (esubst, usubst), evd, cstrs, pattern, j_pat = RRPretyping.eval_pretyper_pattern env evd pattern in
-  let ty = EConstr.of_constr (Environ.j_type j_pat) in
+  let evd, pattern_info = RRPretyping.eval_pretyper_pattern env evd pattern in
+
+  let ty = EConstr.of_constr (Environ.j_type pattern_info.judgment) in
+  let env = Environ.push_named_context (List.map (fun d -> (Environ.ProofVar, d)) pattern_info.info.context) env in
 
   let evd_cheat = Evd.set_ustate evd (UState.disable_checks (Evd.ustate evd)) in
-  let evd_cheat = Evd.add_univ_constraints evd_cheat (Sorts.QVar.Map.fold (fun _ -> Univ.UnivConstraints.union) cstrs Univ.UnivConstraints.empty) in
+  let evd_cheat = Evd.add_univ_constraints evd_cheat (Sorts.QVar.Map.fold (fun _ -> Univ.UnivConstraints.union) pattern_info.info.cstrs Univ.UnivConstraints.empty) in
 
   let rhs = Constrintern.(intern_gen WithoutTypeConstraint env evd_cheat rhs) in
   let flags = Pretyping.no_classes_no_fail_inference_flags in
@@ -123,13 +133,21 @@ let interp_rule (pattern, rhs) =
   in
 
   let evd_rhs = Evd.minimize_universes evd_rhs in
-  let rhs = Evarutil.nf_evar evd_rhs rhs in
+  (* TODO: Is this right? *)
 
   let evars = Evarutil.undefined_evars_of_term evd_rhs rhs in
-  if not (Evar.Set.for_all (fun evk -> Evd.mem evd evk) evars) then
+  let vars = vars_of_term evd_rhs rhs in
+  if not (Evar.Set.is_empty evars) then
     err_unknown_evar env evd_rhs evars rhs;
+  if not (Id.Set.for_all (fun v -> Id.Map.mem v pattern_info.info.patvarsubst.matched_vars_of_names) vars) then
+    err_unknown_evar env evd_rhs evars rhs;
+  (* TODO: Is this right? This is not right *)
 
-  let (quals, univs) = Vars.sort_and_universes_of_constr (EConstr.Unsafe.to_constr rhs) in
+  let rhs = EConstr.to_constr evd_rhs rhs in
+
+  (* Check sorts and levels *)
+  let usubst = pattern_info.info.usubst in
+  let (quals, univs) = Vars.sort_and_universes_of_constr rhs in
   let quals = Sorts.Quality.Set.diff quals (QGraph.domain (Environ.qualities env)) in
   let quals = Sorts.Quality.(Set.fold (fun q qset -> match q with QVar q -> Sorts.QVar.Set.add q qset | _ -> assert false)) quals Sorts.QVar.Set.empty in
   let quals = Sorts.QVar.Set.diff quals (Sorts.QVar.Map.domain (fst usubst)) in
@@ -142,14 +160,16 @@ let interp_rule (pattern, rhs) =
     warn_rewrite_rules_break_SR ?loc:rhs_loc Pp.(surround (str "unbound sort and/or levels, defaulting to Type/0") ++ str ".");
     let qsubst = Sorts.QVar.(Set.fold (fun q qmap -> Map.add q Sorts.Quality.qtype qmap) quals Map.empty) in
     let usubst = Univ.Level.(Set.fold (fun l lmap -> Univ.Level.Map.add l set lmap) univs Map.empty) in
-    EConstr.Vars.subst_univs_level_constr (qsubst, usubst) rhs, false
+    Vars.subst_univs_level_constr (qsubst, usubst) rhs, false
     end
   in
 
   (* The pattern constraints must imply those of the rhs *)
-  let well_typed = if well_typed then try
+  let cstrs = pattern_info.info.cstrs in
+  let well_typed = if well_typed then
+    try
       let evd_boost = Evd.add_univ_constraints evd (Sorts.QVar.Map.fold (fun _ -> Univ.UnivConstraints.union) cstrs Univ.UnivConstraints.empty) in
-      let evd' = Typing.check env evd_boost rhs ty in
+      let evd' = Typing.check env evd_boost (EConstr.of_constr rhs) ty in
       let fail pp = warn_rewrite_rules_break_SR ?loc:rhs_loc Pp.(surround (str "universe inconsistency, missing constraints: " ++ pp) ++ str ".") in
       let () = UState.check_uctx_impl ~fail (Evd.ustate evd_boost) (Evd.ustate evd') in
       true
@@ -161,7 +181,7 @@ let interp_rule (pattern, rhs) =
     else false
   in
   let () = if well_typed then try
-    let evd' = Typing.check env evd rhs ty in
+    let evd' = Typing.check env evd (EConstr.of_constr rhs) ty in
     let fail pp = warn_rewrite_rules_break_SR ?loc:rhs_loc Pp.(surround (str "possible universe inconsistency, these constraints might not hold: " ++ pp) ++ str ".") in
     let () = UState.check_uctx_impl ~fail (Evd.ustate evd) (Evd.ustate evd') in
     ()
@@ -171,27 +191,23 @@ let interp_rule (pattern, rhs) =
           ++ fnl() ++ Himsg.explain_pretype_error env evd err)
   in
 
-  let replacement = EConstr.to_constr ~abort_on_undefined_evars:false evd (EConstr.Vars.subst_univs_level_constr usubst rhs) in
-
-  let rule = (fun _ -> assert false) replacement in
-
-  let head_symbol, machine =
-    match Rewrite_rules_ops.translate_rewrite_rule env evd rule with
-    | r -> r
-    | exception Rewrite_rules_ops.LocalPatternTranslationError Rewrite_rules_ops.NoHeadSymbol ->
-      CErrors.user_err ?loc:pattern_loc Pp.(str "Head head-pattern is not a symbol.")
-    | exception Rewrite_rules_ops.LocalPatternTranslationError Rewrite_rules_ops.UnknownEvar _ -> assert false
-    | exception Rewrite_rules_ops.LocalPatternTranslationError UnknownQuality q ->
-      CErrors.user_err ?loc:rhs_loc
-        Pp.(str "Sort " ++ Termops.pr_evd_quality evd q ++ str " appears in the replacement but does not appear in the pattern.")
-    | exception Rewrite_rules_ops.LocalPatternTranslationError UnknownLevel lvl ->
-      CErrors.user_err ?loc:rhs_loc
-        Pp.(str "Universe level " ++ Termops.pr_evd_level evd lvl ++ str " appears in the replacement but does not appear in the pattern.")
+  let replacement = Vars.subst_univs_level_constr usubst
+    (Vars.replace_vars (List.map (fun (v, n) -> v, Constr.mkRel (1+n)) (Id.Map.bindings pattern_info.info.patvarsubst.matched_vars_of_names)) rhs)
   in
 
-  let rule = { rr_auctx = assert false; rr_context = assert false; rr_patvar_table = assert false; pattern; head_symbol; machine } in
-
-  rule
+  {
+    rr_auctx = pattern_info.info.auctx;
+    rr_context = pattern_info.info.context;
+    rr_patvar_table = pattern_info.info.patvarsubst.matched_var_names;
+    rr_usubst = pattern_info.info.matched_univ_pat;
+    pattern = pattern_info.pattern;
+    pat_term = Environ.j_val pattern_info.judgment;
+    head_symbol = pattern_info.head_symbol;
+    machine = {
+      nvars = pattern_info.info.nvars;
+      lhs_pat = pattern_info.lhs_pat;
+      rhs = replacement;
+    } }
 
 let do_rules id rules =
   let env = Global.env () in

@@ -527,6 +527,10 @@ let eval_pretyper_pattern env evd c =
   let open Rewrite_rules_ops in
   let evd = State.make evd in
   let env = GlobEnv.make env (State.evar_map evd) empty_lvar in
-  let evd, p, j = eval_pretyper_pattern env evd c in
+  try
+    let evd, p, j = eval_pretyper_pattern env evd c in
 
-  Rewrite_rules_ops.typecheck_finalize ~loc:c.loc !!env evd p j
+    Rewrite_rules_ops.typecheck_finalize ~loc:c.loc !!env evd p j
+  with
+  | Rewrite_rules_ops.LocalPatternTranslationError Rewrite_rules_ops.NoHeadSymbol ->
+      CErrors.user_err ?loc:c.loc Pp.(str "Head head-pattern is not a symbol.")

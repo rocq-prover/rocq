@@ -603,7 +603,9 @@ let v_rewrule = v_tuple "rewrite_rule"
   [|v_abs_context;  (* rr_auctx *)
     v_nctxt;        (* rr_context *)
     v_array v_id;   (* rr_patvar_table *)
+    v_instance;     (* rr_usubst *)
     v_pattern;      (* pattern *)
+    v_constr;       (* pat_term *)
     v_cst;          (* head_symbol *)
     v_machine_rewrule|] (* machine *)
 

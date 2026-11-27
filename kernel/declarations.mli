@@ -382,7 +382,9 @@ type rewrite_rule = {
   rr_auctx : UVars.AbstractContext.t;
   rr_context : named_context;
   rr_patvar_table : Id.t array;
+  rr_usubst : UVars.Instance.t;
   pattern: pattern;
+  pat_term : constr;
   head_symbol: Constant.t;
   machine: machine_rewrite_rule;
 }

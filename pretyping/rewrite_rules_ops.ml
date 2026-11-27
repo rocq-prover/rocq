@@ -1323,29 +1323,71 @@ and check_pattern_redex_aux ~loc env = function
   | PVar _ -> ()
   | Pat p -> check_pattern_redex ~loc env p
 
+type patvarsubst = {
+  patvar_names : Id.t array;
+  matched_vars_of_names : int Id.Map.t;
+  matched_var_names : Id.t array;
+}
+
+type pattern_data_aux = {
+  nvars: int * int * int;
+  context : named_context;
+  patvarsubst : patvarsubst;
+  auctx : UVars.AbstractContext.t;
+  cstrs : UnivConstraints.t QVar.Map.t;
+  usubst : UVars.sort_level_subst;
+  matched_univ_pat : UVars.Instance.t;
+}
 
 let finalize_state evd defs =
-  let sigma = State.sigma_of evd defs in
+
+  let (sigma, context, enames) : Evd.evar_map * EConstr.named_context * Id.t EMap.t =
+    let cnt = ref 0 in
+    let next_name () = Id.of_string_soft ("_internal_" ^ string_of_int (incr cnt; !cnt)) in
+    let id_of_qualidopt = function None -> next_name () | Some fp -> Libnames.basename fp in
+    let evar_name evk = id_of_qualidopt (Evd.evar_ident evk evd.evar_map) in
+    let open Context.Named.Declaration in
+    EMap.fold (fun evk evi (evd, ctx, ename : Evd.evar_map * EConstr.named_context * Id.t EMap.t) ->
+      let name = evar_name evk in
+      let id = Id.of_string_soft ("?" ^ Id.to_string name) in
+      let na = Context.make_annot id (Evd.evar_relevance evi) in
+      let ty = EConstr.it_mkNamedProd_or_LetIn evd (Evd.evar_concl evi) (Evd.evar_filtered_context evi) in
+      match EMap.find_opt evk defs with
+      | Some (def : constr) ->
+        let Refl = EConstr.Unsafe.eq in
+        Evd.add_name evk name (Evd.define evk def evd),
+        LocalDef (na, def, ty) :: ctx,
+        EMap.add evk id ename
+      | None ->
+        let inst = Context.Named.instance EConstr.mkVar (Evd.evar_context evi) in
+        Evd.add_name evk name (Evd.define evk EConstr.(mkApp (mkVar id, inst)) evd),
+        LocalAssum (na, ty) :: ctx,
+        EMap.add evk id ename)
+      (Evd.undefined_map evd.evar_map) (evd.evar_map, [], EMap.empty)
+  in
+  let context = EConstr.to_named_context sigma context in
+
+  let nvars, patvarsubst =
+    let patvar_names = Array.init (Int.Map.cardinal evd.evar_index)
+      (fun i -> let evk, _ = Int.Map.find i evd.evar_index in EMap.find evk enames)
+    in
+    let nvars, matched_vars_of_names =
+      Int.Map.fold (fun _ (evk, rigidity) (i, esubst) ->
+        match rigidity with
+        | Freestanding -> (i, esubst)
+        | Rigid -> i + 1, Id.Map.add (EMap.find evk enames) i esubst)
+        evd.evar_index (0, Id.Map.empty)
+    in
+    let matched_var_names =
+      let tbl = Array.make nvars (Id.of_string_soft "INACCESSIBLE") in
+      let () = Id.Map.iter (fun id i -> tbl.(i) <- id) matched_vars_of_names in
+      tbl
+    in
+    nvars, { patvar_names; matched_vars_of_names; matched_var_names }
+  in
+
   let sigma = Evd.freeze_sort_variables sigma in
   let sigma = Evd.fix_undefined_variables sigma in
-  let sigma = Int.Map.fold (fun _ (evk, _) sigma -> Evd.set_rewrite_rule_evar sigma evk) evd.evar_index sigma in
-
-  let names =
-    let name_of_idopt = function None -> Anonymous | Some id -> Name id in
-    let name_of_qualidopt = function None -> Anonymous | Some fp -> Name (Libnames.basename fp) in
-    let ustate = Evd.ustate sigma in
-    let evar_names = Array.init evd.nevars (fun i -> name_of_qualidopt @@ Evd.evar_ident (fst (Int.Map.find i evd.evar_index)) sigma) in
-    let sort_names = Array.init evd.nqualities (fun i -> name_of_idopt @@ UState.id_of_qvar ustate (fst (Int.Map.find i evd.qualities))) in
-    let level_names = Array.init evd.nlevels (fun i -> name_of_idopt @@ UState.id_of_level ustate (fst (Int.Map.find i evd.levels))) in
-    { evar_names; sort_names; level_names }
-  in
-
-  let subst =
-    let esubst = Int.Map.fold (fun i (ev, _) esubst -> Evar.Map.add ev i esubst) evd.evar_index Evar.Map.empty in
-    let qsubst = Int.Map.fold (fun i (q, _) qsubst -> QVar.Map.add q (Quality.QVar (QVar.make_var i)) qsubst) evd.qualities QVar.Map.empty in
-    let usubst = Int.Map.fold (fun i (u, _) usubst -> Level.Map.add u (Level.var i) usubst) evd.levels Level.Map.empty in
-    esubst, (qsubst, usubst)
-  in
 
   let sigma, cstrs =
     List.fold_left (fun (sigma, cstrs) (pred, c) ->
@@ -1359,19 +1401,84 @@ let finalize_state evd defs =
       ) (sigma, QVar.Map.empty) evd.ucstrs
   in
 
-  names, subst, sigma, cstrs
+  let auctx, usubst =
+    let ustate = Evd.ustate sigma in
+    let (sorts, lvls), cstrs = UState.sort_context_set ustate in
 
+    let sinst =
+      let pre = List.mapi (fun i (j, (q, _)) -> assert (Int.equal i j); q) (Int.Map.bindings evd.qualities) in
+      let rem = List.fold_right QSet.remove pre sorts in
+      Array.map_of_list (fun q -> Sorts.Quality.QVar q) (pre @ QSet.elements rem)
+    in
+    let linst =
+      let pre = List.mapi (fun i (j, (lvl, _)) -> assert (Int.equal i j); lvl) (Int.Map.bindings evd.levels) in
+      let rem = List.fold_right Level.Set.remove pre lvls in
+      Array.of_list (pre @ Level.Set.elements rem)
+    in
+    let inst = UVars.Instance.of_array (sinst, linst) in
+    let names = UState.compute_instance_binders ustate inst in
+    let usubst = UVars.make_instance_subst inst in
+    let auctx = UVars.AbstractContext.make names (UVars.subst_poly_constraints usubst cstrs) in
 
-let typecheck_finalize ~loc env evd pat j =
-  let evd, defs = push_constraints env evd in
+    auctx, usubst
+  in
+  let nvarqs, nvarus, matched_univ_pat, pat_matched_univ, usubst =
+    let rigid_pos map =
+      Array.of_list @@
+      Int.Map.fold_right (fun i (_, rigidity) ql ->
+      match rigidity with
+      | Freestanding -> ql
+      | Rigid -> i :: ql)
+      map []
+    in
+    let ql = rigid_pos evd.qualities in
+    let ul = rigid_pos evd.levels in
 
-  let names, subst, sigma, cstrs = finalize_state evd defs in
+    let matched_univ_pat = UVars.Instance.of_array
+      (Array.map (fun j -> Quality.var j) ql,
+      Array.map (fun j -> Level.var j) ul)
+    in
+    let nvarqs = Array.length ql and nvarus = Array.length ul in
 
-  let r = Relevanceops.relevance_of_term env (j_val j) in
-  check_pattern_relevances ~loc sigma evd.pattern_relevances r;
-  check_pattern_redex ~loc env pat;
+    let qlinv =
+      let tbl = Array.make (fst (UVars.AbstractContext.size auctx)) None in
+      let () = Array.iteri (fun i j -> tbl.(j) <- Some i) ql in
+      tbl
+    in
+    let ulinv =
+      let tbl = Array.make (snd (UVars.AbstractContext.size auctx)) None in
+      let () = Array.iteri (fun i j -> tbl.(j) <- Some i) ul in
+      tbl
+    in
+    let inst = (qlinv, ulinv) in
+    let usubst =
+      let qs, us = usubst in
+      let qs = QVar.Map.filter_map
+        (fun _ i ->
+          match i with
+          | Quality.QConstant _ | Quality.QGlobal _ -> assert false
+          | Quality.QVar v ->
+          match QVar.var_index v with
+          | None -> assert false
+          | Some n -> Option.map Quality.var qlinv.(n))
+        qs
+      in
+      let us = Level.Map.filter_map
+        (fun _ i ->
+          match Level.var_index i with
+          | None -> assert false
+          | Some n -> Option.map Level.var ulinv.(n))
+        us
+      in
+      qs, us
+    in
+    nvarqs, nvarus, matched_univ_pat, inst, usubst
+  in
+  sigma,
+  { nvars = (nvars, nvarqs, nvarus);
+    context; patvarsubst; auctx; cstrs; usubst; matched_univ_pat },
+  pat_matched_univ
 
-  names, subst, sigma, cstrs, pat, j
 
 
 type pattern_translation_error =
@@ -1383,69 +1490,74 @@ type pattern_translation_error =
 (* exception PatternTranslationError of rewrite_rule * pattern_translation_error *)
 exception LocalPatternTranslationError of pattern_translation_error
 
-let translate_quality_pattern = function
+let translate_quality_pattern ssubst = function
   | PQConstant _ | PQGlobal _ as q -> q
-  | PQVar i -> PQVar (Some i)
+  | PQVar i -> PQVar ssubst.(i)
 
-let translate_instance (s, l) =
-  let s = Array.map translate_quality_pattern s in
-  let l = Array.map (fun i -> Some i) l in
+let translate_instance (ssubst, lsubst) (s, l) =
+  let s = Array.map (translate_quality_pattern ssubst) s in
+  let l = Array.map (fun i -> lsubst.(i)) l in
   s, l
 
-let translate_sort_pattern = function
+let translate_sort_pattern (ssubst, lsubst) = function
   | PSProp | PSSProp | PSSet as sp -> sp
-  | PSType i -> PSType (Some i)
+  | PSType i -> PSType (lsubst.(i))
   | PSGlobal (g, li) ->
-    PSGlobal (g, Some li)
+    PSGlobal (g, lsubst.(li))
   | PSQSort (si, li) ->
-    PSQSort (Some si, Some li)
+    PSQSort (ssubst.(si), lsubst.(li))
 
 
-let rec translate_pattern = function
+let rec translate_pattern patvarsubst usubst = function
   | PRel n -> PHRel n, []
-  | PSort sp -> PHSort (translate_sort_pattern sp), []
-  | PSymbol (cst, mask) -> PHSymbol (cst, translate_instance mask), []
-  | PInd (ind, mask) -> PHInd (ind, translate_instance mask), []
-  | PConstr (cstr, mask) -> PHConstr (cstr, translate_instance mask), []
+  | PSort sp -> PHSort (translate_sort_pattern usubst sp), []
+  | PSymbol (cst, mask) -> PHSymbol (cst, translate_instance usubst mask), []
+  | PInd (ind, mask) -> PHInd (ind, translate_instance usubst mask), []
+  | PConstr (cstr, mask) -> PHConstr (cstr, translate_instance usubst mask), []
   | PInt i -> PHInt i, []
   | PFloat f -> PHFloat f, []
   | PString s -> PHString s, []
   | PLambda (_, arg, bod) ->
-      let arg = translate_arg_pattern arg in
-      let bod = translate_pattern bod in
+      let arg = translate_arg_pattern patvarsubst usubst arg in
+      let bod = translate_pattern patvarsubst usubst bod in
       let lambda = begin match bod with PHLambda (args, bod), [] -> PHLambda (Array.append [|arg|] args, bod) | _ -> PHLambda ([|arg|], bod) end in
       lambda, []
   | PProd (_, arg, bod) ->
-      let arg = translate_arg_pattern arg in
-      let bod = translate_arg_pattern bod in
+      let arg = translate_arg_pattern patvarsubst usubst arg in
+      let bod = translate_arg_pattern patvarsubst usubst bod in
       let prod = begin match bod with ERigid (PHProd (args, bod), []) -> PHProd (Array.append [|arg|] args, bod) | _ -> PHProd ([|arg|], bod) end in
       prod, []
   | PApp (f, arg) ->
-      let head, elims = translate_pattern f in
-      let arg = translate_arg_pattern arg in
+      let head, elims = translate_pattern patvarsubst usubst f in
+      let arg = translate_arg_pattern patvarsubst usubst arg in
       let elims = begin match elims with PEApp args :: elims -> PEApp (Array.append args [|arg|]) :: elims | _ -> PEApp [|arg|] :: elims end in
       head, elims
   | PCase (c, ind, ret, brs) ->
-      let head, elims = translate_pattern c in
-      let ret = translate_arg_pattern (snd ret) in
-      let brs = Array.map (fun (_, br) -> translate_arg_pattern br) brs in
+      let head, elims = translate_pattern patvarsubst usubst c in
+      let ret = translate_arg_pattern patvarsubst usubst (snd ret) in
+      let brs = Array.map (fun (_, br) -> translate_arg_pattern patvarsubst usubst br) brs in
       head, PECase (ind, ret, brs) :: elims
   | PProj (c, p) ->
-      let head, elims = translate_pattern c in
+      let head, elims = translate_pattern patvarsubst usubst c in
       head, PEProj p :: elims
 
-and translate_pattern_rev p =
-  let h, e = translate_pattern p in
+and translate_pattern_rev patvarsubst usubst p =
+  let h, e = translate_pattern patvarsubst usubst p in
   h, List.rev e
 
-and translate_arg_pattern = function
-  | PVar i -> EHole i
+and translate_arg_pattern patvarsubst usubst = function
+  | PVar i ->
+    let v = patvarsubst.patvar_names.(i) in
+    begin match Id.Map.find_opt v patvarsubst.matched_vars_of_names with
+    | Some i -> EHole i
+    | None -> EHoleIgnored
+    end
   | Pat p ->
-      let p = translate_pattern_rev p in
-      ERigid p
+    let p = translate_pattern_rev patvarsubst usubst p in
+    ERigid p
 
 let translate_pattern = translate_pattern_rev
-
+(*
 (* relocation of evars into de Bruijn indices *)
 let rec evar_subst evd evmap k t =
   match EConstr.kind evd t with
@@ -1483,29 +1595,39 @@ let test_level env nvarus lvl =
       | Ok () -> ()
       | Error l ->
         let lvl = Univ.Level.Set.choose l in (* Subsingleton of size 1 *)
-        raise (LocalPatternTranslationError (UnknownLevel lvl))
+        raise (LocalPatternTranslationError (UnknownLevel lvl)) *)
 
 
 
-let translate_rewrite_rule env evd (* { rr_auctx; rr_evars; esubst; pattern; replacement } *)_  =
-  (* try *)
-  (* let nsorts = Array.length rr_uctx.quals in *)
-  (* let nlvls = Array.length rr_uctx.univs in *)
-  (* let nvars = Array.length rr_evars in *)
-  let nvars, nsorts, nlvls, pattern, esubst, replacement = assert false in
-  let lhs_pat = translate_pattern pattern in
-  let rhs = EConstr.Unsafe.to_constr (evar_subst evd esubst 0 (EConstr.of_constr replacement)) in
-  let () =
-    let qs, us = Vars.sort_and_universes_of_constr rhs in
-    Sorts.Quality.Set.iter (test_quality env nsorts) qs;
-    Univ.Level.Set.iter (test_level env nlvls) us
-  in
-  let symb, head_umask, elims = match lhs_pat with
-    | PHSymbol (symb, mask), elims -> symb, mask, elims
-    | _ -> raise (LocalPatternTranslationError NoHeadSymbol)
-  in
+let translate_pattern patvarsubst usubst_translate pattern =
+  let lhs_pat = translate_pattern patvarsubst usubst_translate pattern in
+  match lhs_pat with
+  | PHSymbol (symb, mask), elims -> symb, (mask, elims)
+  | _ -> raise (LocalPatternTranslationError NoHeadSymbol)
 
-  symb, { nvars = (nvars, nsorts, nlvls); lhs_pat = (head_umask, elims); rhs }
+
+type pattern_data = {
+  info : pattern_data_aux;
+  pattern : pattern;
+  judgment : unsafe_judgment;
+  head_symbol : Constant.t;
+  lhs_pat : (int option, int option) instance_mask * pattern_elimination list
+}
+
+let typecheck_finalize ~loc env evd pattern judgment =
+  let evd, defs = push_constraints env evd in
+
+  let sigma, info, usubst_translate = finalize_state evd defs in
+
+  let r = Relevanceops.relevance_of_term env (j_val judgment) in
+  check_pattern_relevances ~loc sigma evd.pattern_relevances r;
+  check_pattern_redex ~loc env pattern;
+
+  let head_symbol, lhs_pat = translate_pattern info.patvarsubst usubst_translate pattern in
+
+  let nf c = EConstr.to_constr sigma (EConstr.of_constr c) in
+  let judgment = Environ.make_judge (nf (j_val judgment)) (nf (j_type judgment)) in
+  sigma, { info; pattern; judgment; head_symbol; lhs_pat }
   (* with LocalPatternTranslationError e as exn ->
     let _, info = Exninfo.capture exn in
     Exninfo.iraise (PatternTranslationError (rule, e), info) *)

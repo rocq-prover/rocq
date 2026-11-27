@@ -97,7 +97,7 @@ Fail Rewrite Rule id_rew_fail := id _ (?x ?y) => ?x ?y. (* Subterm not recognise
 Fail Rewrite Rule id_rew_fail := id _ _ => ?x. (* Unknown existential variable. *)
 Fail Rewrite Rule id_rew_fail := id _ (?x, ?x) => ?x. (* Variable ?x is bound multiple times in the pattern (holes number 1 and 2). *)
 Fail Rewrite Rule id_rew_fail := id _ (Type@{u}, Type@{u}) => ?x. (* Universe variable u is bound multiple times in the pattern (holes number 0 and 1). *)
-Rewrite Rule id_rew_notfail := id _ (?x, ?y) => (?x, ?y). (* The replacement term contains unresolved implicit arguments: (?x, ?y) *)
+Fail Rewrite Rule id_rew_notfail := id _ (?x, ?y) => (?x, ?y). (* The replacement term contains unresolved implicit arguments: (?x, ?y) *)
 Rewrite Rule id_rew_notfail2 := id _ Type => Type. (* Universe rewrule.xxx is unbound. *)
 Fail Rewrite Rule id_rew_fail := id _ (forall x, ?P) => ?P. (* Cannot interpret ?P in current context: no binding for x. *)
 

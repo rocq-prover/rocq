@@ -455,8 +455,8 @@ let subst_named_context subst = List.Smart.map (subst_named_declaration subst)
 
 let subst_rewrite_rule subst r =
   let {
-    rr_context; pattern; head_symbol; machine;
-    rr_auctx = _; rr_patvar_table = _;
+    rr_context; pattern; pat_term; head_symbol; machine;
+    rr_auctx = _; rr_patvar_table = _; rr_usubst = _;
     } = r
   in
   let symb, machine' =
@@ -473,8 +473,10 @@ let subst_rewrite_rule subst r =
   in
   let rr_context' = subst_named_context subst rr_context in
   let pattern' = subst_pattern subst pattern in
+  let pat_term' = subst_mps subst pat_term in
   if symb == head_symbol && machine' == machine &&
-    rr_context' == rr_context && pattern' == pattern
+    rr_context' == rr_context && pattern' == pattern &&
+    pat_term' == pat_term
   then
       r
   else
@@ -483,6 +485,7 @@ let subst_rewrite_rule subst r =
       machine = machine';
       rr_context = rr_context';
       pattern = pattern';
+      pat_term = pat_term'
     }
 
 

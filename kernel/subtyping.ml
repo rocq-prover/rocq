@@ -391,9 +391,9 @@ let check_rewrite_rules (cst, ustate) trace env l rrb subst2 =
   let rrb = Declareops.subst_rewrite_rules subst2 rrb in
   let error why = error_signature_mismatch trace l why in
   let check_conv_rr cst rule =
-    let t1 = (* Rewrite_rule_ops.pattern_to_term *) (fun _ _ -> assert false) rule.rr_patvar_table rule.pattern in
+    let t1 = rule.pat_term in
     let t2 = Vars.substl (Array.map_to_list (fun v -> mkVar v) rule.rr_patvar_table) rule.machine.rhs in
-    let () = Environ.check_ucontext (UVars.AbstractContext.repr rule.rr_auctx) env in
+    let t2 = Vars.subst_instance_constr rule.rr_usubst t2 in
     let env = Environ.push_context ~strict:false (UVars.AbstractContext.repr rule.rr_auctx) env in
     let env = Environ.push_named_context (List.map (fun d -> Environ.ProofVar, d) rule.rr_context) env in
     check_conv_error error (NotConvertibleRewriteRule (env, t1, t2)) (cst, ustate) true CONV env t1 t2
