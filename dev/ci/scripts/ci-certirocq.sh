@@ -28,8 +28,8 @@ if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
       sed -i '0,/^Separate Extraction/s//Extract Inlined Constant Archi.ptr64 => "true".\n&/' "$f"
   done
   # The theories of the compiler, without its proofs, the plugins and the runtime
-  dune build --root . @@compiler
+  dune build --root . --display=short @@compiler
   # The tests, which use the plugins from the build directory, and the bootstrapped
   # compiler and checker. The Wasm tests are left out, as running them needs node.
-  dune test --root . tests/programs tests/closures tests/axioms tests/ffi tests/ocaml bootstrap
+  dune test --root . --display=short tests/programs tests/closures tests/axioms tests/ffi tests/ocaml bootstrap
 )
