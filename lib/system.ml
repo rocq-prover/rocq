@@ -63,21 +63,22 @@ let rec mkdir dir =
       Unix.mkdir dir 0o755;
     end
 
-let apply_subdir f path name =
+let apply_subdir ~all_files f path name =
   (* we avoid all files and subdirs starting by '.' (e.g. .svn) *)
   (* as well as skipped files like CVS, ... *)
   let base = try Filename.chop_extension name with Invalid_argument _ -> name in
-  if ok_dirname base then
+  let ok = ok_dirname base in
+  if ok || (all_files && name.[0] != '.') then
     let path = if path = "." then name else path//name in
     match try (Unix.stat path).Unix.st_kind with Unix.Unix_error _ -> Unix.S_BLK with
-    | Unix.S_DIR when name = base -> f (FileDir (path,name))
+    | Unix.S_DIR when ok && name = base -> f (FileDir (path,name))
     | Unix.S_REG -> f (FileRegular name)
     | _ -> ()
 
 let readdir dir = try Sys.readdir dir with Sys_error _ -> [||]
 
-let process_directory f path =
-  Array.iter (apply_subdir f path) (readdir path)
+let process_directory ?(all_files=false) f path =
+  Array.iter (apply_subdir ~all_files f path) (readdir path)
 
 let process_subdirectories f path =
   let f = function FileDir (path,base) -> f path base | FileRegular _ -> () in

@@ -34,9 +34,11 @@ val exclude_directory : unix_path -> unit
 
 (** [process_directory f path] applies [f] on contents of directory
     [path]; fails with Unix_error if the latter does not exists; skips
-    all files or dirs starting with "." *)
+    all files or dirs starting with "." and, unless [all_files] is set
+    (default [false]), regular files whose name without extension is
+    not a valid identifier *)
 
-val process_directory : (file_kind -> unit) -> unix_path -> unit
+val process_directory : ?all_files:bool -> (file_kind -> unit) -> unix_path -> unit
 
 (** [process_subdirectories f path] applies [f path/file file] on each
     [file] of the directory [path]; fails with Unix_error if the
