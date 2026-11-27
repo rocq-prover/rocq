@@ -9,15 +9,15 @@ End SP.
 
 Module Poly.
   Set Universe Polymorphism.
-  Unset Collapse Sorts ToType.
 
-  Inductive pTrue : Type := pI.
+  (* Declare sort polymorphism explicitly: 9.2 has no Collapse Sorts ToType option. *)
+  Inductive pTrue@{s;u} : Type@{s;u} := pI.
 
   (* sanity check instance length *)
   Check pTrue@{_;_}.
 
-  Class Foo (x : Type) : Type := foo : x.
-  Definition Bar := Foo pTrue.
+  Class Foo@{s;u} (x : Type@{s;u}) : Type@{s;u} := foo : x.
+  Definition Bar@{s;u} := Foo@{s;u} pTrue@{s;u}.
 
   (* sanity check instance length *)
   Check Bar@{_;_}.
