@@ -608,6 +608,13 @@ let rec is_modtype senv =
   | SIG _ -> true
   | NONE | LIBRARY -> false
 
+let rec is_simple_modtype senv =
+  match senv.modvariant with
+  | STRUCT ([],senv) -> is_simple_modtype senv
+  | SIG _ -> true
+  | STRUCT (_ :: _, _)
+  | NONE | LIBRARY -> false
+
 let get_section = function
   | None -> CErrors.user_err Pp.(str "No open section.")
   | Some s -> s
@@ -825,6 +832,12 @@ let add_retroknowledge pttc senv =
 (** A generic function for adding a new field in a same environment.
     It also performs the corresponding [add_constraints]. *)
 
+let warn_inline_in_module =
+  CWarnings.create ~name:"inline-parameter-in-module"
+    ~category:CWarnings.CoreCategories.vernacular
+    (fun kn -> Pp.(str "Ignoring the Inline annotation of " ++
+      Constant.print kn ++ strbrk " outside of a module type or inside a module functor."))
+
 type generic_name =
   | C of Constant.t
   | I of MutInd.t
@@ -843,7 +856,18 @@ let add_field ((l,sfb) as field) gn senv =
       check_modlabel l senv; (Id.Set.singleton l, Id.Set.empty)
   in
   let env' = match sfb, gn with
-    | SFBconst cb, C con -> Environ.add_constant con cb senv.env
+    | SFBconst cb, C con ->
+      let cb = match cb.const_body with
+        | Undef (Some _) ->
+          (* An inlining declaration only makes sense in a module type *)
+          if is_simple_modtype senv then
+            cb
+          else
+            let () = warn_inline_in_module con in
+            { cb with const_body = Undef None }
+        | _ -> cb
+      in
+      Environ.add_constant con cb senv.env
     | SFBmind mib, I mind -> Environ.add_mind mind mib senv.env
     | SFBmodtype mtb, MT mp -> Environ.add_modtype mp mtb senv.env
     | SFBmodule mb, M mp -> Modops.add_module mp mb senv.env
@@ -905,12 +929,6 @@ let make_hbody = function
       assert (c == HConstr.self hc);
       snd @@ HConstr.hcons hc)
 
-let warn_inline_in_module =
-  CWarnings.create ~name:"inline-parameter-in-module"
-    ~category:CWarnings.CoreCategories.vernacular
-    (fun kn -> Pp.(str "Ignoring the Inline annotation of " ++
-      Constant.print kn ++ strbrk " outside of a module  type."))
-
 let add_constant_aux senv ?hbody (kn, cb) =
   let l = Constant.label kn in
   (* This is the only place where we hashcons the contents of a constant body *)
@@ -918,19 +936,7 @@ let add_constant_aux senv ?hbody (kn, cb) =
   let cb = if sections_are_opened senv then cb else
       Declareops.hcons_const_body ?hbody:(make_hbody hbody) cb
   in
-  let senv' = add_field (l,SFBconst cb) (C kn) senv in
-  let senv'' = match cb.const_body with
-    | Undef (Some lev) ->
-      (* An inlining declaration only makes sense in a module type *)
-      if is_modtype senv' then
-        update_resolver
-          (Mod_subst.add_inline_delta_resolver (Constant.user kn) lev) senv'
-      else
-        let () = warn_inline_in_module kn in
-        senv'
-    | _ -> senv'
-  in
-  senv''
+  add_field (l,SFBconst cb) (C kn) senv
 
 let undeclared_universes env (levels, csts) =
   match UGraph.check_declared_universes (Environ.universes env) levels with

@@ -88,7 +88,7 @@ val subst_modtype_signature_and_resolver : ModPath.t -> ModPath.t ->
 (** {6 Building map of constants to inline } *)
 
 val inline_delta_resolver :
-  env -> inline -> ModPath.t -> MBId.t -> module_type_body ->
+  env -> inline -> ModPath.t -> module_type_body ->
   'a delta_resolver -> mod_subst delta_resolver
 (** Enrich the resolver of the module being passed as a functor argument with
     the bodies of the fields the parameter type declared [Inline]. The result

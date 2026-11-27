@@ -267,7 +267,7 @@ let rec translate_apply ustate env inl mp subst (sign, reso, cst) args = match a
   in
   let cst = Subtyping.check_subtypes (cst, ustate) env mp1 (MPbound farg_id) farg_b in
   let mp_delta = discr_resolver mp1 (lookup_module mp1 env) in
-  let mp_delta = inline_delta_resolver env inl mp1 farg_id farg_b mp_delta in
+  let mp_delta = inline_delta_resolver env inl mp1 farg_b mp_delta in
   let nsubst = map_mbid farg_id mp1 mp_delta in
   let subst = join subst nsubst in
   translate_apply ustate env inl mp subst (sign, reso, cst) args
@@ -463,7 +463,7 @@ let translate_mse_include is_mod (cst, ustate) (vm, vmstate) env mp self inl me 
   let rec instantiate sign reso cst = match sign with
   | MoreFunctor (mbid, mtb, str) ->
     let cst = Subtyping.check_subtypes (cst, ustate) env_self mp (MPbound mbid) mtb in
-    let delta = inline_delta_resolver env inl mp mbid mtb (mod_delta self) in
+    let delta = inline_delta_resolver env inl mp mtb (mod_delta self) in
     let subst = map_mbid mbid mp delta in
     let reso = subst_codom_delta_resolver subst reso in
     instantiate (subst_signature subst mp str) reso cst

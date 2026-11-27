@@ -193,7 +193,7 @@ struct
           let resolver = match mod_global_delta mb with
           | None -> empty_delta_resolver mp
           | Some delta ->
-            Modops.inline_delta_resolver env inl mp farg_id farg_b delta
+            Modops.inline_delta_resolver env inl mp farg_b delta
           in
           mbid_left,join (map_mbid mbid mp resolver) subst
 
@@ -1030,7 +1030,7 @@ let inlined_bodies env inl ~is_mod me =
       | None -> accu (* a functor argument declares nothing *)
       | Some delta ->
         let reso =
-          Modops.inline_delta_resolver env inl mparg farg_id farg_b delta
+          Modops.inline_delta_resolver env inl mparg farg_b delta
         in
         let fold kn c accu =
           let can = Constant.canonical (constant_of_delta_kn delta kn) in
@@ -1507,7 +1507,7 @@ let rec include_subst env mp reso mbids sign inline = match mbids with
     let farg_id, farg_b, fbody_b = Modops.destr_functor sign in
     let subst = include_subst env mp reso mbids fbody_b inline in
     let mp_delta =
-      Modops.inline_delta_resolver env inline mp farg_id farg_b reso
+      Modops.inline_delta_resolver env inline mp farg_b reso
     in
     join (map_mbid mbid mp mp_delta) subst
 

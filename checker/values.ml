@@ -303,10 +303,10 @@ let v_modbody_inlining =
   v_fail "inline"
 
 let v_modtype_inlining =
-  v_sum "inlining" 0 [|[|v_int|]; [|v_fail "inline"|]|]
+  v_fail "inline in modtype"
 
 let v_modsubs_inlining =
-  v_sum "inlining" 0 [|[|v_fail "inline"|]; [|v_univ_abstracted v_constr|]|]
+  v_sum "inlining" 0 [|[|v_univ_abstracted v_constr|]|]
 
 let v_modbody_resolver =
   v_tuple "delta_resolver"

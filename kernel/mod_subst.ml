@@ -39,7 +39,6 @@ type mod_subst = [ `ModSubst ]
     - Module substitutions have inlining payloads recording the term a constant
       is to be replaced with. *)
 type _ inlining =
-| Level : int -> mod_type inlining
 | Payload : constr UVars.univ_abstracted -> mod_subst inlining
 
 (* NB: earlier constructor Prefix_equiv of ModPath.t
@@ -88,7 +87,6 @@ module Deltamap = struct
   let find_mp_opt mp reso = ModPath.Map.find_opt mp reso.mmap
   let find_kn_opt kn reso = KerName.Map.find_opt kn reso.kmap
   let find_inl_opt kn reso = KerName.Map.find_opt kn reso.imap
-  let mem_kn kn reso = KerName.Map.mem kn reso.kmap || KerName.Map.mem kn reso.imap
   let fold_kn f reso i = KerName.Map.fold f reso.kmap i
   let fold_inl f reso i = KerName.Map.fold f reso.imap i
   let fold fmp fkn finl reso accu =
@@ -201,7 +199,6 @@ let is_empty_subst = Umap.is_empty
 
 let string_of_inlining (type a) pr (inl : a inlining) = match inl with
 | Payload c -> str "inline(" ++ pr c ++ str ")"
-| Level lvl -> str "inline[" ++ int lvl ++ str "]"
 
 let debug_pr_mp_hint = function
 | MPequiv mp -> ModPath.print mp
@@ -245,10 +242,6 @@ let debug_pr_subst subst =
 (* </debug> *)
 
 (** Extending a [delta_resolver] *)
-
-let add_inline_delta_resolver kn lev reso =
-  let () = assert (not (Deltamap.mem_kn kn reso)) in
-  Deltamap.add_inl kn (Level lev) reso
 
 let add_kn_delta_resolver kn kn' =
   assert (Id.equal (KerName.label kn) (KerName.label kn'));
@@ -325,15 +318,6 @@ let fold_inline_body_delta_resolver f resolver accu =
   | Payload c -> f kn c accu
   in
   Deltamap.fold_inl fold resolver accu
-
-let inline_of_delta inline resolver =
-  match inline with
-    | None -> []
-    | Some inl_lev ->
-      let extract kn (inl : mod_type inlining) l = match inl with
-      | Level lev -> if lev <= inl_lev then kn :: l else l
-      in
-      Deltamap.fold_inl extract resolver []
 
 let search_delta_inline resolve kn1 kn2 =
   let find kn = match Deltamap.find_inl_opt kn resolve with
@@ -695,7 +679,6 @@ let gen_subst_delta_resolver (type a) (handler : a inline_handler) dom (subst : 
   let inl_apply_subst kkey (inl : a inlining) rslv : a delta_resolver =
     let kkey' = if dom then subst_kn subst kkey else kkey in
     let inl : a inlining = match inl with
-    | Level lev -> Level lev
     | Payload t -> Payload (UVars.map_univ_abstracted (subst_mps subst) t)
     in
     Deltamap.add_inl kkey' inl rslv

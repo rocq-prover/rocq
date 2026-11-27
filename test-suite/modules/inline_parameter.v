@@ -10,16 +10,34 @@ Module M.
   Fail Parameter Inline(1) x : Type.
 End M.
 
+Module Type E. End E.
+Module VE. End VE.
+
 Module Type T.
   Parameter Inline t : Type.
   Parameter u : t -> t.
 End T.
+
+Module Type BadT.
+  Module F(X:E).
+    Fail Parameter Inline x : nat.
+    Fail Include T.
+  End F.
+End BadT.
 
 (* The declaration survives the various ways of building a module type out of
    another one. *)
 Module Type T2 := T.
 Module Type T3. Include T. End T3.
 Module Type T4. Declare Module Sub : T. End T4.
+Module Type T5.
+  Module Sub.
+    Parameter Inline t : Type.
+    Parameter u : t -> t.
+  End Sub.
+End T5.
+Module Type T6(X:E) := T.
+Module Type T7(X:E). Include T. End T7.
 
 Module A.
   Definition t := nat.
@@ -30,12 +48,18 @@ Module F (X : T) := X.
 Module F2 (X : T2) := X.
 Module F3 (X : T3) := X.
 Module F4 (X : T4) := X.
+Module F5 (X : T5) := X.
+Module F6 (X : T6 VE) := X.
+Module F7 (X : T7 VE) := X.
 Module B. Module Sub := A. End B.
 
 Module A1 := F A.
 Module A2 := F2 A.
 Module A3 := F3 A.
 Module B4 := F4 B.
+Module B5 := F5 B.
+Module A6 := F6 A.
+Module A7 := F7 A.
 
 (* A functor whose parameter type is itself a functor type mentioning [T]: the
    subtyping check of the argument against [FS] must not confuse the inlining
@@ -63,15 +87,35 @@ Module J2 : S2. Definition u := A.u. End J2.
    test-suite/bugs/bug_15403.v. *)
 Notation "1" := true.
 
+Abbreviation check x :=
+  ltac:(let t := type of x in match t with (nat -> nat) => exact tt end)
+  (only parsing).
+
+Check check A1.u.
 Check A1.u 1.
+Check check A2.u.
 Check A2.u 1.
+Check check A3.u.
 Check A3.u 1.
+Check check B4.Sub.u.
 Check B4.Sub.u 1.
+Check check B5.Sub.u.
+Check B5.Sub.u 1.
+Check check A6.u.
+Check A6.u 1.
+Check check A7.u.
+Check A7.u 1.
+Check check C.v.
 Check C.v 1.
+Check check I1.u.
 Check I1.u 1.
+Check check I2.Inner.u.
 Check I2.Inner.u 1.
+Check check I3.N.u.
 Check I3.N.u 1.
+Check check J1.u.
 Check J1.u 1.
+Check check J2.u.
 Check J2.u 1.
 
 (* An inlinable field of a functor argument stays identified with the
