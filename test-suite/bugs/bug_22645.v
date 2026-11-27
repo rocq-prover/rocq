@@ -1,3 +1,6 @@
+(* -*- coq-prog-args: ("-native-compiler" "no"); -*- *)
+(* Native compilation of [ok] below triggers #16599, which is not fixed in 9.2. *)
+
 Definition ap_real (g1 g2 cont : nat -> Type) (a : nat) : nat -> Type :=
   fun m => match m with O => cont a | S k => g2 k end.
 Definition ap_fake (g1 g2 cont : nat -> Type) (a : nat) : nat -> Type :=
