@@ -478,6 +478,18 @@ and lack of checking of relevance marks on constants in coqchk
 - risk: needs a cumulative inductive in which a match on an empty SProp inductive
   or inductive using Definitional UIP appears
 
+#### incorrect variance inference with letin in constructor type
+- component: inductive declarations, universe polymorphism
+- introduced: V8.6 (cumulative inductives)
+- impacted released versions: V8.6 to V9.2.0
+- impacted rocqchk versions: same
+- fixed in: V9.2.1, V9.3
+- found by: OpenAI
+- issue: #22385
+- risk: the bug comes from being able to bind a constructor type letin in a match,
+  which means those letins cannot be irrelevant for conversion.
+  Differences in reduction may mean the bug is harder to exploit before V8.19, see issue.
+
 ### Module system
 
 #### missing universe constraints in typing "with" clause of a module type
