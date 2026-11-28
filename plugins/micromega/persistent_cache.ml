@@ -18,7 +18,7 @@
     It is stored and checked after the Rocq magic number.
     Incompatible caches are thrown away.
 *)
-let pcache_version = 15584l
+let pcache_version = 15585l
 
 module type PHashtable = sig
   (* see documentation in [persistent_cache.mli] *)
@@ -160,7 +160,7 @@ module PHashtable (Key : HashedType) : PHashtable with type key = Key.t = struct
   let add t k e =
     let {outch} = t in
     let fd = descr_of_out_channel outch in
-    let h = Key.hash k land 0x7FFFFFFF in
+    let h = Key.hash k land 0x3FFFFFFF in
     let dump () =
       let () = output_binary_int outch h in
       let () = Marshal.to_channel outch (k, e) [] in
@@ -172,7 +172,7 @@ module PHashtable (Key : HashedType) : PHashtable with type key = Key.t = struct
 
   let find t k =
     let {outch; htbl = tbl} = t in
-    let h = Key.hash k land 0x7FFFFFFF in
+    let h = Key.hash k land 0x3FFFFFFF in
     let lpos = Table.find h tbl in
     (* First look for already live data *)
     let find data = match data.obj with

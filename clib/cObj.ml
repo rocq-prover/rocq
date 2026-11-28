@@ -63,7 +63,9 @@ let reset_table () = H.clear node_table
 (*s Objects are traversed recursively, as soon as their tags are less than
     [no_scan_tag]. [count] records the numbers of words already visited. *)
 
-let size_of_double = Obj.size (Obj.repr 1.0)
+(* a float is 64 bits, we don't use [Obj.size (Obj.repr 1.0)] since boxed
+   floats are not blocks under wasm_of_ocaml *)
+let size_of_double = 64 / Sys.word_size
 
 let count = ref 0
 

@@ -155,7 +155,12 @@ module Level = struct
     let module H = Hashcons.Make(Self) in
     Hashcons.simple_hcons H.generate H.hcons ()
 
-  let make l = snd @@ hcons { hash = RawLevel.hash l; data = l }
+  (* The hash is truncated to 30 bits so that .vo files produced on a 64 bits
+     machine contain no integer larger than 31 bits, and can be loaded
+     on 32 bits machines or by js/wasm_of_ocaml (see also KerName.make).
+     Since the hash only uses additions and multiplications, the truncated
+     value does not depend on the word size. *)
+  let make l = snd @@ hcons { hash = RawLevel.hash l land 0x3FFFFFFF; data = l }
 
   let set = make Set
 

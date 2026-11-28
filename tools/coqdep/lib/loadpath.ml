@@ -19,10 +19,17 @@ type root = filename * dirpath
 (** File operations *)
 let absolute_dir dir =
   let current = Sys.getcwd () in
-    Sys.chdir dir;
+  match Sys.chdir dir with
+  | () ->
     let dir' = Sys.getcwd () in
-      Sys.chdir current;
-      dir'
+    Sys.chdir current;
+    dir'
+  | exception (Sys_error _ as e) ->
+    (* chdir may not be available (e.g. in a node worker thread or a Web
+       Worker): keep the path of an existing directory *)
+    if Sys.file_exists dir && Sys.is_directory dir then
+      if Filename.is_relative dir then Filename.concat current dir else dir
+    else raise e
 
 let absolute_file_name ~filename_concat basename odir =
   let dir = match odir with Some dir -> dir | None -> "." in

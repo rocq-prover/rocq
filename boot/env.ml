@@ -40,7 +40,7 @@ let canonical_path_name p =
     p'
   with Sys_error _ ->
     (* We give up to find a canonical name and just simplify it... *)
-    Filename.concat current p
+    if Filename.is_relative p then Filename.concat current p else p
 
 let theories_dir = "theories"
 let plugins_dir = "plugins"

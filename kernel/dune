@@ -3,8 +3,8 @@
  (synopsis "The Rocq Kernel")
  (public_name rocq-runtime.kernel)
  (wrapped false)
- (modules_without_implementation values declarations entries)
- (modules (:standard \ genOpcodeFiles uint63_31 uint63_63 float64_31 float64_63))
+ (modules_without_implementation values declarations entries uint63_intf)
+ (modules (:standard \ genOpcodeFiles float64_31 float64_63))
  (libraries boot lib coqrun dynlink))
 
 ; used by dune coq mode
@@ -23,11 +23,6 @@
 (rule
  (targets vmopcodes.mli)
  (action (with-stdout-to %{targets} (run ./genOpcodeFiles.exe copmli))))
-
-(rule
- (targets uint63.ml)
- (deps (:gen-file uint63_%{ocaml-config:int_size}.ml))
- (action (copy# %{gen-file} %{targets})))
 
 (rule
  (targets float64.ml)

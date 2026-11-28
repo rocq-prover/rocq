@@ -24,6 +24,13 @@ val check_for_interrupt : unit -> unit
 (** Use this function as a potential yield function. If {!interrupt} has been
     set, il will raise [Sys.Break]. *)
 
+val set_interrupt_poll : (unit -> bool) option -> unit
+(** [set_interrupt_poll (Some poll)] makes {!check_for_interrupt} call [poll]
+    periodically (every 1000 calls) and raise [Sys.Break] if [poll ()] returns
+    [true]. This is useful when no other thread can set {!interrupt}, e.g.
+    when Rocq runs in a Web Worker (js_of_ocaml, wasm_of_ocaml) and the
+    interruption request comes from shared memory. *)
+
 val timeout : float -> ('a -> 'b) -> 'a -> ('b, Exninfo.info) result
 (** [timeout n f x] tries to compute [Ok (f x)], and if it fails to do
     so before [n] seconds, returns [Error info] instead (where [info]
