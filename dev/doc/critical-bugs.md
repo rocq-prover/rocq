@@ -107,6 +107,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [kernel reduction drops the lift on a primitive array](#kernel-reduction-drops-the-lift-on-a-primitive-array)
       - [VM conversion of stuck matches shifted the arguments of constructors with extended tags](#vm-conversion-of-stuck-matches-shifted-the-arguments-of-constructors-with-extended-tags)
       - [VM PUSHACCMANY opcode corrupted stack on overlapping copies](#vm-pushaccmany-opcode-corrupted-stack-on-overlapping-copies)
+      - [native symbol deduplication equated +0.0 and -0.0 in structured values](#native-symbol-deduplication-equated-00-and-00-in-structured-values)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -1264,6 +1265,18 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - exploit: test-suite/bugs/bug_22930.v
 - GH issue number: [#22930](https://github.com/rocq-prover/rocq/issues/22930)
 - risk: low for hand-written terms, at it requires a long sequence of trivial let bindings
+
+#### native symbol deduplication equated +0.0 and -0.0 in structured values
+
+- component: native, primitive floats
+- introduced: V8.11 ([#9867](https://github.com/rocq-prover/rocq/pull/9867))
+- impacted released versions: V8.11 to V9.3.0
+- impacted coqchk versions: none (no native computation in coqchk)
+- fixed in: V9.2.1, V9.3.1, V9.4
+- found by: Gregory Nisbet (using Gemini)
+- exploit: test-suite/bugs/bug_22938.v
+- GH issue number: [#22938](https://github.com/rocq-prover/rocq/issues/22938)
+- risk: needs `native_compute` / `native_cast_no_check` on constant inductive values wrapping `+0.0` and `-0.0`
 
 ### Side-effects
 

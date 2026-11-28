@@ -157,9 +157,38 @@ let hash_annot_sw asw =
 
 (** Symbols (pre-computed values) **)
 
+let rec eq_structured_value (v1 : Nativevalues.t) (v2 : Nativevalues.t) =
+  v1 == v2 ||
+  let o1 = Obj.repr v1 in
+  let o2 = Obj.repr v2 in
+  if Obj.is_int o1 || Obj.is_int o2 then false
+  else
+    let t1 = Obj.tag o1 in
+    let t2 = Obj.tag o2 in
+    if Int.equal t1 t2 && Int.equal (Obj.size o1) (Obj.size o2) then
+      if Int.equal t1 Obj.custom_tag then
+        Int64.equal (Obj.obj o1) (Obj.obj o2)
+      else if Int.equal t1 Obj.double_tag then
+        Float64.(equal (of_float (Obj.obj o1)) (of_float (Obj.obj o2)))
+      else if Int.equal t1 Obj.string_tag then
+        String.equal (Obj.obj o1) (Obj.obj o2)
+      else begin
+        assert (t1 <= Obj.last_non_constant_constructor_tag);
+        let len = Obj.size o1 in
+        let rec aux i =
+          Int.equal i len ||
+          (eq_structured_value
+             (Obj.obj (Obj.field o1 i) : Nativevalues.t)
+             (Obj.obj (Obj.field o2 i) : Nativevalues.t)
+           && aux (i + 1))
+        in
+        aux 0
+      end
+    else false
+
 let eq_symbol sy1 sy2 =
   match sy1, sy2 with
-  | SymbValue v1, SymbValue v2 -> (=) v1 v2 (** FIXME: how is this even valid? *)
+  | SymbValue v1, SymbValue v2 -> eq_structured_value v1 v2
   | SymbSort s1, SymbSort s2 -> Sorts.equal s1 s2
   | SymbName n1, SymbName n2 -> Name.equal n1 n2
   | SymbConst kn1, SymbConst kn2 -> Constant.UserOrd.equal kn1 kn2
