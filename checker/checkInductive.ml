@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Declarations
-open Environ
 open Names
 open UVars
 open Util
@@ -214,7 +213,7 @@ let check_packet mind ind
 
 let check_inductive env mind mb retro =
   let entry = to_entry mind mb in
-  let { mind_packets; mind_finite; mind_hyps; mind_univ_hyps;
+  let { mind_packets; mind_aliasing; mind_finite; mind_hyps; mind_univ_hyps;
         mind_nparams; mind_nparams_rec; mind_params_ctxt;
         mind_universes; mind_template; mind_variance; mind_sec_variance;
         mind_private; mind_typing_flags; }
@@ -249,10 +248,13 @@ let check_inductive env mind mb retro =
   check "mind_sec_variance" (Option.is_empty mind_sec_variance);
   ignore mind_private; (* passed through Indtypes *)
 
+  ignore mind_aliasing (* add_mind checks that mind_aliasing matches mind *);
+  let () = Subtyping.check_inductive_alias env mind mb in
+
   ignore mind_typing_flags;
   (* TODO non oracle flags *)
 
-  add_mind mind mb env
+  Environ.add_mind mind mb env
 
 let check_inductive env mind mb retro : Environ.env =
   NewProfile.profile "check_inductive"

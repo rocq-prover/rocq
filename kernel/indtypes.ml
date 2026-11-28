@@ -596,6 +596,7 @@ let build_inductive env ~sec_univs names prv univs template variance
   in
   (* Build the mutual inductive *)
   { mind_finite = isfinite;
+    mind_aliasing = None;
     mind_hyps = hyps;
     mind_univ_hyps = univ_hyps;
     mind_nparams = nparamargs;

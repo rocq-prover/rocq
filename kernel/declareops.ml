@@ -40,6 +40,16 @@ let safe_flags oracle = {
   allow_uip = false;
 }
 
+let constant_of_decl knu cb =
+  match cb.const_aliasing with
+  | None -> Names.Constant.make1 knu
+  | Some knc -> Names.Constant.make knu knc
+
+let mind_of_decl knu mib =
+  match mib.mind_aliasing with
+  | None -> Names.MutInd.make1 knu
+  | Some knc -> Names.MutInd.make knu knc
+
 (** {6 Arities } *)
 
 let hcons_template_universe ar =
@@ -85,6 +95,12 @@ let subst_rel_declaration subst =
 
 let subst_rel_context subst = List.Smart.map (subst_rel_declaration subst)
 
+let subst_const_aliasing subst alias =
+  let open Names in
+  let c = Constant.make1 alias in
+  let c = subst_constant subst c in
+  Constant.canonical c
+
 let subst_const_type subst arity =
   if is_empty_subst subst then arity
   else subst_mps subst arity
@@ -101,13 +117,15 @@ let subst_const_body subst cb =
   assert (List.is_empty cb.const_hyps && UVars.Instance.is_empty cb.const_univ_hyps);
   if is_empty_subst subst then cb
   else
+    let aliasing' = Option.Smart.map (subst_const_aliasing subst) cb.const_aliasing in
     let body' = subst_const_def subst cb.const_body in
     let type' = subst_const_type subst cb.const_type in
-    if body' == cb.const_body && type' == cb.const_type
+    if aliasing' == cb.const_aliasing && body' == cb.const_body && type' == cb.const_type
     then cb
     else
       { const_hyps = [];
         const_univ_hyps = UVars.Instance.empty;
+        const_aliasing = aliasing';
         const_body = body';
         const_type = type';
         const_body_code = Vmemitcodes.subst_body_code subst cb.const_body_code;
@@ -215,6 +233,12 @@ let subst_automaton subst a =
 
 (** {7 Substitution of inductive declarations } *)
 
+let subst_mind_aliasing subst alias =
+  let open Names in
+  let mind = MutInd.make1 alias in
+  let mind = subst_mind subst mind in
+  MutInd.canonical mind
+
 let subst_mind_record subst r = match r with
 | NotRecord -> NotRecord
 | FakeRecord -> FakeRecord
@@ -250,6 +274,7 @@ let subst_mind_body subst mib =
   { mind_finite = mib.mind_finite ;
     mind_hyps = [];
     mind_univ_hyps = UVars.Instance.empty;
+    mind_aliasing = Option.Smart.map (subst_mind_aliasing subst) mib.mind_aliasing;
     mind_nparams = mib.mind_nparams;
     mind_nparams_rec = mib.mind_nparams_rec;
     mind_params_ctxt =

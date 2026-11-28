@@ -269,15 +269,27 @@ and compile_module_bytecode : 'a. env -> Vmlibrary.t -> ModPath.t ->
 (** {6 Strengthening a signature for subtyping } *)
 
 let strengthen_const mp_from l cb resolver =
+  let kn = KerName.make mp_from l in
+  let con = constant_of_delta_kn resolver kn in
+  let cb = match cb.const_aliasing with
+    | Some _ -> cb
+    | None -> { cb with const_aliasing = Some (Constant.canonical con) }
+  in
   match cb.const_body with
   | Def _ -> cb
   | _ ->
-    let kn = KerName.make mp_from l in
-    let con = constant_of_delta_kn resolver kn in
     let u = UVars.make_abstract_instance (Declareops.constant_polymorphic_context cb) in
       { cb with
         const_body = Def (mkConstU (con,u));
         const_body_code = Vmbytegen.compile_alias con }
+
+let strengthen_mind mp_from l mib resolver =
+  match mib.mind_aliasing with
+  | Some _ -> mib
+  | None ->
+    let kn = KerName.make mp_from l in
+    let mind = mind_of_delta_kn resolver kn in
+    { mib with mind_aliasing = Some (MutInd.canonical mind) }
 
 let rec strengthen_module mp mb = match mod_type mb with
 | NoFunctor struc ->
@@ -396,6 +408,9 @@ and strengthen_and_subst_struct struc subst mp_from mp_to alias incl reso =
         include_field reso' l, item'
     | (l,SFBmind mib) ->
         let mib' = subst_mind_body subst mib in
+        let mib' = if alias then (* optimization *) mib'
+          else strengthen_mind mp_from l mib' reso
+        in
         let item' = if mib' == mib then item else (l, SFBmind mib') in
         (* Same as constant *)
         include_field reso' l, item'

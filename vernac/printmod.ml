@@ -307,7 +307,7 @@ let print_struct is_impl extent env mp struc =
 
 let print_structure is_type extent env mp locals struc =
   (* XXX: when printing signatures we overwrite already defined modules *)
-  let env' = Environ.Internal.overwrite_structure mp struc (Mod_subst.empty_delta_resolver mp) env in
+  let env' = Environ.Internal.overwrite_structure mp struc env in
   nametab_register_module_body mp struc;
   let kwd = if is_type then "Sig" else "Struct" in
   hv 2 (keyword kwd ++ spc () ++ print_struct false extent env' mp struc ++

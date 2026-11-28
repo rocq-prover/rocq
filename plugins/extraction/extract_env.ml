@@ -157,9 +157,16 @@ let prec_declaration_equal sg (na1, ca1, ta1) (na2, ca2, ta2) =
   Array.equal (EConstr.eq_constr sg) ca1 ca2 &&
   Array.equal (EConstr.eq_constr sg) ta1 ta2
 
-let factor_fix env sg l cb msb =
+let make_cst cb mp l =
+  Declareops.constant_of_decl (KerName.make mp l) cb
+
+let make_mind mib mp l =
+  Declareops.mind_of_decl (KerName.make mp l) mib
+
+let factor_fix env sg mp l cb msb =
   let _,recd as check = check_fix env sg cb 0 in
   let n = Array.length (let fi,_,_ = recd in fi) in
+  let l = make_cst cb mp l in
   if Int.equal n 1 then [|l|], recd, msb
   else begin
     if List.length msb < n-1 then raise Impossible;
@@ -168,12 +175,12 @@ let factor_fix env sg l cb msb =
     List.iteri
       (fun j ->
          function
-           | (l,SFBconst cb') ->
+           | (l',SFBconst cb') ->
               let check' = check_fix env sg cb' (j+1) in
               if not ((fst check : bool) == (fst check') &&
                         prec_declaration_equal sg (snd check) (snd check'))
                then raise Impossible;
-               labels.(j+1) <- l;
+               labels.(j+1) <- make_cst cb' mp l';
            | _ -> raise Impossible) msb';
     labels, recd, msb''
   end
@@ -217,18 +224,12 @@ let flatten_modtype env mp me_alg struc_opt =
 (** Ad-hoc update of environment, inspired by [Mod_typing.check_with_aux_def].
 *)
 
-let env_for_mtb_with_def env mp me reso idl =
+let env_for_mtb_with_def env mp me idl =
   let struc = Modops.destr_nofunctor mp me in
   let l = List.hd idl in
   let spot = function (l',SFBconst _) -> Id.equal l l' | _ -> false in
   let before = fst (List.split_when spot struc) in
-  Environ.Internal.overwrite_structure mp before reso env
-
-let make_cst resolver mp l =
-  Mod_subst.constant_of_delta_kn resolver (KerName.make mp l)
-
-let make_mind resolver mp l =
-  Mod_subst.mind_of_delta_kn resolver (KerName.make mp l)
+  Environ.Internal.overwrite_structure mp before env
 
 (* The overwrite functions below are basically a hack to work around the fact
    that extraction breaks all kinds of reasonable invariants regarding modules.
@@ -239,16 +240,14 @@ let make_mind resolver mp l =
 (* From a [structure_body] (i.e. a list of [structure_field_body])
    to specifications. *)
 
-let rec extract_structure_spec : type a.
-  State.t -> _ -> _ -> _ -> a Mod_subst.delta_resolver -> _ -> _ =
-  fun table venv env mp reso -> function
+let rec extract_structure_spec table venv env mp = function
   | [] -> []
   | (l, SFBconst cb) :: msig ->
     let insts = get_mono_inst_univs cb.const_universes in
-    let c = make_cst reso mp l in
+    let c = make_cst cb mp l in
     let map inst = extract_constant_spec table env c inst cb in
     let consts = List.map map insts in
-    let specs = extract_structure_spec table venv env mp reso msig in
+    let specs = extract_structure_spec table venv env mp msig in
     let fold s specs =
       if logical_spec s then specs
       else
@@ -258,10 +257,10 @@ let rec extract_structure_spec : type a.
     List.fold_right fold consts specs
   | (l, SFBmind mib) :: msig ->
     let insts = get_mono_inst_univs mib.mind_universes in
-    let mind = make_mind reso mp l in
+    let mind = make_mind mib mp l in
     let map inst = Sind (extract_inductive table env mind inst) in
     let minds = List.map map insts in
-    let specs = extract_structure_spec table venv env mp reso msig in
+    let specs = extract_structure_spec table venv env mp msig in
     let fold s specs =
       if logical_spec s then specs
       else
@@ -270,15 +269,15 @@ let rec extract_structure_spec : type a.
     in
     List.fold_right fold minds specs
   | (l, SFBrules _) :: msig ->
-      let specs = extract_structure_spec table venv env mp reso msig in
+      let specs = extract_structure_spec table venv env mp msig in
       specs
   | (l,SFBmodule mb) :: msig ->
-      let specs = extract_structure_spec table venv env mp reso msig in
+      let specs = extract_structure_spec table venv env mp msig in
       let mp = MPdot (mp, l) in
       let spec = extract_mbody_spec table venv env mp mb in
       (l,Smodule spec) :: specs
   | (l,SFBmodtype mtb) :: msig ->
-      let specs = extract_structure_spec table venv env mp reso msig in
+      let specs = extract_structure_spec table venv env mp msig in
       let mp = MPdot (mp, l) in
       let spec = extract_mbody_spec table venv env mp mtb in
       (l,Smodtype spec) :: specs
@@ -302,7 +301,7 @@ and extract_mexpr_spec table venv env mp1 (me_struct_o,me_alg) = match me_alg wi
         else user_err Pp.(str "Extraction of \"with Definition\" clauses not supported for sort polymorphic definitions.")
       in
       let me_struct,delta = flatten_modtype env mp1 me' me_struct_o in
-      let env' = env_for_mtb_with_def env mp1 me_struct delta idl in
+      let env' = env_for_mtb_with_def env mp1 me_struct idl in
       let mt = extract_mexpr_spec table venv env mp1 (None,me') in
       let sg = Evd.from_env env in
       (match extract_with_type table env' sg (EConstr.of_constr c) with
@@ -317,7 +316,7 @@ and extract_mexpr_spec table venv env mp1 (me_struct_o,me_alg) = match me_alg wi
   | MEapply _ ->
      (* No higher-order module type in OCaml : we use the expanded version *)
      let me_struct,delta = flatten_modtype env mp1 me_alg me_struct_o in
-     extract_msignature_spec table venv env mp1 delta me_struct
+     extract_msignature_spec table venv env mp1 me_struct
 
 and extract_mexpression_spec table venv env mp1 (me_struct,me_alg) = match me_alg with
   | MEMoreFunctor me_alg' ->
@@ -331,22 +330,20 @@ and extract_mexpression_spec table venv env mp1 (me_struct,me_alg) = match me_al
                 extract_mexpression_spec table venv env' mp1 (me_struct', me_alg'))
   | MENoFunctor m -> extract_mexpr_spec table venv env mp1 (Some me_struct, m)
 
-and extract_msignature_spec : type a.
-  State.t -> _ -> _ -> _ -> a Mod_subst.delta_resolver -> _ -> _ =
-  fun table venv env mp1 reso -> function
+and extract_msignature_spec table venv env mp1 = function
   | NoFunctor struc ->
-      let env' = Environ.Internal.overwrite_structure mp1 struc reso env in
-      MTsig (mp1, extract_structure_spec table venv env' mp1 reso struc)
+      let env' = Environ.Internal.overwrite_structure mp1 struc env in
+      MTsig (mp1, extract_structure_spec table venv env' mp1 struc)
   | MoreFunctor (mbid, mtb, me) ->
       let mp = MPbound mbid in
       let env' = Environ.Internal.overwrite_module_parameter mbid mtb env in
       MTfunsig (mbid, extract_mbody_spec table venv env mp mtb,
-                extract_msignature_spec table venv env' mp1 reso me)
+                extract_msignature_spec table venv env' mp1 me)
 
 and extract_mbody_spec : 'a. State.t -> _ -> _ -> _ -> 'a generic_module_body -> _ =
   fun table venv env mp mb -> match mod_type_alg mb with
   | Some ty -> extract_mexpression_spec table venv env mp (mod_type mb, ty)
-  | None -> extract_msignature_spec table venv env mp (mod_delta mb) (mod_type mb)
+  | None -> extract_msignature_spec table venv env mp (mod_type mb)
 
 (* From a [structure_body] (i.e. a list of [structure_field_body])
    to implementations.
@@ -355,17 +352,17 @@ and extract_mbody_spec : 'a. State.t -> _ -> _ -> _ -> 'a generic_module_body ->
    important: last to first ensures correct dependencies.
 *)
 
-let rec extract_structure table access venv env mp reso ~all = function
+let rec extract_structure table access venv env mp ~all = function
   | [] -> []
   | (l, SFBconst cb) :: struc ->
     let sg = Evd.from_env env in
-    let fix, struc = match factor_fix env sg l cb struc with
+    let fix, struc = match factor_fix env sg mp l cb struc with
     | (vl, recd, struc) -> Some (vl, recd), struc
     | exception Impossible -> None, struc
     in
-    let ms = extract_structure table access venv env mp reso ~all struc in
+    let ms = extract_structure table access venv env mp ~all struc in
     let insts = get_mono_inst_univs cb.const_universes in
-    let c = make_cst reso mp l in
+    let c = make_cst cb mp l in
     let map inst = match fix with
     | None ->
       let b = Visit.needed_cst venv c inst in
@@ -376,8 +373,7 @@ let rec extract_structure table access venv env mp reso ~all = function
         let () = Visit.add_decl_deps venv d in
         Some (l, SEdecl d)
       else None
-    | Some (vl, recd) ->
-      let vc = Array.map (make_cst reso mp) vl in
+    | Some (vc, recd) ->
       let b = Array.exists (fun vf -> Visit.needed_cst venv vf inst) vc in
       if all || b then
         let d = extract_fixpoint table env sg vc inst recd in
@@ -390,9 +386,9 @@ let rec extract_structure table access venv env mp reso ~all = function
     let consts = List.map_filter map insts in
     consts @ ms
   | (l, SFBmind mib) :: struc ->
-    let ms = extract_structure table access venv env mp reso ~all struc in
+    let ms = extract_structure table access venv env mp ~all struc in
     let insts = get_mono_inst_univs mib.mind_universes in
-    let mind = make_mind reso mp l in
+    let mind = make_mind mib mp l in
     let map inst =
       let b = Visit.needed_ind venv mind inst in
       if all || b then
@@ -408,20 +404,20 @@ let rec extract_structure table access venv env mp reso ~all = function
   | (l, SFBrules rrb) :: struc ->
       let inst = InfvInst.empty in (* FIXME ? *)
       let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst inst) rrb.rewrules_rules in
-      let ms = extract_structure table access venv env mp reso ~all struc in
+      let ms = extract_structure table access venv env mp ~all struc in
       if all || b then begin
         List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) (ConstRef cst) l) rrb.rewrules_rules;
         ms
       end else ms
   | (l,SFBmodule mb) :: struc ->
-      let ms = extract_structure table access venv env mp reso ~all struc in
+      let ms = extract_structure table access venv env mp ~all struc in
       let mp = MPdot (mp,l) in
       let all' = all || Visit.needed_mp_all venv mp in
       if all' || Visit.needed_mp venv mp then
         (l, SEmodule (extract_module table access venv env mp ~all:all' mb)) :: ms
       else ms
   | (l,SFBmodtype mtb) :: struc ->
-      let ms = extract_structure table access venv env mp reso ~all struc in
+      let ms = extract_structure table access venv env mp ~all struc in
       let mp = MPdot (mp,l) in
       if all || Visit.needed_mp venv mp then
         (l, SEmodtype (extract_mbody_spec table venv env mp mtb)) :: ms
@@ -460,8 +456,8 @@ and extract_mexpression table access venv env mp mty = function
 
 and extract_msignature table access venv env mp reso ~all = function
   | NoFunctor struc ->
-    let env' = Environ.Internal.overwrite_structure mp struc reso env in
-    Miniml.MEstruct (mp, extract_structure table access venv env' mp reso ~all struc)
+    let env' = Environ.Internal.overwrite_structure mp struc env in
+    Miniml.MEstruct (mp, extract_structure table access venv env' mp ~all struc)
   | MoreFunctor (mbid, mtb, me) ->
       let mp1 = MPbound mbid in
       let env' = Environ.Internal.overwrite_module_parameter mbid mtb env in
@@ -508,7 +504,7 @@ let mono_environment table ~opaque_access refs mpl =
   let l = List.rev (environment_until None) in
   List.rev_map
     (fun (mp,struc) ->
-      mp, extract_structure table opaque_access venv env mp (no_delta mp) ~all:(Visit.needed_mp_all venv mp) struc)
+      mp, extract_structure table opaque_access venv env mp ~all:(Visit.needed_mp_all venv mp) struc)
     l
 
 (**************************************)
@@ -778,7 +774,7 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
   let l = List.rev (environment_until (Some dir_m)) in
   let select l (mp,struc) =
     if Visit.needed_mp venv mp
-    then (mp, extract_structure table opaque_access venv env mp (no_delta mp) ~all:true struc) :: l
+    then (mp, extract_structure table opaque_access venv env mp ~all:true struc) :: l
     else l
   in
   let struc = List.fold_left select [] l in
