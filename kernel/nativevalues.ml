@@ -883,7 +883,9 @@ let arraylength accu vA t =
   else apply2 accu vA t
 
 let parray_of_array t def =
-  (Obj.magic (Parray.unsafe_of_obj (Obj.repr t) def) : t)
+  (* [t] may be a statically allocated tuple (from MLarray), so copy it before
+     passing it to Parray which mutates its backing array in place. *)
+  (Obj.magic (Parray.unsafe_of_obj (Obj.dup (Obj.repr t)) def) : t)
 
 let hobcnv = Array.init 256 (fun i -> Printf.sprintf "%02x" i)
 let bohcnv = Array.init 256 (fun i -> i -
