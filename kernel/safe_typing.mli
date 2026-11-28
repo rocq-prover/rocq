@@ -282,6 +282,7 @@ val typing : safe_environment -> Constr.constr -> judgment
 (** {6 Queries } *)
 
 val exists_objlabel : Id.t -> safe_environment -> bool
+val labels_of_mib : Declarations.mutual_inductive_body -> Id.Set.t
 
 val delta_of_senv : safe_environment -> Mod_subst.mod_type Mod_subst.delta_resolver
 

@@ -46,6 +46,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [guard checker counts local definitions as formal arguments in uniformity analysis](#guard-checker-counts-local-definitions-as-formal-arguments-in-uniformity-analysis)
       - [guard checker computes uniform parameters of nested fixpoints in the wrong environment](#guard-checker-computes-uniform-parameters-of-nested-fixpoints-in-the-wrong-environment)
       - [guard checker computes recursive argument type in the wrong environment](#guard-checker-computes-recursive-argument-type-in-the-wrong-environment)
+      - [guard checker computes commutative cuts in the wrong environment and breaks propositional extensionality](#guard-checker-computes-commutative-cuts-in-the-wrong-environment-and-breaks-propositional-extensionality)
     - [Section system](#section-system)
       - [projections are cooked in wrong environment](#projections-are-cooked-in-wrong-environment)
     - [Module system](#module-system)
@@ -59,6 +60,10 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Incorrect subtyping rule for universe polymorphic "with Definition".](#incorrect-subtyping-rule-for-universe-polymorphic-with-definition)
       - [Subtyping ignored elimination constraints](#subtyping-ignored-elimination-constraints)
       - [kernel and checker accept incorrect name aliasing information](#kernel-and-checker-accept-incorrect-name-aliasing-information)
+      - [rocqchk accepts a forged alias between declared-only fields](#rocqchk-accepts-a-forged-alias-between-declared-only-fields)
+      - [rocqchk does not check the canonical names a module gives its submodules' fields](#rocqchk-does-not-check-the-canonical-names-a-module-gives-its-submodules-fields)
+      - [rocqchk accepts a forged alias that changes the label of a name](#rocqchk-accepts-a-forged-alias-that-changes-the-label-of-a-name)
+      - [rocqchk accepts a structure that uses a label twice](#rocqchk-accepts-a-structure-that-uses-a-label-twice)
     - [Incorrect subtyping of inductives with letins in constructor types](#incorrect-subtyping-of-inductives-with-letins-in-constructor-types)
     - [Including functor application generates garbage delta-resolvers](#including-functor-application-generates-garbage-delta-resolvers)
       - [Subtyping of inductive types ignores uniform parameters making it inconsistent with propext](#subtyping-of-inductive-types-ignores-uniform-parameters-making-it-inconsistent-with-propext)
@@ -122,6 +127,8 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
     - [Deserialization](#deserialization)
       - [deserialization of .vo data not properly checked](#deserialization-of-vo-data-not-properly-checked)
       - [rocqchk trusts the serialized VM bytecode segment](#rocqchk-trusts-the-serialized-vm-bytecode-segment)
+      - [rocqchk trusts the serialized registration of a primitive type](#rocqchk-trusts-the-serialized-registration-of-a-primitive-type)
+      - [rocqchk does not check the type of a primitive operator](#rocqchk-does-not-check-the-type-of-a-primitive-operator)
   - [Probably non exploitable fixed bugs](#probably-non-exploitable-fixed-bugs)
       - [bug in 31bit arithmetic](#bug-in-31bit-arithmetic)
 
@@ -690,6 +697,72 @@ and lack of checking of relevance marks on constants in coqchk
 - GH issue number: rocq-prover/rocq#7609
 - exploit: see issue (requires a plugin or hand crafted .vo file)
 - risk: low
+
+#### rocqchk accepts a forged alias between declared-only fields
+
+- component: rocqchk, modules
+- introduced: unknown
+- impacted released versions: unknown (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#22877
+- exploit: test-suite/misc/rocqchk_forged_aliases.sh, case parameter: a crafted
+  .vo makes c, declared in the type of a sealed module M2 with M2.c := false,
+  an alias of c declared in the type of a sealed module M1 with M1.c := true,
+  and a client proves False from what the two types state about c
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk does not check the canonical names a module gives its submodules' fields
+
+- component: rocqchk, modules
+- introduced: unknown
+- impacted released versions: unknown (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#22877
+- exploit: test-suite/misc/rocqchk_forged_aliases.sh, case nested: a crafted
+  .vo gives the resolver of a module A, and not that of its submodule A.X,
+  the alias A.X.d -> A.Y.d, with A.Y.d := true and A.X.d := false; rocqchk
+  then finds that R : T := F A matches a T stating A.Y.d = false (case
+  nested-inductive does the same with two inductives)
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk accepts a forged alias that changes the label of a name
+
+- component: rocqchk, modules
+- introduced: unknown
+- impacted released versions: unknown (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#22877
+- exploit: test-suite/misc/rocqchk_forged_aliases.sh, case label: a crafted
+  .vo makes k := P.X.d, in the body of a functor F (P : S), an alias of
+  P.X.d; the application F A rebuilds it as an alias of A.X.k, a field that
+  F never names, so that F's lemma : k = false states A.X.k = false
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk accepts a structure that uses a label twice
+
+- component: rocqchk, modules
+- introduced: unknown
+- impacted released versions: unknown (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#22877
+- exploit: test-suite/misc/rocqchk_repeated_label.sh: a crafted .vo has
+  Axiom ax : False, then proof : False := ax, then ax : unit := tt; the
+  environment keeps the last field labelled ax, so a client proves False
+  with proof. On master 21891774, rocqchk accepts the forged files, and
+  with -o it still lists ax as an axiom
+- risk: proof of False accepted by rocqchk on a crafted .vo (files
+  produced by `rocq compile` are fine)
 
 ### Incorrect subtyping of inductives with letins in constructor types
 - component: subtyping, inductive declarations
@@ -1408,6 +1481,41 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
     no axioms reported
 - risk: proof of False accepted by rocqchk, but only with the non-default
     -bytecode-compiler yes on a crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk trusts the serialized registration of a primitive type
+
+- component: rocqchk, primitive types
+- introduced: V8.10 (rocq-prover/rocq#6914, primitive integers)
+- impacted released versions: V8.10-V9.3 (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: Gaëtan Gilbert (rocq-prover/rocq#12439); exploit by AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#12439
+- exploit: test-suite/misc/rocqchk_register_type.sh, case donor: a crafted
+  .vo registers a definition int : Set := Empty_set as the int63 primitive
+  type and gives a parameter zero : int the body of the literal 0, so that
+  match zero return False with end is a closed proof of False; the cases
+  sealed, functor and dual register instead a definition through the
+  parameter of its sealed module's type, a parameter that only the type of
+  a functor application declares, and a parameter under the canonical name
+  of a definition
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
+
+#### rocqchk does not check the type of a primitive operator
+
+- component: rocqchk, primitive operators
+- introduced: V8.10 (rocq-prover/rocq#6914, primitive integers)
+- impacted released versions: V8.10-V9.3 (reproduced on master 21891774)
+- impacted rocqchk versions: same
+- fixed in: 9.4
+- found by: Gaëtan Gilbert (rocq-prover/rocq#12439); exploit by AI agents run by Sami Jawhar (code review)
+- GH issue number: rocq-prover/rocq#12439
+- exploit: test-suite/misc/rocqchk_primitive_operator.sh: a crafted .vo
+  gives an axiom bogus : False the body #int63_head0, whose type is
+  int -> int, and rocqchk accepted bogus as a closed proof of False
+- risk: proof of False accepted by rocqchk, with no axioms reported, on a
+  crafted .vo (files produced by `rocq compile` are fine)
 
 There were otherwise several bugs in beta-releases, from memory, bugs with beta versions of primitive projections or template polymorphism or native compilation or guard (e7fc96366, 2a4d714a1).
 

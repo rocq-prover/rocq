@@ -48,6 +48,63 @@ let set_indirect_accessor f = indirect_accessor := f
 
 exception BadConstant of Constant.t * Pp.t
 
+(* coqc types a primitive at the instance of a universe context that has the
+   primitive's size and no constraints
+   ([Constant_typing.adjust_primitive_univ_entry]), and gives it the type of
+   the primitive ([Constant_typing.infer_primitive]). [refuse why] raises the
+   caller's error for the reason [why]; the reason for a type that is not the
+   primitive's is [mismatch]. *)
+let check_primitive env cb (p : CPrimitives.op_or_type) refuse mismatch =
+  let auctx = Declareops.constant_polymorphic_context cb in
+  let () =
+    if not (PConstraints.is_empty (UVars.AbstractContext.constraints auctx))
+    then refuse (str "its universe context has constraints")
+  in
+  let u = UVars.make_abstract_instance auctx in
+  let () =
+    if UVars.Instance.length u
+       <> UVars.AbstractContext.size (CPrimitives.op_or_type_univs p)
+    then refuse (str "its universe instance has the wrong length")
+  in
+  match conv env (Typeops.type_of_prim_or_type env u p) cb.const_type with
+  | Result.Ok () -> ()
+  | Result.Error () -> refuse mismatch
+
+let bad_registration (type a) kn (prm : a CPrimitives.prim_type) why =
+  BadConstant (kn, str "is registered as the primitive type " ++
+                   str (CPrimitives.prim_type_to_string prm) ++ str ", but " ++
+                   why ++ str ".")
+
+(* coqc registers a primitive type only for the parameter that [Primitive]
+   declares, whose type is the primitive type's
+   ([Constant_typing.infer_primitive]). *)
+let check_register_type (type a) env kn cb (prm : a CPrimitives.prim_type) =
+  let refuse why = raise (bad_registration kn prm why) in
+  let () = match cb.const_body with
+    | Undef _ -> ()
+    | Def _ | OpaqueDef _ | Primitive _ | Symbol _ -> refuse (str "it is not a parameter")
+  in
+  check_primitive env cb (CPrimitives.OT_type prm) refuse
+    (str "its type is not the primitive type's")
+
+let check_primitive_operator env kn cb op =
+  let refuse why =
+    raise (BadConstant (kn, str "is the primitive operator " ++
+                            str (CPrimitives.to_string op) ++ str ", but " ++
+                            why ++ str "."))
+  in
+  check_primitive env cb (CPrimitives.OT_op op) refuse
+    (str "its type is not the operator's")
+
+(* [f st] without the constant registrations of [st]: coqc registers only in
+   module bodies outside functors ([Safe_typing.add_retroknowledge]), and a
+   module type can declare a parameter that the body defines. *)
+let without_constant_registrations f st =
+  let (ind_retro, cst_retro) = st.st_retro in
+  let r, st = f { st_retro = (ind_retro, Cmap.empty) } in
+  let (ind_retro, _) = st.st_retro in
+  r, { st_retro = (ind_retro, cst_retro) }
+
 let check_constant_declaration env st kn cb =
   Flags.if_verbose Feedback.msg_notice (str "  checking cst:" ++ Constant.print kn);
   let env = CheckFlags.set_local_flags cb.const_typing_flags env in
@@ -69,7 +126,10 @@ let check_constant_declaration env st kn cb =
   if not (Sorts.relevance_equal cb.const_relevance (Sorts.relevance_of_sort jty.utj_type))
   then raise Pp.(BadConstant (kn, str "incorrect const_relevance"));
   let body, env = match cb.const_body with
-    | Undef _ | Primitive _ | Symbol _ -> None, env
+    | Primitive op ->
+      let () = check_primitive_operator env kn cb op in
+      None, env
+    | Undef _ | Symbol _ -> None, env
     | Def c -> Some c, env
     | OpaqueDef o ->
       let c, u = !indirect_accessor o in
@@ -93,7 +153,8 @@ let check_constant_declaration env st kn cb =
   in
   let retro, st = match Cmap.find_opt kn (snd st.st_retro) with
   | None -> None, st
-  | Some retro ->
+  | Some (CPrimitives.PTE prm as retro) ->
+    let () = check_register_type env kn cb prm in
     let (ind_retro, cst_retro) = st.st_retro in
     let st = { st_retro = (ind_retro, Cmap.remove kn cst_retro) } in
     Some retro, st
@@ -110,7 +171,7 @@ let check_constant_declaration env st kn cb =
   let env = match retro with
   | None -> env
   | Some (CPrimitives.PTE prm) ->
-    (* TODO: Some checking is performed by this function, but it looks too lightweight *)
+    (* [check_register_type] checked the constant. *)
     Primred.add_retroknowledge env (Retroknowledge.Register_type (prm, kn))
   in
   env, st
@@ -232,6 +293,28 @@ let lookup_module mp env =
 
 let mk_mtb sign delta = Mod_declarations.make_module_type sign delta
 
+(** Substitution uses [res], the resolver of the enclosing module, to which
+    coqc adds that of [mb] ([Safe_typing.end_module]). Check as an alias each
+    name of [mb], outside functors, that [res] resolves differently from the
+    resolver of the module that declares it. *)
+let check_nested_resolver env res mp mb =
+  let rec check_body mp mb = match mod_type mb with
+    | MoreFunctor _ -> ()
+    | NoFunctor struc -> List.iter (check_field mp (mod_delta mb)) struc
+  and check_field mp own (lab, field) =
+    let kn = KerName.make mp lab in
+    let can = Mod_subst.kn_of_delta res kn in
+    let differs = not (KerName.equal can (Mod_subst.kn_of_delta own kn)) in
+    match field with
+    | SFBconst cb ->
+      if differs then Subtyping.check_constant_alias env (Constant.make kn can) cb
+    | SFBmind mib ->
+      if differs then Subtyping.check_inductive_alias env (MutInd.make kn can) mib
+    | SFBmodule mb -> check_body (MPdot (mp, lab)) mb
+    | SFBmodtype _ | SFBrules _ -> ()
+  in
+  check_body mp mb
+
 let rec check_mexpr env mse mp_mse res = match mse with
   | MEident mp ->
     let mb = lookup_module mp env in
@@ -262,13 +345,46 @@ let rec check_mexpression env sign mbtyp mp_mse res = match sign with
     MoreFunctor(arg_id,mtb,body), delta
   | MENoFunctor me -> check_mexpr env me mp_mse res
 
+(* coqc gives a label to at most one field of a structure in each of two
+   namespaces, the objects and the modules ([Safe_typing.add_field]). *)
+let check_labels mp struc =
+  let refuse l kinds =
+    CErrors.user_err
+      (ModPath.print mp ++ str " declares the label " ++ Id.print l ++
+       str " twice among its " ++ str kinds ++ str ".")
+  in
+  let add_object l objects =
+    if Id.Set.mem l objects then
+      refuse l "constants, inductive types, constructors and rewrite rules"
+    else Id.Set.add l objects
+  in
+  let fold (objects, modules) (l, field) = match field with
+    | SFBconst _ | SFBrules _ -> add_object l objects, modules
+    | SFBmind mib ->
+      (* The environment keys the block by its label, so count it too. *)
+      let labels = Id.Set.add l (Safe_typing.labels_of_mib mib) in
+      Id.Set.fold add_object labels objects, modules
+    | SFBmodule _ | SFBmodtype _ ->
+      if Id.Set.mem l modules then refuse l "modules and module types";
+      objects, Id.Set.add l modules
+  in
+  let (_ : Id.Set.t * Id.Set.t) =
+    List.fold_left fold (Id.Set.empty, Id.Set.empty) struc
+  in
+  ()
+
+(* Also returns the registrations in force after the module, which coqc
+   keeps ([Safe_typing.end_module]). *)
 let rec check_module env st mp (mb : Mod_declarations.module_body) =
   Flags.if_verbose Feedback.msg_notice (str "  checking module: " ++ str (ModPath.to_string mp));
   let delta_mb = mod_delta mb in
-  let st =
-    check_signature env st (mod_type mb) mp delta_mb
+  let check_type st = check_signature env st (mod_type mb) mp delta_mb in
+  let retro, st = match Mod_declarations.mod_expr mb with
+    | FullStruct -> check_type st
+    | Struct _ | Algebraic _ | Abstract -> without_constant_registrations check_type st
   in
-  let optsign, st = match Mod_declarations.mod_expr mb with
+  let env = Environ.set_retroknowledge env retro in
+  let optsign, retro, st = match Mod_declarations.mod_expr mb with
     | Struct (reso, sign_struct) ->
       (* TODO: a bit wasteful, we recheck the types of parameters twice *)
       let sign_struct = Modops.annotate_struct_body sign_struct (mod_type mb) in
@@ -282,10 +398,10 @@ let rec check_module env st mp (mb : Mod_declarations.module_body) =
           Environ.set_vm_library vmtab env, sign_struct
         else env, sign_struct
       in
-      let st = check_signature env st sign_struct mp reso in
-      Some (sign_struct, reso), st
-    | Algebraic me -> Some (check_mexpression env me (mod_type mb) mp delta_mb), st
-    | Abstract|FullStruct -> None, st
+      let retro, st = check_signature env st sign_struct mp reso in
+      Some (sign_struct, reso), retro, st
+    | Algebraic me -> Some (check_mexpression env me (mod_type mb) mp delta_mb), retro, st
+    | Abstract|FullStruct -> None, retro, st
   in
   let () = match optsign with
   | None -> ()
@@ -297,11 +413,11 @@ let rec check_module env st mp (mb : Mod_declarations.module_body) =
     let _ : UGraph.t = Subtyping.check_subtypes state env mp mp mtb2 in
     ()
   in
-  st
+  retro, st
 
 and check_module_type env mp (mty : Mod_declarations.module_type_body) =
   Flags.if_verbose Feedback.msg_notice (str "  checking module type: " ++ str (ModPath.to_string @@ mp));
-  let _ : check_state =
+  let (_ : Retroknowledge.retroknowledge), (_ : check_state) =
     check_signature env empty_state (mod_type mty) mp (mod_delta mty) in
   ()
 
@@ -317,20 +433,23 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
       let kn = KerName.make mp lab in
       let kn = Mod_subst.mind_of_delta_kn res kn in
       let retro = Mindmap.find_opt kn (fst st.st_retro) in
-      let st = match retro with
-      | None -> st
-      | Some _ ->
-        let (ind_retro, cst_retro) = st.st_retro in
-        let st = { st_retro = (Mindmap.remove kn ind_retro, cst_retro) } in
-        st
-      in
       let env' = CheckInductive.check_inductive env kn mib retro in
       let () = Subtyping.check_inductive_alias env kn mib in
+      (* Operator types may name the registration [check_inductive] checked. *)
+      let env', st = match retro with
+      | None -> env', st
+      | Some (i, CPrimitives.PIE prm) ->
+        let (ind_retro, cst_retro) = st.st_retro in
+        let st = { st_retro = (Mindmap.remove kn ind_retro, cst_retro) } in
+        Primred.add_retroknowledge env' (Retroknowledge.Register_ind (prm, (kn, i))), st
+      in
       env', st
   | SFBmodule msb ->
       let mp = MPdot(mp, lab) in
-      let st = check_module env st mp msb in
-      Modops.add_module mp msb env, st
+      let retro, st = check_module env st mp msb in
+      let env = Modops.add_module mp msb env in
+      let () = check_nested_resolver env res mp msb in
+      Environ.set_retroknowledge env retro, st
   | SFBmodtype mty ->
       let mp = MPdot (mp, lab) in
       let () = check_module_type env mp mty in
@@ -339,18 +458,22 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
       check_rewrite_rules_body env lab rrb;
       Environ.add_rewrite_rules rrb.rewrules_rules env, st
 
+(* Also returns the registrations in force after the signature. *)
 and check_signature : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolver -> _ =
   fun env st sign mp_mse res -> match sign with
   | MoreFunctor (arg_id, mtb, body) ->
       let () = check_module_type env (MPbound arg_id) mtb in
       let env' = Modops.add_module_parameter arg_id mtb env in
-      let st = check_signature env' st body mp_mse res in
-      st
+      let (_ : Retroknowledge.retroknowledge), st =
+        without_constant_registrations (fun st -> check_signature env' st body mp_mse res) st
+      in
+      Environ.retroknowledge env, st
   | NoFunctor struc ->
-      let (_:env), st = List.fold_left (fun (env, st) (lab,mb) ->
+      let () = check_labels mp_mse struc in
+      let env, st = List.fold_left (fun (env, st) (lab,mb) ->
         check_structure_field env st mp_mse lab res mb) (env, st) struc
       in
-      st
+      Environ.retroknowledge env, st
 
 let rec collect_module_axioms axioms mp mb =
   match mod_expr mb with
@@ -402,8 +525,11 @@ let collect_library_axioms axioms lib =
 let eq_prim_ind (type a b) (p : a CPrimitives.prim_ind) (q : b CPrimitives.prim_ind) =
   String.equal (CPrimitives.prim_ind_to_string p) (CPrimitives.prim_ind_to_string q)
 
+(* Also puts in force in [env] this library's registrations of inductive
+   types of earlier libraries, as coqc has them when it declares primitive
+   operators. *)
 let get_retroknowlege env retro =
-  let fold (imap, cmap, extind) = function
+  let fold (env', imap, cmap, extind) = function
   | Retroknowledge.Register_ind (prm, (ind, i)) ->
     (* Tolerate redeclarations because the kernel allows it somehow *)
     let check_prm map = match Mindmap.find_opt ind map with
@@ -419,21 +545,39 @@ let get_retroknowlege env retro =
     if Environ.mem_mind ind env then
       let spec = Inductive.lookup_mind_specif env (ind, i) in
       let () = Safe_typing.check_register_ind (ind, i) prm spec in
-      (imap, cmap, Mindmap.add ind (i, CPrimitives.PIE prm) extind)
+      let env' = Primred.add_retroknowledge env' (Retroknowledge.Register_ind (prm, (ind, i))) in
+      (env', imap, cmap, Mindmap.add ind (i, CPrimitives.PIE prm) extind)
     else
-      (Mindmap.add ind (i, CPrimitives.PIE prm) imap, cmap, extind)
+      (env', Mindmap.add ind (i, CPrimitives.PIE prm) imap, cmap, extind)
   | Retroknowledge.Register_type (prm, cst) ->
-    let () = assert (not (Cmap.mem cst cmap)) in
-    let () = assert (not (Environ.mem_constant cst env)) in
-    (imap, Cmap.add cst (CPrimitives.PTE prm) cmap, extind)
+    let () =
+      if Cmap.mem cst cmap then
+        raise (BadConstant (cst, str "is registered twice as a primitive type."))
+    in
+    (* coqc registers a constant of this library, under its own name
+       ([Safe_typing.add_constant]). *)
+    let () =
+      if Environ.mem_constant cst env then
+        raise (bad_registration cst prm (str "an earlier library declares it"))
+    in
+    let () =
+      let canonical = Constant.canonical cst in
+      if not (KerName.equal (Constant.user cst) canonical) then
+        raise (bad_registration cst prm
+                 (str "the registration gives it another canonical name, " ++
+                  KerName.print canonical))
+    in
+    (env', imap, Cmap.add cst (CPrimitives.PTE prm) cmap, extind)
   in
-  let (imap, cmap, _) = List.fold_left fold (Mindmap.empty, Cmap.empty, Mindmap.empty) retro in
-  (imap, cmap)
+  let (env, imap, cmap, _) =
+    List.fold_left fold (env, Mindmap.empty, Cmap.empty, Mindmap.empty) retro
+  in
+  env, (imap, cmap)
 
 let check_module env retro mp mb =
-  let retro = get_retroknowlege env retro in
+  let env, retro = get_retroknowlege env retro in
   let st = { st_retro = retro } in
-  let { st_retro = (imap, cmap) } = check_module env st mp mb in
+  let (_ : Retroknowledge.retroknowledge), { st_retro = (imap, cmap) } = check_module env st mp mb in
   let () = match Mindmap.choose_opt imap, Cmap.choose_opt cmap with
   | None, None -> ()
   | Some (ind, _), (None | Some _) ->

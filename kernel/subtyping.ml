@@ -343,21 +343,47 @@ let check_constant (cst, ustate) trace env l info1 cb2 subst1 subst2 =
                Anyway [check_conv] will handle that afterwards. *)
             check_conv (NotConvertibleBodyField (Some (env, c1, c2))) cst poly CONV env c1 c2))
 
+(* A resolver relates only names with the same label:
+   [Mod_subst.add_kn_delta_resolver] asserts it when coqc makes an alias, and
+   substitutions keep it. *)
+let same_label user canonical =
+  Id.equal (KerName.label user) (KerName.label canonical)
+
 let check_constant_alias env cst cb =
   let user = Constant.user cst in
   let canonical = Constant.canonical cst in
   if KerName.equal user canonical then ()
   else
+    let refuse () =
+      error_signature_mismatch [] (KerName.label user) (NotConvertibleBodyField None)
+    in
+    let () = if not (same_label user canonical) then refuse () in
+    (* Every constant alias that coqc records is on a field that is a [Def]
+       after strengthening ([Modops.strengthen_const]), and the copies made
+       without strengthening keep that body. *)
+    let () = match cb.const_body with
+      | Def _ -> ()
+      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> refuse ()
+    in
     let target = Constant.make1 canonical in
-    let target_body = Environ.lookup_constant target env in
+    (* An enclosing module's resolver can name a target that is not, or not
+       yet, in the environment: refuse it instead of failing on an anomaly. *)
+    let target_body = match Environ.lookup_constant_opt target env with
+      | Some target_body -> target_body
+      | None -> refuse ()
+    in
+    (* Strengthening makes the copy of a field that is not a [Def] (an axiom,
+       an opaque, a primitive or a symbol) a [Def] of the field's canonical
+       constant: check such a target as that [Def]. A [Def] target is checked
+       by the conversion of the two bodies. *)
     let target_body =
-      match target_body.const_body, cb.const_body with
-      | (Undef _ | OpaqueDef _), Def _ ->
+      match target_body.const_body with
+      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ ->
         let instance =
           make_abstract_instance (constant_polymorphic_context target_body)
         in
         { target_body with const_body = Def (mkConstU (target, instance)) }
-      | _ -> target_body
+      | Def _ -> target_body
     in
     let state = Environ.universes env, Conversion.checked_universes in
     let _ =
@@ -372,7 +398,13 @@ let check_inductive_alias env mind mib =
   if KerName.equal user canonical then ()
   else
     let target = MutInd.make1 canonical in
+    let () =
+      if not (same_label user canonical && Environ.mem_mind target env) then
+        error_signature_mismatch [] (KerName.label user)
+          (NotEqualInductiveAliases (mind, target))
+    in
     let target_body = Environ.lookup_mind target env in
+    (* The labels are equal: [add_kn_delta_resolver] below cannot fail. *)
     let target_mp, target_label = KerName.repr canonical in
     let user_mp = KerName.modpath user in
     let target_resolver = empty_delta_resolver target_mp in
