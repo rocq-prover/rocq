@@ -454,6 +454,11 @@ struct
     Dn.pattern (bounded_constr_pat_discr_syntactic env) (Pattern pat, !dnet_depth)
 
   let constr_pattern env sigma st pat =
+    let rec hide_evars c = match Constr.kind c with
+    | Evar _ -> Constr.mkMeta 0
+    | _ -> Constr.map hide_evars c
+    in
+    let pat = EConstr.of_constr (hide_evars (EConstr.Unsafe.to_constr pat)) in
     let mk p = match bounded_constr_val_discr env st sigma p with
     | Label l -> Some l
     | Everything | Nothing -> None
