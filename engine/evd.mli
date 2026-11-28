@@ -584,6 +584,9 @@ val new_sort_variable : ?loc:Loc.t -> ?sort_rigid:bool -> ?name:Names.Id.t -> ri
 
 val add_forgotten_univ : evar_map -> Univ.Level.t -> evar_map
 
+val globalize_levels : evar_map -> Univ.Level.Set.t -> evar_map * UVars.universe_level_subst
+(** See {!UState.globalize_levels}. *)
+
 val make_nonalgebraic_variable : evar_map -> Univ.Level.t -> evar_map
 (** See [UState.make_nonalgebraic_variable]. *)
 
@@ -634,8 +637,19 @@ val check_univ_decl : poly:PolyFlags.t -> evar_map -> UState.universe_decl -> US
 val check_univ_decl_early : poly:PolyFlags.t -> with_obls:bool -> evar_map -> UState.universe_decl -> Constr.t list -> unit
 
 val restrict_ustate : evar_map -> Univ.Level.Set.t -> evar_map
+
 val merge_ustate : evar_map -> UState.t -> evar_map
-val set_ustate : evar_map -> UState.t -> evar_map
+(** Dangerous API, see {!UState.merge}. *)
+
+val set_ustate : ?ignore_namespace:bool -> evar_map -> UState.t -> evar_map
+(** With [~ignore_namespace:true], the namespace of the fresh universes of the new
+    state is ignored: the evar map keeps its own, e.g. when adopting the state of an
+    evar map in which a term was interpreted in its own namespace (see
+    {!set_supply_namespace}). *)
+
+val set_supply_namespace : evar_map -> string -> evar_map
+(** The namespace of the fresh levels and sort variables of the evar map, see
+    {!UnivGen.Supply.set_namespace}. *)
 
 val restrict_universe_context : evar_map -> Univ.Level.Set.t -> evar_map
 [@@deprecated "(9.3) Use [Evd.restrict_ustate]"]
@@ -650,6 +664,9 @@ val merge_universe_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map
 
 val merge_sort_context_set : ?loc:Loc.t -> ?sort_rigid:bool -> ?sideff:bool ->
   ?src:UState.constraint_source -> rigid -> evar_map -> UnivGen.sort_context_set -> evar_map
+
+val with_supply : evar_map -> (UnivGen.Supply.t -> UnivGen.Supply.t * 'a) -> evar_map * 'a
+(** See {!UState.with_supply}. *)
 
 val with_sort_context_set : ?loc:Loc.t -> ?sort_rigid:bool -> ?src:UState.constraint_source ->
   rigid -> evar_map -> 'a UnivGen.in_sort_context_set -> evar_map * 'a
@@ -674,6 +691,17 @@ val get_abstract : env -> evar_map -> GlobRef.t -> UVars.AbstractContext.t
 
 val fresh_sort_in_quality : ?loc:Loc.t -> ?rigid:rigid
   -> evar_map -> UnivGen.QualityOrSet.t -> evar_map * esorts
+
+val fresh_sort_context_instance : ?loc:Loc.t -> ?rigid:rigid
+  -> evar_map -> UnivGen.sort_context_set -> evar_map * UVars.sort_level_subst
+(** Rename the variables of the context into fresh ones, added to the evar map, and return
+    the renaming. *)
+
+val fresh_abstract_instance : ?loc:Loc.t -> ?rigid:rigid
+  -> evar_map -> UVars.AbstractContext.t -> evar_map * UVars.Instance.t
+(** A fresh instance of the abstract context, whose variables and constraints are added to
+    the evar map. *)
+
 val fresh_constant_instance : ?loc:Loc.t -> ?rigid:rigid
   -> env -> evar_map -> Constant.t -> evar_map * Constant.t puniverses
 val fresh_inductive_instance : ?loc:Loc.t -> ?sort_rigid:bool -> ?rigid:rigid

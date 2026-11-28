@@ -268,11 +268,12 @@ val interp_elim_constraint
   -> quality_expr * Sorts.ElimConstraint.kind * quality_expr
   -> Sorts.ElimConstraint.t
 
-(** Local universe and constraint declarations. *)
-val interp_univ_decl : Environ.env -> universe_decl_expr ->
+(** Local universe and constraint declarations, added to [sigma] (by default, the evar map
+    of [env]). *)
+val interp_univ_decl : ?sigma:Evd.evar_map -> Environ.env -> universe_decl_expr ->
   Evd.evar_map * UState.universe_decl
 
-val interp_univ_decl_opt : Environ.env -> universe_decl_expr option ->
+val interp_univ_decl_opt : ?sigma:Evd.evar_map -> Environ.env -> universe_decl_expr option ->
   Evd.evar_map * UState.universe_decl
 
 val interp_cumul_univ_decl_opt : Environ.env -> cumul_univ_decl_expr option ->

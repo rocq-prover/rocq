@@ -407,8 +407,9 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
   let is_mutual = isrec && List.length listdecl > 1 in
   let declare sigma decl ({CAst.v=fi; loc},dep,ind, sort) =
     let decltype = Retyping.get_type_of env sigma decl in
-    let cst, uctx = define ?loc ~poly fi sigma decl (Some decltype) in
-    let sigma = Evd.set_ustate sigma (UState.demote_global_univs uctx (Evd.ustate sigma)) in
+    (* the schemes share the global levels replacing their unification levels *)
+    let cst, univs = define ?loc ~poly fi sigma decl (Some decltype) in
+    let sigma = Evd.set_ustate sigma (UState.demote_global_univ_entry univs (Evd.ustate sigma)) in
     let kind =
       let open Elimschemes in
       let open UnivGen.QualityOrSet in
@@ -551,7 +552,7 @@ let do_combined_scheme name csts =
      some other polymorphism they can also manually define the
      combined scheme. *)
   let poly = Global.is_polymorphic (Names.GlobRef.ConstRef (List.hd csts)) in
-  ignore (define ~poly ?loc:name.loc name.v sigma body (Some typ));
+  let _ : _ * _ = define ~poly ?loc:name.loc name.v sigma body (Some typ) in
   Declare.fixpoint_message None [name.v]
 
 (**********************************************************************)

@@ -528,6 +528,15 @@ type evar_map_extension = {
   ext_univs : univ_extension;
 }
 
+let extension_counter = ref 0
+
+(* The terms whose extensions are built are interpreted in their own namespace:
+   the extensions can then be added to evar maps which have created fresh
+   universes since their base, without identifying them (see [UState.merge]) *)
+let in_extension_namespace sigma =
+  let () = incr extension_counter in
+  Evd.set_supply_namespace sigma ("ext" ^ string_of_int !extension_counter)
+
 let evar_map_extension ~env ~base sigma =
   let goal_hyps = Environ.named_context_val env in
   let univ_extension = univ_extension ~base sigma in
