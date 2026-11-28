@@ -232,10 +232,14 @@ module NotPrimRecordReason = struct
 end
 
 (* Checks whether the record can have primitive projections, and if so, whether it has eta *)
-let check_record ~ignore_elim data =
+let check_record env ~ignore_elim data =
   let open NotPrimRecordReason in
-  List.fold_left (fun res (_, (_, splayed_lc), info, _) ->
-      if Result.is_error res then res
+  List.fold_left (fun res (_, (indices, splayed_lc), info, _) ->
+      if not (List.is_empty indices) then
+        (* Primitive projections substitute only parameters and the record value
+           into projection types, so indexed primitive records are unsound. *)
+        raise (InductiveError (env, BadEntry))
+      else if Result.is_error res then res
       else if Option.has_some info.ind_squashed
       (* records must have all projections definable -> equivalent to not being squashed *)
       then Result.Error MustNotBeSquashed
@@ -529,9 +533,11 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
   let record = mie.mind_entry_record in
   let data, record, not_prim_reason_or_has_eta = match record with
     | None | Some None -> data, record, None (* NotRecord or FakeRecord *)
-    | Some (Some _) -> (* PrimRecord *)
+    | Some (Some ids) -> (* PrimRecord *)
+      if not (Int.equal (Array.length ids) (List.length data)) then
+        raise (InductiveError (env_ar_par, BadEntry));
       (* We check if it can actually have primitive projections & eta *)
-      match check_record ~ignore_elim:(Environ.ignore_elim_constraints env_ar_par) data with
+      match check_record env_ar_par ~ignore_elim:(Environ.ignore_elim_constraints env_ar_par) data with
       | Result.Ok has_eta ->
         let has_eta = match mie.mind_entry_finite with
           | BiFinite -> has_eta

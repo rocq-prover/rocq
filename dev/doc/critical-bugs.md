@@ -80,6 +80,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [Universe checking state gets confused when locally changed in module](#universe-checking-state-gets-confused-when-locally-changed-in-module)
     - [Primitive projections](#primitive-projections)
       - [incorrect checking of subtyping with algebraic universes](#incorrect-checking-of-subtyping-with-algebraic-universes)
+      - [kernel accepted indexed primitive records](#kernel-accepted-indexed-primitive-records)
     - [Conversion machines](#conversion-machines)
       - [the invariant justifying some optimization was wrong for some combination of sharing side effects](#the-invariant-justifying-some-optimization-was-wrong-for-some-combination-of-sharing-side-effects)
       - [collision between constructors when more than 256 constructors in a type](#collision-between-constructors-when-more-than-256-constructors-in-a-type)
@@ -938,6 +939,18 @@ fix.
 - exploit: see issue
 - risk: needs usage of explicit algebraic universe annotations, coqchk
         may catch through defunctorialization
+
+#### kernel accepted indexed primitive records
+
+- component: inductive declarations, primitive projections
+- introduced: V8.5 (introduction of primitive projections)
+- impacted released versions: V8.5 to V9.3.0
+- impacted coqchk versions: same
+- fixed in: V9.2.1, V9.3.1, V9.4
+- found by: Thomas Lamiaux; exploit by Gregory Nisbet (using Gemini)
+- exploit: test-suite/unit-tests/kernel/indexed_prim_record.ml
+- GH issue number: [#21494](https://github.com/rocq-prover/rocq/issues/21494)
+- risk: requires a plugin calling `Safe_typing.add_mind` directly or a crafted `.vo` file (not reachable from Gallina `Record` syntax)
 
 ### Conversion machines
 
