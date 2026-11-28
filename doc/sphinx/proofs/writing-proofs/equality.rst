@@ -580,6 +580,13 @@ which reduction engine to use.  See :ref:`type-cast`.)  For example:
       affects the reduction procedure used by the kernel when
       typechecking. By default sharing is activated.
 
+   .. flag:: Kernel Conversion Cache
+
+      This flag tells the kernel whether it should cache the results
+      of conversion problems. The cache is only used for checked conversion
+      and it stores both positive and negative results.
+      The flag is off by default.
+
    .. flag:: Kernel Conversion Dep Heuristic
 
       This flag controls a heuristic used during conversion when comparing
