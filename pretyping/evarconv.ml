@@ -330,7 +330,59 @@ let pr_cs_field label pp = Pp.(hov 2 (str label ++ str ":" ++ spc () ++ pp))
 let debug_canonical_unification pp =
   Structures.debug_canonical_structures (fun () -> Pp.(v 0 (str "unification:" ++ fnl () ++ pp ())))
 
-let decompose_proj ?metas env sigma (t1, sk1) =
+(* An unfolded primitive projection is an elimination of the stack of a state:
+   [c.(p) args] is [(hd, args' @ Proj p :: args)] for [c = hd args']. In that
+   form it is neither recognized as the projection of a structure nor as a
+   value characterized by a projection. [refold_proj sigma (hd, sk)] puts the
+   innermost projection of the stack, if any, back at the head of the state. *)
+let refold_proj sigma (t, sk) =
+  match Stack.strip_app sk with
+  | args, Stack.Proj (p, r) :: sk -> Some (mkProj (p, r, Stack.zip sigma (t, args)), sk)
+  | _, ((Stack.App _ | Stack.Case _ | Stack.Fix _ | Stack.Primitive _) :: _ | []) -> None
+
+(* [tried] are the stacks of a first-order unification of a pending
+   projection which failed: stacks ending with them would fail again. *)
+let known_stack_failure tried sk sk' =
+  match tried with
+  | None -> false
+  | Some (sk0, sk0') ->
+    let rec aux sk sk' =
+      (sk0 == sk && sk0' == sk') ||
+      match sk, sk' with
+      | _ :: sk, _ :: sk' -> aux sk sk'
+      | _, _ -> false in
+    aux sk sk'
+
+let has_stuck_proj sk =
+  match Stack.strip_app sk with
+  | _, Stack.Proj _ :: _ -> true
+  | _, ((Stack.App _ | Stack.Case _ | Stack.Fix _ | Stack.Primitive _) :: _ | []) -> false
+
+(* [fold_proj_value sigma ~nextra (t, sk)] presents a value which is the
+   application of a primitive projection as a state headed by a [Proj] node,
+   as expected by [ValuePattern.of_constr], when the projection is pending on
+   the stack or when the value is the application of the compatibility
+   constant of the projection to its parameters and a record. In the latter
+   case at least [nextra] arguments are left on the stack. *)
+let fold_proj_value sigma ~nextra (t, sk as appr) =
+  match refold_proj sigma appr with
+  | Some appr -> appr
+  | None ->
+    match EConstr.kind sigma t with
+    | Const (c, u) ->
+      begin match Structures.PrimitiveProjections.find_opt_with_relevance (c, u) with
+      | None -> appr
+      | Some (p, r) ->
+        match Stack.strip_n_app (Projection.Repr.npars p) sk with
+        | Some (_params, c, sk) when Stack.args_size sk >= nextra ->
+          (mkProj (Projection.make p false, r, c), sk)
+        | Some _ | None -> appr
+      end
+    | _ -> appr
+
+let decompose_proj ?metas env sigma (t1, sk1 as appr1) =
+  (* The projection may be an unfolded primitive projection of the stack *)
+  let (t1, sk1) = Option.default appr1 (refold_proj sigma appr1) in
    (* I only recognize ConstRef projections since these are the only ones for which
       I know how to obtain the number of parameters. *)
   let (proji, u), arg =
@@ -396,7 +448,34 @@ let check_conv_record env sigma ((proji, u), (params1, c1, extra_args1)) (t2,sk2
   in
   let h2, sk2' = decompose_app sigma (shrink_eta sigma t2) in
   let sk2 = Stack.append_app sk2' sk2 in
-  let k = Reductionops.Stack.args_size sk2 - Reductionops.Stack.args_size extra_args1 in
+  let nextra = Reductionops.Stack.args_size extra_args1 in
+  (* All the forms of the application of a primitive projection have the same key *)
+  let t2, h2, sk2 =
+    let (h2', sk2) = fold_proj_value sigma ~nextra (h2, sk2) in
+    (if h2' == h2 then t2 else h2'), h2', sk2
+  in
+  (* An instance whose value is a partial application of the compatibility
+     constant, e.g. the projection as a function, is keyed by the constant:
+     when there is no entry for the projection, see the value as the
+     application of the constant to the parameters and the record. *)
+  let t2, h2, sk2 =
+    match EConstr.kind sigma h2 with
+    | Proj (p, _, c) ->
+      let has key =
+        match CanonicalSolution.find env sigma (Names.GlobRef.ConstRef proji, key) with
+        | _ -> true
+        | exception Not_found -> false in
+      let cst = Environ.projection_repr_constant env (Projection.repr p) in
+      if not (has (Proj_cs (Projection.repr p))) && has (Const_cs (Names.GlobRef.ConstRef cst)) then
+        match Retyping.expand_projection env sigma p c [] with
+        | t ->
+          let h, args = decompose_app sigma t in
+          h, h, Stack.append_app args sk2
+        | exception Retyping.RetypeError _ -> t2, h2, sk2
+      else t2, h2, sk2
+    | _ -> t2, h2, sk2
+  in
+  let k = Reductionops.Stack.args_size sk2 - nextra in
   (* Knowing the shape of extra_args1, I can cut sk2 into pieces, extracting extra_args2 from it. *)
   let args2, extra_args2 =
     if k = 0 then [], sk2
@@ -798,6 +877,7 @@ sig
   val empty : unit -> t
   val flip : t -> t
   val add : env -> evar_map -> bool -> state -> t -> t
+  val is_key : env -> evar_map -> state -> bool
   val fold : bool -> ('a -> state -> 'a) -> 'a -> t -> 'a
   val clear : bool -> t -> unit
 end =
@@ -808,15 +888,29 @@ struct
 
   let flip (c1, c2) = (c2, c1)
 
+  (* A state is cached under its head reference. A head which is a folded
+     primitive projection is cached under its compatibility constant: it can
+     be unfolded as a constant can. *)
+  let key env sigma (t, _) =
+    match EConstr.kind sigma t with
+    | Proj (p, _, _) ->
+      Some (Names.GlobRef.ConstRef (Environ.projection_repr_constant env (Projection.repr p)))
+    | _ ->
+      match EConstr.destRef sigma t with
+      | (k, _) -> Some k
+      | exception DestKO -> None
+
+  let is_key env sigma appr = Option.has_some (key env sigma appr)
+
   let add_left env sigma appr (((c1, m1), c2) as c) =
-    match fst @@ EConstr.destRef sigma (fst appr) with
-    | k ->
+    match key env sigma appr with
+    | Some k ->
       let k = QGlobRef.canonize env k in
       if not (Names.GlobRef.Map.mem k m1) then
         let () = Queue.push k c1 in
         ((c1, Names.GlobRef.Map.add k appr m1), c2)
       else c
-    | exception DestKO -> c
+    | None -> c
 
   let add env sigma l2r appr c =
     if l2r then add_left env sigma appr c else flip (add_left env sigma appr (flip c))
@@ -889,12 +983,61 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
           | _ -> default ()
         end
 
-and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
+and evar_eqappr_x ?(rhs_is_already_stuck = false) ?tried_proj flags env evd pbty
     keys (* canonical structure keys cache *)
     lastUnfolded (* tells which side was last unfolded, if any, where `true` means RHS. *)
     orig (term1, sk1 as appr1) (term2, sk2 as appr2) =
   let quick_fail i = (* not costly, loses info *)
     UnifFailure (i, NotSameHead)
+  in
+  (* Evar must be undefined since we have flushed evars *)
+  let cs_keys = Cs_keys_cache.add env evd true appr1 keys in
+  let cs_keys = Cs_keys_cache.add env evd false appr2 cs_keys in
+  let get_cs env sigma l2r keys nokey appr1 appr2 =
+    let appr1, appr2 = if l2r then appr1, appr2 else appr2, appr1 in
+    try
+      let (_, (_, c1, _)) as p1 = decompose_proj env sigma appr1 in
+      let kill, reduce =
+        (* TOTHINK: Should I keep c1 simplified? *)
+        let c1 = whd_all env sigma c1 in
+        (* [proj (ctor ...)]: don't use CS *)
+        match kind sigma c1 with
+        | App (h,_) when isConstruct sigma h -> true, true
+        | Construct _ -> true, true
+        | _ -> not (has_undefined_evars_or_metas sigma c1), false in
+      let x =
+        let check_key default appr =
+          try
+            let s = check_conv_record env sigma p1 appr in
+            if kill then quick_fail sigma else conv_record flags env s
+          with Not_found -> default in
+        if nokey then check_key (UnifFailure (sigma, NoCanonicalStructure)) appr2
+        else
+          let x = Cs_keys_cache.fold (not l2r) (fun r appr ->
+            match r with
+            | Success _ -> r
+            | _ -> check_key r appr) (UnifFailure (sigma, NoCanonicalStructure)) keys in
+          (* If t is not a key, it was not added to the keys cache, so we take care of it now. *)
+          match x with
+          | UnifFailure _ when not (Cs_keys_cache.is_key env sigma appr2) -> check_key x appr2
+          | _ -> x in
+      if kill then Inr (reduce && (match x with | UnifFailure (_, NoCanonicalStructure) -> false | _ -> true)) else
+      (* The projection constant will not change, so there is no point in keeping the keys anymore. *)
+      let () = Cs_keys_cache.clear (not l2r) keys in
+      match x with | Success _ -> Inl x | _ -> Inr false
+    with _ -> Inr false in
+  (* Canonical structure inference for [apprF = E[?n[inst]]] when [E] starts
+     with an unfolded primitive projection, which cannot be unfolded further:
+     it is tried as for a projection constant before its unfolding, i.e. after
+     first-order unification and before unfolding the other side. It was
+     already tried if that side was just unfolded from a projection. *)
+  let cs_stuck_proj l2r (_, skF as apprF) apprO i =
+    if flags.with_cs && has_stuck_proj skF && lastUnfolded <> Some (not l2r) then
+      let appr1, appr2 = if l2r then apprF, apprO else apprO, apprF in
+      match get_cs env i l2r cs_keys (lastUnfolded = Some l2r) appr1 appr2 with
+      | Inl x -> x
+      | Inr _ -> UnifFailure (i, NoCanonicalStructure)
+    else UnifFailure (i, NoCanonicalStructure)
   in
   let miller_pfenning l2r fallback ev lF tM evd =
     match is_unification_pattern_evar env evd ev lF tM with
@@ -980,6 +1123,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     in
     let default i = ise_try i [miller l2r ev apprF apprM;
                                consume l2r apprF apprM;
+                               cs_stuck_proj l2r apprF apprM;
                                delta]
     in
       match EConstr.kind evd termM with
@@ -1005,7 +1149,9 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                     switch (evar_eqappr_x flags env i pbty keys None orig) apprF apprM'
                   in
                   fun i -> ise_try i [miller l2r ev apprF apprM';
-                                   consume l2r apprF apprM'; delta']
+                                   consume l2r apprF apprM';
+                                   cs_stuck_proj l2r apprF apprM';
+                                   delta']
                 with Retyping.RetypeError _ ->
                 (* Happens thanks to w_unify building ill-typed terms *)
                   default
@@ -1035,7 +1181,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     in
     match Stack.list_of_app_stack skF with
     | None ->
-        ise_try evd [consume_stack l2r apprF apprR; eta]
+        ise_try evd [consume_stack l2r apprF apprR; cs_stuck_proj l2r apprF apprR; eta]
     | Some lF ->
         let tR = Stack.zip evd apprR in
           miller_pfenning l2r
@@ -1124,42 +1270,8 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
     | _, _ -> anomaly (Pp.str "Unexpected result from ise_stack2.")
   in
   let app_empty = match sk1, sk2 with [], [] -> true | _ -> false in
-  (* Evar must be undefined since we have flushed evars *)
-  let keys = Cs_keys_cache.add env evd true appr1 keys in
-  let keys = Cs_keys_cache.add env evd false appr2 keys in
-  let get_cs env sigma l2r keys nokey appr1 appr2 =
-    let appr1, appr2 = if l2r then appr1, appr2 else appr2, appr1 in
-    try
-      let (_, (_, c1, _)) as p1 = decompose_proj env sigma appr1 in
-      let kill, reduce =
-        (* TOTHINK: Should I keep c1 simplified? *)
-        let c1 = whd_all env sigma c1 in
-        (* [proj (ctor ...)]: don't use CS *)
-        match kind sigma c1 with
-        | App (h,_) when isConstruct sigma h -> true, true
-        | Construct _ -> true, true
-        | _ -> not (has_undefined_evars_or_metas sigma c1), false in
-      let x =
-        let check_key default appr =
-          try
-            let s = check_conv_record env sigma p1 appr in
-            if kill then quick_fail sigma else conv_record flags env s
-          with Not_found -> default in
-        if nokey then check_key (UnifFailure (sigma, NoCanonicalStructure)) appr2
-        else
-          let x = Cs_keys_cache.fold (not l2r) (fun r appr ->
-            match r with
-            | Success _ -> r
-            | _ -> check_key r appr) (UnifFailure (sigma, NoCanonicalStructure)) keys in
-          (* If t is not a reference, it was not added to the keys cache, so we take care of it now. *)
-          match x with
-          | UnifFailure _ when not (EConstr.isRef sigma (fst appr2)) -> check_key x appr2
-          | _ -> x in
-      if kill then Inr (reduce && (match x with | UnifFailure (_, NoCanonicalStructure) -> false | _ -> true)) else
-      (* The projection constant will not change, so there is no point in keeping the keys anymore. *)
-      let () = Cs_keys_cache.clear (not l2r) keys in
-      match x with | Success _ -> Inl x | _ -> Inr false
-    with _ -> Inr false in
+  (* The recursive calls above do not use the keys of the current states *)
+  let keys = cs_keys in
   let () = debug_unification (fun () -> Pp.(v 0 (pr_state env evd appr1 ++ cut () ++ pr_state env evd appr2 ++ cut ()))) in
   match (flex_kind_of_term flags env evd term1 sk1,
          flex_kind_of_term flags env evd term2 sk2) with
@@ -1208,8 +1320,13 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           match consume true appr1 appr2 i with
           | Success _ as x -> x
           | UnifFailure _ -> quick_fail i
+        and f6 i =
+          (* Both sides are stuck projections: [f1] tried the left one as a
+             canonical projection, try the right one *)
+          if has_stuck_proj sk1 then cs_stuck_proj false appr2 appr1 i
+          else quick_fail i
         in
-        ise_try evd [f1; f2; f3; f4; f5]
+        ise_try evd [f1; f2; f3; f4; f5; f6]
         end
 
     | Flexible ev1, MaybeFlexible v2 ->
@@ -1241,14 +1358,34 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         ise_try evd [f1; f2]
 
         | Proj (p, _, c), Proj (p', _, c') when QProjection.Repr.equal env (Projection.repr p) (Projection.repr p') ->
+          let stacks_failed = ref None in
           let f1 i =
+            if known_stack_failure tried_proj sk1 sk2 then quick_fail i else
             ise_and i
             [(fun i -> evar_conv_x flags env i CONV c c');
-             (fun i -> exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2)]
+             (fun i ->
+                match exact_ise_stack2 env i (evar_conv_x flags) sk1 sk2 with
+                | Success _ as x -> x
+                | UnifFailure _ as x -> stacks_failed := Some (sk1, sk2); x)]
           and f2 i =
+            let tried_proj = match !stacks_failed with None -> tried_proj | x -> x in
             let out1 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk1'
-            and out2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk2'
-            in evar_eqappr_x flags env i pbty keys None orig out1 out2
+            and out2 = whd_betaiota_deltazeta_for_iota_state flags.open_ts env i vsk2' in
+            (* A projection stuck on an evar is kept folded while the other
+               side is unfolded: unlike a projection constant, it has no
+               parameters and can only be related to the other side by
+               unifying their records, as [f1] does. This only matters
+               for canonical structure inference: a projection which has
+               no canonical instance is reduced as usual. *)
+            let canonical =
+              CSTable.has_canonical_instances env i p c
+              || CSTable.has_canonical_instances env i p' c' in
+            let stuck (t, sk) = canonical && isEvar i t && has_stuck_proj sk in
+            if stuck out2 && not (stuck out1) then
+              evar_eqappr_x ?tried_proj flags env i pbty keys (Some false) orig out1 appr2
+            else if stuck out1 && not (stuck out2) then
+              evar_eqappr_x ?tried_proj flags env i pbty keys (Some true) orig appr1 out2
+            else evar_eqappr_x ?tried_proj flags env i pbty keys None orig out1 out2
           in
             ise_try evd [f1; f2]
 
@@ -1277,6 +1414,11 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
         | _, _ ->
         (* We remember if the LHS is a reducible projection to decide if we unfold left first. *)
         let no_cs1 = ref false in
+        (* We remember the stacks of a pending projection which failed to
+           unify: they are not unified again while the records under the
+           projection are unfolded. *)
+        let stacks_failed = ref None in
+        let tried_next () = match !stacks_failed with None -> tried_proj | x -> x in
         let f1 i =
           (* Gather the universe constraints that would make term1 and term2 equal.
              If these only involve unifications of flexible universes to other universes,
@@ -1294,6 +1436,39 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           | None ->
             UnifFailure (i,NotSameHead)
         and f2 i =
+          (* The same primitive projection on both sides, one of them at
+             least unfolded, i.e. pending on the stack: without parameters,
+             they can only be related by unifying their records. *)
+          let as_proj (t, sk as appr) =
+            (* the projection of the stack is applied to the head *)
+            match refold_proj i appr with
+            | Some (t, sk) -> let (p, _, c) = destProj i t in Some (p, c, sk)
+            | None ->
+              match EConstr.kind i t with
+              | Proj (p, _, c) -> Some (p, c, sk)
+              | _ -> None in
+          match as_proj appr1, as_proj appr2 with
+          | Some (p, c, sk), Some (p', c', sk')
+            when QProjection.Repr.equal env (Projection.repr p) (Projection.repr p')
+              && (CSTable.has_canonical_instances env i p c
+                  || CSTable.has_canonical_instances env i p' c') ->
+            (* The parameters of the projections are the ones of the types
+               of the records: they are unified first, as the parameters of
+               a projection constant would be. *)
+            let params i =
+              match Retyping.get_type_of ~lax:true env i c, Retyping.get_type_of ~lax:true env i c' with
+              | ty, ty' -> evar_conv_x flags env i CONV ty ty'
+              | exception Retyping.RetypeError _ -> Success i in
+            if known_stack_failure tried_proj sk sk' then quick_fail i else
+            ise_and i
+              [params;
+               (fun i -> evar_conv_x flags env i CONV c c');
+               (fun i ->
+                  match exact_ise_stack2 env i (evar_conv_x flags) sk sk' with
+                  | Success _ as x -> x
+                  | UnifFailure _ as x -> stacks_failed := Some (sk, sk'); x)]
+          | _ -> quick_fail i
+        and f3 i =
            if not flags.with_cs then UnifFailure (i,NoCanonicalStructure)
            else
              (match get_cs env i true keys (lastUnfolded = Some true) appr1 appr2 with
@@ -1303,7 +1478,7 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
                 (match get_cs env i false keys (lastUnfolded = Some false) appr1 appr2 with
                 | Inl x -> x
                 | Inr _ -> UnifFailure (i,NoCanonicalStructure)))
-        and f3 i =
+        and f4 i =
           (* heuristic: unfold second argument first, exception made
              if the first argument is a beta-redex (expand a constant
              only if necessary) or the second argument is potentially
@@ -1334,18 +1509,18 @@ and evar_eqappr_x ?(rhs_is_already_stuck = false) flags env evd pbty
           ise_try i [
             (fun i ->
               if b || !no_cs1 then
-                evar_eqappr_x flags env i pbty keys (Some false) orig
+                evar_eqappr_x ?tried_proj:(tried_next ()) flags env i pbty keys (Some false) orig
                   (whd_betaiota_deltazeta_for_iota_state
                      flags.open_ts env i vsk1')
                   appr2
               else quick_fail i);
             fun i ->
               if b then quick_fail i else
-              evar_eqappr_x flags env i pbty keys (Some true) orig appr1
+              evar_eqappr_x ?tried_proj:(tried_next ()) flags env i pbty keys (Some true) orig appr1
                 (whd_betaiota_deltazeta_for_iota_state
                    flags.open_ts env i vsk2')]
         in
-        ise_try evd [f1; f2; f3]
+        ise_try evd [f1; f2; f3; f4]
     end
 
     | Rigid, Rigid when EConstr.isLambda evd term1 && EConstr.isLambda evd term2 ->
@@ -1647,6 +1822,9 @@ and eta_constructor flags env evd ((ind, i), u) sk1 (term2,sk2) =
            UnifFailure(evd,NotSameHead))
       end
     | _ -> UnifFailure (evd,NotSameHead)
+
+let evar_eqappr_x ?rhs_is_already_stuck flags env evd pbty keys lastUnfolded orig appr1 appr2 =
+  evar_eqappr_x ?rhs_is_already_stuck flags env evd pbty keys lastUnfolded orig appr1 appr2
 
 let evar_conv_x flags env evd pbty term1 term2 =
   debug_unification Pp.(fun () ->
