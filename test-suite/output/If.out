@@ -2,7 +2,7 @@ if true then 1 else 0
      : nat
 File "./output/If.v", line 3, characters 6-24:
 Warning: The "if <c> then _" syntax for non boolean guard is deprecated.
-Use "if <c> is O then _" instead.
+Use "if <c> is O then _" instead (since Rocq 9.3) or add a coercion from nat to bool (since Rocq 9.4).
 [non-boolean-if,deprecated-since-9.3,deprecated,default]
 Quickfix:
 Replace File "./output/If.v", line 3, characters 10-10 with  is O
@@ -57,4 +57,8 @@ fun x : {True} + {True} => match x with
 if left I is left _ then 1 else 0
      : nat
 if inleft 3 is inleft _ then 1 else 0
+     : nat
+if 4 then 1 else 0
+     : nat
+if is_S 4 then 1 else 0
      : nat
