@@ -211,9 +211,14 @@ let qualify_attribute qual (parser:'a attribute) : 'a attribute =
 let program_mode_option_name = ["Program";"Mode"]
 let program_mode = ref false
 
+(* The option is read by the default of the [program] attribute, which may be
+   parsed at synterp time (e.g. the attributes of VERNAC EXTEND commands are),
+   so as for [Universe Polymorphism] below it must be a synterp option:
+   otherwise a document manager synterping sentences ahead of their
+   interpretation does not see [Set Program Mode]. *)
 let () = let open Goptions in
   declare_bool_option
-    { optstage = Summary.Stage.Interp;
+    { optstage = Summary.Stage.Synterp;
       optdepr  = None;
       optkey   = program_mode_option_name;
       optread  = (fun () -> !program_mode);
