@@ -113,10 +113,42 @@ type ('constr, 'types, 'sort, 'univs, 'r) kind_of_term =
   | String    of Pstring.t
   | Array     of 'univs * 'constr array * 'constr * 'types
 
+module Wrap =
+struct
+type hash = int
+
+(* It is CRITICAL that the hash is the last field of the inductive type so that
+   the operation {!unwrap} works as intended *)
+type ('constr, 'types, 'sort, 'univs, 'r) t =
+  | Rel       of int * hash
+  | Var       of Id.t * hash
+  | Meta      of metavariable * hash
+  | Evar      of 'constr pexistential * hash
+  | Sort      of 'sort * hash
+  | Cast      of 'constr * cast_kind * 'types * hash
+  | Prod      of (Name.t,'r) pbinder_annot * 'types * 'types * hash
+  | Lambda    of (Name.t,'r) pbinder_annot * 'types * 'constr * hash
+  | LetIn     of (Name.t,'r) pbinder_annot * 'constr * 'types * 'constr * hash
+  | App       of 'constr * 'constr array * hash
+  | Const     of (Constant.t * 'univs) * hash
+  | Ind       of (inductive * 'univs) * hash
+  | Construct of (constructor * 'univs) * hash
+  | Case      of case_info * 'univs * 'constr array * ('types,'r) pcase_return * 'constr pcase_invert * 'constr * ('constr,'r) pcase_branch array * hash
+  | Fix       of ('constr, 'types, 'r) pfixpoint * hash
+  | CoFix     of ('constr, 'types, 'r) pcofixpoint * hash
+  | Proj      of Projection.t * 'r * 'constr * hash
+  | Int       of Uint63.t * hash
+  | Float     of Float64.t * hash
+  | String    of Pstring.t * hash
+  | Array     of 'univs * 'constr array * 'constr * 'types * hash
+end
+
 (* constr is the fixpoint of the previous type. *)
-type t = T of (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term [@@unboxed]
+type t = T of (t, t, Sorts.t, Instance.t, Sorts.relevance) Wrap.t [@@unboxed]
 type constr = t
 type types = constr
+
+type closedn_status = Closed | Open | Unknown
 
 type existential = existential_key * constr SList.t
 
@@ -133,11 +165,276 @@ type 'a binder_annot = ('a,Sorts.relevance) Context.pbinder_annot
 (*    kind_of_term = constructions as seen by the user                 *)
 (************************************************************************)
 
+module View :
+sig
+  external unwrap : ('constr, 'types, 'sort, 'univs, 'r) Wrap.t -> ('constr, 'types, 'sort, 'univs, 'r) kind_of_term = "%identity"
+  val wrap : (t, t, Sorts.t, Instance.t, Sorts.relevance) kind_of_term -> (t, t, Sorts.t, Instance.t, Sorts.relevance) Wrap.t
+  val hash : t -> int [@@ocaml.warning "-32"]
+  val may_have_evar : t -> bool
+  val may_have_meta : t -> bool
+  val closedn_status : int -> t -> closedn_status
+end =
+struct
+
+open Hashset.Combine
+
+(* Unsafe transmutation that should not impact the runtime *)
+external unwrap : ('constr, 'types, 'sort, 'univs, 'r) Wrap.t -> ('constr, 'types, 'sort, 'univs, 'r) kind_of_term = "%identity"
+
+(* Every [Wrap.t] constructor is a regular block and stores its hash in its
+   final field.  Casting it to an [int array] lets [Array.length] read the
+   block's payload size and [unsafe_get] read that field without dispatching
+   on the constructor tag. *)
+let[@inline always] stored_hash (T k) =
+  let fields : int array = Obj.magic k in
+  Array.unsafe_get fields (Array.length fields - 1)
+
+(* The upper nine non-sign bits cache a conservative syntactic summary.  The
+   low seven encode the relative binder bound: the low six bits are a lower
+   bound and the high bit means that the actual bound may be greater.  The
+   remaining two bits record Evar and Meta occurrence, respectively. *)
+let rel_bound_bits = 6
+let rel_bound_value_mask = (1 lsl rel_bound_bits) - 1
+let rel_bound_unknown_bit = 1 lsl rel_bound_bits
+let rel_bound_mask = rel_bound_value_mask lor rel_bound_unknown_bit
+let may_have_evar_bit = 1 lsl (rel_bound_bits + 1)
+let may_have_meta_bit = 1 lsl (rel_bound_bits + 2)
+let syntactic_flag_mask = may_have_evar_bit lor may_have_meta_bit
+let summary_mask = rel_bound_mask lor syntactic_flag_mask
+let summary_shift = Sys.int_size - 1 - (rel_bound_bits + 3)
+let summary_field_mask = summary_mask lsl summary_shift
+let semantic_hash_mask = lnot summary_field_mask
+
+let[@inline] pack h summary =
+  assert (0 <= summary && summary <= summary_mask);
+  (h land semantic_hash_mask) lor (summary lsl summary_shift)
+
+let[@inline] hash_of_stored_hash h = h land semantic_hash_mask
+let[@inline] summary_of_stored_hash h =
+  (h lsr summary_shift) land summary_mask
+let[@inline] rel_bound_of_stored_hash h =
+  summary_of_stored_hash h land rel_bound_mask
+
+(* Designed so that [Constr.equal t1 t2 = true] implies [hash t1 = hash t2]. *)
+let[@inline] hash c = hash_of_stored_hash (stored_hash c)
+let[@inline] rel_bound c = rel_bound_of_stored_hash (stored_hash c)
+let[@inline] may_have_evar c =
+  stored_hash c land (may_have_evar_bit lsl summary_shift) <> 0
+let[@inline] may_have_meta c =
+  stored_hash c land (may_have_meta_bit lsl summary_shift) <> 0
+
+let[@inline] rel_bound_leaf n =
+  if n <= 0 then 0
+  else if n <= rel_bound_value_mask then n
+  else rel_bound_value_mask lor rel_bound_unknown_bit
+
+let[@inline] rel_bound_max b1 b2 =
+  let lo1 = b1 land rel_bound_value_mask in
+  let lo2 = b2 land rel_bound_value_mask in
+  (if lo1 >= lo2 then lo1 else lo2)
+  lor ((b1 lor b2) land (rel_bound_unknown_bit lor syntactic_flag_mask))
+
+let[@inline] rel_bound_under n b =
+  let lo = (b land rel_bound_value_mask) - n in
+  (if lo > 0 then lo else 0)
+  lor (b land (rel_bound_unknown_bit lor syntactic_flag_mask))
+
+(* Compute both summaries in one traversal.  In particular, do not compute a
+   hash and relative bound in separate traversals of an Evar instance or a
+   term array. *)
+let rec hash_and_rel_bound_slist_loop h b = function
+| SList.Nil -> h, b
+| SList.Cons (c, l) ->
+  let info = stored_hash c in
+  hash_and_rel_bound_slist_loop (combine h (hash_of_stored_hash info))
+    (rel_bound_max b (summary_of_stored_hash info)) l
+| SList.Default (_, l) -> hash_and_rel_bound_slist_loop h b l
+
+let hash_and_rel_bound_slist l = hash_and_rel_bound_slist_loop 0 0 l
+
+let rec hash_and_rel_bound_array_loop v n i h b =
+  if Int.equal i n then h, b
+  else
+    let info = stored_hash (Array.unsafe_get v i) in
+    hash_and_rel_bound_array_loop v n (succ i)
+      (combine h (hash_of_stored_hash info))
+      (rel_bound_max b (summary_of_stored_hash info))
+
+let hash_and_rel_bound_array v =
+  hash_and_rel_bound_array_loop v (Array.length v) 0 0 0
+
+let hash_and_rel_bound_invert = function
+| NoInvert -> 0, 0
+| CaseInvert { indices } ->
+  let h, b = hash_and_rel_bound_array indices in
+  combinesmall 1 h, b
+
+let hash_and_rel_bound_under_context (nas, c) =
+  let info = stored_hash c in
+  hash_of_stored_hash info,
+  rel_bound_under (Array.length nas) (summary_of_stored_hash info)
+
+let hash_and_rel_bound_return ((nas, c), _) =
+  hash_and_rel_bound_under_context (nas, c)
+
+let rec hash_and_rel_bound_branches_loop br n i h b =
+  if Int.equal i n then h, b
+  else
+    let nas, c = Array.unsafe_get br i in
+    let info = stored_hash c in
+    hash_and_rel_bound_branches_loop br n (succ i)
+      (combine h (hash_of_stored_hash info))
+      (rel_bound_max b
+         (rel_bound_under (Array.length nas) (summary_of_stored_hash info)))
+
+let hash_and_rel_bound_branches br =
+  hash_and_rel_bound_branches_loop br (Array.length br) 0 0 0
+
+let wrap (k : ('constr, 'types, 'sort, 'univs, 'r) kind_of_term) = match k with
+| Rel n ->
+  let h = Int.hash n in
+  Wrap.Rel (n, pack (combinesmall 1 h) (rel_bound_leaf n))
+| Var id ->
+  let h = Id.hash id in
+  Wrap.Var (id, pack (combinesmall 2 h) 0)
+| Meta m ->
+  let h = Int.hash m in
+  Wrap.Meta (m, pack (combinesmall 3 h) may_have_meta_bit)
+| Evar ((evk, l) as ev) ->
+  let hl, bl = hash_and_rel_bound_slist l in
+  let h = combine (Evar.hash evk) hl in
+  Wrap.Evar (ev, pack (combinesmall 4 h) (bl lor may_have_evar_bit))
+| Sort s ->
+  let h = Sorts.hash s in
+  Wrap.Sort (s, pack (combinesmall 5 h) 0)
+| Cast (c, k, t) ->
+  (* Ignore the Cast node to preserve Constr.equal compat. *)
+  let hc = stored_hash c in
+  let ht = stored_hash t in
+  let b = rel_bound_max (summary_of_stored_hash hc)
+    (summary_of_stored_hash ht)
+  in
+  Wrap.Cast (c, k, t, pack (hash_of_stored_hash hc) b)
+| Prod (na, t, u) ->
+  let ht = stored_hash t in
+  let hu = stored_hash u in
+  let h = combine (hash_of_stored_hash ht) (hash_of_stored_hash hu) in
+  let b = rel_bound_max (summary_of_stored_hash ht)
+    (rel_bound_under 1 (summary_of_stored_hash hu))
+  in
+  Wrap.Prod (na, t, u, pack (combinesmall 7 h) b)
+| Lambda (na, t, c) ->
+  let ht = stored_hash t in
+  let hc = stored_hash c in
+  let h = combine (hash_of_stored_hash ht) (hash_of_stored_hash hc) in
+  let b = rel_bound_max (summary_of_stored_hash ht)
+    (rel_bound_under 1 (summary_of_stored_hash hc))
+  in
+  Wrap.Lambda (na, t, c, pack (combinesmall 8 h) b)
+| LetIn (na, b, t, c) ->
+  let hb = stored_hash b in
+  let ht = stored_hash t in
+  let hc = stored_hash c in
+  let h = combine3 (hash_of_stored_hash hb) (hash_of_stored_hash ht)
+    (hash_of_stored_hash hc)
+  in
+  let r = rel_bound_max (summary_of_stored_hash hb)
+    (rel_bound_max (summary_of_stored_hash ht)
+       (rel_bound_under 1 (summary_of_stored_hash hc)))
+  in
+  Wrap.LetIn (na, b, t, c, pack (combinesmall 9 h) r)
+| App (c, args) ->
+  let info = stored_hash c in
+  let ha, ba = hash_and_rel_bound_array args in
+  let h = combine (hash_of_stored_hash info) ha in
+  let b = rel_bound_max (summary_of_stored_hash info) ba in
+  Wrap.App (c, args, pack (combinesmall 10 h) b)
+| Const ((cst, u) as pcst) ->
+  let h = combine (Constant.CanOrd.hash cst) (UVars.Instance.hash u) in (* XXX *)
+  Wrap.Const (pcst, pack (combinesmall 11 h) 0)
+| Ind ((ind, u) as pind) ->
+  let h = combine (Ind.CanOrd.hash ind) (UVars.Instance.hash u) in (* XXX *)
+  Wrap.Ind (pind, pack (combinesmall 12 h) 0)
+| Construct ((cstr, u) as pcstr) ->
+  let h = combine (Construct.CanOrd.hash cstr) (UVars.Instance.hash u) in (* XXX *)
+  Wrap.Construct (pcstr, pack (combinesmall 13 h) 0)
+| Case (ci, u, pms, p, iv, c, br) ->
+  let hpms, bpms = hash_and_rel_bound_array pms in
+  let hp, bp = hash_and_rel_bound_return p in
+  let hiv, biv = hash_and_rel_bound_invert iv in
+  let hc = stored_hash c in
+  let hbr, bbr = hash_and_rel_bound_branches br in
+  let h =
+    combine (Ind.CanOrd.hash ci.ci_ind)
+      (combine5 (UVars.Instance.hash u) hpms hp hiv hbr)
+  in
+  let b =
+    rel_bound_max bpms
+      (rel_bound_max bp
+        (rel_bound_max biv
+          (rel_bound_max (summary_of_stored_hash hc) bbr)))
+  in
+  Wrap.Case (ci, u, pms, p, iv, c, br, pack (combinesmall 14 h) b)
+| Fix ((ln, i), (nas, ft, fb) as rdef) ->
+  let lnh = Array.fold_left combine 0 ln in
+  let hft, bft = hash_and_rel_bound_array ft in
+  let hfb, bfb = hash_and_rel_bound_array fb in
+  let h = combine4 lnh (Int.hash i) hfb hft in
+  let b = rel_bound_max bft (rel_bound_under (Array.length nas) bfb) in
+  Wrap.Fix (rdef, pack (combinesmall 15 h) b)
+| CoFix (i, (nas, ft, fb) as rdef) ->
+  let hft, bft = hash_and_rel_bound_array ft in
+  let hfb, bfb = hash_and_rel_bound_array fb in
+  let h = combine3 (Int.hash i) hfb hft in
+  let b = rel_bound_max bft (rel_bound_under (Array.length nas) bfb) in
+  Wrap.CoFix (rdef, pack (combinesmall 16 h) b)
+| Proj (p, r, c) ->
+  let hc = stored_hash c in
+  let h = combine (Projection.CanOrd.hash p) (hash_of_stored_hash hc) in (* XXX *)
+  Wrap.Proj (p, r, c,
+    pack (combinesmall 17 h) (summary_of_stored_hash hc))
+| Int i ->
+  let h = Uint63.hash i in
+  Wrap.Int (i, pack (combinesmall 18 h) 0)
+| Float f ->
+  let h = Float64.hash f in
+  Wrap.Float (f, pack (combinesmall 19 h) 0)
+| String s ->
+  let h = Pstring.hash s in
+  Wrap.String (s, pack (combinesmall 20 h) 0)
+| Array (u, v, def, t) ->
+  let hv, bv = hash_and_rel_bound_array v in
+  let hdef = stored_hash def in
+  let ht = stored_hash t in
+  let h = combine4 (UVars.Instance.hash u) hv
+    (hash_of_stored_hash hdef) (hash_of_stored_hash ht)
+  in
+  let b = rel_bound_max bv
+    (rel_bound_max (summary_of_stored_hash hdef) (summary_of_stored_hash ht))
+  in
+  Wrap.Array (u, v, def, t, pack (combinesmall 21 h) b)
+
+let closedn_status n c =
+  if n < 0 then Unknown
+  else
+    let b = rel_bound c in
+    let lower = b land rel_bound_value_mask in
+    if b land rel_bound_unknown_bit = 0 then
+      if lower <= n then Closed else Open
+    else if lower > n then Open
+    else Unknown
+
+end
+
+let closedn_status = View.closedn_status
+let may_have_evar = View.may_have_evar
+let may_have_meta = View.may_have_meta
+
 (* User view of [constr]. For [App], it is ensured there is at
    least one argument and the function is not itself an applicative
    term *)
 
-let kind (T c) = c
+let kind (T c) = View.unwrap c
 
 let rec kind_nocast_gen kind c =
   match kind c with
@@ -330,13 +627,15 @@ let decompose_app c =
 (*********************)
 
 (* Constructs a de Bruijn index with number n *)
-let rels = Array.init 17 (fun i -> T (Rel i))
+let rels = Array.init 17 (fun i -> T (View.wrap (Rel i)))
 
-let mkRel n = if 0<=n && n<=16 then rels.(n) else T (Rel n)
+let mkRel n =
+  if 0 <= n && n <= 16 then rels.(n)
+  else T ((View.wrap [@inlined always]) (Rel n))
 
-let mkSProp = T (Sort Sorts.sprop)
-let mkProp  = T (Sort Sorts.prop)
-let mkSet   = T (Sort Sorts.set)
+let mkSProp = T (View.wrap (Sort (Sorts.sprop)))
+let mkProp  = T (View.wrap (Sort (Sorts.prop)))
+let mkSet   = T (View.wrap (Sort (Sorts.set)))
 
 (* Enforces:
    - applicative terms have at least one argument and the
@@ -345,35 +644,38 @@ let mkSet   = T (Sort Sorts.set)
    - small rels are shared
    - small sorts are shared
 *)
-let of_kind = function
+let of_kind k = match k with
 | Rel n when 0 <= n && n < Array.length rels -> rels.(n)
 | App (f, [||]) -> f
 | App (f, a) as k -> begin match kind f with
-    | App (g, cl) -> T (App (g, Array.append cl a))
-    | _ -> T k
+    | App (g, cl) -> T (View.wrap (App (g, Array.append cl a)))
+    | _ -> T (View.wrap k)
   end
 | Cast (c, knd, t) as k -> begin match kind c with
     | Cast (c, knd', _) when (knd == VMcast || knd == NATIVEcast) && knd == knd' ->
-      T (Cast (c, knd, t))
-    | _ -> T k
+      T (View.wrap (Cast (c, knd, t))) (* XXX *)
+    | _ -> T (View.wrap k)
   end
 | Sort Sorts.SProp -> mkSProp
 | Sort Sorts.Prop -> mkProp
 | Sort Sorts.Set -> mkSet
-| k -> T k
+| k -> T (View.wrap k)
 
 (* Construct a type *)
 let mkType u = of_kind @@ Sort (Sorts.sort_of_univ u)
 let mkSort s = of_kind @@ Sort s
 
+(* Constructors that need no normalization bypass [of_kind]. Inlining [wrap]
+   at these call sites avoids allocating an intermediate [kind_of_term]. *)
+
 (* Constructs the product (x:t1)t2 *)
-let mkProd (x,t1,t2) = of_kind @@ Prod (x,t1,t2)
+let mkProd (x,t1,t2) = T ((View.wrap [@inlined always]) (Prod (x,t1,t2)))
 
 (* Constructs the abstraction [x:t1]t2 *)
-let mkLambda (x,t1,t2) = of_kind @@ Lambda (x,t1,t2)
+let mkLambda (x,t1,t2) = T ((View.wrap [@inlined always]) (Lambda (x,t1,t2)))
 
 (* Constructs [x=c_1:t]c_2 *)
-let mkLetIn (x,c1,t,c2) = of_kind @@ LetIn (x,c1,t,c2)
+let mkLetIn (x,c1,t,c2) = T ((View.wrap [@inlined always]) (LetIn (x,c1,t,c2)))
 
 let mkApp (f, a) = of_kind (App (f, a))
 
@@ -385,27 +687,28 @@ let map_puniverses f (x,u) = (f x, u)
 let in_punivs a = (a, UVars.Instance.empty)
 
 (* Constructs a constant *)
-let mkConst c = of_kind @@ Const (in_punivs c)
-let mkConstU c = of_kind @@ Const c
+let mkConst c = T ((View.wrap [@inlined always]) (Const (in_punivs c)))
+let mkConstU c = T ((View.wrap [@inlined always]) (Const c))
 
 (* Constructs an applied projection *)
-let mkProj (p,r,c) = of_kind @@ Proj (p,r,c)
+let mkProj (p,r,c) = T ((View.wrap [@inlined always]) (Proj (p,r,c)))
 
 (* Constructs an existential variable *)
-let mkEvar e = of_kind @@ Evar e
+let mkEvar e = T ((View.wrap [@inlined always]) (Evar e))
 
 (* Constructs the ith (co)inductive type of the block named kn *)
-let mkInd m = of_kind @@ Ind (in_punivs m)
-let mkIndU m = of_kind @@ Ind m
+let mkInd m = T ((View.wrap [@inlined always]) (Ind (in_punivs m)))
+let mkIndU m = T ((View.wrap [@inlined always]) (Ind m))
 
 (* Constructs the jth constructor of the ith (co)inductive type of the
    block named kn. *)
-let mkConstruct c = of_kind @@ Construct (in_punivs c)
-let mkConstructU c = of_kind @@ Construct c
-let mkConstructUi ((ind,u),i) = of_kind @@ Construct ((ind,i),u)
+let mkConstruct c = T ((View.wrap [@inlined always]) (Construct (in_punivs c)))
+let mkConstructU c = T ((View.wrap [@inlined always]) (Construct c))
+let mkConstructUi ((ind,u),i) = T ((View.wrap [@inlined always]) (Construct ((ind,i),u)))
 
 (* Constructs the term <p>Case c of c1 | c2 .. | cn end *)
-let mkCase (ci, u, params, p, iv, c, ac) = of_kind @@ Case (ci, u, params, p, iv, c, ac)
+let mkCase (ci, u, params, p, iv, c, ac) =
+  T ((View.wrap [@inlined always]) (Case (ci, u, params, p, iv, c, ac)))
 
 (* If recindxs = [|i1,...in|]
       funnames = [|f1,...fn|]
@@ -425,7 +728,7 @@ let mkCase (ci, u, params, p, iv, c, ac) = of_kind @@ Case (ci, u, params, p, iv
    where the length of the jth context is ij.
 *)
 
-let mkFix fix = of_kind @@ Fix fix
+let mkFix fix = T ((View.wrap [@inlined always]) (Fix fix))
 
 (* If funnames = [|f1,...fn|]
       typarray = [|t1,...tn|]
@@ -441,13 +744,13 @@ let mkFix fix = of_kind @@ Fix fix
     ...
     with       fn : tn := bn.
 *)
-let mkCoFix cofix= of_kind @@ CoFix cofix
+let mkCoFix cofix = T ((View.wrap [@inlined always]) (CoFix cofix))
 
 (* Constructs an existential variable named "?n" *)
-let mkMeta  n = of_kind @@  Meta n
+let mkMeta n = T ((View.wrap [@inlined always]) (Meta n))
 
 (* Constructs a Variable named id *)
-let mkVar id = of_kind @@ Var id
+let mkVar id = T ((View.wrap [@inlined always]) (Var id))
 
 let mkRef (gr,u) = let open GlobRef in match gr with
   | ConstRef c -> mkConstU (c,u)
@@ -456,16 +759,16 @@ let mkRef (gr,u) = let open GlobRef in match gr with
   | VarRef x -> mkVar x
 
 (* Constructs a primitive integer *)
-let mkInt i = of_kind @@ Int i
+let mkInt i = T ((View.wrap [@inlined always]) (Int i))
 
 (* Constructs an array *)
-let mkArray (u,t,def,ty) = of_kind @@ Array (u,t,def,ty)
+let mkArray (u,t,def,ty) = T ((View.wrap [@inlined always]) (Array (u,t,def,ty)))
 
 (* Constructs a primitive float number *)
-let mkFloat f = of_kind @@ Float f
+let mkFloat f = T ((View.wrap [@inlined always]) (Float f))
 
 (* Constructs a primitive string. *)
-let mkString s = of_kind @@ String s
+let mkString s = T ((View.wrap [@inlined always]) (String s))
 
 module UnsafeMonomorphic = struct
   let mkConst = mkConst
@@ -867,8 +1170,11 @@ let rec exliftn el c =
 let liftn n k c =
   let open Esubst in
   match el_liftn (pred k) (el_shft n el_id) with
-    | ELID -> c
-    | el -> exliftn el c
+  | ELID -> c
+  | el ->
+    match closedn_status (pred k) c with
+    | Closed -> c
+    | Open | Unknown -> exliftn el c
 
 let lift n = liftn n 1
 
@@ -1311,7 +1617,7 @@ and sh_invert civ iv = match civ, iv with
 
 and sh_rec_main t =
   let (h, y) = hash_term t in
-  (h, HashsetTerm.repr h (T y) term_table)
+  (h, HashsetTerm.repr h (T (View.wrap y)) term_table)
 
 and sh_rec t =
   incr steps;

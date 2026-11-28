@@ -38,7 +38,7 @@ sig
   (** Comparison over identifiers. *)
 
   val hash : t -> int
-  (** Hash over identifiers. *)
+  (** Hash over identifiers, cached when the identifier is constructed. *)
 
   val is_valid : string -> bool
   (** Check that a string may be converted to an identifier. *)

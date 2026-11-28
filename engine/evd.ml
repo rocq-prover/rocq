@@ -1802,6 +1802,7 @@ module MiniEConstr = struct
       let k = clos.evc_lift + ans in
       Some (lift_substituend k v)
     in
+    let no_evar_next () = () in
     let rec self clos c = match Constr.kind c with
     | Var id ->
       begin match find clos id with
@@ -1853,6 +1854,9 @@ module MiniEConstr = struct
       end
     | _ ->
       UnivSubst.map_universes_opt_subst_with_binders next self relevance_value qvar_value univ_value clos c
+    and map_no_evars () c =
+      UnivSubst.map_universes_opt_subst_with_binders
+        no_evar_next map_no_evars relevance_value qvar_value univ_value () c
     in
     let clos = {
       evc_lift = 0;
@@ -1861,16 +1865,16 @@ module MiniEConstr = struct
       evc_map = Id.Map.empty;
       evc_cache = ref Int.Map.empty;
     } in
-    let c = self clos c in
+    (* No evar can occur in a term whose exact syntactic summary is negative.
+       With the initially empty closure, conversion then only needs universe
+       normalization.  In particular, [map_no_evars] avoids the evar dispatch
+       at every node. *)
+    let c =
+      if Constr.may_have_evar c then self clos c else map_no_evars () c
+    in
     !saw_evar, c
 
-  let check_evar c =
-    let exception SawEvar in
-    let rec iter c = match Constr.kind c with
-      | Evar _ -> raise SawEvar
-      | _ -> Constr.iter iter c
-    in
-    try iter c; false with SawEvar -> true
+  let check_evar = Constr.may_have_evar
 
   let to_constr ?(abort_on_undefined_evars=true) sigma c =
     let saw_evar, c = to_constr_gen ~expand:true ~ignore_missing:false sigma c in
@@ -1906,13 +1910,15 @@ end
 (* excluding defined evars *)
 
 let evars_of_term evd c =
-  let rec evrec acc c =
-    let c = MiniEConstr.whd_evar evd c in
-    match kind c with
-    | Evar (n, l) -> Evar.Set.add n (SList.Skip.fold evrec acc l)
-    | _ -> Constr.fold evrec acc c
-  in
-  evrec Evar.Set.empty c
+  if not (Constr.may_have_evar c) then Evar.Set.empty
+  else
+    let rec evrec acc c =
+      let c = MiniEConstr.whd_evar evd c in
+      match kind c with
+      | Evar (n, l) -> Evar.Set.add n (SList.Skip.fold evrec acc l)
+      | _ -> Constr.fold evrec acc c
+    in
+    evrec Evar.Set.empty c
 
 let evars_of_named_context evd nc =
   Context.Named.fold_outside

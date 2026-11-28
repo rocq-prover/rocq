@@ -82,11 +82,14 @@ let instantiate_evar evk rawc =
   end
 
 let evar_list sigma c =
-  let rec evrec acc c =
-    match EConstr.kind sigma c with
-    | Evar (evk, _ as ev) -> ev :: acc
-    | _ -> EConstr.fold sigma evrec acc c in
-  evrec [] c
+  if not (Constr.may_have_evar (EConstr.Unsafe.to_constr c)) then []
+  else
+    let rec evrec acc c =
+      match EConstr.kind sigma c with
+      | Evar (evk, _ as ev) -> ev :: acc
+      | _ -> EConstr.fold sigma evrec acc c
+    in
+    evrec [] c
 
 let instantiate_tac n c ido =
   Proofview.Goal.enter begin fun gl ->

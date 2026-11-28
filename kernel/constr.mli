@@ -57,6 +57,21 @@ type constr = t
 
 type types = constr
 
+type closedn_status = Closed | Open | Unknown
+(** A conservative answer derived from cached relative-index metadata. *)
+
+val closedn_status : int -> constr -> closedn_status
+(** [closedn_status n t] determines whether [t] is closed under [n] binders
+    when its cached metadata is precise, and returns [Unknown] otherwise. *)
+
+val may_have_evar : constr -> bool
+(** [may_have_evar t] is true exactly when [t] contains a syntactic Evar.
+    It does not inspect the evar map. *)
+
+val may_have_meta : constr -> bool
+(** [may_have_meta t] is true exactly when [t] contains a syntactic Meta.
+    It does not inspect evar bodies. *)
+
 (** {5 Functions for dealing with constr terms. }
   The following functions are intended to simplify and to uniform the
   manipulation of terms. Some of these functions may be overlapped with
