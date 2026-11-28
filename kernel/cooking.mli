@@ -48,6 +48,8 @@ val make_cooking_info : recursive:MutInd.t option -> expand_info ->
 
 val names_info : cooking_info -> Id.Set.t
 
+val discharges_inductive : cooking_info -> bool
+
 val universe_context_of_cooking_info : cooking_info -> UVars.AbstractContext.t
 
 val instance_of_cooking_info : cooking_info -> Constr.t array
@@ -61,6 +63,22 @@ val rel_context_of_cooking_cache : cooking_cache -> rel_context
 val abstract_as_type : cooking_cache -> types -> types
 
 val abstract_as_body : cooking_cache -> constr -> constr
+
+val expand_subterm : cooking_cache -> int -> constr -> constr
+(** What [abstract_as_body] does to a subterm of the body that is under the
+    given number of its binders; the result is under the same binders, and
+    the ones [abstract_as_body] adds. *)
+
+(** The term {!abstract_as_body} gives, with the expansion of the section's
+    context built so that it keeps the sharing of the argument: a compound
+    subterm is expanded once per binder depth, so that step's cost follows
+    the number of distinct subterms rather than the size of the term's tree
+    unfolding. The memo behind it is bounded and lossy, so a term with many
+    subterms that share a [Constr.hash_bounded] value, or with more distinct
+    subterms than the memo holds, can still cost its tree unfolding. The
+    universe substitution that follows the expansion is unchanged, and in a
+    section with polymorphic universes it still walks the tree unfolding. *)
+val abstract_as_body_shared : cooking_cache -> constr -> constr
 
 val abstract_as_sort : cooking_cache -> Sorts.t -> Sorts.t
 

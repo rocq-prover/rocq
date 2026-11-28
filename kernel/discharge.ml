@@ -47,7 +47,7 @@ let lift_private_univs info = function
 let cook_opaque_proofterm info c =
   let fold info (c, priv) =
     let priv = lift_private_univs info priv in
-    let c = abstract_as_body (create_cache info) c in
+    let c = abstract_as_body_shared (create_cache info) c in
     (c, priv)
   in
   List.fold_right fold info c

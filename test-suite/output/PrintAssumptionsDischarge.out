@@ -1,0 +1,35 @@
+Axioms:
+bad : False
+used in usedin_arg to prove
+ k u = k u
+Axioms:
+bad : False
+used in usedin_deep to prove
+ k u = n
+used in usedin_deep to prove
+ k u + p = k u + m
+used in usedin_deep to prove
+ k u = n
+Axioms:
+gA : nat
+ax2 : nat -> E gA
+Axioms:
+bad : False
+used in usedin_let to prove
+ la = la
+Axioms:
+bad : False
+used in usedin_nested to prove
+ ki o i = ki o i
+Axioms:
+bad : False
+used in usedin_univ to prove
+ pk T = pk T
+Axioms:
+bad : False
+used in usedin_univ to prove
+ pk@{Var(0)} T = pk@{Var(0)} T
+Axioms:
+XI.bad : False
+used in usedin_functor to prove
+ FI.k u = FI.k u
