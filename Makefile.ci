@@ -143,6 +143,10 @@ ci-menhir: ci-stdlib
 
 ci-metarocq: ci-equations ci-ext_lib
 
+ci-parseque: ci-stdlib
+ci-wasmcert: ci-compcert ci-ext_lib ci-mathcomp ci-parseque
+ci-certirocq: ci-metarocq ci-wasmcert
+
 ci-neural_net_interp: ci-stdlib
 
 ci-vst: ci-compcert

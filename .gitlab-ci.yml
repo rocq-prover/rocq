@@ -1152,6 +1152,46 @@ plugin:ci-metarocq:
     # somehow too big
     SAVE_BUILD_CI: "0"
 
+library:ci-parseque:
+  extends: .ci-template-flambda
+  needs:
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
+
+library:ci-wasmcert:
+  extends: .ci-template-flambda
+  needs:
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
+  - library:ci-flocq
+  - library:ci-menhir
+  - library:ci-compcert
+  - library:ci-ext_lib
+  - plugin:ci-elpi_hb
+  - plugin:ci-micromega
+  - library:ci-mathcomp
+  - library:ci-parseque
+  stage: build-3+
+
+plugin:ci-certirocq:
+  extends: .ci-template-flambda
+  needs:
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
+  - library:ci-flocq
+  - library:ci-menhir
+  - library:ci-compcert
+  - library:ci-ext_lib
+  - plugin:ci-elpi_hb
+  - plugin:ci-micromega
+  - library:ci-mathcomp
+  - library:ci-parseque
+  - library:ci-wasmcert
+  - plugin:ci-equations
+  - plugin:ci-metarocq
+  stage: build-3+
+  timeout: 1h 30min
+
 plugin:ci-micromega:
   extends: .ci-template-flambda
   needs:

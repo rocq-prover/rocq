@@ -389,6 +389,24 @@ project metarocq "https://github.com/MetaRocq/metarocq" "main"
 # Contact @mattam82, @yforster on github
 
 ########################################################################
+# parseque
+########################################################################
+project parseque "https://github.com/rocq-community/parseque" "master"
+# Contact @womeier on github
+
+########################################################################
+# WasmCert
+########################################################################
+project wasmcert "https://github.com/WasmCert/WasmCert-Coq" "rocq-master"
+# Contact @raoxiaojia, @womeier on github
+
+########################################################################
+# certirocq
+########################################################################
+project certirocq "https://github.com/CertiRocq/certirocq" "rocq-master"
+# Contact @mattam82, @yforster, @womeier on github
+
+########################################################################
 # SF suite
 ########################################################################
 project sf "https://github.com/DeepSpec/sf" "master"
