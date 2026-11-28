@@ -105,6 +105,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [VM conversion entered a mutual fixpoint with the block's last component](#vm-conversion-entered-a-mutual-fixpoint-with-the-blocks-last-component)
       - [kernel reduction drops the lift on a primitive array](#kernel-reduction-drops-the-lift-on-a-primitive-array)
       - [VM conversion of stuck matches shifted the arguments of constructors with extended tags](#vm-conversion-of-stuck-matches-shifted-the-arguments-of-constructors-with-extended-tags)
+      - [VM PUSHACCMANY opcode corrupted stack on overlapping copies](#vm-pushaccmany-opcode-corrupted-stack-on-overlapping-copies)
     - [Side-effects](#side-effects)
       - [polymorphic side-effects inside monomorphic definitions incorrectly handled as not inlined](#polymorphic-side-effects-inside-monomorphic-definitions-incorrectly-handled-as-not-inlined)
       - [Section variables used in side effects not checked by Proof using](#section-variables-used-in-side-effects-not-checked-by-proof-using)
@@ -1238,6 +1239,18 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - exploit: see issue
 - risk: needs a VM conversion of matches stuck on a variable, over an inductive
   type with at least 246 non-constant constructors
+
+#### VM PUSHACCMANY opcode corrupted stack on overlapping copies
+
+- component: "virtual machine" (compilation to bytecode ran by a C-interpreter)
+- introduced: V8.20 ([#18967](https://github.com/rocq-prover/rocq/pull/18967))
+- impacted released versions: V8.20 to V9.3.0
+- impacted coqchk versions: same (only when using -bytecode-compiler yes)
+- fixed in: V9.2.1, V9.3.1, V9.4
+- found by: Gregory Nisbet (using Gemini)
+- exploit: test-suite/bugs/bug_22930.v
+- GH issue number: [#22930](https://github.com/rocq-prover/rocq/issues/22930)
+- risk: low for hand-written terms, at it requires a long sequence of trivial let bindings
 
 ### Side-effects
 

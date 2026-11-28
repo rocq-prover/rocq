@@ -424,8 +424,8 @@ value rocq_interprete
         int i;
         print_instr("PUSHACCMANY");
         sp -= size;
-        for (i = 1; i < size; ++i) sp[i - 1] = sp[first + i];
         sp[size - 1] = accu;
+        for (i = size - 1; i > 0; --i) sp[i - 1] = sp[first + i];
         accu = sp[first];
         Next;
       }
