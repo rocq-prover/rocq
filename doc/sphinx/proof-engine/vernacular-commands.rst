@@ -32,6 +32,8 @@ Displaying
      The name :g:`_` means the usual name is printed. When :g:`+` is appended,
      the remaining qualities or universe levels keep their usual names,
      as if :g:`_` had been specified for each of them.
+     If no :g:`;` is provided, the presence or absence of :g:`+` applies to both
+     qualities and universe levels.
 
    .. exn:: @qualid not a defined object.
       :undocumented:
