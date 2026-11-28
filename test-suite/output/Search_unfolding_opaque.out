@@ -1,0 +1,1 @@
+n_le_double: forall n : nat, n <= double n

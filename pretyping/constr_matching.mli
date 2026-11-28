@@ -35,12 +35,14 @@ type bound_ident_map = Id.t Id.Map.t
 (** [matches pat c] matches [c] against [pat] and returns the resulting
    assignment of metavariables; it raises [PatternMatchingFailure] if
    not matchable; bindings are given in increasing order based on the
-   numbers given in the pattern *)
-val matches : env -> Evd.evar_map -> constr_pattern -> constr -> patvar_map
+   numbers given in the pattern. Matches modulo delta reduction
+   if [mod_unfolding] is [true].  *)
+val matches : ?mod_unfolding:bool -> env -> Evd.evar_map -> constr_pattern -> constr -> patvar_map
 
 (** [matches_head pat c] does the same as [matches pat c] but accepts
-    [pat] to match an applicative prefix of [c] *)
-val matches_head : env -> Evd.evar_map -> constr_pattern -> constr -> patvar_map
+    [pat] to match an applicative prefix of [c]. Matches modulo delta reduction
+    if [mod_unfolding] is [true].  *)
+val matches_head : ?mod_unfolding:bool -> env -> Evd.evar_map -> constr_pattern -> constr -> patvar_map
 
 (** [extended_matches pat c] also returns the names of bound variables
    in [c] that matches the bound variables in [pat]; if several bound
@@ -54,8 +56,9 @@ val extended_matches :
 val is_matching : env -> Evd.evar_map -> constr_pattern -> constr -> bool
 
 (** [is_matching_head pat c] just tells if [c] or an applicative
-    prefix of it matches against [pat] *)
-val is_matching_head : env -> Evd.evar_map -> constr_pattern -> constr -> bool
+    prefix of it matches against [pat]. Matches modulo delta reduction
+    if [mod_unfolding] is [true]. *)
+val is_matching_head : ?mod_unfolding:bool -> env -> Evd.evar_map -> constr_pattern -> constr -> bool
 
 type context
 
@@ -85,5 +88,6 @@ type subterm_cache
 val make_subterm_cache : unit -> subterm_cache
 
 (** [is_matching_appsubterm_cached cache pat c] tells if a subterm of [c] matches
-   against [pat] taking partial subterms into consideration *)
-val is_matching_appsubterm_cached : subterm_cache  -> env -> Evd.evar_map -> constr_pattern -> constr -> bool
+   against [pat] taking partial subterms into consideration.
+   Matches modulo delta reduction if [mod_unfolding] is [true]. *)
+val is_matching_appsubterm_cached : ?mod_unfolding:bool -> subterm_cache  -> env -> Evd.evar_map -> constr_pattern -> constr -> bool
