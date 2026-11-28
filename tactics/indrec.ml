@@ -469,7 +469,7 @@ let check_valid_elimination env sigma (kn, n) mib u lrecspec rec_hyp =
   (* Check all the blocks can be eliminated *)
   List.iter (fun ((kni, ni),dep,s) ->
     (* Check that all the blocks can be eliminated to s *)
-    let () = if not @@ Inductiveops.is_allowed_elimination sigma ((mib,mib.mind_packets.(ni)),u) s then
+    let () = if not @@ Inductiveops.is_allowed_elimination env sigma ((mib,mib.mind_packets.(ni)),u) s then
         raise (Pretype_errors.error_not_allowed_elimination env sigma rec_hyp s ((kn, ni), u)) in
     (* Check if dep elim is allowed: rec (co)ind records with prim proj can not be eliminated dependently *)
     if dep && not (Inductiveops.has_dependent_elim sigma (mib, mib.mind_packets.(ni)) u) then

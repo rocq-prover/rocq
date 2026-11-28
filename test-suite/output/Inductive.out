@@ -45,7 +45,8 @@ Declared in library Corelib.Init.Logic, line 87, characters 10-12
 sunit : SProp
 
 sunit is not universe polymorphic
-sunit may only be eliminated to produce values whose type is SProp.
+sunit may only be eliminated to produce values whose type is SProp,
+  unless the target sort has definitional UIP.
 Expands to: Inductive Inductive.sunit
 Declared in library Inductive, line 38, characters 10-15
 sempty@{q ; } : Univ@{q ; Set}

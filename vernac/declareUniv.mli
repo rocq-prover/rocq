@@ -33,4 +33,4 @@ val constraint_sources : unit -> (GlobRef.t * Univ.UnivConstraints.t) list
 (** Returns constraints associated to globrefs, newest first. *)
 
 (** Command [Sort]. *)
-val do_sort : poly:bool -> lident list -> unit
+val do_sort : poly:bool -> infos:Safe_typing.global_sort_infos -> lident list -> unit

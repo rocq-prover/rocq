@@ -1033,7 +1033,7 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
     raise (Pretype_errors.error_not_allowed_dependent_elimination env sigma true ind) in
   (* check elim *)
   let sigma =
-    match Inductiveops.make_allowed_elimination sigma ((mib,mip),u) s with
+    match Inductiveops.make_allowed_elimination env sigma ((mib,mip),u) s with
     | Some sigma -> sigma
     | None -> Pretype_errors.error_not_allowed_elimination env sigma true s (ind, u)
   in

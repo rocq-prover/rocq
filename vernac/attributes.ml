@@ -294,6 +294,9 @@ let polymorphic =
   | Some b -> return b
   | None -> return (is_universe_polymorphism())
 
+let uip_on_sort =
+  enable_attribute ~key:"uip" ~default:(fun () -> false)
+
 let { Goptions.get = is_polymorphic_inductive_cumulativity } =
   Goptions.declare_bool_option_and_ref ~key:["Polymorphic"; "Inductive"; "Cumulativity"] ~value:false ()
 
@@ -358,6 +361,10 @@ let unfold_fix =
 let only_locality atts = parse locality atts
 
 let only_polymorphism atts = parse polymorphic atts
+
+let polymorphism_or_infos atts =
+  let poly, uip = parse (polymorphic ++ uip_on_sort) atts in
+  poly, Safe_typing.make_global_infos ~uip
 
 let vernac_polymorphic_flag loc =
   CAst.make ?loc (ukey, VernacFlagList [CAst.make ?loc ("polymorphic", VernacFlagEmpty)])

@@ -159,7 +159,12 @@ val push_context_set :
 
 (** Adding global sort qualities *)
 
-val new_global_sort : Sorts.QGlobal.t safe_transformer
+type global_sort_infos
+val has_global_infos : global_sort_infos -> bool
+val make_global_infos : uip:bool -> global_sort_infos
+val global_infos_with_poly_err : global_sort_infos -> unit
+
+val new_global_sort : global_sort_infos -> Sorts.QGlobal.t safe_transformer
 
 val merge_elim_constraints : Sorts.ElimConstraints.t -> safe_transformer0
 
@@ -254,9 +259,10 @@ val empty_vm_library : Environ.env -> compiled_library -> Vmlibrary.t
     substituted in. Used by the checker, which does not trust the VM bytecode
     serialized in the file. A no-op returning an empty table when the VM is
     disabled. *)
-val univs_of_library : compiled_library -> (Sorts.QGlobal.Set.t * Sorts.ElimConstraints.t) * Univ.ContextSet.t
+val univs_of_library : compiled_library -> (global_sort_infos Sorts.QGlobal.Map.t * Sorts.ElimConstraints.t) * Univ.ContextSet.t
 val retroknowledge_of_library : compiled_library -> Retroknowledge.action list
 val check_flags_for_library : compiled_library -> safe_transformer0
+val push_global_infos : global_sort_infos Sorts.QGlobal.Map.t -> Environ.env -> Environ.env
 
 val start_library : DirPath.t -> ModPath.t safe_transformer
 

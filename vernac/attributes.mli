@@ -59,6 +59,7 @@ val poly : PolyFlags.construction_kind -> PolyFlags.t attribute
 val poly_def : PolyFlags.t attribute
 (** Attributes supported by monomorphic or polymorphic definitions *)
 
+val uip_on_sort : bool attribute
 val program : bool attribute
 val template : bool option attribute
 val template_poly : (bool option * PolyFlags.t) attribute
@@ -107,6 +108,10 @@ val only_locality : vernac_flags -> bool option
 val only_polymorphism : vernac_flags -> bool
 (** Parse attributes allowing only polymorphism.
     Uses the global flag for the default value. *)
+
+val polymorphism_or_infos : vernac_flags -> bool * Safe_typing.global_sort_infos
+(** Parse attributes allowing only polymorphism or global sorts infos (e.g., definitional
+    UIP) for specific sort. Uses the global flag for the default value. *)
 
 val parse_drop_extra : 'a attribute -> vernac_flags -> 'a
 (** Ignores unsupported attributes. *)

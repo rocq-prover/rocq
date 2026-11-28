@@ -183,6 +183,7 @@ type record_info =
   }
 
 type squash_info =
+  | UIPSquashed
   | AlwaysSquashed
   | SometimesSquashed of Sorts.Quality.Set.t
   (** A sort polymorphic inductive [I@{...|...|...} : ... -> Type@{ s|...}]

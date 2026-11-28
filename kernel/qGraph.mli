@@ -110,3 +110,7 @@ val pr_qualities : Quality.printer -> t -> Pp.t
 val explain_quality_inconsistency : Quality.printer -> explanation option -> Pp.t
 
 val explain_elimination_error : Quality.printer -> elimination_error -> Pp.t
+
+val add_uip_to_global : QGlobal.t -> t -> t
+
+val sort_has_uip : Quality.t -> t -> bool

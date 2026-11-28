@@ -28,6 +28,7 @@ sig
     val pr : (elt -> Pp.t) -> t -> Pp.t
   end
 
+  module Map : CMap.ExtS with type key = t and module Set := Set
 end
 
 module QVar :

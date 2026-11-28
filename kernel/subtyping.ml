@@ -149,9 +149,10 @@ let check_primitive error p1 p2 = match p1, p2 with
 | (NotRecord | FakeRecord), PrimRecord _ -> error (RecordFieldExpected true)
 
 let squash_info_equal s1 s2 = match s1, s2 with
+  | UIPSquashed, UIPSquashed -> true
   | AlwaysSquashed, AlwaysSquashed -> true
   | SometimesSquashed s1, SometimesSquashed s2 -> Sorts.Quality.Set.equal s1 s2
-  | (AlwaysSquashed | SometimesSquashed _), _ -> false
+  | (UIPSquashed | AlwaysSquashed | SometimesSquashed _), _ -> false
 
 (* for now we do not allow reorderings *)
 

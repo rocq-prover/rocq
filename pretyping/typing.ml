@@ -195,7 +195,7 @@ let is_correct_arity env sigma c pj ind specif params =
           srec (push_rel (LocalAssum (na1,a1)) env) sigma t ar'
       end
     | Sort s, [] ->
-      begin match is_squashed sigma (specif, snd ind) with
+      begin match is_squashed env sigma (specif, snd ind) s with
       | None -> sigma, s
       | Some squash ->
         let sigma =
@@ -310,7 +310,7 @@ let check_allowed_sort env sigma ind c p =
     | Sort s -> s
     | _ -> error_elim_arity env sigma ind c None
   in
-  match Inductiveops.make_allowed_elimination sigma (specif, (snd ind)) sort with
+  match Inductiveops.make_allowed_elimination env sigma (specif, (snd ind)) sort with
   | Some sigma -> sigma, ESorts.relevance_of_sort sort
   | None -> error_elim_arity env sigma ind c (Some sort)
 

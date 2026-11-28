@@ -89,6 +89,10 @@ end
 module QMap = QVar.Map
 module QSet = QVar.Set
 
+type global_attrs = {
+  sorts_with_uip : Sorts.Quality.Set.t;
+}
+
 type t =
   { graph: G.t;
     (** Connected components of the eliminability graph *)
@@ -97,6 +101,7 @@ type t =
     dominant: Quality.t QMap.t;
     delayed_check: QSet.t QMap.t;
     ignore_constraints: bool;
+    global_sorts_attrs: global_attrs;
   }
 
 type path_explanation = G.explanation Lazy.t
@@ -265,6 +270,10 @@ let add_quality q g =
 let enforce_eliminates_to s1 s2 g =
   enforce_constraint (s1, ElimConstraint.ElimTo, s2) g
 
+let empty_global_attrs = {
+  sorts_with_uip = Sorts.Quality.Set.singleton @@ Sorts.Quality.qsprop;
+}
+
 let initial_graph =
   let g = G.empty in
   let g = List.fold_left (fun g q -> G.add q g) g Quality.all_constants in
@@ -282,7 +291,9 @@ let initial_graph =
     ground_and_global_sorts = Quality.Set.of_list Quality.all_constants;
     dominant = QMap.empty;
     delayed_check = QMap.empty;
-    ignore_constraints = false }
+    ignore_constraints = false;
+    global_sorts_attrs = empty_global_attrs;
+  }
 
 let eliminates_to g q q' =
   ignore_constraints g ||
@@ -398,3 +409,13 @@ let explain_elimination_error defprv err =
        str "cannot enforce" ++ spc() ++ Quality.pr prv q1 ++ spc() ++
        ElimConstraint.pr_kind k ++ spc() ++ Quality.pr prv q2 ++ spc() ++
        explain_quality_inconsistency prv r
+
+let on_global_attrs f g = { g with global_sorts_attrs = f g.global_sorts_attrs }
+
+let add_uip_to_global s g =
+  let f attrs = { sorts_with_uip = Quality.Set.add (Quality.global s) attrs.sorts_with_uip } in
+  on_global_attrs f g
+
+let sort_has_uip s g =
+  (* definitional UIP on sorts is upwards closed *)
+  Quality.Set.exists (fun global_sort -> eliminates_to g global_sort s) g.global_sorts_attrs.sorts_with_uip

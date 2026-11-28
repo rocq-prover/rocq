@@ -129,9 +129,7 @@ let check_squashed orig generated = match orig, generated with
   | Some _, None ->
     (* the inductive is from functor instantiation which removed the need for squash *)
     true
-  | None, Some _ ->
-    (* missing squash *)
-    false
+  | None, Some _ -> false
   | Some s1, Some s2 ->
     (* functor instantiation can change sort qualities
        (from Type -> Prop)
@@ -139,8 +137,11 @@ let check_squashed orig generated = match orig, generated with
        squashed must also make the original inductive squashed *)
     match s1, s2 with
     | AlwaysSquashed, AlwaysSquashed -> true
-    | AlwaysSquashed, SometimesSquashed _ -> true
-    | SometimesSquashed _, AlwaysSquashed -> false
+    | _, AlwaysSquashed -> false
+    | AlwaysSquashed, _ -> true
+    | UIPSquashed, UIPSquashed -> true
+    | UIPSquashed, SometimesSquashed _
+    | SometimesSquashed _, UIPSquashed -> false
     | SometimesSquashed s1, SometimesSquashed s2 ->
       Sorts.Quality.Set.subset s2 s1
 

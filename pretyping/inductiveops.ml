@@ -279,25 +279,27 @@ let squash_elim_sort sigma squash rtnsort =
      if Inductive.eliminates_to g (QVar q) q' then sigma
      else Evd.set_elim_to sigma (QVar q) q'
 
-let is_squashed sigma (specif,u) =
-  Inductive.is_squashed_gen
-    (Evd.elim_graph sigma)
+let is_squashed env sigma (specif,u) rtnsort =
+  let g = Evd.elim_graph sigma in
+  Inductive.is_squashed_gen g
+    (QGraph.sort_has_uip (ESorts.quality sigma rtnsort) g)
     (UState.nf_quality (Evd.ustate sigma))
     (specif,EConstr.Unsafe.to_instance u)
 
-let is_allowed_elimination sigma ((_,mip) as specif,u) s =
+let is_allowed_elimination env sigma ((_,mip) as specif,u) s =
   match mip.mind_record with
   | PrimRecord _ -> true
   | NotRecord | FakeRecord ->
     let s = EConstr.ESorts.kind sigma s in
     let g = Evd.elim_graph sigma in
     Inductive.allowed_elimination_gen g
+      (QGraph.sort_has_uip (Sorts.quality s) g)
       (UState.nf_quality (Evd.ustate sigma))
       (Inductive.is_allowed_elimination_actions g s)
       (specif,EConstr.Unsafe.to_instance u)
       s
 
-let make_allowed_elimination_actions sigma s =
+let make_allowed_elimination_actions sigma s=
   Inductive.{
     not_squashed = Some sigma
   ; squashed_to_set_below = Some sigma
@@ -312,16 +314,17 @@ let make_allowed_elimination_actions sigma s =
         try Some (Evd.set_elim_to sigma indq sq)
         with QGraph.EliminationError _ | UGraph.UniverseInconsistency _ -> None }
 
-let make_allowed_elimination sigma ((_,mip) as specif,u) s =
+let make_allowed_elimination env sigma ((_,mip) as specif,u) s =
   match mip.mind_record with
   | PrimRecord _ -> Some sigma
   | NotRecord | FakeRecord ->
-    Inductive.allowed_elimination_gen
-      (Evd.elim_graph sigma)
-      (UState.nf_quality (Evd.ustate sigma))
-      (make_allowed_elimination_actions sigma s)
-      (specif,EConstr.Unsafe.to_instance u)
-      (EConstr.ESorts.kind sigma s)
+     let rtnsort = EConstr.ESorts.kind sigma s in
+     let g = Evd.elim_graph sigma in
+     Inductive.allowed_elimination_gen g
+       (QGraph.sort_has_uip (Sorts.quality rtnsort) g)
+       (UState.nf_quality (Evd.ustate sigma))
+       (make_allowed_elimination_actions sigma s)
+       (specif,EConstr.Unsafe.to_instance u) rtnsort
 
 (* XXX questionable for sort poly inductives *)
 let elim_sort (mib,mip) =

@@ -243,7 +243,7 @@ let explain_elim_arity env sigma ind c okinds =
   let pi =
     let pp () = pr_pinductive env sigma ind in
     match mip.mind_squashed with
-    | None | Some AlwaysSquashed -> pp ()
+    | None | Some AlwaysSquashed | Some UIPSquashed -> pp ()
     | Some (SometimesSquashed _) ->
       (* universe instance matters, so print it regardless of Printing Universes *)
       Flags.with_option PrintingFlags.print_universes pp ()
@@ -259,7 +259,7 @@ let explain_elim_arity env sigma ind c okinds =
       in
       let g = QGraph.merge (Environ.qualities env) (Evd.elim_graph sigma) in
       let env = Environ.set_qualities g env in
-      let squash = Option.get (Inductive.is_squashed env (specif, snd ind)) in
+      let squash = Option.get (Inductive.is_squashed env (specif, snd ind) sp) in
       match squash with
       | SquashToSet ->
         let ppt = ppt () in
