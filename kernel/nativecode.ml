@@ -1166,31 +1166,41 @@ let add_check cond targs args =
        (* FIXME: use explicit equality function *)
        let c = (CPrimitives.PTE prim_ty, ml) in
        if List.mem c cond then cond else c::cond
-    | _ -> cond
+    | CPrimitives.(PITT_type _), PAprim _ -> cond
+    | CPrimitives.(PITT_ind _ | PITT_param _), (PAml _ | PAprim _) -> cond
   in
   Array.fold_left2 aux cond targs args
 
 let extract_prim env ml_of l =
   let decl = ref [] in
   let cond = ref [] in
-  let type_args p =
-    let params, args_ty, _ = CPrimitives.types p in
-    List.length params, Array.of_list args_ty in
-  let rec aux l =
+  let rec aux ~top l =
     match node l with
     | Lprim (kn, p, args) ->
-      let prefix = env.env_const_prefix (fst kn) in
-      let nparams, targs = type_args p in
-      let args = Array.map aux args in
-      let checked_args = Array.init (Array.length args - nparams) (fun i -> args.(i+nparams)) in
-      cond := add_check !cond targs checked_args;
-      PAprim (prefix, kn, p, args)
+      let params, args_ty, ret_ty = CPrimitives.types p in
+      begin match ret_ty with
+      | CPrimitives.PITT_param _ when not top ->
+        (* Polymorphic primitives (Arrayget, Arraydefault) may return an
+           accumulator even when their own arguments are closed, so bind
+           the result to check it in the enclosing primitive. *)
+        let x = fresh_lname env.env_cenv Anonymous in
+        decl := (x, ml_of l) :: !decl;
+        PAml (MLlocal x)
+      | CPrimitives.(PITT_type _ | PITT_ind _ | PITT_param _) ->
+        let prefix = env.env_const_prefix (fst kn) in
+        let nparams = List.length params in
+        let targs = Array.of_list args_ty in
+        let args = Array.map (aux ~top:false) args in
+        let checked_args = Array.init (Array.length args - nparams) (fun i -> args.(i+nparams)) in
+        cond := add_check !cond targs checked_args;
+        PAprim (prefix, kn, p, args)
+      end
     | Lrel _ | Lvar _ | Luint _ | Lval _ | Lconst _ -> PAml (ml_of l)
     | _ ->
       let x = fresh_lname env.env_cenv Anonymous in
       decl := (x,ml_of l)::!decl;
       PAml (MLlocal x) in
-  let res = aux l in
+  let res = aux ~top:true l in
   (!decl, !cond, res)
 
 let cast_to_int v =
@@ -1270,18 +1280,18 @@ let compile_prim env decl cond paux =
             (fun ml (_, c) -> app_prim MLland [| ml; cast_to_int c|])
             (MLint 0) ci in
         app_prim MLmagic [|cond|] in
+      let check_of_ty = function
+        | CPrimitives.PTE CPrimitives.PT_float64 -> Is_float
+        | CPrimitives.PTE CPrimitives.PT_array -> Is_parray
+        | CPrimitives.PTE CPrimitives.PT_int63 -> assert false
+        | CPrimitives.PTE CPrimitives.PT_string -> Is_string
+      in
       let condo = match co with
         | [] -> MLint 0
-        | (CPrimitives.PTE ty, c1) :: condo ->
-          let check = match ty with
-          | CPrimitives.PT_float64 -> Is_float
-          | CPrimitives.PT_array -> Is_parray
-          | CPrimitives.PT_int63 -> assert false
-          | CPrimitives.PT_string -> Is_string
-          in
+        | (ty, c1) :: condo ->
            List.fold_left
-             (fun ml (_, c) -> app_prim MLand [| ml; app_prim check [|c|]|])
-             (app_prim check [|c1|]) condo in
+             (fun ml (ty, c) -> app_prim MLand [| ml; app_prim (check_of_ty ty) [|c|]|])
+             (app_prim (check_of_ty ty) [|c1|]) condo in
       match ci, co with
       | [], [] -> opt_prim_aux paux
       | _ :: _, [] ->
