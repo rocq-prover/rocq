@@ -88,11 +88,11 @@ a < decls.a
 secfoo2 < a
 Arg.u < Fn.v
 
-id@{unidecls:17} nat
+id@{unidecls:18} nat
      : nat -> nat
-(* {unidecls:17} | Set <= unidecls:17
+(* {unidecls:18} | Set <= unidecls:18
 Minimized universes:
- unidecls:17 := Set
+ unidecls:18 := Set
 Normalized constraints:
   *)
 id@{Set}
