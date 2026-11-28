@@ -248,9 +248,9 @@ let pri_order_int (id1, {pri=pri1}) (id2, {pri=pri2}) =
     else d
 
 let get_default_pattern (h : hint hint_ast) = match h with
-| Give_exact h -> h.hint_type
+| Give_exact h -> Clenv.clenv_evd h.hint_clnv, h.hint_type
 | Res_pf h | ERes_pf h | Res_pf_THEN_trivial_fail h ->
-  Clenv.clenv_type h.hint_clnv
+  Clenv.clenv_evd h.hint_clnv, Clenv.clenv_type h.hint_clnv
 | Unfold_nth _ | Extern _ ->
   (* These hints cannot contain DefaultPattern *)
   assert false
@@ -299,35 +299,35 @@ struct
 
   let build st uids data = ref (Build (st, uids, data))
 
-  let add0 env sigma st p v dn =
+  let add0 env st p v dn =
     (* Feedback.msg_debug (let v1 = v in Pp.(str "add0: " ++ Pp.pr_opt Names.GlobRef.print (snd v1).name)); *)
     let p = match p with
     | ConstrPattern p -> Bnet.pattern env st p
     | SyntacticPattern p -> Bnet.pattern_syntactic env p
     | DefaultPattern ->
-      let c = get_default_pattern v.code.obj in
+      let sigma, c = get_default_pattern v.code.obj in
       Bnet.constr_pattern env sigma st c
     in
     Bnet.add dn p v.code.uid
 
-  let rec force env sigma net = match !net with
+  let rec force env net = match !net with
   | Bnet dn -> dn
   | Diff ((p, v), rem) ->
-    let st, dn = force env sigma rem in
-    let dn = add0 env sigma st p v dn in
+    let st, dn = force env rem in
+    let dn = add0 env st p v dn in
     let () = net := (Bnet (st, dn)) in
     st, dn
   | Build (st, uids, data) ->
     let fold uid dn =
       let _, v = UID.Map.get uid data in
-      add0 env sigma st (Option.get v.pat) v dn
+      add0 env st (Option.get v.pat) v dn
     in
     let ans = UID.Set.fold fold uids Bnet.empty in
     let () = net := Bnet (st, ans) in
     st, ans
 
   let lookup env sigma net p =
-    let st, dn = force env sigma net in
+    let st, dn = force env net in
     Bnet.lookup env sigma st dn p
 end
 
