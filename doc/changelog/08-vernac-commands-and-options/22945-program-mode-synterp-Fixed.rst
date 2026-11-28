@@ -4,5 +4,5 @@
   defined by plugins (``VERNAC EXTEND``), which happens at synterp time: the
   flag was ignored by such commands in document managers that synterp sentences
   ahead of their interpretation, such as VsRocq
-  (`#PRNUM <https://github.com/rocq-prover/rocq/pull/PRNUM>`_,
+  (`#22945 <https://github.com/rocq-prover/rocq/pull/22945>`_,
   by Matthieu Sozeau).
