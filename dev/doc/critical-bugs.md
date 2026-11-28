@@ -25,6 +25,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
       - [incorrect variance inference with letin in constructor type](#incorrect-variance-inference-with-letin-in-constructor-type)
       - [incorrect variance inference for a constructor applied in a letin of a constructor type](#incorrect-variance-inference-for-a-constructor-applied-in-a-letin-of-a-constructor-type)
       - [array literals longer than max_length not rejected by the typechecker](#array-literals-longer-than-max_length-not-rejected-by-the-typechecker)
+      - [impredicative Set inductive with sort-polymorphic large argument not always squashed](#impredicative-set-inductive-with-sort-polymorphic-large-argument-not-always-squashed)
     - [Guard condition](#guard-condition)
       - [missing lift in checking guard](#missing-lift-in-checking-guard)
       - [de Bruijn indice bug in checking guard of nested cofixpoints](#de-bruijn-indice-bug-in-checking-guard-of-nested-cofixpoints)
@@ -319,6 +320,18 @@ and lack of checking of relevance marks on constants in coqchk
 - risk: requires constructing an array literal longer than
   `max_length` (4194304 elements) through the typechecker
   (as opposed to evaluating a primitive function like `make` applied to a large integer)
+
+#### impredicative Set inductive with sort-polymorphic large argument not always squashed
+
+- component: inductive declarations, impredicative Set, sort polymorphism
+- introduced: V9.3.0 ([#21760](https://github.com/rocq-prover/rocq/pull/21760))
+- impacted released versions: V9.3.0
+- impacted coqchk versions: same
+- fixed in: V9.3.1, V9.4
+- found by: Gregory Nisbet (using Gemini)
+- exploit: test-suite/bugs/bug_22932.v
+- GH issue number: [#22932](https://github.com/rocq-prover/rocq/issues/22932)
+- risk: needs `-impredicative-set` and a sort-polymorphic inductive in `Set` with a large argument
 
 ### Guard condition
 
