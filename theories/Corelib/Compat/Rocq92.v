@@ -17,3 +17,5 @@ Require Export Corelib.Compat.Rocq93.
 #[export] Set Inline Abstract Subproof.
 
 #[export] Set Asymmetric Patterns No Implicits.
+
+#[export] Unset Proof Using Clear Unused.

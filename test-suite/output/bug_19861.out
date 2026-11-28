@@ -1,4 +1,4 @@
-File "./output/bug_19861.v", line 8, characters 2-6:
+File "./output/bug_19861.v", line 9, characters 2-6:
 Error: The following section variable is used but not declared:
 HypFalse.
 
