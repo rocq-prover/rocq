@@ -27,3 +27,8 @@ diff -u --strip-trailing-cr misc/external-deps/file2.ambiguous.deps $output
 output=misc/external-deps/file2.notfound.real
 $coqdep -worker @ROCQWORKER@ misc/external-deps/file2.v > $output 2>&1
 diff -u --strip-trailing-cr misc/external-deps/file2.notfound.deps $output
+
+# File name which is not a valid identifier (#22867)
+output=misc/external-deps/file3.found.real
+$coqdep -worker @ROCQWORKER@ -Q misc/external-deps/deps foo.bar misc/external-deps/file3.v > $output 2>&1
+diff -u --strip-trailing-cr misc/external-deps/file3.found.deps $output

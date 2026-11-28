@@ -101,7 +101,8 @@ let add_directory recur add_file phys_dir log_dir =
       | System.FileRegular f ->
         curdirfiles := (phys_dir, log_dir, f) :: !curdirfiles
       in
-      let () = System.process_directory f phys_dir in
+      (* [all_files]: extra dependencies need not be named like modules *)
+      let () = System.process_directory ~all_files:true f phys_dir in
       (!curdirfiles, !subdirfiles)
     else
       let () = System.warn_cannot_open_dir phys_dir in
