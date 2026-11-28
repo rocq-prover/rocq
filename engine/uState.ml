@@ -1626,8 +1626,8 @@ let universe_context_inst_decl decl qvars levels names =
     if not (QSet.is_empty unboundqs && Level.Set.is_empty unboundus)
     then error_unbound_universes unboundqs unboundus names
   in
-  let instq = Array.map_of_list (fun q -> QVar q) decl.univdecl_qualities in
-  let instu = Array.of_list decl.univdecl_instance in
+  let instq = Array.map_of_list (fun q -> QVar q) (decl.univdecl_qualities @ QSet.elements leftqs) in
+  let instu = Array.of_list (decl.univdecl_instance @ Level.Set.elements leftus) in
   let inst = Instance.of_array (instq,instu) in
   inst
 

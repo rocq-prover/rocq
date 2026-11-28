@@ -109,69 +109,70 @@ let update_invtblq1 ~loc evd qold qvar (curvarq, tbl) =
             ++ str" is bound multiple times in the pattern (holes number "
             ++ int k ++ str" and " ++ int curvarq ++ str").")
 
-let safe_quality_pattern_of_quality ~loc evd qsubst stateq q =
+let safe_quality_pattern_of_quality ~loc evd maxq qsubst stateq q =
   match Sorts.Quality.(subst (subst_fn qsubst) q) with
   | QConstant qc -> stateq, PQConstant qc
   | QGlobal qg -> stateq, PQGlobal qg
   | QVar qv ->
     match Sorts.QVar.repr qv with
-    | Var qi -> update_invtblq1 ~loc evd q qi stateq, PQVar (Some qi)
-    | Unif _ -> stateq, PQVar None
+    | Var qi when qi < maxq ->
+      update_invtblq1 ~loc evd q qi stateq, PQVar (Some qi)
+    | Var _ | Unif _ ->
+      stateq, PQVar None
+      (* Unif can happen when a quality is unified, it is then not substituted *)
     | Secvar _ -> CErrors.user_err ?loc Pp.(str "Section polymorphic sort not supported.")
 
-let update_invtblu ~loc evd (qsubst, usubst) (state, stateq, stateu : state) u : state * _ =
+let safe_level_pattern_of_level ~loc evd maxu usubst stateu lvlold =
+  let lvlnew = UVars.subst_univs_level_level usubst lvlold in
+  match Univ.Level.var_index lvlnew with
+  | Some li when li < maxu ->
+    update_invtblu1 ~loc evd lvlold li stateu, Some li
+  | _ ->
+    stateu, None
+
+let update_invtblu ~loc evd (maxq, maxu, (qsubst, usubst)) (state, stateq, stateu : state) u : state * _ =
   let (q, u) = u |> UVars.Instance.to_array in
-  let stateq, maskq = Array.fold_left_map (safe_quality_pattern_of_quality ~loc evd qsubst) stateq q
-  in
-  let stateu, masku = Array.fold_left_map (fun stateu lvlold ->
-      let lvlnew = Univ.Level.var_index @@ UVars.subst_univs_level_level usubst lvlold in
-      Option.fold_right (update_invtblu1 ~loc evd lvlold) lvlnew stateu, lvlnew
-    ) stateu u
-  in
+  let stateq, maskq = Array.fold_left_map (safe_quality_pattern_of_quality ~loc evd maxq qsubst) stateq q in
+  let stateu, masku = Array.fold_left_map (safe_level_pattern_of_level ~loc evd maxu usubst) stateu u in
   (state, stateq, stateu), (maskq, masku)
 
-let universe_level_subst_var_index usubst u =
-  match Univ.Universe.level u with
-    | None -> None
-    | Some lvlold ->
-        let lvl = UVars.subst_univs_level_level usubst lvlold in
-        Option.map (fun lvl -> lvlold, lvl) @@ Univ.Level.var_index lvl
-
-let safe_sort_pattern_of_sort ~loc evd (qsubst, usubst) (st, sq, su as state) s =
+let safe_sort_pattern_of_sort ~loc evd (maxq, maxu, (qsubst, usubst)) (st, sq, su as state) s =
   let open Sorts in
   match s with
   | Type u ->
-      begin match universe_level_subst_var_index usubst u with
-      | None -> state, PSType None
-      | Some (lvlold, lvl) ->
-        (st, sq, update_invtblu1 ~loc evd lvlold lvl su), PSType (Some lvl)
-      end
+    begin match Univ.Universe.level u with
+    | None -> state, PSType None
+    | Some lvlold ->
+      let su, lvl = safe_level_pattern_of_level ~loc evd maxu usubst su lvlold in
+      (st, sq, su), PSType lvl
+    end
   | SProp -> state, PSSProp
   | Prop -> state, PSProp
   | Set -> state, PSSet
   | GSort (qg, u) ->
-    let su, ba =
-      match universe_level_subst_var_index usubst u with
-      | Some (lvlold, lvl) -> update_invtblu1 ~loc evd lvlold lvl su, Some lvl
-      | None -> su, None
-    in
-    (st, sq, su), PSGlobal (qg, ba)
+    begin match Univ.Universe.level u with
+    | None -> state, PSGlobal (qg, None)
+    | Some lvlold ->
+      let su, lvl = safe_level_pattern_of_level ~loc evd maxu usubst su lvlold in
+      (st, sq, su), PSGlobal (qg, lvl)
+    end
   | VSort (qold, u) ->
     let su, ba =
-      match universe_level_subst_var_index usubst u with
-      | Some (lvlold, lvl) -> update_invtblu1 ~loc evd lvlold lvl su, Some lvl
+      match Univ.Universe.level u with
       | None -> su, None
+      | Some lvlold ->
+        safe_level_pattern_of_level ~loc evd maxu usubst su lvlold
     in
     match Sorts.Quality.subst_fn qsubst qold with
-    | QConstant _ -> assert false
-    | QGlobal qg -> (st, sq, su), PSGlobal (qg, ba)
+    | QConstant _ | QGlobal _ -> assert false
     | QVar qv ->
-    let sq, bq =
-      match Sorts.QVar.var_index qv with
-      | Some q -> update_invtblq1 ~loc evd (QVar qold) q sq, Some q
-      | None -> sq, None
-    in
-    (st, sq, su), PSQSort (bq, ba)
+      match Sorts.QVar.repr qv with
+      | Var qi when qi < maxq ->
+        (st, update_invtblq1 ~loc evd (QVar qold) qi sq, su), PSQSort (Some qi, ba)
+      | Var _ | Unif _ ->
+        (st, sq, su), PSQSort (None, ba)
+        (* Unif can happen when a quality is unified, it is then not substituted *)
+      | Secvar _ -> CErrors.user_err ?loc Pp.(str "Section polymorphic sort not supported.")
 
 
 let warn_irrelevant_pattern =
@@ -445,13 +446,13 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
   let evd = Evd.restrict_ustate evd uvars in
   let uctx, uctx' = UState.check_univ_decl_rev (Evd.ustate evd) udecl in
 
-  let usubst =
+  let usubst, auctx =
     let inst, auctx = UVars.abstract_universes uctx' in
-    UVars.make_instance_subst inst
+    UVars.make_instance_subst inst, auctx
   in
 
   let ((nvars', invtbl), (nvarqs', invtblq), (nvarus', invtblu)), (head_pat, elims) =
-    safe_pattern_of_constr ~loc:lhs_loc env evd usubst 0 ((1, Evar.Map.empty), (0, Int.Map.empty), (0, Int.Map.empty)) (EConstr.Unsafe.to_constr lhs)
+    safe_pattern_of_constr ~loc:lhs_loc env evd (nvarqs, nvarus, usubst) 0 ((1, Evar.Map.empty), (0, Int.Map.empty), (0, Int.Map.empty)) (EConstr.Unsafe.to_constr lhs)
   in
   let () = test_pattern_redex env evd ~loc:lhs_loc (head_pat, elims) in
 
@@ -604,7 +605,7 @@ let interp_rule ~collapse_sort_variables (udecl, lhs, rhs: Constrexpr.universe_d
     Univ.Level.Set.iter test_level us
   in
 
-  head_symbol, { nvars = (nvars' - 1, nvarqs', nvarus'); lhs_pat = head_umask, elims; rhs; test = originals }
+  head_symbol, { nvars = (nvars' - 1, nvarqs', nvarus'); lhs_pat = head_umask, elims; rhs; test = originals; auctx }
 
 let do_rules ?(collapse_sort_variables = true) id rules =
   let env = Global.env () in
