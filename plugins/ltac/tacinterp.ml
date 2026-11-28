@@ -183,10 +183,11 @@ let set_debug pos = debug := pos
 (* Gives the state of debug; disabled in worker processes *)
 let get_debug () = if Flags.async_proofs_is_worker () then DebugOff else !debug
 
-let log_trace = ref false
+let { Goptions.get = log_trace } =
+  Goptions.declare_bool_option_and_ref ~key:["Ltac"; "Backtrace"] ~value:false ()
 
 let is_traced () =
-  !log_trace || !debug <> DebugOff || Profile_tactic.get_profiling()
+  log_trace () || !debug <> DebugOff || Profile_tactic.get_profiling()
 
 (** More naming applications *)
 let name_vfun appl vle =
@@ -2274,12 +2275,3 @@ let () =
       optkey   = ["Ltac";"Debug"];
       optread  = (fun () -> get_debug () != Tactic_debug.DebugOff);
       optwrite = vernac_debug }
-
-let () =
-  let open Goptions in
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Ltac"; "Backtrace"];
-      optread  = (fun () -> !log_trace);
-      optwrite = (fun b -> log_trace := b) }

@@ -17,7 +17,6 @@ open Pp
 open Printer
 open Search
 open Vernacexpr
-open Goptions
 
 let open_or_global_module qid =
   try Nametab.full_name_open_mod qid
@@ -118,15 +117,8 @@ let rec interp_search_request env sigma = function
    In the future we should deprecate the option and provide a fast,
    indexed name-searching interface.
 *)
-let search_output_name_only = ref false
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Search";"Output";"Name";"Only"];
-      optread  = (fun () -> !search_output_name_only);
-      optwrite = (:=) search_output_name_only }
+let { Goptions.get = search_output_name_only } =
+  Goptions.declare_bool_option_and_ref ~key:["Search";"Output";"Name";"Only"] ~value:false ()
 
 let interp_search env sigma s r =
   let r = interp_search_restriction r in
@@ -134,7 +126,7 @@ let interp_search env sigma s r =
   let warnlist = ref [] in
   let pr_search ref kind env sigma c =
     let pr = pr_global ref in
-    let pp = if !search_output_name_only
+    let pp = if search_output_name_only ()
       then pr
       else begin
         let open Impargs in

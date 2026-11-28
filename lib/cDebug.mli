@@ -33,13 +33,16 @@ val create : name:string -> unit -> t
  *)
 val create_full : name:string -> unit -> flag * t
 
+(** Whether the component is active, taking the overrides into account
+    (see [set_override]) *)
 val get_flag : flag -> bool
 
 val set_flag : flag -> bool -> unit
 
 (** [get_flags] and [set_flags] use the user syntax: a comma separated
     list of activated "component" and "-component"s. [get_flags] starts
-    with "all" or "-all" and lists all components after it (even if redundant). *)
+    with "all" or "-all" and lists all components after it (even if redundant).
+    They ignore the overrides. *)
 val get_flags : unit -> string
 
 (** Components not mentioned are not affected (use the "all" component
@@ -47,6 +50,28 @@ val get_flags : unit -> string
 val set_flags : string -> unit
 
 val set_debug_all : bool -> unit
+
+(** {6 Overrides} *)
+
+(** [set_override name (Some b)] makes the component [name] active or
+    inactive according to [b], whatever [set_flags] and the other setters say,
+    until [set_override name None]. [name] may be ["backtrace"], or ["all"]: it
+    then applies to ["backtrace"] and to the components without an override
+    of their own. This is meant for interactive tools, e.g. a debug flag
+    toggled from an editor.
+
+    [get_flags] and [set_flags], used by the summary through the [Debug]
+    option, ignore the overrides: frozen states keep the flags set by the
+    commands, which apply again when the override is removed.
+
+    Fails if [name] is not a component, ["all"] or ["backtrace"]. *)
+val set_override : string -> bool option -> unit
+
+val get_override : string -> bool option
+
+(** The components with whether they are active, overrides included,
+    starting with ["all"] and ["backtrace"] like [get_flags] *)
+val get_flag_values : unit -> (string * bool) list
 
 val misc : flag
 val pp_misc : t
