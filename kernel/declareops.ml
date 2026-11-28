@@ -345,10 +345,59 @@ let hcons_mind mib =
     mind_template = Option.Smart.map hcons_template_universe mib.mind_template;
     mind_universes = hcons_universes mib.mind_universes }
 
-let subst_named_declaration subst =
-  Context.Named.Declaration.map_constr (subst_mps subst)
 
-let subst_named_context subst = List.Smart.map (subst_named_declaration subst)
+let smart_on_snd f (a, b as p) =
+  let b' = f b in
+  if b == b' then p else (a, b')
+
+let subst_pattern subst p =
+  let open Declarations in
+  let rec on_pat p = match p with
+    | PSymbol (cst, mask) ->
+      let cst' = subst_constant subst cst in
+      if cst' == cst then p else
+        PSymbol (cst', mask)
+    | PInd (ind, mask) ->
+        let ind' = subst_ind subst ind in
+        if ind'==ind then p else PInd (ind', mask)
+    | PConstr (cstr, mask) ->
+        let cstr' = subst_constructor subst cstr in
+        if cstr'==cstr then p else PConstr (cstr', mask)
+    | PCase (c, ind, r, brs) ->
+      let ind' = subst_ind subst ind in
+      let c' = on_pat c in
+      let r' = smart_on_snd on_arg_pat r in
+      let brs' = Array.Smart.map (smart_on_snd on_arg_pat) brs in
+      if ind' == ind && c' == c && r' == r && brs' == brs then p else
+        PCase (c', ind', r', brs')
+    | PProj (c, pr) ->
+        let pr' = subst_proj_repr subst pr in
+        let c' = on_pat c in
+        if pr' == pr && c' == c then p else
+          PProj (c', pr')
+    | PLambda (na, ty, bod) ->
+        let ty' = on_arg_pat ty in
+        let bod' = on_pat bod in
+        if ty' == ty && bod' == bod then p else
+          PLambda (na, ty', bod')
+    | PProd (na, dom, codom) ->
+        let dom' = on_arg_pat dom in
+        let codom' = on_arg_pat codom in
+        if dom' == dom && codom' == codom then p else
+          PProd (na, dom', codom')
+    | PApp (f, arg) ->
+      let f' = on_pat f in
+      let arg' = on_arg_pat arg in
+      if f' == f && arg' == arg then p else
+        PApp (f', arg')
+    | PRel _ | PSort _ | PInt _ | PFloat _ | PString _ as p -> p
+  and on_arg_pat = function
+    | Pat pat as argpat ->
+        let pat' = on_pat pat in
+        if pat == pat' then argpat else Pat pat'
+    | PVar _ as argpat -> argpat
+  in
+  on_pat p
 
 let subst_machine_pattern subst p =
   let open Declarations in
@@ -399,23 +448,50 @@ let subst_machine_pattern subst p =
   in
   on_pat p
 
-let subst_rewrite_rules subst ({ rewrules_rules } as rules) =
-  let body' = List.Smart.map (fun (cst, ({ lhs_pat = (u, e); rhs; test; _ } as rule) as orig) ->
-      let lhs_pat' = subst_machine_pattern subst (PHSymbol (cst, u), e) in
-      let cst', u', e' = match lhs_pat' with
+let subst_named_declaration subst =
+  Context.Named.Declaration.map_constr (subst_mps subst)
+
+let subst_named_context subst = List.Smart.map (subst_named_declaration subst)
+
+let subst_rewrite_rule subst r =
+  let {
+    rr_context; pattern; pat_term; head_symbol; machine;
+    rr_auctx = _; rr_patvar_table = _; rr_usubst = _;
+    } = r
+  in
+  let symb, machine' =
+    let { lhs_pat = (u, e); rhs; nvars=_ } = machine in
+    let lhs_pat' = subst_machine_pattern subst (PHSymbol (head_symbol, u), e) in
+    let cst', u', e' = match lhs_pat' with
       | PHSymbol (cst', u'), e' -> cst', u', e'
       | _ -> assert false
-      in
-      let rhs' = subst_mps subst rhs in
-      let ctx, test_lhs, test_rhs = test in
-      let ctx' = subst_named_context subst ctx in
-      let test_lhs' = subst_mps subst test_lhs in
-      let test_rhs' = subst_mps subst test_rhs in
-      if cst == cst' && u == u' && e == e' && rhs == rhs'
-        && ctx == ctx' && test_lhs == test_lhs' && test_rhs == test_rhs'
-      then orig
-    else cst', { rule with lhs_pat = (u', e'); rhs = rhs'; test = (ctx', test_lhs', test_rhs') })
-      rewrules_rules
+    in
+    let rhs' = subst_mps subst rhs in
+    if head_symbol == cst' && u == u' && e == e' && rhs == rhs'
+    then head_symbol, machine
+    else cst', { machine with lhs_pat = (u', e'); rhs = rhs' }
   in
-  if rewrules_rules == body' then rules else
-    { rewrules_rules = body' }
+  let rr_context' = subst_named_context subst rr_context in
+  let pattern' = subst_pattern subst pattern in
+  let pat_term' = subst_mps subst pat_term in
+  if symb == head_symbol && machine' == machine &&
+    rr_context' == rr_context && pattern' == pattern &&
+    pat_term' == pat_term
+  then
+      r
+  else
+    { r with
+      head_symbol = symb;
+      machine = machine';
+      rr_context = rr_context';
+      pattern = pattern';
+      pat_term = pat_term'
+    }
+
+
+let subst_rewrite_rules subst ({ rewrules_rules } as rrb) =
+  let rules = List.Smart.map (subst_rewrite_rule subst) rewrules_rules in
+  if rules == rewrules_rules then
+    rrb
+  else
+    { rewrules_rules = rules }

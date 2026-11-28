@@ -323,6 +323,27 @@ type ('q, 'u) instance_mask = ('q, 'u) UVars.Instance.mask
 type ('q, 'u) sort_pattern = ('q, 'u) Sorts.pattern =
   | PSProp | PSSProp | PSSet | PSType of 'u | PSGlobal of Sorts.QGlobal.t * 'u | PSQSort of 'q * 'u
 
+type 'arg name_annotated = Name.t array * 'arg
+
+type pattern =
+  | PRel     of int
+  | PSort    of (int, int) sort_pattern
+  | PSymbol  of Constant.t * (int, int) instance_mask
+  | PInd     of inductive * (int, int) instance_mask
+  | PConstr  of constructor * (int, int) instance_mask
+  | PInt     of Uint63.t
+  | PFloat   of Float64.t
+  | PString  of Pstring.t
+  | PLambda  of Name.t * arg_pattern * pattern
+  | PProd    of Name.t * arg_pattern * arg_pattern
+  | PApp     of pattern * arg_pattern
+  | PCase    of pattern * inductive * arg_pattern name_annotated * arg_pattern name_annotated array
+  | PProj    of pattern * Projection.Repr.t
+
+and arg_pattern =
+  | PVar of int
+  | Pat of pattern
+
 (** Patterns are internally represented as pairs of a head-pattern and a list of eliminations
     Eliminations correspond to elements of the stack in a reduction machine,
     they represent a pattern with a hole, to be filled with the head-pattern
@@ -355,14 +376,24 @@ type machine_rewrite_rule = {
   nvars : int * int * int;
   lhs_pat : (int option, int option) instance_mask * pattern_elimination list;
   rhs : constr;
-  test: named_context * constr * constr;
+}
+
+type rewrite_rule = {
+  rr_auctx : UVars.AbstractContext.t;
+  rr_context : named_context;
+  rr_patvar_table : Id.t array;
+  rr_usubst : UVars.Instance.t;
+  pattern: pattern;
+  pat_term : constr;
+  head_symbol: Constant.t;
+  machine: machine_rewrite_rule;
 }
 
 (** {6 Representation of rewrite rules in the kernel } *)
 
 (** [(c, { lhs_pat = (u, elims); rhs })] in this list stands for [(PHSymbol (c,u), elims) ==> rhs] *)
 type rewrite_rules_body = {
-  rewrules_rules : (Constant.t * machine_rewrite_rule) list;
+  rewrules_rules : rewrite_rule list;
 }
 
 (** {6 Module declarations } *)
