@@ -181,7 +181,7 @@ and conv_stack env k stk1 stk2 cu =
   | Zswitch sw1 :: stk1, Zswitch sw2 :: stk2 ->
       if check_switch sw1 sw2 then
         let vt1,vt2 = type_of_switch sw1, type_of_switch sw2 in
-        let rcu = ref (conv_val env CONV k vt1 vt2 cu) in
+        let rcu = ref (conv_val env CONV k (type_value vt1) (type_value vt2) cu) in
         let b1, b2 = branch_of_switch k sw1, branch_of_switch k sw2 in
         for i = 0 to Array.length b1 - 1 do
           rcu :=
@@ -201,13 +201,16 @@ and conv_fun env pb k f1 f2 cu =
     let arity,b1,b2 = decompose_vfun2 k f1 f2 in
     conv_val env pb (k+arity) b1 b2 cu
 
+and conv_type env k t1 t2 cu =
+  conv_val env CONV k (type_value t1) (type_value t2) cu
+
 and conv_fix env k f1 f2 cu =
   if f1 == f2 then cu
   else
     if check_fix f1 f2 then
       let bf1, tf1 = reduce_fix k f1 in
       let bf2, tf2 = reduce_fix k f2 in
-      let cu = conv_vect (conv_val env CONV k) tf1 tf2 cu in
+      let cu = conv_vect (conv_type env k) tf1 tf2 cu in
       conv_vect (conv_fun env CONV (k + Array.length tf1)) bf1 bf2 cu
     else raise NotConvertible
 
@@ -217,7 +220,7 @@ and conv_cofix env k cf1 cf2 cu =
     if check_cofix cf1 cf2 then
       let bcf1, tcf1 = reduce_cofix k cf1 in
       let bcf2, tcf2 = reduce_cofix k cf2 in
-      let cu = conv_vect (conv_val env CONV k) tcf1 tcf2 cu in
+      let cu = conv_vect (conv_type env k) tcf1 tcf2 cu in
       conv_vect (conv_val env CONV (k + Array.length tcf1)) bcf1 bcf2 cu
     else raise NotConvertible
 

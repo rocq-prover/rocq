@@ -18,13 +18,13 @@ open Constr
 
 type reloc_table = (int * int) array
 
-type case_annot = case_info * reloc_table * Declarations.recursivity_kind
+type case_annot = case_info * reloc_table * Declarations.recursivity_kind * Sorts.relevance
 
 type 'v node =
 | Lrel          of Name.t * int
 | Lvar          of Id.t
 | Levar         of Evar.t * 'v lambda array (* arguments *)
-| Lprod         of 'v lambda * 'v lambda
+| Lprod         of Sorts.relevance * 'v lambda * 'v lambda
 | Llam          of Name.t binder_annot array * 'v lambda
 | Llet          of Name.t binder_annot * 'v lambda * 'v lambda
 | Lapp          of 'v lambda * 'v lambda array
@@ -79,7 +79,7 @@ let rec pp_lam lam =
   | Levar (evk, args) ->
     hov 1 (str "evar(" ++ Evar.print evk ++ str "," ++ spc () ++
       prlist_with_sep spc pp_lam (Array.to_list args) ++ str ")")
-  | Lprod(dom,codom) -> hov 1
+  | Lprod(_,dom,codom) -> hov 1
                           (str "forall(" ++
                            pp_lam dom ++
                            str "," ++ spc() ++
@@ -223,10 +223,10 @@ let map_lam_with_binders g f n lam =
   | Levar (evk, args) ->
     let args' = Array.Smart.map (f n) args in
     if args == args' then lam else mknode @@ Levar (evk, args')
-  | Lprod(dom,codom) ->
+  | Lprod(r,dom,codom) ->
     let dom' = f n dom in
     let codom' = f n codom in
-    if dom == dom' && codom == codom' then lam else mknode @@ Lprod(dom',codom')
+    if dom == dom' && codom == codom' then lam else mknode @@ Lprod(r,dom',codom')
   | Llam(ids,body) ->
     let body' = f (g (Array.length ids) n) body in
     if body == body' then lam else mkLlam ids body'
@@ -291,7 +291,7 @@ let free_rels lam =
   | Lfloat _ | Lstring _ -> accu
   | Levar (_, args) ->
     Array.fold_left (fun accu lam -> aux k accu lam) accu args
-  | Lprod (dom, codom) ->
+  | Lprod (_, dom, codom) ->
     aux k (aux k accu dom) codom
   | Llam (ids, body) ->
     aux (k + Array.length ids) accu body
@@ -453,7 +453,7 @@ let rec occurrence k kind lam =
   | Lfloat _ | Lstring _ -> kind
   | Levar (_, args) ->
     occurrence_args k kind args
-  | Lprod(dom, codom) ->
+  | Lprod(_, dom, codom) ->
     occurrence k (occurrence k kind dom) codom
   | Llam(ids,body) ->
     let _ = occurrence (k+Array.length ids) false body in kind
@@ -660,7 +660,7 @@ let rec lambda_of_constr cache env sigma c =
       let ld = lambda_of_constr cache env sigma dom in
       let env = Environ.push_rel (RelDecl.LocalAssum (id, dom)) env in
       let lc = lambda_of_constr cache env sigma codom in
-      mknode @@ Lprod(ld,  mknode @@ Llam([|id|], lc))
+      mknode @@ Lprod(id.binder_relevance, ld, mknode @@ Llam([|id|], lc))
 
   | Lambda _ ->
       let params, body = Term.decompose_lambda c in
@@ -687,13 +687,13 @@ let rec lambda_of_constr cache env sigma c =
     mknode @@ Lproj (Projection.repr p, c)
 
   | Case (ci, u, pms, t, iv, a, br) -> (* XXX handle iv *)
-    let (ci, (t,_), _iv, a, branches) = Inductive.expand_case env (ci, u, pms, t, iv, a, br) in
+    let (ci, (t,r), _iv, a, branches) = Inductive.expand_case env (ci, u, pms, t, iv, a, br) in
     let (mind, i) = ci.ci_ind in
     let mib = lookup_mind mind env in
     let oib = mib.mind_packets.(i) in
     let tbl = oib.mind_reloc_tbl in
     (* Building info *)
-    let annot_sw = (ci, tbl, mib.mind_finite) in
+    let annot_sw = (ci, tbl, mib.mind_finite, r) in
     (* translation of the argument *)
     let la = lambda_of_constr cache env sigma a in
     (* translation of the type *)

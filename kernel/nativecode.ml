@@ -1311,7 +1311,7 @@ let compile_prim env decl cond paux =
      (** Arguments are *not* reversed in evar instances in native compilation *)
      let args = MLarray(Array.map (ml_of_lam env l) args) in
      MLprimitive (Mk_evar, [|get_evar_code i; args|])
-  | Lprod(dom,codom) ->
+  | Lprod(_,dom,codom) ->
       let dom = ml_of_lam env l dom in
       let codom = ml_of_lam env l codom in
       let n = get_prod_name codom in
@@ -1353,7 +1353,7 @@ let compile_prim env decl cond paux =
             should a least compute the fv, then store the lambda representation
             of the predicate (not the mllambda) *)
       let annot, finite =
-        let (ci, tbl, finite) = annot in {
+        let (ci, tbl, finite, _) = annot in {
           asw_ind = ci.ci_ind;
           asw_reloc = tbl;
           asw_prefix = env.env_mind_prefix (fst ci.ci_ind);

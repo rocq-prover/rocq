@@ -451,21 +451,8 @@ let check_branch_types env (_mib, mip) ci u pms c _ct lft (pctx, p) =
     error_ill_formed_branch env c ((ci.ci_ind, i + 1), u) brt expbrt
 
 let should_invert_case env r ci =
-  check_relevance env r Sorts.Relevant &&
-  let mib,mip = lookup_mind_specif env ci.ci_ind in
-  (* mind_relevance cannot be a pseudo sort poly variable so don't use check_relevance *)
-  Sorts.relevance_equal mip.mind_relevance Sorts.Irrelevant &&
-  (* NB: it's possible to have 2 ctors or arguments to 1 ctor by unsetting univ checks
-     but we don't do special reduction in such cases
-
-     XXX Someday consider more carefully what happens with letin params and arguments
-     (currently they're squashed, see indtyping)
- *)
-  match Array.length mip.mind_nf_lc with
-  | 0 -> true
-  | 1 ->
-    List.length (fst mip.mind_nf_lc.(0)) = List.length mib.mind_params_ctxt
-  | _ -> false
+  let return_is_relevant = check_relevance env r Sorts.Relevant in
+  Inductive.should_invert_case env ~return_is_relevant ci.ci_ind
 
 let type_case_scrutinee env (mib, _mip) (u', largs) u pms (pctx, p) c =
   let (params, realargs) = List.chop mib.mind_nparams largs in

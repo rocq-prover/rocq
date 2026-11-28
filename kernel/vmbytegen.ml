@@ -564,6 +564,27 @@ let get_caml_prim = let open CPrimitives in function
   | _ -> None
 
 (* sz is the size of the local stack *)
+let compile_sort env cenv s sz cont =
+  (* A sort with local variables is applied to the current instance. *)
+  let compile_instance cenv () sz cont =
+    let () = set_max_stack_size cenv sz in
+    pos_instance cenv sz :: cont
+  in
+  if is_closed_sort env s then
+    compile_structured_constant cenv (Const_sort s) sz cont
+  else
+    comp_app compile_structured_constant compile_instance cenv
+      (Const_sort s) [|()|] sz cont
+
+(* Encode relevance as a sort to reuse instantiation of bound qualities. *)
+let compile_relevance env cenv r sz cont =
+  let sort = match r with
+  | Sorts.Relevant -> Sorts.prop
+  | Sorts.Irrelevant -> Sorts.sprop
+  | Sorts.RelevanceVar q -> Sorts.make (Sorts.Quality.QVar q) Univ.Universe.type0
+  in
+  compile_sort env cenv sort sz cont
+
 let rec compile_lam env cenv lam sz cont =
   let () = set_max_stack_size cenv sz in
   match node lam with
@@ -605,29 +626,17 @@ let rec compile_lam env cenv lam sz cont =
     else comp_app compile_structured_constant (compile_instance env) cenv
         (Const_ind ind) [|u|] sz cont
 
-  | Lsort s ->
-    (* We represent universes as a global constant with local universes
-       passed as the local universe instance, where we will substitute (after
-       evaluation) [Var 0,...,Var n] with values of [arg0,...,argn] *)
-    let compile_instance cenv () sz cont =
-      let () = set_max_stack_size cenv sz in
-      pos_instance cenv sz :: cont
-    in
-    if is_closed_sort env s then
-      compile_structured_constant cenv (Const_sort s) sz cont
-    else
-      comp_app compile_structured_constant compile_instance cenv
-        (Const_sort s) [|()|] sz cont
+  | Lsort s -> compile_sort env cenv s sz cont
 
   | Llet (_id,def,body) ->
       compile_lam env cenv def sz
         (Kpush ::
          compile_lam env (push_local sz cenv) body (sz+1) (add_pop 1 cont))
 
-  | Lprod (dom,codom) ->
-     let cont1 =
-       Kpush :: compile_lam env cenv dom (sz+1) (Kmakeblock (2,0) :: cont) in
-     compile_lam env cenv codom sz cont1
+  | Lprod (r, dom, codom) ->
+    let k = compile_lam env cenv dom (sz+2) (Kmakeblock (3,0) :: cont) in
+    let k = compile_lam env cenv codom (sz+1) (Kpush :: k) in
+    compile_relevance env cenv r sz (Kpush :: k)
 
   | Llam (ids,body) ->
      let arity = Array.length ids in
@@ -645,7 +654,7 @@ let rec compile_lam env cenv lam sz cont =
     | _ -> comp_app (compile_lam env) (compile_lam env) cenv f args sz cont
     end
 
-  | Lfix ((rec_args, _, init), (_decl, types, bodies)) ->
+  | Lfix ((rec_args, _, init), (decl, types, bodies)) ->
       let ndef = Array.length types in
       let rfv = ref empty_fv in
       let lbl_types = Array.make ndef Label.no in
@@ -653,7 +662,7 @@ let rec compile_lam env cenv lam sz cont =
       (* Compiling types *)
       for i = 0 to ndef - 1 do
         let env_type = comp_env_fix_type rfv in
-        let fcode = compile_lam env env_type types.(i) 0 [Kstop] in
+        let fcode = compile_annotated_type env env_type decl.(i).binder_relevance types.(i) 0 [Kstop] in
         let fcode = ensure_stack_capacity env_type fcode in
         let lbl,fcode = label_code fcode in
         lbl_types.(i) <- lbl;
@@ -676,7 +685,7 @@ let rec compile_lam env cenv lam sz cont =
         (Kclosurerec(fv.size,init,lbl_types,lbl_bodies) :: cont)
 
 
-  | Lcofix(init, (_decl,types,bodies)) ->
+  | Lcofix(init, (decl,types,bodies)) ->
       let ndef = Array.length types in
       let lbl_types = Array.make ndef Label.no in
       let lbl_bodies = Array.make ndef Label.no in
@@ -684,7 +693,7 @@ let rec compile_lam env cenv lam sz cont =
       let rfv = ref empty_fv in
       for i = 0 to ndef - 1 do
         let env_type = comp_env_cofix_type ndef rfv in
-        let fcode = compile_lam env env_type types.(i) 0 [Kstop] in
+        let fcode = compile_annotated_type env env_type decl.(i).binder_relevance types.(i) 0 [Kstop] in
         let fcode = ensure_stack_capacity env_type fcode in
         let lbl,fcode = label_code fcode in
         lbl_types.(i) <- lbl;
@@ -708,7 +717,7 @@ let rec compile_lam env cenv lam sz cont =
       compile_fv cenv fv.fv_rev sz
         (Kclosurecofix(fv.size, init, lbl_types, lbl_bodies) :: cont)
 
-  | Lcase ((ci, rtbl, _), t, a, branches) ->
+  | Lcase ((ci, rtbl, _, r), t, a, branches) ->
       let ind = ci.ci_ind in
       let mib = lookup_mind (fst ind) env.env in
       let oib = mib.mind_packets.(snd ind) in
@@ -722,7 +731,7 @@ let rec compile_lam env cenv lam sz cont =
       let branch1, cont = make_branch cont in
       (* Compilation of the return type *)
       let ret_env = { cenv with max_stack_size = ref 0 } in
-      let fcode = compile_lam env ret_env t sz [Kpop sz; Kstop] in
+      let fcode = compile_annotated_type env ret_env r t sz [Kpop sz; Kstop] in
       let fcode = ensure_stack_capacity ret_env fcode in
       let lbl_typ,fcode = label_code fcode in
       let () = push_fun env fcode in
@@ -849,6 +858,12 @@ let rec compile_lam env cenv lam sz cont =
     | None ->
       comp_args (compile_lam env) cenv args sz (Kprim(op, kn)::cont)
     end
+
+and compile_annotated_type env cenv r typ sz cont =
+  (* Only the auxiliary code for a predicate or recursive type builds this
+     pair. Executing the switch or constructing a recursive closure does not. *)
+  let k = compile_lam env cenv typ (sz+1) (Kmakeblock (2,1) :: cont) in
+  compile_relevance env cenv r sz (Kpush :: k)
 
 and compile_get_global env cenv (kn,u) sz cont =
   let () = set_max_stack_size cenv sz in

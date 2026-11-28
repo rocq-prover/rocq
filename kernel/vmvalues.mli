@@ -160,6 +160,13 @@ val arg : arguments -> int -> values
 
 val dom : vprod -> values
 val codom : vprod -> vfun
+val prod_relevance : vprod -> Sorts.relevance
+
+(** Result of the auxiliary bytecode for switch predicates and recursive types. *)
+type annotated_type
+val annotated_type_of_value : values -> annotated_type
+val type_value : annotated_type -> values
+val type_relevance : annotated_type -> Sorts.relevance
 
 (** Fun *)
 external closure_arity : vfun -> int = "rocq_closure_arity"

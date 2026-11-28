@@ -620,6 +620,22 @@ let check_case_info env (indsp,u) ci =
     is_primitive_record spec
   then raise (TypeError(env,WrongCaseInfo((indsp,u),ci)))
 
+let should_invert_case env ~return_is_relevant ind =
+  return_is_relevant &&
+  let mib, mip = lookup_mind_specif env ind in
+  (* mind_relevance cannot be a pseudo sort poly variable so don't use check_relevance *)
+  Sorts.relevance_equal mip.mind_relevance Sorts.Irrelevant &&
+  (* NB: it's possible to have 2 ctors or arguments to 1 ctor by unsetting univ checks
+     but we don't do special reduction in such cases
+
+     XXX Someday consider more carefully what happens with letin params and arguments
+     (currently they're squashed, see indtyping)
+ *)
+  match Array.length mip.mind_nf_lc with
+  | 0 -> true
+  | 1 -> List.length (fst mip.mind_nf_lc.(0)) = List.length mib.mind_params_ctxt
+  | _ -> false
+
 
 (************************************************************************)
 (************************************************************************)

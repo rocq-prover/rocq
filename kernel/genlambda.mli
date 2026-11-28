@@ -15,7 +15,7 @@ open Constr
 
 type reloc_table = (int * int) array
 
-type case_annot = case_info * reloc_table * Declarations.recursivity_kind
+type case_annot = case_info * reloc_table * Declarations.recursivity_kind * Sorts.relevance
 
 type 'v lambda
 
@@ -23,7 +23,7 @@ type 'v node =
 | Lrel          of Name.t * int
 | Lvar          of Id.t
 | Levar         of Evar.t * 'v lambda array (* arguments *)
-| Lprod         of 'v lambda * 'v lambda
+| Lprod         of Sorts.relevance * 'v lambda * 'v lambda
 | Llam          of Name.t binder_annot array * 'v lambda
 | Llet          of Name.t binder_annot * 'v lambda * 'v lambda
 | Lapp          of 'v lambda * 'v lambda array
