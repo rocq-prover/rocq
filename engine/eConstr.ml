@@ -756,7 +756,6 @@ let fold_with_binders sigma g f e acc c =
   | _ -> Constr.fold_constr_with_binders g f e acc c
 
 let compare_gen k eq_inst eq_sort eq_evars eq_constr nargs c1 c2 =
-  let k c = Constr.kind_nocast_gen k c in
   (c1 == c2) || Constr.compare_head_gen_leq_with k k eq_inst eq_sort eq_evars eq_constr eq_constr nargs c1 c2
 
 let eq_existential sigma eq (evk1, args1) (evk2, args2) =
@@ -867,7 +866,6 @@ let test_constr_universes env sigma leq ?(nargs=0) m n =
     in
     let eq_existential eq e1 e2 = eq_existential sigma (eq 0) e1 e2 in
     let rec eq_constr' nargs m n = compare_gen kind eq_universes eq_sorts (eq_existential eq_constr') eq_constr' nargs m n in
-    let kind c = Constr.kind_nocast_gen kind c in
     let res =
       if leq then
         let rec compare_leq nargs m n =
@@ -897,9 +895,7 @@ let compare_head_gen_proj env sigma equ eqs eqev eqc' nargs m n =
             eqc' 0 c args.(npars)
           else false
       | _ -> false)
-  | _ ->
-    let kind c = Constr.kind_nocast_gen kind c in
-    Constr.compare_head_gen_leq_with kind kind equ eqs eqev eqc' eqc' nargs m n
+  | _ -> Constr.compare_head_gen_leq_with kind kind equ eqs eqev eqc' eqc' nargs m n
 
 let eq_constr_universes_proj env sigma m n =
   let open UnivProblem in
