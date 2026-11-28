@@ -521,23 +521,47 @@ module Search = struct
   (** Local hints *)
   let autogoal_cache = Summary.ref ~name:"autogoal_cache"
       (Libnames.dummy_full_path, true, Context.Named.empty, Hints.Modes.empty,
-       Hint_db.empty TransparentState.full true, QGraph.initial_graph)
+       Hint_db.empty TransparentState.full true, QGraph.initial_graph, Evar.Map.empty)
+
+  let defined_evars sigma sign =
+    let rec aux acc c = match Constr.kind c with
+    | Evar (evk, _) ->
+      let acc = Constr.fold aux acc c in
+      if Evar.Map.mem evk acc then acc
+      else begin match Evd.find_defined sigma evk with
+      | None -> acc
+      | Some evi ->
+        let Evd.Evar_defined body = Evd.evar_body evi in
+        aux (Evar.Map.add evk body acc) (EConstr.Unsafe.to_constr body)
+      end
+    | _ -> Constr.fold aux acc c
+    in
+    let fold decl acc = NamedDecl.fold_constr (fun c acc -> aux acc (EConstr.Unsafe.to_constr c)) decl acc in
+    List.fold_right fold sign Evar.Map.empty
+
+  let same_defined_evars sigma deps =
+    let check evk body = match Evd.find_defined sigma evk with
+    | None -> false
+    | Some evi -> let Evd.Evar_defined body' = Evd.evar_body evi in body' == body
+    in
+    Evar.Map.for_all check deps
 
   let make_autogoal_hints env sigma only_classes (modes,st as mst) =
     let open Summary.Ref in
     let sign = EConstr.named_context env in
     let qvars = Evd.elim_graph sigma in
-    let (dir, onlyc, sign', cached_modes, cached_hints, qvars') = !autogoal_cache in
+    let (dir, onlyc, sign', cached_modes, cached_hints, qvars', deps) = !autogoal_cache in
     let cwd = Lib.cwd () in
     let eq c1 c2 = EConstr.eq_constr sigma c1 c2 in
     if Libnames.eq_full_path cwd dir &&
          (onlyc == only_classes) && qvars == qvars' &&
              Context.Named.equal (ERelevance.equal sigma) eq sign sign' &&
-               cached_modes == modes
+               cached_modes == modes &&
+                 same_defined_evars sigma deps
     then cached_hints
     else
       let hints = make_hints env sigma mst only_classes in
-      autogoal_cache := (cwd, only_classes, sign, modes, hints, qvars); hints
+      autogoal_cache := (cwd, only_classes, sign, modes, hints, qvars, defined_evars sigma sign); hints
 
   let make_autogoal env sigma mst only_classes dep cut best_effort i =
     let hints = make_autogoal_hints env sigma only_classes mst in
